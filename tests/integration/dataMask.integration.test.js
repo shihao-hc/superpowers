@@ -85,6 +85,38 @@ describe('Data Masking Integration', () => {
       expect(masked.level).toBe('info');
       expect(masked.message).toBe('User login');
     });
+
+    it('should unmask field correctly with valid authKey', () => {
+      const dataMaskUtil = require('../../server/utils/dataMask');
+      const authKey = 'test-auth-key-123';
+      const originalValue = '13812345678';
+      const reversible = dataMaskUtil.reversibleMask(originalValue, 'phone', authKey);
+      
+      const unmasked = dataMaskService.unmaskField(reversible, 'phone', authKey);
+      
+      expect(unmasked).toBe(originalValue);
+    });
+
+    it('should return original value when unmaskField has missing parameters', () => {
+      const result1 = dataMaskService.unmaskField(null, 'phone', 'authKey');
+      expect(result1).toBeNull();
+      
+      const result2 = dataMaskService.unmaskField('value', null, 'authKey');
+      expect(result2).toBe('value');
+      
+      const result3 = dataMaskService.unmaskField('value', 'phone', null);
+      expect(result3).toBe('value');
+    });
+
+    it('should return original value for invalid fieldType', () => {
+      const result = dataMaskService.unmaskField('test-value', 'invalidType', 'authKey');
+      expect(result).toBe('test-value');
+    });
+
+    it('should return original value when unmasked value does not start with rm:', () => {
+      const result = dataMaskService.unmaskField('normal-value', 'phone', 'authKey');
+      expect(result).toBe('normal-value');
+    });
   });
 
   describe('Data masking with config enabled', () => {
@@ -128,6 +160,51 @@ describe('Data Masking Integration', () => {
       expect(masked.name).toBe('John Doe');
       expect(masked.age).toBe(30);
       expect(masked.email).toBe('j***@test.com');
+    });
+  });
+
+  describe('Data masking with config disabled', () => {
+    beforeAll(() => {
+      process.env.MASK_ENABLED = 'false';
+      applyMaskConfig();
+    });
+
+    afterAll(() => {
+      process.env.MASK_ENABLED = 'true';
+      applyMaskConfig();
+    });
+
+    it('should not mask sensitive fields when disabled', () => {
+      const user = {
+        id: 1,
+        email: 'sensitive@company.com',
+        phone: '13900001111',
+        idCard: '110101199001011234',
+        bankCard: '6217002345678901',
+        ip: '192.168.1.50',
+        deviceFingerprint: 'device123456789'
+      };
+      
+      const masked = dataMaskService.maskUserData(user);
+      
+      expect(masked.email).toBe('sensitive@company.com');
+      expect(masked.phone).toBe('13900001111');
+      expect(masked.idCard).toBe('110101199001011234');
+      expect(masked.bankCard).toBe('6217002345678901');
+      expect(masked.ip).toBe('192.168.1.50');
+      expect(masked.deviceFingerprint).toBe('device123456789');
+    });
+
+    it('should return user object unchanged', () => {
+      const user = {
+        username: 'john_doe',
+        email: 'test@test.com'
+      };
+      
+      const masked = dataMaskService.maskUserData(user);
+      
+      expect(masked).toEqual(user);
+      expect(masked).toBe(user);
     });
   });
 
