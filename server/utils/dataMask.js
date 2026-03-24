@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const config = require('../../config/mask');
+
+const SALT = process.env.MASK_SALT || crypto.createHash('sha256').update('default-salt').digest('hex').slice(0, 16);
 
 function maskEmail(email) {
   if (!email || typeof email !== 'string') return email;
@@ -62,7 +63,7 @@ function maskObject(obj, fields) {
 
 function reversibleMask(value, fieldType, authKey) {
   if (!value || !authKey) return value;
-  const key = crypto.scryptSync(authKey, 'salt', 32);
+  const key = crypto.scryptSync(authKey, SALT, 32);
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   let encrypted = cipher.update(JSON.stringify({ value, fieldType }), 'utf8', 'hex');
@@ -79,7 +80,7 @@ function reversibleUnmask(maskedValue, fieldType, authKey) {
     const iv = Buffer.from(parts[1], 'hex');
     const authTag = Buffer.from(parts[2], 'hex');
     const encrypted = parts[3];
-    const key = crypto.scryptSync(authKey, 'salt', 32);
+    const key = crypto.scryptSync(authKey, SALT, 32);
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
