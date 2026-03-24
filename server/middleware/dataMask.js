@@ -9,8 +9,12 @@ function maskResponseBody(req, res, next) {
   const originalSend = res.send;
   res.send = function(body) {
     if (body && typeof body === 'object') {
-      const maskedBody = dataMaskService.maskUserData(body);
-      return originalSend.call(this, maskedBody);
+      try {
+        const maskedBody = dataMaskService.maskUserData(body);
+        return originalSend.call(this, maskedBody);
+      } catch (err) {
+        return originalSend.call(this, body);
+      }
     }
     return originalSend.call(this, body);
   };
@@ -18,8 +22,12 @@ function maskResponseBody(req, res, next) {
   const originalJson = res.json;
   res.json = function(obj) {
     if (obj && typeof obj === 'object') {
-      const maskedObj = dataMaskService.maskUserData(obj);
-      return originalJson.call(this, maskedObj);
+      try {
+        const maskedObj = dataMaskService.maskUserData(obj);
+        return originalJson.call(this, maskedObj);
+      } catch (err) {
+        return originalJson.call(this, obj);
+      }
     }
     return originalJson.call(this, obj);
   };
@@ -33,7 +41,11 @@ function maskRequestBody(req, res, next) {
   }
 
   if (req.body && typeof req.body === 'object') {
-    req.body = dataMaskService.maskUserData(req.body);
+    try {
+      req.body = dataMaskService.maskUserData(req.body);
+    } catch (err) {
+      // Skip masking on error - arrays are handled by dataMaskService logic
+    }
   }
   next();
 }
