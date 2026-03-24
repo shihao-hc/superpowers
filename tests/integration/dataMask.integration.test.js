@@ -8,6 +8,11 @@ process.env.MASK_ENABLED = 'true';
 
 const dataMaskService = require('../../server/services/dataMaskService');
 
+function applyMaskConfig() {
+  const config = require('../../config/mask');
+  config.enabled = process.env.MASK_ENABLED === 'true';
+}
+
 describe('Data Masking Integration', () => {
   describe('DataMaskService', () => {
 
@@ -123,6 +128,188 @@ describe('Data Masking Integration', () => {
       expect(masked.name).toBe('John Doe');
       expect(masked.age).toBe(30);
       expect(masked.email).toBe('j***@test.com');
+    });
+  });
+
+  describe('Middleware Integration', () => {
+    const { maskResponseBody, maskRequestBody } = require('../../server/middleware/dataMask');
+    
+    describe('maskResponseBody middleware', () => {
+      it('should mask response body in res.json', () => {
+        applyMaskConfig();
+        
+        const req = {};
+        let capturedBody = null;
+        const res = {
+          json: function(obj) {
+            capturedBody = obj;
+            return obj;
+          }
+        };
+        const next = jest.fn();
+        
+        const user = {
+          id: 1,
+          email: 'login@company.com',
+          phone: '13812345678'
+        };
+        
+        maskResponseBody(req, res, next);
+        res.json(user);
+        
+        expect(next).toHaveBeenCalled();
+        expect(capturedBody.email).toBe('l***@company.com');
+        expect(capturedBody.phone).toBe('138****5678');
+        expect(capturedBody.id).toBe(1);
+      });
+
+      it('should mask response body in res.send', () => {
+        applyMaskConfig();
+        
+        const req = {};
+        let capturedBody = null;
+        const res = {
+          send: function(body) {
+            capturedBody = body;
+            return body;
+          }
+        };
+        const next = jest.fn();
+        
+        const data = {
+          id: 2,
+          email: 'admin@test.com',
+          idCard: '110101199001011234'
+        };
+        
+        maskResponseBody(req, res, next);
+        res.send(data);
+        
+        expect(next).toHaveBeenCalled();
+        expect(capturedBody.email).toBe('a***@test.com');
+        expect(capturedBody.idCard).toBe('110101********1234');
+      });
+
+      it('should pass through non-object responses unchanged', () => {
+        applyMaskConfig();
+        
+        const req = {};
+        let capturedBody = null;
+        const res = {
+          json: function(obj) {
+            capturedBody = obj;
+            return obj;
+          }
+        };
+        const next = jest.fn();
+        
+        maskResponseBody(req, res, next);
+        res.json('not an object');
+        
+        expect(capturedBody).toBe('not an object');
+      });
+    });
+
+    describe('maskRequestBody middleware', () => {
+      it('should mask request body', () => {
+        applyMaskConfig();
+        
+        const req = {
+          body: {
+            username: 'john_doe',
+            email: 'login@company.com',
+            phone: '13812345678'
+          }
+        };
+        const res = {};
+        const next = jest.fn();
+        
+        maskRequestBody(req, res, next);
+        
+        expect(next).toHaveBeenCalled();
+        expect(req.body.email).toBe('l***@company.com');
+        expect(req.body.phone).toBe('138****5678');
+        expect(req.body.username).toBe('john_doe');
+      });
+
+      it('should handle empty request body', () => {
+        applyMaskConfig();
+        
+        const req = {};
+        const res = {};
+        const next = jest.fn();
+        
+        maskRequestBody(req, res, next);
+        
+        expect(next).toHaveBeenCalled();
+      });
+
+      it('should handle non-object request body', () => {
+        applyMaskConfig();
+        
+        const req = { body: 'string body' };
+        const res = {};
+        const next = jest.fn();
+        
+        maskRequestBody(req, res, next);
+        
+        expect(next).toHaveBeenCalled();
+        expect(req.body).toBe('string body');
+      });
+    });
+
+    describe('Login endpoint simulation', () => {
+      it('should mask login request body', () => {
+        applyMaskConfig();
+        
+        const loginRequest = {
+          body: {
+            email: 'user@company.com',
+            password: 'secret123',
+            deviceFingerprint: 'abc123def456'
+          }
+        };
+        
+        maskRequestBody(loginRequest, {}, () => {});
+        
+        expect(loginRequest.body.email).toBe('u***@company.com');
+        expect(loginRequest.body.password).toBe('secret123');
+        expect(loginRequest.body.deviceFingerprint).toBe('abc******123d');
+      });
+
+      it('should mask login response body', () => {
+        applyMaskConfig();
+        
+        let responseBody = null;
+        const res = {
+          json: function(obj) {
+            responseBody = obj;
+            return obj;
+          }
+        };
+        
+        const req = {};
+        const next = jest.fn();
+        maskResponseBody(req, res, next);
+        
+        const responseData = {
+          success: true,
+          message: 'Login successful',
+          email: 'user@company.com',
+          phone: '13900001111',
+          ip: '192.168.1.100'
+        };
+        
+        res.json(responseData);
+        
+        expect(next).toHaveBeenCalled();
+        expect(responseBody).not.toBeNull();
+        expect(responseBody.email).toBe('u***@company.com');
+        expect(responseBody.phone).toBe('139****1111');
+        expect(responseBody.ip).toBe('192.168.**.**');
+        expect(responseBody.success).toBe(true);
+        expect(responseBody.message).toBe('Login successful');
+      });
     });
   });
 });
