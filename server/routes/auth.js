@@ -73,11 +73,16 @@ router.post('/register', authLimiter, async (req, res) => {
     refreshTokens.set(user.id, refreshToken);
 
     // 注册成功后返回掩码后的用户数据
-    const maskedUser = dataMaskService.maskUserData({
-      id: user.id,
-      username: user.username,
-      email: user.email
-    });
+    let maskedUser;
+    try {
+      maskedUser = dataMaskService.maskUserData({
+        id: user.id,
+        username: user.username,
+        email: user.email
+      });
+    } catch (e) {
+      maskedUser = { id: user.id, username: user.username, email: user.email };
+    }
 
     res.status(201).json({
       success: true,
@@ -147,11 +152,16 @@ router.post('/login', authLimiter, async (req, res) => {
     refreshTokens.set(user.id, refreshToken);
 
     // 登录成功后返回掩码后的用户数据
-    const maskedUser = dataMaskService.maskUserData({
-      id: user.id,
-      username: user.username,
-      email: user.email
-    });
+    let maskedUser;
+    try {
+      maskedUser = dataMaskService.maskUserData({
+        id: user.id,
+        username: user.username,
+        email: user.email
+      });
+    } catch (e) {
+      maskedUser = { id: user.id, username: user.username, email: user.email };
+    }
 
     res.json({
       success: true,
@@ -301,13 +311,18 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     // 返回掩码后的用户信息
-    const maskedUser = dataMaskService.maskUserData({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    });
+    let maskedUser;
+    try {
+      maskedUser = dataMaskService.maskUserData({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      });
+    } catch (e) {
+      maskedUser = { id: user.id, username: user.username, email: user.email, createdAt: user.createdAt, updatedAt: user.updatedAt };
+    }
 
     res.json({
       success: true,
