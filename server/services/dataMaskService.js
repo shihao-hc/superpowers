@@ -13,7 +13,7 @@ class DataMaskService {
     for (const field of fields) {
       if (field in maskedUser && maskedUser[field]) {
         const maskMethod = this.getMaskMethod(field);
-        if (maskMethod) {
+        if (maskMethod && typeof dataMask[maskMethod] === 'function') {
           maskedUser[field] = dataMask[maskMethod](maskedUser[field]);
         }
       }
@@ -35,6 +35,8 @@ class DataMaskService {
 
   unmaskField(value, fieldType, authKey) {
     if (!value || !fieldType || !authKey) return value;
+    const validFieldTypes = ['email', 'phone', 'idCard', 'bankCard', 'ip', 'deviceFingerprint'];
+    if (!validFieldTypes.includes(fieldType)) return value;
     return dataMask.reversibleUnmask(value, fieldType, authKey);
   }
 
@@ -55,7 +57,7 @@ class DataMaskService {
     for (const field of sensitiveFields) {
       if (field in maskedLog && maskedLog[field]) {
         const maskMethod = this.getMaskMethod(field);
-        if (maskMethod) {
+        if (maskMethod && typeof dataMask[maskMethod] === 'function') {
           maskedLog[field] = dataMask[maskMethod](maskedLog[field]);
         }
       }
