@@ -159,7 +159,7 @@
               </el-tag>
             </div>
             <div v-if="latestResult" class="analysis-result">
-              <h4>📊 分析结果</h4>
+              <h4>Analysis Result</h4>
               <pre>{{ latestResult }}</pre>
             </div>
           </div>
@@ -495,18 +495,25 @@ async function sendNotify() {
 }
 
 .analysis-result h4 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #1e40af;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #60a5fa;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
 .analysis-result pre {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
+  font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  line-height: 1.6;
 }
 
 .agent-team-section {

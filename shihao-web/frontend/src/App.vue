@@ -1,0 +1,708 @@
+<template>
+  <el-container class="app-container">
+    <!-- Header -->
+    <el-header class="app-header">
+      <div class="header-content">
+        <div class="logo" @click="goHome">
+          <div class="logo-icon">拾</div>
+          <span class="logo-text">拾号金融</span>
+        </div>
+        
+        <!-- 系统切换导航 -->
+        <div class="system-tabs">
+          <div 
+            class="system-tab" 
+            :class="{ active: currentSystem === 'stock' }"
+            @click="switchSystem('stock')"
+          >
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">选股系统</span>
+          </div>
+          <div 
+            class="system-tab" 
+            :class="{ active: currentSystem === 'trade' }"
+            @click="switchSystem('trade')"
+          >
+            <span class="tab-icon">💹</span>
+            <span class="tab-label">交易系统</span>
+          </div>
+          <div 
+            class="system-tab" 
+            :class="{ active: currentSystem === 'monitor' }"
+            @click="switchSystem('monitor')"
+          >
+            <span class="tab-icon">📡</span>
+            <span class="tab-label">监控中心</span>
+          </div>
+        </div>
+        
+        <div class="header-actions">
+          <!-- AI助手按钮 -->
+          <el-button type="primary" :icon="ChatDotRound" @click="openAIChat">
+            AI助手
+          </el-button>
+          <el-badge :value="riskAlertsCount" :hidden="riskAlertsCount === 0" type="danger">
+            <el-button :icon="Bell" circle @click="showRiskAlerts" />
+          </el-badge>
+          <el-button :icon="Refresh" circle @click="refreshData" :loading="loading" />
+        </div>
+      </div>
+    </el-header>
+    
+    <!-- 主体区域：侧边栏 + 主内容 -->
+    <div class="app-body">
+      <!-- 侧边栏 -->
+      <aside class="app-sidebar" v-if="showSidebar">
+        <el-menu
+          :default-active="activeMenu"
+          router
+          class="sidebar-menu"
+        >
+          <template v-for="item in sidebarMenus" :key="item.path">
+            <el-menu-item :index="item.path">
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </el-menu-item>
+          </template>
+        </el-menu>
+      </aside>
+      
+      <!-- Main Content -->
+      <el-main class="app-main">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </el-main>
+    </div>
+    
+    <!-- Risk Alerts Drawer -->
+    <el-drawer
+      v-model="showAlerts"
+      title="风险告警"
+      direction="rtl"
+      size="400px"
+    >
+      <div v-if="riskAlerts.length === 0" class="no-alerts">
+        <el-icon :size="48"><CircleCheck /></el-icon>
+        <p>暂无风险告警</p>
+      </div>
+      <el-timeline v-else>
+        <el-timeline-item
+          v-for="(alert, index) in riskAlerts"
+          :key="index"
+          :type="getAlertType(alert.level)"
+          :timestamp="formatTime(alert.timestamp)"
+          placement="top"
+        >
+          <el-card shadow="never">
+            <h4>{{ alert.message }}</h4>
+            <p class="alert-level">级别: {{ alert.level }}</p>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+    </el-drawer>
+    
+    <!-- System Status Footer -->
+    <el-footer class="app-footer">
+      <div class="footer-content">
+        <div class="status-item">
+          <span class="status-dot" :class="systemStatus.data"></span>
+          <span>数据源</span>
+        </div>
+        <div class="status-item">
+          <span class="status-dot" :class="systemStatus.model"></span>
+          <span>模型</span>
+        </div>
+        <div class="status-item">
+          <span class="status-dot" :class="systemStatus.trading"></span>
+          <span>交易</span>
+        </div>
+        <div class="version">v2.0.0</div>
+      </div>
+    </el-footer>
+  </el-container>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { usePortfolioStore } from './stores/portfolio'
+import { healthAPI } from './api'
+import {
+  DataBoard,
+  TrendCharts,
+  DataAnalysis,
+  Wallet,
+  Timer,
+  Setting,
+  Bell,
+  Refresh,
+  CircleCheck,
+  MagicStick,
+  ChatDotRound,
+  List,
+  Odometer,
+  Warning,
+  Connection
+} from '@element-plus/icons-vue'
+
+const route = useRoute()
+const router = useRouter()
+const portfolioStore = usePortfolioStore()
+
+const loading = ref(false)
+const showAlerts = ref(false)
+const currentSystem = ref('stock')
+const systemStatus = ref({
+  data: 'ok',
+  model: 'ok',
+  trading: 'ok'
+})
+
+const sidebarMenus = computed(() => {
+  const menus = {
+    stock: [
+      { path: '/stock/pool', label: '选股池', icon: 'List' },
+      { path: '/stock/analysis', label: 'AI分析', icon: 'DataAnalysis' },
+      { path: '/stock/backtest', label: '回测中心', icon: 'Timer' },
+      { path: '/stock/chat', label: 'AI助手', icon: 'ChatDotRound' },
+    ],
+    trade: [
+      { path: '/trade/portfolio', label: '持仓视图', icon: 'Wallet' },
+      { path: '/trade/orders', label: '订单管理', icon: 'List' },
+      { path: '/trade/chat', label: '交易助手', icon: 'ChatDotRound' },
+    ],
+    monitor: [
+      { path: '/monitor/dashboard', label: '监控仪表盘', icon: 'Odometer' },
+      { path: '/monitor/alerts', label: '告警列表', icon: 'Warning' },
+      { path: '/monitor/health', label: '系统健康', icon: 'Connection' },
+    ]
+  }
+  return menus[currentSystem.value] || []
+})
+
+const showSidebar = computed(() => {
+  return ['stock', 'trade', 'monitor'].includes(currentSystem.value)
+})
+
+const activeMenu = computed(() => route.path)
+const riskAlertsCount = computed(() => portfolioStore.riskAlerts.length)
+
+function switchSystem(system) {
+  currentSystem.value = system
+  const defaultRoutes = {
+    stock: '/stock/pool',
+    trade: '/trade/portfolio',
+    monitor: '/monitor/dashboard'
+  }
+  router.push(defaultRoutes[system])
+}
+
+function openAIChat() {
+  const chatRoutes = {
+    stock: '/stock/chat',
+    trade: '/trade/chat',
+    monitor: '/stock/chat'
+  }
+  router.push(chatRoutes[currentSystem.value])
+}
+
+watch(() => route.path, (path) => {
+  if (path.startsWith('/stock')) currentSystem.value = 'stock'
+  else if (path.startsWith('/trade')) currentSystem.value = 'trade'
+  else if (path.startsWith('/monitor')) currentSystem.value = 'monitor'
+}, { immediate: true })
+
+async function checkSystemHealth() {
+  try {
+    const health = await healthAPI.detailed()
+    systemStatus.value = {
+      data: health.components?.data_manager?.status === 'healthy' ? 'ok' : 'warning',
+      model: 'ok',
+      trading: health.components?.trading_engine?.status === 'ok' ? 'ok' : 'warning'
+    }
+  } catch (error) {
+    systemStatus.value = {
+      data: 'error',
+      model: 'error',
+      trading: 'error'
+    }
+  }
+}
+
+async function refreshData() {
+  loading.value = true
+  try {
+    await Promise.all([
+      portfolioStore.fetchPortfolio(),
+      portfolioStore.fetchRiskAlerts(),
+      checkSystemHealth()
+    ])
+  } finally {
+    loading.value = false
+  }
+}
+
+function showRiskAlerts() {
+  showAlerts.value = true
+}
+
+function goHome() {
+  router.push('/dashboard')
+}
+
+function getAlertType(level) {
+  const types = {
+    info: 'info',
+    warning: 'warning',
+    critical: 'danger',
+    emergency: 'danger'
+  }
+  return types[level] || 'info'
+}
+
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleString('zh-CN')
+}
+
+onMounted(() => {
+  refreshData()
+  // Check health every 60 seconds
+  setInterval(checkSystemHealth, 60000)
+})
+</script>
+
+<style>
+:root {
+  --primary-color: #0ea5e9;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --header-height: 64px;
+  --footer-height: 40px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.app-header {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  height: var(--header-height);
+  padding: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 24px;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 20px;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+
+.system-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.system-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.system-tab:hover {
+  background: rgba(14, 165, 233, 0.1);
+  color: #0ea5e9;
+}
+
+.system-tab.active {
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  color: white;
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.tab-label {
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.header-actions .el-button {
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+  transition: all 0.3s ease;
+}
+
+.header-actions .el-button:hover {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: #0ea5e9;
+}
+
+.app-main {
+  margin-top: var(--header-height);
+  margin-bottom: var(--footer-height);
+  padding: 24px;
+  min-height: calc(100vh - var(--header-height) - var(--footer-height));
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-body {
+  display: flex;
+  margin-top: var(--header-height);
+}
+
+.app-sidebar {
+  width: 200px;
+  background: rgba(30, 41, 59, 0.8);
+  border-right: 1px solid rgba(148, 163, 184, 0.1);
+  padding-top: 16px;
+  position: fixed;
+  top: var(--header-height);
+  bottom: var(--footer-height);
+  left: 0;
+  overflow-y: auto;
+}
+
+.sidebar-menu {
+  border: none;
+  background: transparent;
+}
+
+.sidebar-menu .el-menu-item {
+  color: #94a3b8;
+  margin: 4px 8px;
+  border-radius: 8px;
+}
+
+.sidebar-menu .el-menu-item:hover {
+  background: rgba(14, 165, 233, 0.1);
+  color: #0ea5e9;
+}
+
+.sidebar-menu .el-menu-item.is-active {
+  background: rgba(14, 165, 233, 0.2);
+  color: #0ea5e9;
+}
+
+.app-main:has(+ .app-sidebar) {
+  margin-left: 200px;
+}
+
+.app-footer {
+  height: var(--footer-height);
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  height: 100%;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.status-dot.ok {
+  background: #10b981;
+  color: #10b981;
+}
+
+.status-dot.warning {
+  background: #f59e0b;
+  color: #f59e0b;
+}
+
+.status-dot.error {
+  background: #ef4444;
+  color: #ef4444;
+}
+
+.version {
+  margin-left: 24px;
+  padding-left: 24px;
+  border-left: 1px solid rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.no-alerts {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+}
+
+.no-alerts p {
+  margin-top: 16px;
+}
+
+.alert-level {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* Dark Element Plus overrides */
+:deep(.el-card) {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  color: #e2e8f0;
+}
+
+:deep(.el-card__header) {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 16px 20px;
+}
+
+:deep(.el-card__body) {
+  padding: 20px;
+}
+
+:deep(.el-table) {
+  background: transparent;
+  color: #e2e8f0;
+  border: none;
+}
+
+:deep(.el-table tr) {
+  background: transparent;
+}
+
+:deep(.el-table th.el-table__cell) {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+:deep(.el-table td.el-table__cell) {
+  border: none;
+  color: #e2e8f0;
+}
+
+:deep(.el-table__row:hover > td.el-table__cell) {
+  background: rgba(14, 165, 233, 0.1) !important;
+}
+
+:deep(.el-input__wrapper) {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+:deep(.el-input__inner) {
+  color: #e2e8f0;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #64748b;
+}
+
+:deep(.el-select__wrapper) {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-button--primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+}
+
+:deep(.el-drawer) {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+:deep(.el-drawer__header) {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  margin-bottom: 0;
+}
+
+:deep(.el-drawer__title) {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+:deep(.el-drawer__body) {
+  color: #e2e8f0;
+}
+
+:deep(.el-dialog) {
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 16px;
+}
+
+:deep(.el-dialog__header) {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  padding: 20px 24px;
+}
+
+:deep(.el-dialog__title) {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+:deep(.el-dialog__body) {
+  padding: 24px;
+}
+
+:deep(.el-pagination) {
+  --el-pagination-bg-color: rgba(30, 41, 59, 0.8);
+  --el-pagination-text-color: #94a3b8;
+  --el-pagination-button-bg-color: rgba(30, 41, 59, 0.8);
+  --el-pagination-hover-color: #0ea5e9;
+}
+
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header-content {
+    padding: 0 16px;
+  }
+  
+  .nav-menu {
+    display: none;
+  }
+  
+  .logo-text {
+    display: none;
+  }
+  
+  .app-main {
+    padding: 16px;
+  }
+}
+</style>
