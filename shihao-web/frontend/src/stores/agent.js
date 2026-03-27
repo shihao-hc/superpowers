@@ -118,6 +118,17 @@ export const useAgentStore = defineStore('agent', () => {
       analysisLoading.value = false
     }
   }
+
+  // Actions - 网络搜索
+  async function webSearch(query, maxResults = 5) {
+    try {
+      const data = await agentAPI.websearch(query, maxResults)
+      return data
+    } catch (error) {
+      console.error('Failed to perform web search:', error)
+      throw error
+    }
+  }
   
   // Actions - 发送通知
   async function sendNotification(title, content, priority = 'normal') {
@@ -248,6 +259,7 @@ export const useAgentStore = defineStore('agent', () => {
     updateCoreMemory,
     searchMemory,
     triggerAnalysis,
+    webSearch,
     sendNotification,
     connectWebSocket,
     disconnectWebSocket,

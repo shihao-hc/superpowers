@@ -688,3 +688,62 @@ def index_data_tool(symbol: str = "000300") -> dict:
         return {"status": "error", "message": "No data"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@tool("网络搜索")
+def tavily_search_tool(query: str, max_results: int = 5) -> dict:
+    """联网搜索最新财经新闻、政策、行业动态等
+    
+    来源: Tavily AI搜索API
+    
+    参数:
+    - query: 搜索关键词
+    - max_results: 返回结果数量，默认5
+    
+    返回标题、链接、内容摘要
+    """
+    try:
+        import os
+        import requests
+        
+        api_key = os.getenv("TAVILY_API_KEY")
+        if not api_key:
+            # 如果没有配置API key，返回提示信息
+            return {
+                "status": "warning",
+                "message": "Tavily API key not configured. Please set TAVILY_API_KEY environment variable.",
+                "results": []
+            }
+        
+        url = "https://api.tavily.com/search"
+        payload = {
+            "api_key": api_key,
+            "query": query,
+            "search_depth": "advanced",
+            "include_answer": True,
+            "include_raw_content": False,
+            "max_results": max_results
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        results = []
+        for result in data.get("results", []):
+            results.append({
+                "title": result.get("title", ""),
+                "url": result.get("url", ""),
+                "content": result.get("content", "")[:200] + "..." if len(result.get("content", "")) > 200 else result.get("content", ""),
+                "score": result.get("score", 0)
+            })
+        
+        return {
+            "status": "success",
+            "query": query,
+            "answer": data.get("answer", ""),
+            "results": results,
+            "result_count": len(results)
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
