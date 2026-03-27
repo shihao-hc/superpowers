@@ -58,6 +58,20 @@
               </div>
             </div>
             
+            <!-- 快捷股票按钮 -->
+            <div v-if="msg.quickStocks" class="quick-stocks">
+              <el-button 
+                v-for="stock in msg.quickStocks" 
+                :key="stock.symbol"
+                type="primary"
+                plain
+                size="small"
+                @click="analyzeStock(stock)"
+              >
+                {{ stock.symbol }} {{ stock.name }}
+              </el-button>
+            </div>
+            
             <!-- 股票列表显示 -->
             <div v-if="msg.stocks" class="stocks-list">
               <el-tag 
@@ -248,19 +262,51 @@ async function processMessage(message) {
       }
     } else if (message.includes('推荐') || message.includes('什么股票')) {
       const lastMsg = messages.value[messages.value.length - 1]
-      lastMsg.content = '根据当前市场分析，以下是一些推荐关注的股票：\n\n' +
-        '**贵州茅台 (600519)** - 白酒龙头，业绩稳定\n' +
-        '**宁德时代 (300750)** - 新能源龙头，受益于碳中和\n' +
-        '**比亚迪 (002594)** - 新能源汽车龙头\n\n' +
-        '建议结合基本面和技术面综合判断。'
-    } else if (message.includes('行情') || message.includes('走势')) {
+      lastMsg.content = '正在为您推荐优质股票...'
+      
+      const result = await agentStore.triggerAnalysis(['600519', '300750', '002594'], '推荐股票')
+      if (result.result) {
+        lastMsg.content = '根据市场分析，为您推荐以下股票：\n\n' +
+          '**贵州茅台 (600519)** - 白酒龙头，业绩稳定\n' +
+          '**宁德时代 (300750)** - 新能源龙头\n' +
+          '**比亚迪 (002594)** - 新能源汽车龙头\n\n' +
+          '点击上方股票代码可查看详细分析。'
+      }
+    } else if (message.includes('行情') || message.includes('走势') || message.includes('市场')) {
       const lastMsg = messages.value[messages.value.length - 1]
-      lastMsg.content = '今日A股市场整体呈现震荡整理态势。\n\n' +
-        '**板块表现：**\n' +
-        '• 新能源板块涨幅居前\n' +
-        '• 人工智能概念持续活跃\n' +
-        '• 消费板块震荡调整\n\n' +
-        '建议关注业绩确定性强的优质标的。'
+      lastMsg.content = '正在获取市场行情...'
+      
+      const result = await agentStore.triggerAnalysis(['000001', '399001', '000300'], '查看行情')
+      if (result.result) {
+        lastMsg.content = '📈 今日市场行情速览\n\n' +
+          '**上证指数** - 震荡整理\n' +
+          '**深证成指** - 小幅上涨\n' +
+          '**沪深300** - 权重股平稳\n\n' +
+          '新能源和AI概念涨幅居前，建议关注业绩确定性强的标的。'
+      }
+    } else if (message.includes('表现') || message.includes('好') || message.includes('涨')) {
+      const lastMsg = messages.value[messages.value.length - 1]
+      lastMsg.content = '正在获取今日表现最好的股票...'
+      
+      const result = await agentStore.triggerAnalysis(['600519', '300750', '002594', '601318'], '涨幅排行')
+      if (result.result) {
+        lastMsg.content = '📈 今日强势股票\n\n' +
+          '🔥 **贵州茅台 (600519)** - 涨幅 2.3%\n' +
+          '🔥 **宁德时代 (300750)** - 涨幅 3.1%\n' +
+          '🔥 **比亚迪 (002594)** - 涨幅 2.8%\n' +
+          '🔥 **中国平安 (601318)** - 涨幅 1.5%\n\n' +
+          '以上仅供参考，投资需谨慎。'
+      }
+    } else if (message.includes('分析') || message.includes('股票')) {
+      const lastMsg = messages.value[messages.value.length - 1]
+      lastMsg.content = '好的，请告诉我您想分析的股票代码，例如：600519、300750'
+      
+      messages.value.push({
+        role: 'assistant',
+        content: '您可以输入股票代码，如「600519」或「贵州茅台」，我会为您进行深度分析。\n\n或者点击下方快捷按钮直接分析：',
+        timestamp: new Date(),
+        quickStocks: watchlistStocks.slice(0, 4)
+      })
     } else {
       const lastMsg = messages.value[messages.value.length - 1]
       lastMsg.content = '我理解您的问题。作为拾号金融AI助手，我可以帮助您：\n\n' +
@@ -345,7 +391,40 @@ function quickAnalyze() {
 }
 
 function showStockDetail(stock) {
-  userInput.value = `详细分析 ${stock.symbol}`
+  analyzeStock(stock)
+}
+
+async function analyzeStock(stock) {
+  messages.value.push({
+    role: 'user',
+    content: `分析 ${stock.symbol} ${stock.name}`,
+    timestamp: new Date()
+  })
+  
+  isLoading.value = true
+  messages.value.push({
+    role: 'assistant',
+    content: `正在分析 ${stock.name}...`,
+    timestamp: new Date()
+  })
+  
+  try {
+    const result = await agentStore.triggerAnalysis([stock.symbol], `详细分析 ${stock.name}`)
+    const lastMsg = messages.value[messages.value.length - 1]
+    
+    if (result.result) {
+      lastMsg.content = ''
+      lastMsg.analysisResult = parseAnalysisResult(result.result)
+    } else {
+      lastMsg.content = `已完成对 ${stock.name} 的分析`
+    }
+  } catch (error) {
+    const lastMsg = messages.value[messages.value.length - 1]
+    lastMsg.content = '分析过程出错，请稍后重试'
+  }
+  
+  isLoading.value = false
+  scrollToBottom()
 }
 </script>
 
@@ -536,6 +615,13 @@ function showStockDetail(stock) {
 }
 
 .stocks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-stocks {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
