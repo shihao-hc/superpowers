@@ -31,21 +31,40 @@ class RecallMemory:
             return
         
         try:
-            from mem0 import MemoryConfig
+            import os
+            
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                print("[RecallMemory] No OPENAI_API_KEY, using fallback store")
+                self._initialized = True
+                return
+            
+            os.environ.setdefault("OPENAI_API_KEY", api_key)
+            
+            from mem0 import Memory
+            from mem0.configs.base import MemoryConfig, VectorStoreConfig, LlmConfig
             
             config = MemoryConfig(
-                vector_store={"provider": "chroma", "config": {
-                    "collection_name": self.collection_name,
-                    "path": "./data/chroma_db"
-                }},
-                llm={"provider": "ollama", "config": {
-                    "model": os.getenv("OLLAMA_MODEL", "llama3"),
-                    "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                }}
+                vector_store=VectorStoreConfig(
+                    provider="chroma",
+                    config={
+                        "collection_name": self.collection_name,
+                        "path": "./data/chroma_db"
+                    }
+                ),
+                llm=LlmConfig(
+                    provider="ollama",
+                    config={
+                        "model": os.getenv("OLLAMA_MODEL", "llama3.2"),
+                        "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                        "api_key": "not-needed"
+                    }
+                )
             )
             
             self.memory = Memory(config)
             self._initialized = True
+            print(f"[RecallMemory] Mem0 initialized with ChromaDB")
         except Exception as e:
             print(f"[RecallMemory] Failed to initialize Mem0: {e}, using fallback")
             self._initialized = True

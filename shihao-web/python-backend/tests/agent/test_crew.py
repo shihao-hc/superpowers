@@ -7,6 +7,6 @@ def test_crew_creation():
     """测试Crew创建"""
     from shihao_finance.agent.crew import create_trading_crew
     crew = create_trading_crew()
-    assert len(crew.agents) == 3
+    assert len(crew.agents) == 7
     assert crew.process.value == "hierarchical"
     assert crew.manager_agent is not None

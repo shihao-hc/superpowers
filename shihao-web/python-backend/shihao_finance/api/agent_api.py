@@ -87,6 +87,26 @@ async def search_memory(request: MemorySearchRequest):
     return {"results": results, "count": len(results)}
 
 
+class AddMemoryRequest(BaseModel):
+    text: str
+    user_id: str = "user"
+    categories: list[str] = None
+
+
+@router.post("/memory/add")
+async def add_memory(request: AddMemoryRequest):
+    """添加记忆"""
+    if not agent:
+        raise HTTPException(500, "Agent not initialized")
+    
+    result = await agent.add_recall_memory(
+        text=request.text,
+        user_id=request.user_id,
+        categories=request.categories
+    )
+    return {"status": "success", "result": result}
+
+
 @router.post("/analyze")
 async def analyze_tickers(request: AnalyzeRequest):
     """触发AI分析"""
