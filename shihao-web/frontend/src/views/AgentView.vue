@@ -154,9 +154,13 @@
           <div v-if="agentStore.analysisTasks.length > 0" class="task-list">
             <div v-for="task in agentStore.analysisTasks" :key="task.id" class="task-item">
               <span>{{ task.tickers?.join(', ') }}</span>
-              <el-tag :type="task.status === 'completed' ? 'success' : 'warning'">
+              <el-tag :type="task.status === 'completed' ? 'success' : task.status === 'error' ? 'danger' : 'warning'">
                 {{ task.status }}
               </el-tag>
+            </div>
+            <div v-if="latestResult" class="analysis-result">
+              <h4>📊 分析结果</h4>
+              <pre>{{ latestResult }}</pre>
             </div>
           </div>
         </div>
@@ -193,11 +197,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAgentStore } from '../stores/agent'
 import { ElMessage } from 'element-plus'
 
 const agentStore = useAgentStore()
+
+const latestResult = computed(() => {
+  const tasks = agentStore.analysisTasks
+  if (tasks.length === 0) return null
+  const latest = tasks[tasks.length - 1]
+  return latest.result || latest.message || null
+})
 
 const tradingAgents = ref([
   { id: 'portfolio_manager', name: '投资组合总经理', role: '团队协调者', icon: '👔', source: 'TradingAgents-CN', tools: ['任务分配', '决策协调', '风险控制'] },
@@ -473,6 +484,29 @@ async function sendNotify() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.analysis-result {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.analysis-result h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #1e40af;
+}
+
+.analysis-result pre {
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .agent-team-section {

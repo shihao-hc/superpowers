@@ -113,8 +113,21 @@ def create_trading_crew_simple() -> Crew:
     risk_manager = create_risk_manager()
     trade_executor = create_trade_executor()
     
+    analysis_task = Task(
+        description="对指定股票进行全面的投资分析，包括基本面、技术面和风险评估",
+        agent=market_analyst,
+        expected_output="完整的投资分析报告"
+    )
+    
+    risk_task = Task(
+        description="评估投资风险并提供风险控制建议",
+        agent=risk_manager,
+        expected_output="风险评估报告"
+    )
+    
     crew = Crew(
         agents=[market_analyst, risk_manager, trade_executor],
+        tasks=[analysis_task, risk_task],
         process=Process.hierarchical,
         manager_agent=portfolio_manager,
         verbose=True,
