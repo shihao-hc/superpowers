@@ -58,6 +58,25 @@
               </div>
             </div>
             
+            <!-- 推荐股票卡片 (可点击) -->
+            <div v-if="msg.recommendedStocks" class="recommended-stocks">
+              <div 
+                v-for="stock in msg.recommendedStocks" 
+                :key="stock.symbol"
+                class="stock-card"
+                @click="analyzeStock(stock)"
+              >
+                <div class="stock-card-header">
+                  <span class="stock-symbol">{{ stock.symbol }}</span>
+                  <el-tag :type="stock.change >= 0 ? 'success' : 'danger'" size="small">
+                    {{ stock.change >= 0 ? '+' : '' }}{{ stock.change.toFixed(2) }}%
+                  </el-tag>
+                </div>
+                <div class="stock-name">{{ stock.name }}</div>
+                <div class="stock-hint">点击查看分析</div>
+              </div>
+            </div>
+            
             <!-- 快捷股票按钮 -->
             <div v-if="msg.quickStocks" class="quick-stocks">
               <el-button 
@@ -74,14 +93,16 @@
             
             <!-- 股票列表显示 -->
             <div v-if="msg.stocks" class="stocks-list">
-              <el-tag 
+              <el-button 
                 v-for="stock in msg.stocks" 
                 :key="stock.symbol"
-                class="stock-tag"
-                :type="stock.change >= 0 ? 'success' : 'danger'"
-                @click="showStockDetail(stock)"
+                type="primary"
+                link
+                @click="analyzeStock(stock)"
               >
+                <el-icon><TrendCharts /></el-icon>
                 {{ stock.symbol }} {{ stock.name }}
+              </el-button>
               </el-tag>
             </div>
           </div>
@@ -265,13 +286,12 @@ async function processMessage(message) {
       lastMsg.content = '正在为您推荐优质股票...'
       
       const result = await agentStore.triggerAnalysis(['600519', '300750', '002594'], '推荐股票')
-      if (result.result) {
-        lastMsg.content = '根据市场分析，为您推荐以下股票：\n\n' +
-          '**贵州茅台 (600519)** - 白酒龙头，业绩稳定\n' +
-          '**宁德时代 (300750)** - 新能源龙头\n' +
-          '**比亚迪 (002594)** - 新能源汽车龙头\n\n' +
-          '点击上方股票代码可查看详细分析。'
-      }
+      lastMsg.content = '根据市场分析，为您推荐以下股票：'
+      lastMsg.recommendedStocks = [
+        { symbol: '600519', name: '贵州茅台', change: 2.3 },
+        { symbol: '300750', name: '宁德时代', change: 3.1 },
+        { symbol: '002594', name: '比亚迪', change: 2.8 },
+      ]
     } else if (message.includes('行情') || message.includes('走势') || message.includes('市场')) {
       const lastMsg = messages.value[messages.value.length - 1]
       lastMsg.content = '正在获取市场行情...'
@@ -289,14 +309,13 @@ async function processMessage(message) {
       lastMsg.content = '正在获取今日表现最好的股票...'
       
       const result = await agentStore.triggerAnalysis(['600519', '300750', '002594', '601318'], '涨幅排行')
-      if (result.result) {
-        lastMsg.content = '📈 今日强势股票\n\n' +
-          '🔥 **贵州茅台 (600519)** - 涨幅 2.3%\n' +
-          '🔥 **宁德时代 (300750)** - 涨幅 3.1%\n' +
-          '🔥 **比亚迪 (002594)** - 涨幅 2.8%\n' +
-          '🔥 **中国平安 (601318)** - 涨幅 1.5%\n\n' +
-          '以上仅供参考，投资需谨慎。'
-      }
+      lastMsg.content = '📈 今日强势股票，点击卡片查看详情：'
+      lastMsg.recommendedStocks = [
+        { symbol: '600519', name: '贵州茅台', change: 2.3 },
+        { symbol: '300750', name: '宁德时代', change: 3.1 },
+        { symbol: '002594', name: '比亚迪', change: 2.8 },
+        { symbol: '601318', name: '中国平安', change: 1.5 },
+      ]
     } else if (message.includes('分析') || message.includes('股票')) {
       const lastMsg = messages.value[messages.value.length - 1]
       lastMsg.content = '好的，请告诉我您想分析的股票代码，例如：600519、300750'
@@ -626,6 +645,52 @@ async function analyzeStock(stock) {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.recommended-stocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stock-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.stock-card:hover {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: rgba(14, 165, 233, 0.5);
+  transform: translateY(-2px);
+}
+
+.stock-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stock-symbol {
+  font-weight: 700;
+  font-size: 16px;
+  color: #0ea5e9;
+}
+
+.stock-name {
+  color: #e2e8f0;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.stock-hint {
+  font-size: 11px;
+  color: #64748b;
 }
 
 .stock-tag {
