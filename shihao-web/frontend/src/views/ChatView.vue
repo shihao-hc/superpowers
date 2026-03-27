@@ -103,7 +103,6 @@
                 <el-icon><TrendCharts /></el-icon>
                 {{ stock.symbol }} {{ stock.name }}
               </el-button>
-              </el-tag>
             </div>
           </div>
         </div>
