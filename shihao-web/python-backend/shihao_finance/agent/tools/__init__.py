@@ -411,3 +411,280 @@ def valuation_tool(symbol: str, method: str = "dcf") -> dict:
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+@tool("融资融券数据")
+def margin_trading_tool(symbol: str) -> dict:
+    """获取融资融券数据
+    
+    来源: TradingAgents-CN / akshare
+    
+    返回:
+    - 融资余额
+    - 融资买入额
+    - 融券卖出量
+    - 融资融券占比
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_margin_details(symbol=symbol)
+        latest = df.iloc[-1] if not df.empty else {}
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "margin_balance": float(latest.get("融资余额", 0)),
+            "short_balance": float(latest.get("融券余额", 0)),
+            "date": str(latest.get("日期", ""))
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("股东人数变化")
+def holder_number_tool(symbol: str) -> dict:
+    """获取股东人数变化
+    
+    来源: akshare
+    
+    返回:
+    - 股东人数
+    - 较上期变化
+    - 户均持股
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_zh_a_gdhs(symbol=symbol)
+        latest = df.iloc[-1] if not df.empty else {}
+        return {
+            "status": "success",
+            "symbol": symbol,
+            "holder_count": int(latest.get("股东人数", 0)),
+            "change_pct": float(latest.get("变化", 0)),
+            "avg_shares": float(latest.get("户均持股", 0))
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("概念板块热度")
+def concept_heat_tool(concept: str = None) -> dict:
+    """获取概念板块热度排行
+    
+    来源: akshare
+    
+    返回:
+    - 概念名称
+    - 今日涨幅
+    - 主力净流入
+    - 领涨股票
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_board_concept_name_em()
+        if concept:
+            df = df[df["板块名称"] == concept]
+        return {
+            "status": "success",
+            "top_concepts": df.head(10)[["板块名称", "最新涨跌幅", "总市值"]].to_dict("records")
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("资金流向")
+def fund_flow_tool(symbol: str = None, period: str = "5日") -> dict:
+    """获取资金流向数据
+    
+    来源: stock-monitor-skill / akshare
+    
+    参数:
+    - symbol: 股票代码 (可选)
+    - period: 周期 (5日/10日/20日)
+    
+    返回主力资金净流入/流出
+    """
+    try:
+        import akshare as ak
+        if symbol:
+            df = ak.stock_individual_fund_flow(stock=symbol, market="sh")
+            return {
+                "status": "success",
+                "symbol": symbol,
+                "period": period,
+                "main_flow": df.to_dict()
+            }
+        else:
+            df = ak.fund_stock_rank_control(indicator=period, sector_type="行业资金流", top=20)
+            return {
+                "status": "success",
+                "sector_flow": df.to_dict()
+            }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("龙虎榜数据")
+def top_list_tool(date: str = None) -> dict:
+    """获取龙虎榜数据
+    
+    来源: akshare
+    
+    返回:
+    - 上榜股票
+    - 买入营业部
+    - 卖出营业部
+    - 净买入额
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_lhb_detail_em(date=date or "最新")
+        return {
+            "status": "success",
+            "date": date,
+            "top_stocks": df.head(20).to_dict("records") if not df.empty else []
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("限售股解禁")
+def restricted_shares_tool(date: str = None) -> dict:
+    """获取限售股解禁数据
+    
+    来源: akshare
+    
+    返回:
+    - 解禁日期
+    - 解禁数量
+    - 解禁比例
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_xsyd_em()
+        return {
+            "status": "success",
+            "upcoming": df.head(10).to_dict("records") if not df.empty else []
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("IPO新股申购")
+def ipo_tool() -> dict:
+    """获取IPO新股申购信息
+    
+    来源: akshare
+    
+    返回:
+    - 新股名称
+    - 申购代码
+    - 发行价
+    - 申购日期
+    """
+    try:
+        import akshare as ak
+        df = ipo = ak.stock_zh_a_new_stock()
+        return {
+            "status": "success",
+            "upcoming_ipo": df.to_dict("records") if not df.empty else []
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("全球市场行情")
+def global_market_tool() -> dict:
+    """获取全球主要市场行情
+    
+    来源: yfinance
+    
+    返回:
+    - 道琼斯
+    - 纳斯达克
+    - 标普500
+    - 富时100
+    - 日经225
+    - 恒生指数
+    """
+    try:
+        import yfinance as yf
+        indices = {
+            "^DJI": "道琼斯",
+            "^IXIC": "纳斯达克",
+            "^GSPC": "标普500",
+            "^FTSE": "富时100",
+            "^N225": "日经225",
+            "^HSI": "恒生指数"
+        }
+        results = {}
+        for code, name in indices.items():
+            ticker = yf.Ticker(code)
+            hist = ticker.history(period="1d")
+            if not hist.empty:
+                latest = hist.iloc[-1]
+                results[name] = {
+                    "close": round(latest["Close"], 2),
+                    "change_pct": round((latest["Close"] - latest["Open"]) / latest["Open"] * 100, 2)
+                }
+        return {"status": "success", "global_markets": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("期权数据")
+def options_tool(symbol: str, expiry: str = None) -> dict:
+    """获取股票期权数据
+    
+    来源: yfinance
+    
+    返回:
+    - 期权链
+    - 看涨期权
+    - 看跌期权
+    """
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
+        options = ticker.options
+        if not options:
+            return {"status": "success", "message": "无期权数据"}
+        
+        expiries = [expiry] if expiry and expiry in options else options[:3]
+        result = {"status": "success", "expiries": expiries}
+        
+        for exp in expiries:
+            opt = ticker.option_chain(exp)
+            result[f"calls_{exp}"] = opt.calls.head(5).to_dict("records")
+            result[f"puts_{exp}"] = opt.puts.head(5).to_dict("records")
+        
+        return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@tool("指数数据")
+def index_data_tool(symbol: str = "000300") -> dict:
+    """获取指数数据
+    
+    来源: akshare
+    
+    参数:
+    - symbol: 指数代码 (000001=上证, 000300=沪深300, 399001=深证成指)
+    
+    返回点位、涨跌幅、成交量
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_zh_index_daily(symbol=f"sh{symbol}")
+        if not df.empty:
+            latest = df.iloc[-1]
+            return {
+                "status": "success",
+                "symbol": symbol,
+                "close": float(latest["close"]),
+                "change_pct": float(latest["close"]) - float(df.iloc[-2]["close"]) / float(df.iloc[-2]["close"]) * 100,
+                "volume": int(latest["volume"])
+            }
+        return {"status": "error", "message": "No data"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
