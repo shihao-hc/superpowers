@@ -1,0 +1,82 @@
+# ShiHao Finance - AI-Powered Stock Selection and Trading System
+# Core dependencies
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# Data sources
+akshare>=1.14.0
+yfinance>=0.2.31
+tushare>=1.4.0
+pandas>=2.1.0
+numpy>=1.25.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+lightgbm>=4.1.0
+catboost>=1.2.0
+
+# Explainable AI
+shap>=0.43.0
+lime>=0.2.0
+
+# Technical analysis
+ta>=0.10.2
+pandas-ta>=0.3.14b0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+psycopg2-binary>=2.9.9
+asyncpg>=0.28.0
+
+# Message queue
+confluent-kafka>=2.3.0
+celery>=5.3.0
+redis>=5.0.0
+
+# Monitoring & Observability
+prometheus-client>=0.19.0
+structlog>=23.2.0
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+
+# Configuration
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+hydra-core>=1.3.0
+
+# Utilities
+loguru>=0.7.0
+rich>=13.7.0
+click>=8.1.0
+pyarrow>=14.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+httpx>=0.25.0
+
+# Development
+black>=23.11.0
+ruff>=0.1.6
+mypy>=1.7.0
+pre-commit>=3.6.0
+
+# AI Agent
+crewai>=1.12.0
+mem0ai>=0.1.0
+chromadb>=0.4.0
+
+# Scheduler
+apscheduler>=3.10.0
+
+# Channels
+python-telegram-bot>=20.0
+discord.py>=2.0.0
+aiosmtplib>=2.0.0
