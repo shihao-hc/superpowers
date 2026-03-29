@@ -27,19 +27,19 @@ class CrawlerRouter:
             CrawlResult from selected scraper
         """
         if strategy and strategy != CrawlerStrategy.AUTO:
-            scraper = get_scraper_for_strategy(strategy)
+            scraper = get_scraper_for_strategy(strategy, self.config)
             return await scraper.crawl(url)
 
         rule_strategy = self.rule_selector.select(url)
         if rule_strategy:
-            scraper = get_scraper_for_strategy(rule_strategy)
+            scraper = get_scraper_for_strategy(rule_strategy, self.config)
             return await scraper.crawl(url)
 
         complexity = self.analyzer.analyze_url(url)
 
         if complexity.level == "simple":
-            scraper = get_scraper_for_strategy(CrawlerStrategy.SCRAPLING)
+            scraper = get_scraper_for_strategy(CrawlerStrategy.SCRAPLING, self.config)
         else:
-            scraper = get_scraper_for_strategy(CrawlerStrategy.BROWSER_USE)
+            scraper = get_scraper_for_strategy(CrawlerStrategy.BROWSER_USE, self.config)
 
         return await scraper.crawl(url)
