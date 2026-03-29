@@ -48,6 +48,9 @@ class CrawlerEngine:
         use_fallback: bool = True,
     ) -> CrawlResult:
         """Internal crawl implementation."""
-        if use_fallback:
+        if strategy and strategy != CrawlerStrategy.AUTO:
+            return await self.router.route(url, strategy)
+        elif use_fallback:
             return await self.fallback_chain.crawl(url)
-        return await self.router.route(url, strategy)
+        else:
+            return await self.router.route(url, strategy)
