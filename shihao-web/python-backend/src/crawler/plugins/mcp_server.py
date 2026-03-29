@@ -31,9 +31,8 @@ class MCPCrawlerServer:
         Returns:
             Dict with success, content, strategy_used, metadata
         """
-        validate_url(url)
-
         try:
+            validate_url(url)
             result = await self.engine.crawl(
                 url=url,
                 strategy=parse_strategy(strategy),

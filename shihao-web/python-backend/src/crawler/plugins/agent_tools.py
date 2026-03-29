@@ -22,11 +22,10 @@ async def crawl_url(
     """
     from ..core import CrawlerEngine
 
-    validate_url(url)
-
     engine = CrawlerEngine(config)
 
     try:
+        validate_url(url)
         result = await engine.crawl(
             url=url,
             strategy=parse_strategy(strategy),
