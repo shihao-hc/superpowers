@@ -109,10 +109,11 @@ class TestBrowserUseAdapter:
         assert adapter.supports("https://example.com/vue-spa") is True
         assert adapter.supports("https://example.com/angular") is True
 
-    def test_supports_any_url(self):
-        """BrowserUseAdapter.supports returns True for any URL (fallback)."""
+    def test_supports_simple_url(self):
+        """BrowserUseAdapter.supports returns False for simple URLs."""
         adapter = BrowserUseAdapter()
-        assert adapter.supports("https://example.com/page.html") is True
+        assert adapter.supports("https://example.com/page.html") is False
+        assert adapter.supports("https://example.com") is False
 
     def test_crawl_method_exists(self):
         """BrowserUseAdapter has crawl method."""
@@ -199,13 +200,21 @@ class TestAdapterErrorHandling:
     @pytest.mark.asyncio
     async def test_scrapling_import_error_returns_failure_result(self):
         """ScraplingAdapter handles ImportError gracefully."""
-        import sys
-        from unittest.mock import patch
+        from unittest.mock import patch, MagicMock
 
         adapter = ScraplingAdapter()
 
-        with patch.dict(sys.modules, {"scrapling": None}):
-            pass
+        original_import = __import__
 
-        result = await adapter.crawl("https://example.com")
+        def mock_import(name, *args, **kwargs):
+            if name == "scrapling":
+                raise ImportError("No module named 'scrapling'")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = await adapter.crawl("https://example.com")
+
         assert isinstance(result, dict)
+        assert result["success"] is False
+        assert "error" in result["metadata"]
+        assert "not installed" in result["metadata"]["error"]

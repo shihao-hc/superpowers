@@ -2,25 +2,27 @@ from typing import Optional, Any
 from ..types import CrawlResult, CrawlerStrategy
 
 
-def normalize_scrapling_result(
+def normalize_result(
     content: str, strategy: CrawlerStrategy, metadata: dict, success: bool = True
 ) -> CrawlResult:
-    """Normalize scrapling result to standard format."""
+    """Normalize scraper result to standard format."""
     return CrawlResult(
         success=success and bool(content),
         content=content or "",
         strategy_used=strategy.value,
         metadata=metadata,
     )
+
+
+def normalize_scrapling_result(
+    content: str, strategy: CrawlerStrategy, metadata: dict, success: bool = True
+) -> CrawlResult:
+    """Normalize scrapling result to standard format."""
+    return normalize_result(content, strategy, metadata, success)
 
 
 def normalize_browser_use_result(
     content: str, strategy: CrawlerStrategy, metadata: dict, success: bool = True
 ) -> CrawlResult:
     """Normalize browser-use result to standard format."""
-    return CrawlResult(
-        success=success and bool(content),
-        content=content or "",
-        strategy_used=strategy.value,
-        metadata=metadata,
-    )
+    return normalize_result(content, strategy, metadata, success)

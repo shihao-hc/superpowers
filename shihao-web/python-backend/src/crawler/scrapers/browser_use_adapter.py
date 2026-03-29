@@ -11,11 +11,8 @@ class BrowserUseAdapter(BaseScraper):
 
     def supports(self, url: str) -> bool:
         """Browser-use handles complex/dynamic pages."""
-        # Browser-use can handle anything, but prefer it for complex URLs
         complex_indicators = ["javascript", "spa", "react", "vue", "angular"]
-        return (
-            any(ind in url.lower() for ind in complex_indicators) or True
-        )  # Always supported
+        return any(ind in url.lower() for ind in complex_indicators)
 
     async def crawl(self, url: str, **kwargs) -> CrawlResult:
         """Crawl using browser-use."""
