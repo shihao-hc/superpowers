@@ -287,12 +287,13 @@ class TestCrawlerEngine:
         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_crawl_raises_fallback_exhausted_error(self):
-        """CrawlerEngine propagates FallbackExhaustedError."""
+    async def test_crawl_returns_error_on_fallback_exhausted(self):
+        """CrawlerEngine returns error result on FallbackExhaustedError."""
         engine = CrawlerEngine()
         engine.fallback_chain.crawl = AsyncMock(
             side_effect=FallbackExhaustedError("All scrapers failed")
         )
 
-        with pytest.raises(FallbackExhaustedError):
-            await engine.crawl("https://example.com")
+        result = await engine.crawl("https://example.com")
+        assert result["success"] is False
+        assert "error" in result["metadata"]

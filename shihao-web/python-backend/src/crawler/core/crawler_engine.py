@@ -2,6 +2,7 @@ from typing import Optional
 from ..config import CrawlerConfig
 from ..types import CrawlerStrategy, CrawlResult
 from ..router import CrawlerRouter
+from ..exceptions import FallbackExhaustedError
 from .fallback_chain import FallbackChain
 from .retry_handler import RetryHandler
 
@@ -35,11 +36,19 @@ class CrawlerEngine:
         Returns:
             CrawlResult
         """
-        if use_retry:
-            return await self.retry_handler.execute(
-                self._do_crawl, url, strategy, use_fallback
-            )
-        return await self._do_crawl(url, strategy, use_fallback)
+        try:
+            if use_retry:
+                return await self.retry_handler.execute(
+                    self._do_crawl, url, strategy, use_fallback
+                )
+            return await self._do_crawl(url, strategy, use_fallback)
+        except FallbackExhaustedError as e:
+            return {
+                "success": False,
+                "content": "",
+                "strategy_used": "none",
+                "metadata": {"error": str(e)},
+            }
 
     async def _do_crawl(
         self,
