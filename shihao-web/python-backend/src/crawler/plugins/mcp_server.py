@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from ..config import CrawlerConfig
-from ..types import CrawlerStrategy
 from ..core import CrawlerEngine
+from .utils import parse_strategy, validate_url
 
 
 class MCPCrawlerServer:
@@ -31,23 +31,23 @@ class MCPCrawlerServer:
         Returns:
             Dict with success, content, strategy_used, metadata
         """
-        strat = None
-        if strategy:
-            strategy_map = {
-                "scrapling": CrawlerStrategy.SCRAPLING,
-                "browser_use": CrawlerStrategy.BROWSER_USE,
-                "auto": CrawlerStrategy.AUTO,
+        validate_url(url)
+
+        try:
+            result = await self.engine.crawl(
+                url=url,
+                strategy=parse_strategy(strategy),
+                use_fallback=use_fallback,
+                use_retry=use_retry,
+            )
+            return dict(result)
+        except Exception as e:
+            return {
+                "success": False,
+                "content": "",
+                "strategy_used": "none",
+                "metadata": {"error": str(e)},
             }
-            strat = strategy_map.get(strategy.lower(), CrawlerStrategy.AUTO)
-
-        result = await self.engine.crawl(
-            url=url,
-            strategy=strat,
-            use_fallback=use_fallback,
-            use_retry=use_retry,
-        )
-
-        return dict(result)
 
     def get_tools(self) -> List[Dict[str, Any]]:
         """Get list of MCP tools this server provides.

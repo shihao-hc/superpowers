@@ -100,13 +100,13 @@ class TestGetCrawlerTools:
         assert "description" in tools[0]
         assert len(tools[0]["description"]) > 0
 
-    def test_tool_has_parameters(self):
-        """get_crawler_tools tool has parameters."""
+    def test_tool_has_inputSchema(self):
+        """get_crawler_tools tool has inputSchema."""
         tools = get_crawler_tools()
-        assert "parameters" in tools[0]
-        assert "properties" in tools[0]["parameters"]
+        assert "inputSchema" in tools[0]
+        assert "properties" in tools[0]["inputSchema"]
 
     def test_tool_has_url_required(self):
         """get_crawler_tools tool has url as required."""
         tools = get_crawler_tools()
-        assert "url" in tools[0]["parameters"]["required"]
+        assert "url" in tools[0]["inputSchema"]["required"]

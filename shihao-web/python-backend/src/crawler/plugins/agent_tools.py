@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from ..config import CrawlerConfig
-from ..types import CrawlerStrategy
+from .utils import parse_strategy, validate_url
 
 
 async def crawl_url(
@@ -22,25 +22,25 @@ async def crawl_url(
     """
     from ..core import CrawlerEngine
 
+    validate_url(url)
+
     engine = CrawlerEngine(config)
 
-    strat = None
-    if strategy:
-        strategy_map = {
-            "scrapling": CrawlerStrategy.SCRAPLING,
-            "browser_use": CrawlerStrategy.BROWSER_USE,
-            "auto": CrawlerStrategy.AUTO,
+    try:
+        result = await engine.crawl(
+            url=url,
+            strategy=parse_strategy(strategy),
+            use_fallback=True,
+            use_retry=True,
+        )
+        return dict(result)
+    except Exception as e:
+        return {
+            "success": False,
+            "content": "",
+            "strategy_used": "none",
+            "metadata": {"error": str(e)},
         }
-        strat = strategy_map.get(strategy.lower(), CrawlerStrategy.AUTO)
-
-    result = await engine.crawl(
-        url=url,
-        strategy=strat,
-        use_fallback=True,
-        use_retry=True,
-    )
-
-    return dict(result)
 
 
 def get_crawler_tools() -> List[Dict[str, Any]]:
@@ -54,7 +54,7 @@ def get_crawler_tools() -> List[Dict[str, Any]]:
             "name": "crawl_url",
             "description": "Crawl a URL and extract content. "
             "Uses intelligent routing to select best strategy.",
-            "parameters": {
+            "inputSchema": {
                 "type": "object",
                 "properties": {
                     "url": {
