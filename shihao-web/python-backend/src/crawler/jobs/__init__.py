@@ -65,6 +65,8 @@ class JobQueue:
 
     def get_job(self, job_id: str) -> Optional[Job]:
         """Get job by ID."""
+        if not job_id or not isinstance(job_id, str):
+            return None
         with self._lock:
             return self._jobs.get(job_id)
 
@@ -79,6 +81,8 @@ class JobQueue:
         completed_pages: Optional[int] = None,
     ) -> bool:
         """Update job status and progress."""
+        if not job_id or not isinstance(job_id, str):
+            return False
         with self._lock:
             job = self._jobs.get(job_id)
             if not job:

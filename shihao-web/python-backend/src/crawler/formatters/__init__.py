@@ -273,6 +273,8 @@ class FormatterFactory:
     @classmethod
     def get_formatter(cls, format_name: str) -> BaseFormatter:
         """Get formatter for given format name."""
+        if not format_name or not isinstance(format_name, str):
+            return MarkdownFormatter()
         formatter_class = cls._formatters.get(format_name.lower(), MarkdownFormatter)
         return formatter_class()
 

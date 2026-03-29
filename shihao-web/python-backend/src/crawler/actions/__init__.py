@@ -178,7 +178,11 @@ class ActionExecutor:
     async def _scroll(self, action: Action) -> ActionResult:
         """Scroll the page."""
         direction = action.direction or "down"
-        amount = int(action.value or "300")
+
+        try:
+            amount = min(abs(int(action.value or "300")), 10000)
+        except (ValueError, TypeError):
+            amount = 300
 
         if direction == "down":
             await self._page.evaluate(f"window.scrollBy(0, {amount})")
