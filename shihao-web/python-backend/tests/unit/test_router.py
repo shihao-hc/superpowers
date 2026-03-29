@@ -136,3 +136,51 @@ class TestGetScraperForStrategy:
         """get_scraper_for_strategy raises ValueError for unknown strategy."""
         with pytest.raises(ValueError):
             get_scraper_for_strategy("invalid")  # type: ignore
+
+
+class TestPriorityChain:
+    """Test priority chain: explicit strategy overrides rule selection."""
+
+    @pytest.mark.asyncio
+    async def test_explicit_strategy_overrides_rules(self):
+        """Explicit strategy takes priority over rule-based selection."""
+        config = CrawlerConfig(default_timeout=60)
+        router = CrawlerRouter(config)
+
+        result = await router.route(
+            "https://example.com/react-app", strategy=CrawlerStrategy.SCRAPLING
+        )
+        assert result["strategy_used"] == "scrapling"
+
+    @pytest.mark.asyncio
+    async def test_rules_used_when_no_explicit_strategy(self):
+        """Rules are applied when no explicit strategy is provided."""
+        config = CrawlerConfig(default_timeout=60)
+        router = CrawlerRouter(config)
+
+        result = await router.route("https://app.example.com/dashboard/react")
+        assert result["strategy_used"] == "browser_use"
+
+
+class TestComplexityLevels:
+    """Test complexity analyzer returns correct levels."""
+
+    def test_simple_level_for_static_html(self):
+        """Simple HTML pages are categorized as simple."""
+        analyzer = ComplexityAnalyzer()
+        result = analyzer.analyze_url("https://example.com/page.html")
+        assert result.level == "simple"
+
+    def test_complex_level_for_spa(self):
+        """SPA URLs are categorized as complex."""
+        analyzer = ComplexityAnalyzer()
+        result = analyzer.analyze_url("https://app.example.com/dashboard/react")
+        assert result.level == "complex"
+
+    def test_dynamic_level_for_mixed(self):
+        """URLs with mixed indicators are categorized as dynamic."""
+        analyzer = ComplexityAnalyzer(
+            ComplexityThresholds(simple_max=0.2, complex_min=0.6)
+        )
+        result = analyzer.analyze_url("https://example.com/page.json")
+        assert result.level == "dynamic"
