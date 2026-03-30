@@ -9,6 +9,9 @@ class CrawlerStrategy(Enum):
     SCRAPLING = "scrapling"
     BROWSER_USE = "browser_use"
     FIRECRAWL = "firecrawl"
+    CRAWL4AI = "crawl4ai"
+    PYDOLL = "pydoll"
+    SELENIUM_BASE = "selenium_base"
     AUTO = "auto"
 
 
@@ -94,3 +97,62 @@ class StructuredSchema:
     type: str = "object"
     properties: dict = field(default_factory=dict)
     required: list = field(default_factory=list)
+
+
+class ExecutionNodeType(str, Enum):
+    """Node types for tree execution (EasySpider patterns)."""
+
+    SEQUENCE = "sequence"
+    LOOP = "loop"
+    BRANCH = "branch"
+    BRANCH_OPTION = "branch_option"
+
+
+class LoopIterationType(str, Enum):
+    """Loop iteration types (EasySpider patterns)."""
+
+    SINGLE_ELEMENT = "single_element"
+    DYNAMIC_LIST = "dynamic_list"
+    FIXED_LIST = "fixed_list"
+    TEXT_LIST = "text_list"
+    URL_LIST = "url_list"
+    JS_RETURN = "js_return"
+    OS_COMMAND = "os_command"
+    PYTHON_EXPR = "python_expr"
+
+
+class ConditionType(str, Enum):
+    """Condition branch types (EasySpider patterns)."""
+
+    NO_CONDITION = "no_condition"
+    PAGE_CONTAINS_TEXT = "page_contains_text"
+    PAGE_CONTAINS_ELEMENT = "page_contains_element"
+    LOOP_ITEM_CONTAINS_TEXT = "loop_item_contains_text"
+    LOOP_ITEM_CONTAINS_ELEMENT = "loop_item_contains_element"
+    JS_RETURN = "js_return"
+    OS_COMMAND = "os_command"
+    PYTHON_EXPR = "python_expr"
+
+
+class ContentExtractType(str, Enum):
+    """Content extraction types."""
+
+    TEXT = "text"
+    DIRECT_TEXT = "direct_text"
+    INNER_HTML = "inner_html"
+    OUTER_HTML = "outer_html"
+    BACKGROUND_IMAGE = "background_image"
+    PAGE_URL = "page_url"
+    PAGE_TITLE = "page_title"
+    SELECTED_OPTION_VALUE = "selected_option_value"
+    SELECTED_OPTION_TEXT = "selected_option_text"
+
+
+class WaitStrategyType(str, Enum):
+    """Wait strategy types."""
+
+    VISIBLE = "visible"
+    CLICKABLE = "clickable"
+    PRESENT = "present"
+    HIDDEN = "hidden"
+    NETWORK_IDLE = "network_idle"
