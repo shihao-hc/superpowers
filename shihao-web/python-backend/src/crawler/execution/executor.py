@@ -1,12 +1,15 @@
 """Tree-based execution engine inspired by EasySpider."""
 
 import asyncio
+import logging
 import os
 import random
 import time
 from dataclasses import dataclass, field
 from typing import Optional, Any, Callable
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 from .nodes import (
     Node,
@@ -221,7 +224,7 @@ class ExecutionEngine:
             if element:
                 await element.click()
         except Exception as e:
-            pass
+            logger.warning(f"Click element failed: {e}")
 
         await self._wait_after_operation(node, context)
 
@@ -278,8 +281,8 @@ class ExecutionEngine:
                         f"xpath={xpath}", timeout=5000
                     )
                     return await element.inner_html()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Extract field failed for {xpath}: {e}")
 
         return param.default_value
 
@@ -302,8 +305,8 @@ class ExecutionEngine:
                 f"xpath={xpath}", timeout=5000
             )
             await element.fill(value)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Input text failed: {e}")
 
         await self._wait_after_operation(node, context)
 
@@ -356,8 +359,8 @@ class ExecutionEngine:
                 await element.select_option(index=int(option_value))
             elif option_mode == 3:
                 await element.select_option(option_value)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Select option failed: {e}")
 
     async def _move_to_element(
         self,
@@ -376,8 +379,8 @@ class ExecutionEngine:
                 f"xpath={xpath}", timeout=5000
             )
             await element.hover()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Move to element failed: {e}")
 
     async def _loop_execute(
         self,
@@ -431,8 +434,8 @@ class ExecutionEngine:
 
                     if self._shutdown_event.is_set():
                         break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Loop dynamic list failed: {e}")
 
     async def _loop_text_list(
         self,
@@ -510,8 +513,8 @@ class ExecutionEngine:
                             if child_index < len(nodes):
                                 child = nodes[child_index]
                                 await self._execute_node(child, nodes, context)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Loop JS return failed: {e}")
 
     async def _loop_single_element(
         self,
@@ -619,15 +622,15 @@ class ExecutionEngine:
                     f"xpath={params.wait_element}",
                     timeout=params.wait_element_time * 1000,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Wait for element failed: {e}")
 
         if params.after_js:
             try:
                 if context.page:
                     await context.page.evaluate(params.after_js)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"After JS failed: {e}")
 
         if params.after_js_wait_time > 0:
             await asyncio.sleep(params.after_js_wait_time / 1000.0)

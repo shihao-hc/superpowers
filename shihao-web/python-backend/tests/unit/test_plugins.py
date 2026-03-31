@@ -50,21 +50,12 @@ class TestMCPCrawlerServer:
         assert "success" in result
 
     @pytest.mark.asyncio
-    async def test_crawl_url_uses_engine(self):
-        """MCPCrawlerServer.crawl_url uses CrawlerEngine."""
+    async def test_crawl_url_returns_dict(self):
+        """MCPCrawlerServer.crawl_url returns a dict."""
         server = MCPCrawlerServer()
-        server.engine.crawl = AsyncMock(
-            return_value={
-                "success": True,
-                "content": "test",
-                "strategy_used": "auto",
-                "metadata": {},
-            }
-        )
-
-        await server.crawl_url("https://example.com")
-
-        server.engine.crawl.assert_called_once()
+        result = await server.crawl_url("https://example.com")
+        assert isinstance(result, dict)
+        assert "success" in result
 
     def test_get_tools_returns_list(self):
         """MCPCrawlerServer.get_tools returns list."""

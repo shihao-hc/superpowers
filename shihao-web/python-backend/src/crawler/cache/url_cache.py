@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, Any, AsyncIterator
+from typing import Optional, Any, AsyncIterator, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -339,7 +339,7 @@ class CacheMiddleware:
         self,
         url: str,
         strategy: str,
-        fetch_fn: callable,
+        fetch_fn: Callable,
         ttl: Optional[int] = None,
     ) -> Optional[str]:
         """Get content with cache support.
