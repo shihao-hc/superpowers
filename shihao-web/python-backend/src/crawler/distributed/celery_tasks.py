@@ -63,6 +63,7 @@ class DistributedCrawler:
         self.rate_limit = rate_limit
         self._jobs: dict[str, DistributedJob] = {}
         self._celery_app = None
+        self._semaphore: Optional[asyncio.Semaphore] = None
 
     def _get_celery_app(self):
         """Lazy initialization of Celery app."""
@@ -89,6 +90,13 @@ class DistributedCrawler:
                 logger.warning("Celery not installed, using local execution")
                 return None
         return self._celery_app
+
+    @property
+    def semaphore(self) -> asyncio.Semaphore:
+        """Get or create semaphore for concurrency control."""
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_workers)
+        return self._semaphore
 
     async def submit_job(
         self, url: str, strategy: CrawlerStrategy = CrawlerStrategy.AUTO, **kwargs
@@ -118,9 +126,18 @@ class DistributedCrawler:
                 kwargs=kwargs,
             )
         else:
-            asyncio.create_task(self._execute_local(job_id, url, strategy, **kwargs))
+            asyncio.create_task(
+                self._execute_with_semaphore(job_id, url, strategy, **kwargs)
+            )
 
         return job_id
+
+    async def _execute_with_semaphore(
+        self, job_id: str, url: str, strategy: CrawlerStrategy, **kwargs
+    ):
+        """Execute job with semaphore concurrency control."""
+        async with self.semaphore:
+            await self._execute_local(job_id, url, strategy, **kwargs)
 
     async def submit_batch(
         self,

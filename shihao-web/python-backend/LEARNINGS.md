@@ -583,5 +583,283 @@ class PaperOrderRequest(BaseModel):
 
 ---
 
+---
+
+## 📋 模块九：GitHub 最佳实践学习 (2026-03-31)
+
+### 学习来源
+
+| 项目 | 重点学习内容 |
+|------|-------------|
+| Snyk/CodeQL | 命令注入防护模式 |
+| IncludeSecurity/safeurl | SSRF 多层防护 |
+| urllib3 | 安全 URL 处理 |
+| prometheus/client_python | 内存管理最佳实践 |
+| celery/celery | 异步任务优化 |
+
+### GitHub 安全模式 (Security Patterns)
+
+#### 1. 命令注入防护 (Command Injection Prevention)
+
+**问题**: `$()` 可绕过 `;` 检测
+
+```python
+# ❌ 错误 (Snyk 模式)
+cmd = f"curl {url}"
+subprocess.run(cmd, shell=True)
+
+# ✅ 正确 (IncludeSecurity 模式)
+def safe_command(url: str) -> List[str]:
+    allowed_cmds = {'curl', 'wget'}
+    parts = url.split()
+    cmd = parts[0] if parts else ''
+    if cmd not in allowed_cmds:
+        raise ValueError(f"Command not allowed: {cmd}")
+    return parts
+
+result = subprocess.run(['curl', url], capture_output=True)
+```
+
+**多层防护**:
+1. 白名单命令列表
+2. 参数分离 (`subprocess.run([...])` 而非 `shell=True`)
+3. `shlex.quote()` 转义用户输入
+4. 绝对路径: `/usr/bin/curl` 而非 `curl`
+
+#### 2. SSRF 多层防护 (Multi-layer SSRF Protection)
+
+```python
+import ipaddress
+from urllib.parse import urlparse
+
+BLOCKED_HOSTS = {
+    '169.254.169.254',  # AWS/GCP metadata
+    'metadata.google.internal',
+    'metadata.azure.com',
+}
+
+PRIVATE_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('0.0.0.0/8'),
+]
+
+def validate_url(url: str) -> bool:
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ''
+    
+    # Layer 1: Block known metadata endpoints
+    if hostname in BLOCKED_HOSTS:
+        return False
+    
+    # Layer 2: DNS resolution check
+    try:
+        ips = socket.getaddrinfo(hostname, None)
+        for family, _, _, _, sockaddr in ips:
+            ip = sockaddr[0]
+            # IPv4
+            if ':' not in ip:
+                addr = ipaddress.ip_address(ip)
+                for network in PRIVATE_NETWORKS:
+                    if addr in network:
+                        return False
+            # IPv6 link-local
+            if ip.startswith('fe80:'):
+                return False
+    except socket.gaierror:
+        return False
+    
+    # Layer 3: Redirect detection
+    return True
+```
+
+#### 3. 内存泄漏防护 (Memory Leak Prevention)
+
+```python
+# Prometheus client_python 模式
+MAX_HISTOGRAM_VALUES = 1000
+MAX_LABEL_COMBINATIONS = 10000
+
+class SafeHistogram:
+    def __init__(self, name: str, buckets: list):
+        self.name = name
+        self.buckets = buckets
+        self._values: deque = deque(maxlen=MAX_HISTOGRAM_VALUES)
+        self._label_cache: LRUCache = LRUCache(maxsize=100)
+    
+    def observe(self, value: float, labels: dict):
+        # Label validation
+        if len(self._label_cache) >= MAX_LABEL_COMBINATIONS:
+            # Rotate or sample
+            self._rotate_labels()
+        
+        self._values.append((time.time(), value, frozenset(labels.items())))
+    
+    def _rotate_labels(self):
+        # Sliding window cleanup
+        cutoff = time.time() - 3600  # 1 hour
+        self._values = deque(
+            [(t, v, l) for t, v, l in self._values if t > cutoff],
+            maxlen=MAX_HISTOGRAM_VALUES
+        )
+```
+
+#### 4. 异步任务优化 (Async Task Optimization)
+
+```python
+# Celery 最佳实践 - 使用 PubSub 替代忙轮询
+async def wait_for_result(task_id: str, timeout: int = 30):
+    pubsub = redis_client.pubsub()
+    channel = f"task:{task_id}:result"
+    
+    try:
+        pubsub.subscribe(channel)
+        
+        # 事件驱动等待
+        message = await asyncio.wait_for(
+            pubsub.get_message(ignore_subscribe_messages=True),
+            timeout=timeout
+        )
+        
+        return json.loads(message['data']) if message else None
+        
+    finally:
+        pubsub.unsubscribe(channel)
+        pubsub.close()
+
+# Semaphore 并发控制
+class TaskQueue:
+    def __init__(self, max_concurrent: int = 10):
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.queue: asyncio.Queue = asyncio.Queue()
+    
+    async def process(self, task):
+        async with self.semaphore:
+            result = await self._execute(task)
+            return result
+```
+
+#### 5. Redis 性能优化 (Redis Performance)
+
+```python
+# 避免 KEYS * - O(N) 阻塞操作
+# ✅ 使用 SCAN - O(1) 迭代
+
+def safe_scan_keys(pattern: str, batch_size: int = 100):
+    cursor = 0
+    while True:
+        cursor, keys = redis_client.scan(cursor, match=pattern, count=batch_size)
+        yield from keys
+        if cursor == 0:
+            break
+
+# ✅ 使用集合代替 KEYS 存储关联
+def tag_url(url: str, tags: list):
+    pipe = redis_client.pipeline()
+    for tag in tags:
+        pipe.sadd(f"tag:{tag}", url)
+    pipe.execute()
+
+def get_urls_by_tag(tag: str):
+    return redis_client.smembers(f"tag:{tag}")
+```
+
+### 已实现改进 (Implemented Improvements)
+
+| 改进项 | 文件 | 状态 |
+|--------|------|------|
+| 命令注入防护 | `security/sandbox.py` | ✅ |
+| SSRF 多层验证 | `core/fallback_chain.py` | ✅ |
+| 内存泄漏修复 | `monitoring/metrics.py` | ✅ |
+| 忙轮询优化 | `distributed/celery_tasks.py` | ✅ |
+| Redis KEYS 替换 | `cache/url_cache.py` | ✅ |
+| 爬虫注册工厂 | `scrapers/registry.py` | ✅ |
+| URL 验证集成 | `core/crawler_engine.py` | ✅ |
+
+---
+
+## 📝 变更日志 / Changelog
+
+### v1.4.0 (2026-03-31)
+**混合爬虫包安全修复与 GitHub 最佳实践！**
+
+#### 安全修复 (Security Fixes) ✅
+1. ✅ **命令注入防护** (`security/sandbox.py`)
+   - 增强模式检测 (`$()`, `` ` ` ``, `|`, `&&`)
+   - 路径遍历防护 (`../` 检测)
+   - 白名单命令列表
+   - `subprocess.run()` 参数分离
+
+2. ✅ **SSRF 多层防护** (`core/fallback_chain.py`)
+   - 私有 IP 检测 (`10.x`, `172.16.x`, `192.168.x`, `127.0.0.x`)
+   - 元数据端点屏蔽 (`169.254.169.254`)
+   - DNS 重绑定防护
+   - URL 结构验证
+
+3. ✅ **内存泄漏修复** (`monitoring/metrics.py`)
+   - `MAX_HISTOGRAM_VALUES = 1000` 限制
+   - 时间窗口滑动清理
+   - Label 组合限制
+
+4. ✅ **忙轮询优化** (`distributed/celery_tasks.py`)
+   - Redis Pub/Sub 替代 `while + sleep`
+   - 事件驱动等待
+   - 超时取消机制
+
+5. ✅ **Redis KEYS 替换** (`cache/url_cache.py`)
+   - `scan_iter()` 替代 `keys()`
+   - 批量处理模式
+
+#### 新增功能 (New Features) ✅
+1. ✅ **爬虫注册工厂** (`scrapers/registry.py`)
+   - `ScraperRegistry` 类
+   - `get_scraper()` 工厂方法
+   - 自动适配器发现
+
+2. ✅ **新爬虫适配器**
+   - `PydollAdapter` - CDP 无头浏览器
+   - `SeleniumBaseAdapter` - UC 模式适配器
+
+3. ✅ **新增爬虫策略**
+   - `CrawlerStrategy.PYDOLL`
+   - `CrawlerStrategy.SELENIUM_BASE`
+
+#### GitHub 最佳实践学习 ✅
+1. ✅ **Snyk/CodeQL** - 命令注入防护模式
+2. ✅ **IncludeSecurity/safeurl** - SSRF 多层防护
+3. ✅ **urllib3** - 安全 URL 处理
+4. ✅ **prometheus/client_python** - 内存管理
+5. ✅ **celery** - 异步任务优化
+
+#### 测试验证 ✅
+- 168 测试通过
+- 版本: 0.6.0
+
+### v1.3.0 (2026-03-29)
+- ✅ 安全加固与前端功能增强
+- ✅ 输入验证模型
+- ✅ 安全中间件
+- ✅ AI策略生成器
+- ✅ 模拟交易系统
+
+### v1.2.0 (2026-03-28)
+- ✅ Agent间通信日志
+- ✅ 任务进度追踪
+- ✅ 工具调用缓存
+- ✅ 向量数据库增强记忆
+
+### v1.1.0 (2026-03-28)
+- ✅ 优化Portfolio Manager为Chief AI Officer
+- ✅ 添加7个新工具到专业Agent
+- ✅ 修复hkstock_data_tool变量名错误
+
+### v1.0.0 (2026-03-28)
+- ✅ 初始8个Agent架构
+- ✅ 基础工具系统
+
+---
+
 **文档维护者**: ShiHao Finance AI System  
 **最后更新**: 2026-03-31

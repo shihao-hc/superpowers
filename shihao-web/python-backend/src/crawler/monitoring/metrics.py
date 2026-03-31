@@ -117,14 +117,20 @@ class CrawlerMetrics:
     }
 
     MAX_HISTOGRAM_VALUES: int = 1000
+    MAX_LABEL_COMBINATIONS: int = 10000
 
     def __init__(
-        self, metrics_prefix: str = "crawler", max_histogram_values: int = 1000
+        self,
+        metrics_prefix: str = "crawler",
+        max_histogram_values: int = 1000,
+        max_label_combinations: int = 10000,
     ):
         self.prefix = metrics_prefix
         self._metrics: dict = {}
         self._values: dict = {}
         self.MAX_HISTOGRAM_VALUES = max_histogram_values
+        self.MAX_LABEL_COMBINATIONS = max_label_combinations
+        self._label_counts: dict = {}
         self._initialize_metrics()
 
     def _initialize_metrics(self):
@@ -212,7 +218,29 @@ class CrawlerMetrics:
         """Increment a counter metric."""
         labels = {**label_values, **(additional_labels or {})}
         key = self._make_key(metric_key, labels)
+
+        if self._should_drop_label(key):
+            return
+
         self._values[metric_key][key] = self._values[metric_key].get(key, 0) + 1
+
+    def _should_drop_label(self, key: str) -> bool:
+        """Check if we should drop this label combination to prevent memory issues."""
+        current_count = self._label_counts.get(key, 0)
+
+        if current_count == 0:
+            total_labels = sum(self._label_counts.values())
+            if total_labels >= self.MAX_LABEL_COMBINATIONS:
+                oldest_key = min(
+                    self._label_counts.keys(),
+                    key=lambda k: self._label_counts[k],
+                )
+                del self._label_counts[oldest_key]
+                if oldest_key in self._values.get("crawl_requests_total", {}):
+                    del self._values["crawl_requests_total"][oldest_key]
+
+        self._label_counts[key] = current_count + 1
+        return False
 
     def _decrement(
         self,

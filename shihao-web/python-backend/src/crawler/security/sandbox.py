@@ -3,11 +3,12 @@
 import asyncio
 import logging
 import re
+import shlex
 import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,22 @@ class CommandSandbox:
         "uname": CommandRule(r"^uname\s*", CommandCategory.SYSTEM_INFO),
         "curl": CommandRule(r"^curl\s+", CommandCategory.NETWORK_INFO),
         "wget": CommandRule(r"^wget\s+", CommandCategory.NETWORK_INFO),
+    }
+
+    COMMAND_PATHS = {
+        "ls": "/bin/ls",
+        "cat": "/bin/cat",
+        "head": "/usr/bin/head",
+        "tail": "/usr/bin/tail",
+        "find": "/usr/bin/find",
+        "grep": "/bin/grep",
+        "pwd": "/bin/pwd",
+        "echo": "/bin/echo",
+        "date": "/bin/date",
+        "whoami": "/usr/bin/whoami",
+        "uname": "/bin/uname",
+        "curl": "/usr/bin/curl",
+        "wget": "/usr/bin/wget",
     }
 
     DANGEROUS_PATTERNS = [
@@ -218,8 +235,18 @@ class CommandSandbox:
     async def _run_command(self, command: str) -> str:
         """Run command with resource limits."""
         try:
+            parts = command.split()
+            if not parts:
+                raise SandBoxError("Empty command")
+
+            cmd_name = parts[0]
+            cmd_path = self.COMMAND_PATHS.get(cmd_name, cmd_name)
+
+            safe_args = [shlex.quote(arg) for arg in parts[1:]]
+            safe_command = " ".join([cmd_path] + safe_args)
+
             result = subprocess.run(
-                ["bash", "-c", command],
+                ["bash", "-c", safe_command],
                 shell=False,
                 capture_output=True,
                 text=True,
