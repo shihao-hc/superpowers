@@ -274,6 +274,7 @@ class SeleniumBaseScraper(BaseScraper):
             headless=True, proxy=proxy, timeout=timeout, page_load_timeout=timeout
         )
 
+        self.browser = None
         try:
             self.browser = StealthBrowser(uc_config)
             self.browser.connect()
@@ -283,8 +284,6 @@ class SeleniumBaseScraper(BaseScraper):
             content = self.browser.get_page_source()
             title = self.browser.get_title()
             final_url = self.browser.get_current_url()
-
-            self.browser.close()
 
             return normalize_result(
                 content=content or "",
@@ -299,9 +298,13 @@ class SeleniumBaseScraper(BaseScraper):
                 success=False,
             )
         except Exception as e:
-            if self.browser:
-                self.browser.close()
             raise ScraperError(f"SeleniumBase failed for {url}: {e}") from e
+        finally:
+            if self.browser:
+                try:
+                    self.browser.close()
+                except Exception:
+                    pass
 
 
 adapter = SeleniumBaseScraper()

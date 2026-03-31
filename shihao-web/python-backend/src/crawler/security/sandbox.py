@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import os
 import re
 import shlex
 import subprocess
 import time
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
@@ -119,6 +121,7 @@ class CommandSandbox:
     ]
 
     MAX_COMMAND_LENGTH = 500
+    MAX_AUDIT_LOG_SIZE = 10000
 
     def __init__(
         self,
@@ -131,7 +134,7 @@ class CommandSandbox:
         self.max_output_size = max_output_size
         self.working_dir = working_dir
         self.max_memory = max_memory_mb * 1024 * 1024
-        self._audit_log: list[dict] = []
+        self._audit_log: deque = deque(maxlen=self.MAX_AUDIT_LOG_SIZE)
 
     def validate_command(self, command: str) -> tuple[bool, Optional[str]]:
         """Validate command against security rules.
@@ -233,20 +236,22 @@ class CommandSandbox:
             raise SandBoxError(f"Execution failed: {e}") from e
 
     async def _run_command(self, command: str) -> str:
-        """Run command with resource limits."""
+        """Run command with resource limits using list form (no shell)."""
         try:
             parts = command.split()
             if not parts:
                 raise SandBoxError("Empty command")
 
             cmd_name = parts[0]
-            cmd_path = self.COMMAND_PATHS.get(cmd_name, cmd_name)
+            cmd_path = self.COMMAND_PATHS.get(cmd_name)
 
-            safe_args = [shlex.quote(arg) for arg in parts[1:]]
-            safe_command = " ".join([cmd_path] + safe_args)
+            if not cmd_path or not os.path.exists(cmd_path):
+                cmd_path = cmd_name
+
+            cmd_args = [cmd_path] + parts[1:]
 
             result = subprocess.run(
-                ["bash", "-c", safe_command],
+                cmd_args,
                 shell=False,
                 capture_output=True,
                 text=True,
@@ -266,6 +271,8 @@ class CommandSandbox:
 
         except subprocess.TimeoutExpired:
             raise SandBoxError(f"Command timeout after {self.timeout}s")
+        except FileNotFoundError:
+            raise SandBoxError(f"Command not found: {cmd_name}")
         except Exception as e:
             raise SandBoxError(f"Execution error: {e}")
 

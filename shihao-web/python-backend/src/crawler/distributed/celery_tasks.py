@@ -238,7 +238,7 @@ class DistributedCrawler:
                 pass
             finally:
                 await pubsub.unsubscribe(channel)
-                redis.close()
+                await redis.close()
         except Exception:
             start_time = asyncio.get_event_loop().time()
             while asyncio.get_event_loop().time() - start_time < timeout:
@@ -321,8 +321,9 @@ class CrawlWorker:
                 if message.type == "message":
                     await self._handle_job(message.data)
         finally:
+            await pubsub.unsubscribe()
             pubsub.close()
-            redis.close()
+            await redis.close()
 
     async def _handle_job(self, job_data: dict):
         """Handle incoming job."""
@@ -363,7 +364,7 @@ class CrawlWorker:
                 json.dumps({"job_id": job_id, "result": result}),
             )
         finally:
-            redis.close()
+            await redis.close()
 
 
 class RateLimiter:
@@ -394,17 +395,15 @@ class RateLimiter:
             count = results[1]
             return count < self.max_calls
         finally:
-            redis.close()
+            await redis.close()
 
     async def release(self, key: str):
-        """Release rate limiter (cleanup old entries)."""
+        """Release rate limiter (remove oldest entry)."""
         import aioredis
         import time
 
         redis = await aioredis.create_redis_pool(self.redis_url)
         try:
-            now = time.time()
-            window_start = now - self.window
-            await redis.zremrangebyscore(key, 0, window_start)
+            await redis.zremrangebyscore(key, 0, time.time())
         finally:
-            redis.close()
+            await redis.close()
