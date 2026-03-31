@@ -2,7 +2,7 @@ from typing import Optional
 from ..config import CrawlerConfig
 from ..types import CrawlerStrategy, CrawlResult
 from ..router import CrawlerRouter
-from ..exceptions import FallbackExhaustedError
+from ..exceptions import FallbackExhaustedError, ScraperError
 from .fallback_chain import FallbackChain
 from .retry_handler import RetryHandler
 
@@ -42,6 +42,13 @@ class CrawlerEngine:
                     self._do_crawl, url, strategy, use_fallback
                 )
             return await self._do_crawl(url, strategy, use_fallback)
+        except ScraperError as e:
+            return {
+                "success": False,
+                "content": "",
+                "strategy_used": "none",
+                "metadata": {"error": str(e), "error_type": "validation"},
+            }
         except FallbackExhaustedError as e:
             return {
                 "success": False,
