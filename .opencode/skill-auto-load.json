@@ -1,0 +1,43 @@
+{
+  "skillAutoLoad": {
+    "enabled": true,
+    "loadOnStartup": [
+      "using-superpowers"
+    ],
+    "priority": {
+      "using-superpowers": 1,
+      "brainstorming": 2,
+      "systematic-debugging": 3
+    }
+  },
+  "rules": {
+    "requireSkillBeforeAction": true,
+    "autoDiscovery": true,
+    "fallbackSkill": "using-superpowers"
+  },
+  "behavior": {
+    "description": "Auto-load core skills on task start",
+    "skills": {
+      "using-superpowers": {
+        "description": "Use when starting any conversation - establishes how to find and use skills",
+        "trigger": "always",
+        "priority": 1
+      },
+      "brainstorming": {
+        "description": "Use when creating features, building components, adding functionality, or modifying behavior",
+        "trigger": "creative_work",
+        "priority": 2
+      },
+      "systematic-debugging": {
+        "description": "Use when encountering any bug, test failure, or unexpected behavior",
+        "trigger": "bug_fixing",
+        "priority": 3
+      }
+    }
+  },
+  "performance": {
+    "lazyLoadThreshold": 50,
+    "preloadDelay": 100,
+    "cacheSkills": true
+  }
+}
