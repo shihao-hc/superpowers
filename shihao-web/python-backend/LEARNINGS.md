@@ -862,4 +862,102 @@ def get_urls_by_tag(tag: str):
 ---
 
 **文档维护者**: ShiHao Finance AI System  
-**最后更新**: 2026-03-31
+**最后更新**: 2026-04-02
+
+---
+
+## 📋 模块十：Claude Code 源码泄露深度分析 (2026-04-02)
+
+### 事件概述
+
+2026年3月31日，Anthropic 在 Claude Code v2.1.88 中误将 57MB 的 source map 文件发布到 NPM，导致 **51.2万行 TypeScript 源码泄露**。
+
+### GitHub 核心仓库
+
+| 仓库 | Stars | 价值 |
+|------|-------|------|
+| [ChinaSiro/claude-code-sourcemap](https://github.com/ChinaSiro/claude-code-sourcemap) | ⭐ 7.3K | 完整源码还原 (4756文件) |
+| [Yuyz0112/claude-code-reverse](https://github.com/Yuyz0112/claude-code-reverse) | ⭐ 2.3K | 运行时逆向 + Prompts提取 |
+| [tvytlx/claude-code-deep-dive](https://github.com/tvytlx/claude-code-deep-dive) | ⭐ 1.9K | 深度研究报告 PDF |
+
+### 核心架构发现
+
+#### 1. Agentic Loop (核心引擎)
+```typescript
+async function* queryLoop(params): AsyncGenerator {
+  while (true) {
+    // 流式调用模型
+    for await (const msg of callModel(state)) { yield msg; }
+    // 并行执行工具
+    for await (const result of executeTools()) { yield result; }
+    // 判断是否继续
+    if (!needsFollowUp) return { reason: 'completed' };
+    state = computeNextState(state);
+  }
+}
+```
+
+#### 2. 5层上下文压缩
+| 层级 | 策略 | 触发条件 |
+|------|------|----------|
+| L1 | History Snip | >70% |
+| L2 | Microcompact | >80% |
+| L3 | Context Collapse | >85% |
+| L4 | Auto-Compact | >90% |
+| L5 | Reactive Compact | 413错误 |
+
+#### 3. Sub-Agent 机制
+- 主上下文提取任务 → 子上下文执行 → 返回结果
+- "脏上下文"隔离在子上下文，不污染主上下文
+- 优化主上下文空间
+
+#### 4. 模型使用策略
+| 场景 | 模型 |
+|------|------|
+| 核心 Agent | Sonnet 4 |
+| 上下文压缩 | Sonnet 4 |
+| 主题检测 | Haiku 3.5 |
+| 额度检查 | Haiku 3.5 |
+
+### 提取的关键 Prompts
+
+1. **System Workflow** - 定义 Agent 完整行为
+2. **Context Compaction** - 上下文压缩指令
+3. **Topic Detection** - 新主题检测
+4. **Todo Management** - 任务管理规则
+
+### 可复用模式
+
+#### 流式 Agent 循环
+```python
+class StreamingAgent:
+    async def run(self, task: str) -> AsyncIterator[AgentEvent]:
+        while True:
+            async for chunk in self.llm.stream(state.messages):
+                yield AgentEvent(type="text", content=chunk)
+            if not tool_calls:
+                return
+            # 并行执行工具
+```
+
+#### 权限系统
+```python
+class PermissionSystem:
+    def __init__(self):
+        self.mode = PermissionMode.DEFAULT  # DEFAULT, PLAN, AUTO
+        self.denial_counts: dict[str, int] = {}
+        self.max_denials = 3
+```
+
+### 对爬虫项目的启示
+
+| 改进项 | Claude Code 做法 | 我们当前 | 优先级 |
+|--------|-----------------|----------|--------|
+| 流式 Agent | async generator | 同步循环 | 🔴 P0 |
+| 权限系统 | 3模式+拒绝追踪 | 无 | 🔴 P0 |
+| Todo 管理 | JSON文件持久化 | 内存中 | 🟠 P1 |
+| 技能加载 | 优先级层级 | 单一目录 | 🟠 P1 |
+| Sub-Agent | 上下文隔离 | 无 | 🟡 P2 |
+| 上下文压缩 | 5层级联 | 基本缓存 | 🟡 P2 |
+
+---
