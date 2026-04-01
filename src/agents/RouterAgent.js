@@ -19,7 +19,7 @@ class RouterAgent {
    */
   _initSkillAutoLoader() {
     try {
-      const SkillAutoLoader = require(path.resolve(process.cwd(), 'src/skills/SkillAutoLoader'));
+      const { SkillAutoLoader } = require(path.resolve(process.cwd(), 'src/skills/SkillAutoLoader'));
       skillAutoLoader = new SkillAutoLoader();
       console.log('[RouterAgent] SkillAutoLoader initialized');
       console.log('[RouterAgent] Auto-load enabled:', skillAutoLoader.isEnabled());
