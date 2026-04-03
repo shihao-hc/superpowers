@@ -1,5 +1,30 @@
 <template>
   <div class="portfolio-view">
+    <!-- Tab Navigation -->
+    <el-tabs v-model="activeTab" class="portfolio-tabs">
+      <el-tab-pane label="持仓管理" name="positions"></el-tab-pane>
+      <el-tab-pane label="信号通知" name="signals"></el-tab-pane>
+      <el-tab-pane label="策略对比" name="strategies"></el-tab-pane>
+      <el-tab-pane label="组合分析" name="analytics"></el-tab-pane>
+    </el-tabs>
+    
+    <!-- Signals Tab -->
+    <div v-if="activeTab === 'signals'" class="signals-container">
+      <SignalNotifications />
+    </div>
+    
+    <!-- Strategies Tab -->
+    <div v-if="activeTab === 'strategies'" class="strategies-container">
+      <StrategyComparison />
+    </div>
+    
+    <!-- Analytics Tab -->
+    <div v-if="activeTab === 'analytics'">
+      <PortfolioAnalytics />
+    </div>
+    
+    <!-- Positions Tab -->
+    <div v-if="activeTab === 'positions'">
     <!-- Portfolio Summary -->
     <el-row :gutter="20">
       <el-col :xs="24" :sm="12" :md="6">
@@ -289,6 +314,7 @@
         </el-table-column>
       </el-table>
     </div>
+    </div>
   </div>
 </template>
 
@@ -298,11 +324,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePortfolioStore } from '../stores/portfolio'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import PortfolioAnalytics from '../components/PortfolioAnalytics.vue'
+import SignalNotifications from '../components/SignalNotifications.vue'
+import StrategyComparison from '../components/StrategyComparison.vue'
 
 const route = useRoute()
 const router = useRouter()
 const portfolioStore = usePortfolioStore()
 
+const activeTab = ref('positions')
 const loading = ref(false)
 const submitting = ref(false)
 
@@ -824,5 +854,41 @@ onMounted(() => {
   .summary-card {
     margin-bottom: 16px;
   }
+}
+
+.portfolio-tabs {
+  margin-bottom: 20px;
+}
+
+.portfolio-tabs :deep(.el-tabs__header) {
+  margin-bottom: 0;
+}
+
+.portfolio-tabs :deep(.el-tabs__nav-wrap::after) {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.portfolio-tabs :deep(.el-tabs__item) {
+  color: #94a3b8;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 0 24px;
+  height: 50px;
+  line-height: 50px;
+}
+
+.portfolio-tabs :deep(.el-tabs__item:hover) {
+  color: #e2e8f0;
+}
+
+.portfolio-tabs :deep(.el-tabs__item.is-active) {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+.portfolio-tabs :deep(.el-tabs__active-bar) {
+  background: linear-gradient(90deg, #0ea5e9, #10b981);
+  height: 3px;
+  border-radius: 3px;
 }
 </style>

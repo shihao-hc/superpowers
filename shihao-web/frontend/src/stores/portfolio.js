@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { watchlistAPI, reviewAPI } from '../api'
+import { watchlistAPI, reviewAPI, portfolioAnalyticsAPI } from '../api'
 
 export const usePortfolioStore = defineStore('portfolio', () => {
   // State
@@ -17,6 +17,11 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   const riskAlerts = ref([])
   const trades = ref([])
   const loading = ref(false)
+  
+  // Analytics state
+  const analytics = ref(null)
+  const equityCurve = ref([])
+  const holdingsAllocation = ref({})
 
   // Getters
   const positionCount = computed(() => positions.value.length)
@@ -28,6 +33,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
   )
   const dailyPnL = computed(() => riskMetrics.value.daily_pnl || 0)
   const dailyReturn = computed(() => riskMetrics.value.daily_return || 0)
+  const performanceMetrics = computed(() => analytics.value?.performance || null)
 
   // Actions
   async function fetchPortfolio() {
@@ -115,6 +121,19 @@ export const usePortfolioStore = defineStore('portfolio', () => {
       return []
     }
   }
+  
+  async function fetchAnalytics(days = 90) {
+    try {
+      const response = await portfolioAnalyticsAPI.getAnalytics(days)
+      analytics.value = response
+      equityCurve.value = response.equity_curve || []
+      holdingsAllocation.value = response.holdings_allocation || {}
+      return response
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error)
+      return null
+    }
+  }
 
   function clearData() {
     positions.value = []
@@ -136,17 +155,22 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     riskAlerts,
     trades,
     loading,
+    analytics,
+    equityCurve,
+    holdingsAllocation,
     // Getters
     positionCount,
     profitPositions,
     lossPositions,
     dailyPnL,
     dailyReturn,
+    performanceMetrics,
     // Actions
     fetchPortfolio,
     executeTrade,
     fetchRiskMetrics,
     fetchRiskAlerts,
+    fetchAnalytics,
     clearData
   }
 })

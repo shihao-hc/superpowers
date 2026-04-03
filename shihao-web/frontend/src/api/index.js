@@ -212,4 +212,58 @@ export const agentAPI = {
     api.post('/api/agent/notifications/send', { title, content, priority, channels })
 }
 
+// ============== 13. 数据同步 ==============
+export const syncAPI = {
+  // 同步历史记录
+  syncHistory: (history) => api.post('/api/v3/sync/history', { history }),
+  
+  // 获取云端历史记录
+  getSyncedHistory: (userId) => api.get(`/api/v3/sync/history/${userId}`)
+}
+
+// ============== 14. AI策略生成 ==============
+export const strategyAPI = {
+  // 生成策略
+  generate: (ticker, type = 'trend', riskLevel = 'medium') => 
+    api.post('/api/v3/strategy/generate', { ticker, type, risk_level: riskLevel }),
+  
+  // 获取策略模板
+  getTemplates: () => api.get('/api/v3/strategy/templates')
+}
+
+// ============== 15. 风险控制 ==============
+export const riskControlAPI = {
+  // 分析风险
+  analyze: (positions) => api.post('/api/v3/risk/analyze', { positions }),
+  
+  // 设置预警
+  setAlert: (ticker, type, threshold) => 
+    api.post('/api/v3/risk/set-alert', { ticker, type, threshold })
+}
+
+// ============== 16. 模拟交易 ==============
+export const paperTradeAPI = {
+  // 下单
+  placeOrder: (ticker, action, quantity, price = null) => 
+    api.post('/api/v3/paper/order', { ticker, action, quantity, price }),
+  
+  // 获取持仓
+  getPortfolio: () => api.get('/api/v3/paper/portfolio'),
+  
+  // 获取历史
+  getHistory: () => api.get('/api/v3/paper/history')
+}
+
+// ============== 17. 策略市场 ==============
+export const marketplaceAPI = {
+  // 获取策略列表
+  getStrategies: () => api.get('/api/v3/marketplace/strategies')
+}
+
+// ============== 18. 组合分析 ==============
+export const portfolioAnalyticsAPI = {
+  // 获取组合分析数据
+  getAnalytics: (days = 90) => api.get('/api/portfolio/analytics', { params: { days } })
+}
+
 export default api

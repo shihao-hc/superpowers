@@ -39,7 +39,7 @@ function maskIP(ip) {
 function maskDeviceFingerprint(fp) {
   if (!fp || typeof fp !== 'string') return fp;
   if (fp.length < 8) return fp;
-  return `${fp.slice(0, 3)}******${fp.slice(3, 7)}`;
+  return `${fp.slice(0, 3)}******${fp.slice(-4)}`;
 }
 
 function maskObject(obj, fields) {
@@ -74,6 +74,8 @@ function reversibleMask(value, fieldType, authKey) {
 
 function reversibleUnmask(maskedValue, fieldType, authKey) {
   if (!maskedValue || !maskedValue.startsWith('rm:') || !authKey) return maskedValue;
+  const validFieldTypes = ['email', 'phone', 'idCard', 'bankCard', 'ip', 'deviceFingerprint'];
+  if (!fieldType || !validFieldTypes.includes(fieldType)) return maskedValue;
   try {
     const parts = maskedValue.split(':');
     if (parts.length !== 4) return maskedValue;
@@ -85,7 +87,8 @@ function reversibleUnmask(maskedValue, fieldType, authKey) {
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    const { value, fieldType: type } = JSON.parse(decrypted);
+    const { value, fieldType: storedType } = JSON.parse(decrypted);
+    if (storedType !== fieldType) return maskedValue;
     return value;
   } catch {
     return maskedValue;

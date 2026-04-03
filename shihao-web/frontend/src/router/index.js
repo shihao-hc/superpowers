@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    redirect: '/stock/pool'
+    redirect: '/stock/ai-assistant'
   },
   // 选股系统 Stock System (/stock)
   {
@@ -33,6 +33,30 @@ const routes = [
         name: 'StockChat',
         component: () => import('../views/ChatView.vue'),
         meta: { title: 'AI助手', system: 'stock' }
+      },
+      {
+        path: 'agent-panel',
+        name: 'AgentPanel',
+        component: () => import('../views/AgentView.vue'),
+        meta: { title: 'Agent控制面板', system: 'stock' }
+      },
+      {
+        path: 'ai-assistant',
+        name: 'AIAssistant',
+        component: () => import('../views/UnifiedAIView.vue'),
+        meta: { title: 'AI投资助手', system: 'stock' }
+      },
+      {
+        path: 'strategy-generator',
+        name: 'StrategyGenerator',
+        component: () => import('../views/StrategyGeneratorView.vue'),
+        meta: { title: 'AI策略生成器', system: 'stock' }
+      },
+      {
+        path: 'paper-trade',
+        name: 'PaperTrade',
+        component: () => import('../views/PaperTradeView.vue'),
+        meta: { title: '模拟交易', system: 'stock' }
       }
     ]
   },
@@ -101,7 +125,7 @@ const routes = [
   },
   {
     path: '/agent',
-    redirect: '/stock/chat'
+    redirect: '/stock/ai-assistant'
   },
   {
     path: '/portfolio',
@@ -116,6 +140,12 @@ const routes = [
     name: 'Settings',
     component: () => import('../views/SettingsView.vue'),
     meta: { title: '设置' }
+  },
+  {
+    path: '/test-canvas',
+    name: 'TestCanvas',
+    component: () => import('../views/TestCanvasView.vue'),
+    meta: { title: 'Canvas测试' }
   }
 ]
 

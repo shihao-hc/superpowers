@@ -41,33 +41,97 @@
           <div class="card-value">{{ agentStore.notifications.length }} 条</div>
         </div>
       </div>
-    </div>
-
-    <!-- Agent团队展示 -->
-    <div class="agent-team-section">
-      <div class="section-header">
-        <h2>🎯 AI交易Agent团队</h2>
-        <el-tag type="success">8个专业Agent | 20+金融工具</el-tag>
+      
+      <div class="status-card">
+        <div class="card-icon">🔧</div>
+        <div class="card-content">
+          <div class="card-title">工具总数</div>
+          <div class="card-value">39 个</div>
+        </div>
       </div>
       
-      <div class="agent-grid">
-        <div class="agent-card" v-for="agent in tradingAgents" :key="agent.id">
-          <div class="agent-icon">{{ agent.icon }}</div>
-          <div class="agent-info">
-            <div class="agent-name">{{ agent.name }}</div>
-            <div class="agent-role">{{ agent.role }}</div>
-            <div class="agent-tools">
-              <el-tag v-for="tool in agent.tools.slice(0, 3)" :key="tool" size="small" type="info">
-                {{ tool }}
-              </el-tag>
-              <el-tag v-if="agent.tools.length > 3" size="small" type="warning">
-                +{{ agent.tools.length - 3 }} 更多
-              </el-tag>
+      <div class="status-card highlight">
+        <div class="card-icon">👑</div>
+        <div class="card-content">
+          <div class="card-title">总负责AI</div>
+          <div class="card-value">已激活</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent团队展示 - 新架构 -->
+    <div class="agent-team-section">
+      <div class="section-header">
+        <h2>🎯 AI交易Agent团队 - 优化架构</h2>
+        <el-tag type="success">1个总负责AI | 7个专业Agent | 39+金融工具</el-tag>
+      </div>
+      
+      <!-- 总负责AI -->
+      <div class="chief-ai-section">
+        <div class="chief-ai-card">
+          <div class="chief-icon">👑</div>
+          <div class="chief-info">
+            <div class="chief-title">AI投资主管 (Chief AI Officer)</div>
+            <div class="chief-desc">总负责AI - 与用户直接对接，任务分解与调度，结果整合呈现</div>
+            <div class="chief-capabilities">
+              <el-tag type="success">用户对接</el-tag>
+              <el-tag type="success">任务调度</el-tag>
+              <el-tag type="success">结果整合</el-tag>
+              <el-tag type="success">智能汇报</el-tag>
             </div>
           </div>
-          <el-button size="small" type="primary" plain @click="useAgent(agent)">
-            调用
+          <el-button type="primary" @click="startChatWithChief">
+            开始对话
           </el-button>
+        </div>
+      </div>
+      
+      <!-- 专业Agent团队 -->
+      <div class="specialist-section">
+        <h3>专业Agent团队</h3>
+        <div class="agent-grid">
+          <div class="agent-card" v-for="agent in specialistAgents" :key="agent.id">
+            <div class="agent-icon">{{ agent.icon }}</div>
+            <div class="agent-info">
+              <div class="agent-name">{{ agent.name }}</div>
+              <div class="agent-role">{{ agent.role }}</div>
+              <div class="agent-tools">
+                <el-tag v-for="tool in agent.tools.slice(0, 3)" :key="tool" size="small" type="info">
+                  {{ tool }}
+                </el-tag>
+                <el-tag v-if="agent.tools.length > 3" size="small" type="warning">
+                  +{{ agent.tools.length - 3 }} 更多
+                </el-tag>
+              </div>
+            </div>
+            <el-button size="small" type="primary" plain @click="useAgent(agent)">
+              调用
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系统能力展示 -->
+    <div class="system-capabilities-section">
+      <div class="section-header">
+        <h2>🚀 系统新能力</h2>
+        <el-tag type="success">v1.2.0 全部升级完成</el-tag>
+      </div>
+      
+      <div class="capabilities-grid">
+        <div 
+          class="capability-card" 
+          :class="{ active: cap.status === 'active' }"
+          v-for="cap in systemCapabilities" 
+          :key="cap.name"
+        >
+          <div class="capability-icon">{{ cap.icon }}</div>
+          <div class="capability-info">
+            <div class="capability-name">{{ cap.name }}</div>
+            <div class="capability-desc">{{ cap.description }}</div>
+          </div>
+          <div class="capability-status"></div>
         </div>
       </div>
     </div>
@@ -210,16 +274,44 @@ const latestResult = computed(() => {
   return latest.result || latest.message || null
 })
 
-const tradingAgents = ref([
-  { id: 'portfolio_manager', name: '投资组合总经理', role: '团队协调者', icon: '👔', source: 'TradingAgents-CN', tools: ['任务分配', '决策协调', '风险控制'] },
-  { id: 'market_analyst', name: '首席市场分析师', role: '多市场分析', icon: '📊', source: 'TradingAgents-CN', tools: ['A股数据', '港股数据', '美股数据', '板块分析', '政策监控'] },
-  { id: 'research_analyst', name: '深度研究分析师', role: '价值投资', icon: '🔍', source: 'china-stock-analysis', tools: ['财务报表', '估值计算', '选股筛选', '基本面分析'] },
-  { id: 'risk_manager', name: '风险管理总监', role: '风险预警', icon: '🛡️', source: 'stock-monitor-skill', tools: ['风险指标', '组合分析', '股票监控', '实时报价'] },
-  { id: 'trade_executor', name: '交易执行专家', role: '订单执行', icon: '⚡', source: 'Lean/Tauric', tools: ['交易API', '实时报价', '风险校验'] },
-  { id: 'news_analyst', name: '财经新闻分析师', role: '舆情分析', icon: '📰', source: 'daily_stock_analysis', tools: ['新闻舆情', '政策监控', '实时报价'] },
-  { id: 'backtest_analyst', name: '量化回测专家', role: '策略回测', icon: '📈', source: 'Lean', tools: ['回测引擎', 'A股数据', '风险指标'] },
-  { id: 'data_analyst', name: '金融数据分析师', role: '数据获取', icon: '💾', source: 'akshare', tools: ['A股/港股/美股', '财务数据', '实时行情', '指数数据'] },
+// 总负责AI
+const chiefAI = ref({
+  id: 'portfolio_manager',
+  name: 'AI投资主管',
+  fullName: 'AI投资主管 (Chief AI Officer)',
+  role: '总负责AI - 用户对接与任务调度',
+  icon: '👑',
+  capabilities: ['用户对接', '任务分解', 'Agent调度', '结果整合', '智能汇报']
+})
+
+// 专业Agent团队
+const specialistAgents = ref([
+  { id: 'market_analyst', name: '首席市场分析师', role: '多市场分析', icon: '📊', source: 'TradingAgents-CN', tools: ['A股数据', '港股数据', '美股数据', '技术指标', '板块分析', '政策监控'], toolCount: 6 },
+  { id: 'research_analyst', name: '深度研究分析师', role: '价值投资', icon: '🔍', source: 'china-stock-analysis', tools: ['财务报表', '估值计算', '选股筛选', '基本面分析', '知识搜索'], toolCount: 5 },
+  { id: 'risk_manager', name: '风险管理总监', role: '风险预警', icon: '🛡️', source: 'stock-monitor-skill', tools: ['风险指标', '组合分析', '股票监控', '实时报价', '技术指标'], toolCount: 5 },
+  { id: 'trade_executor', name: '交易执行专家', role: '订单执行', icon: '⚡', source: 'Lean/Tauric', tools: ['交易API', '实时报价', '风险校验', '执行策略'], toolCount: 4 },
+  { id: 'news_analyst', name: '财经新闻分析师', role: '舆情分析', icon: '📰', source: 'daily_stock_analysis', tools: ['新闻舆情', '政策监控', '实时报价', '情感反馈'], toolCount: 4 },
+  { id: 'backtest_analyst', name: '量化回测专家', role: '策略回测', icon: '📈', source: 'Lean', tools: ['回测引擎', 'A股数据', '风险指标', '绩效分析'], toolCount: 4 },
+  { id: 'data_analyst', name: '金融数据分析师', role: '数据获取', icon: '💾', source: 'akshare', tools: ['A股/港股/美股', '财务数据', '实时行情', '指数数据', '概念热度', '资金流向'], toolCount: 11 },
 ])
+
+// 系统能力
+const systemCapabilities = ref([
+  { name: '通信日志', icon: '📝', description: 'Agent间实时通信记录', status: 'active' },
+  { name: '任务追踪', icon: '📊', description: '任务进度实时追踪', status: 'active' },
+  { name: '工具缓存', icon: '💾', description: '智能工具调用缓存', status: 'active' },
+  { name: '向量记忆', icon: '🧠', description: '语义记忆增强', status: 'active' },
+  { name: '对话管理', icon: '💬', description: '多轮对话上下文管理', status: 'active' },
+  { name: '反馈学习', icon: '📚', description: '用户反馈学习机制', status: 'active' },
+  { name: '自进化', icon: '🧬', description: 'Agent自进化能力', status: 'active' },
+  { name: '模板系统', icon: '📋', description: '自定义Agent模板', status: 'active' },
+  { name: '市场生态', icon: '🏪', description: 'Agent市场生态系统', status: 'active' },
+])
+
+function startChatWithChief() {
+  // Navigate to chat or emit event
+  ElMessage.success('正在连接AI投资主管...')
+}
 
 function useAgent(agent) {
   analyzeTickers.value = ''
@@ -312,6 +404,120 @@ async function sendNotify() {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+/* 总负责AI区域 */
+.chief-ai-section {
+  margin-bottom: 24px;
+}
+
+.chief-ai-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+  border-radius: 16px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
+.chief-icon {
+  font-size: 48px;
+}
+
+.chief-info {
+  flex: 1;
+}
+
+.chief-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.chief-desc {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.chief-capabilities {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chief-capabilities .el-tag {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+}
+
+/* 专业Agent区域 */
+.specialist-section {
+  margin-top: 20px;
+}
+
+.specialist-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #374151;
+}
+
+/* 系统能力区域 */
+.system-capabilities-section {
+  margin-top: 24px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.capability-card {
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.capability-card.active {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.capability-icon {
+  font-size: 24px;
+}
+
+.capability-info {
+  flex: 1;
+}
+
+.capability-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.capability-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.capability-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
 }
 
 .agent-header {

@@ -8,7 +8,7 @@ class DataMaskService {
 
   maskUserData(user) {
     if (!user) return null;
-    if (!this.config.enabled) return user;
+    if (!this.config.enabled) return { ...user };
     const maskedUser = { ...user };
     const fields = this.config.fields;
     for (const field of fields) {
