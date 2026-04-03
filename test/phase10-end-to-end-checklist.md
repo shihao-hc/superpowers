@@ -1,0 +1,6 @@
+- Phase 10 End-to-End Checklists
+- 1) Health checks: /health and edge health endpoint
+- 2) Edge routing: edge ingress and get latency budget
+- 3) End-to-end throughput: latency/throughput within baseline
+- 4) Failover: simulate edge node failure and verify failover
+- 5) Recovery: restore edge and verify normal operation

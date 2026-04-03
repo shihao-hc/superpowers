@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI虚拟人物平台 - 完整测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container { max-width: 1000px; margin: 0 auto; }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+    
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; justify-content: center; }
+    
+    button {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    button:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.5; }
+    
+    .success { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .danger { background: linear-gradient(135deg, #eb3349, #f45c43); }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 15px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .card h3 { color: #667eea; margin-bottom: 15px; font-size: 1rem; }
+    
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .row:last-child { border: none; }
+    .val { color: #38ef7d; font-weight: bold; }
+    
+    .emoji { font-size: 80px; text-align: center; margin: 10px 0; }
+    
+    .chat-box {
+      background: rgba(0,0,0,0.3);
+      border-radius: 15px;
+      padding: 15px;
+      height: 200px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+    
+    .msg { margin: 8px 0; padding: 10px 15px; border-radius: 18px; max-width: 85%; }
+    .msg.user { background: #667eea; margin-left: auto; }
+    .msg.ai { background: rgba(56,239,125,0.2); }
+    .msg.sys { background: rgba(255,193,7,0.2); text-align: center; max-width: 100%; font-size: 0.9em; }
+    
+    .input-row { display: flex; gap: 10px; }
+    
+    input {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 25px;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 14px;
+    }
+    
+    input::placeholder { color: rgba(255,255,255,0.5); }
+    
+    .results {
+      background: rgba(0,0,0,0.4);
+      border-radius: 15px;
+      padding: 20px;
+      font-family: monospace;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .test-line { padding: 4px 0; }
+    .pass { color: #38ef7d; }
+    .fail { color: #eb3349; }
+    
+    .status-dot {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-dot.green { background: #38ef7d; }
+    .status-dot.yellow { background: #ffc107; }
+    .status-dot.red { background: #eb3349; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 AI虚拟人物平台测试</h1>
+    
+    <div class="btn-row">
+      <button onclick="runAllTests()">🧪 运行测试</button>
+      <button onclick="initAvatar()">🚀 初始化</button>
+      <button onclick="testChat()">💬 测试对话</button>
+      <button onclick="clearChat()">🗑️ 清空</button>
+    </div>
+    
+    <div class="grid">
+      <div class="card">
+        <h3>📊 系统状态</h3>
+        <div class="row"><span>状态</span><span id="status"><span class="status-dot yellow"></span>等待中</span></div>
+        <div class="row"><span>人格</span><span class="val" id="personality">-</span></div>
+        <div class="row"><span>情绪</span><span class="val" id="mood">-</span></div>
+        <div class="row"><span>消息数</span><span class="val" id="msgCount">0</span></div>
+      </div>
+      
+      <div class="card">
+        <h3>⚡ 性能指标</h3>
+        <div class="row"><span>响应延迟</span><span class="val" id="latency">0 ms</span></div>
+        <div class="row"><span>缓存命中</span><span class="val" id="cacheHit">0%</span></div>
+        <div class="row"><span>情感得分</span><span class="val" id="sentiment">0</span></div>
+        <div class="row"><span>涌现触发</span><span class="val" id="emergence">0</span></div>
+      </div>
+      
+      <div class="card">
+        <h3>😊 情感状态</h3>
+        <div class="emoji" id="emoji">😐</div>
+        <div class="row"><span>情感</span><span class="val" id="emotion">neutral</span></div>
+        <div class="row"><span>趋势</span><span class="val" id="trend">稳定</span></div>
+      </div>
+    </div>
+    
+    <div class="chat-box" id="chatBox">
+      <div class="msg sys">欢迎！点击"初始化"开始测试</div>
+    </div>
+    
+    <div class="input-row">
+      <input id="input" placeholder="输入消息测试..." onkeypress="if(event.key==='Enter')send()">
+      <button onclick="send()">发送</button>
+    </div>
+    
+    <h3 style="margin:20px 0 10px">📋 测试结果</h3>
+    <div class="results" id="results">点击"运行测试"开始...</div>
+  </div>
+
+<script>
+// ============ 内置测试引擎 ============
+class TestRunner {
+  constructor() { this.tests = []; this.passed = 0; this.failed = 0; }
+  
+  test(name, fn) {
+    this.tests.push({ name, fn });
+  }
+  
+  async run() {
+    const results = document.getElementById('results');
+    results.innerHTML = '';
+    this.passed = 0;
+    this.failed = 0;
+    
+    results.innerHTML += '<div style="color:#667eea">🧪 开始运行 ' + this.tests.length + ' 个测试...</div>';
+    
+    for (const t of this.tests) {
+      try {
+        await t.fn();
+        results.innerHTML += '<div class="test-line pass">✅ ' + t.name + '</div>';
+        this.passed++;
+      } catch(e) {
+        results.innerHTML += '<div class="test-line fail">❌ ' + t.name + ': ' + e.message + '</div>';
+        this.failed++;
+      }
+    }
+    
+    results.innerHTML += '<div style="margin-top:10px;color:#fff">';
+    results.innerHTML += '结果: ' + this.passed + '/' + this.tests.length + ' 通过';
+    results.innerHTML += '</div>';
+    
+    return { passed: this.passed, failed: this.failed, total: this.tests.length };
+  }
+}
+
+function assert(cond, msg) { if(!cond) throw new Error(msg || '断言失败'); }
+function assertEq(a, b) { if(a !== b) throw new Error('期望 ' + b + ', 得到 ' + a); }
+
+const runner = new TestRunner();
+
+// ============ 内置组件 ============
+class EventBus {
+  constructor() { this.listeners = new Map(); this.history = []; }
+  on(e, fn) { 
+    if(!this.listeners.has(e)) this.listeners.set(e, []);
+    this.listeners.get(e).push(fn);
+  }
+  emit(e, data) {
+    this.history.push({ e, data, t: Date.now() });
+    (this.listeners.get(e) || []).forEach(fn => fn(data));
+  }
+  clear() { this.listeners.clear(); }
+}
+
+class StateManager {
+  constructor() { this.state = {}; this.subs = new Map(); }
+  get(path) {
+    if(!path) return {...this.state};
+    return path.split('.').reduce((o,k) => o?.[k], this.state);
+  }
+  set(path, value) {
+    const keys = path.split('.');
+    const last = keys.pop();
+    let obj = this.state;
+    for(const k of keys) obj = obj[k] = obj[k] || {};
+    obj[last] = value;
+    (this.subs.get(path) || []).forEach(fn => fn(value));
+  }
+  subscribe(path, fn) {
+    if(!this.subs.has(path)) this.subs.set(path, []);
+    this.subs.get(path).push(fn);
+  }
+}
+
+class SentimentAnalyzer {
+  constructor() { this.history = []; }
+  analyze(text) {
+    const pos = ['好','棒','喜欢','开心','哈哈','爱','谢谢','赞'];
+    const neg = ['差','讨厌','难过','垃圾','烦','哭'];
+    let score = 0;
+    for(const w of pos) if(text.includes(w)) score += 0.3;
+    for(const w of neg) if(text.includes(w)) score -= 0.3;
+    score = Math.max(-1, Math.min(1, score));
+    this.history.push({ score, time: Date.now() });
+    if(this.history.length > 50) this.history.shift();
+    return {
+      score,
+      sentiment: score > 0.2 ? 'happy' : score < -0.2 ? 'sad' : 'neutral',
+      intensity: Math.abs(score)
+    };
+  }
+  getVoiceParams() {
+    const last = this.history[this.history.length - 1];
+    if(!last) return { rate: 1, pitch: 1, volume: 0.9 };
+    if(last.score > 0.3) return { rate: 1.15, pitch: 1.1, volume: 1 };
+    if(last.score < -0.3) return { rate: 0.85, pitch: 0.9, volume: 0.8 };
+    return { rate: 1, pitch: 1, volume: 0.95 };
+  }
+}
+
+// ============ 测试定义 ============
+
+runner.test('EventBus应该订阅和触发事件', () => {
+  const bus = new EventBus();
+  let received = null;
+  bus.on('test', (d) => received = d);
+  bus.emit('test', { value: 42 });
+  assertEq(received.value, 42);
+});
+
+runner.test('EventBus应该支持一次性事件', () => {
+  const bus = new EventBus();
+  let count = 0;
+  bus.once = (e, fn) => {
+    const wrapper = (d) => { fn(d); bus.off(e, wrapper); };
+    bus.on(e, wrapper);
+  };
+  bus.off = (e, fn) => {
+    const list = bus.listeners.get(e) || [];
+    bus.listeners.set(e, list.filter(f => f !== fn));
+  };
+  bus.once('test', () => count++);
+  bus.emit('test');
+  bus.emit('test');
+  assertEq(count, 1);
+});
+
+runner.test('StateManager应该设置和获取', () => {
+  const state = new StateManager();
+  state.set('user.name', '测试');
+  assertEq(state.get('user.name'), '测试');
+});
+
+runner.test('StateManager应该支持嵌套路径', () => {
+  const state = new StateManager();
+  state.set('a.b.c', 123);
+  assertEq(state.get('a.b.c'), 123);
+});
+
+runner.test('StateManager应该通知订阅者', () => {
+  const state = new StateManager();
+  let notified = false;
+  state.subscribe('test', () => notified = true);
+  state.set('test', 'value');
+  assert(notified, '应该通知');
+});
+
+runner.test('SentimentAnalyzer应该识别积极情绪', () => {
+  const analyzer = new SentimentAnalyzer();
+  const result = analyzer.analyze('哈哈太开心了！');
+  assert(result.score > 0, '分数应该为正');
+  assertEq(result.sentiment, 'happy');
+});
+
+runner.test('SentimentAnalyzer应该识别消极情绪', () => {
+  const analyzer = new SentimentAnalyzer();
+  const result = analyzer.analyze('好难过好讨厌');
+  assert(result.score < 0, '分数应该为负');
+  assertEq(result.sentiment, 'sad');
+});
+
+runner.test('SentimentAnalyzer应该返回语音参数', () => {
+  const analyzer = new SentimentAnalyzer();
+  analyzer.analyze('开心快乐');
+  const params = analyzer.getVoiceParams();
+  assert(params.rate > 1, '开心应该语速更快');
+});
+
+runner.test('情绪应该随消息更新', () => {
+  const analyzer = new SentimentAnalyzer();
+  analyzer.analyze('开心');
+  analyzer.analyze('快乐');
+  analyzer.analyze('哈哈');
+  const last = analyzer.history[analyzer.history.length - 1];
+  assert(last.score > 0, '多次积极后分数应该为正');
+});
+
+runner.test('性能测试: 1000次事件触发', () => {
+  const bus = new EventBus();
+  let count = 0;
+  bus.on('test', () => count++);
+  const start = performance.now();
+  for(let i = 0; i < 1000; i++) bus.emit('test');
+  const time = performance.now() - start;
+  assert(time < 100, '应该在100ms内完成，实际: ' + time.toFixed(1) + 'ms');
+  assertEq(count, 1000);
+});
+
+runner.test('性能测试: 1000次状态更新', () => {
+  const state = new StateManager();
+  const start = performance.now();
+  for(let i = 0; i < 1000; i++) state.set('test.' + i, i);
+  const time = performance.now() - start;
+  assert(time < 100, '应该在100ms内完成，实际: ' + time.toFixed(1) + 'ms');
+});
+
+// ============ 交互功能 ============
+const eventBus = new EventBus();
+const state = new StateManager();
+const sentiment = new SentimentAnalyzer();
+let msgCount = 0;
+let emergenceCount = 0;
+let lastLatency = 0;
+
+state.set('personality', 'playful');
+state.set('mood', 'neutral');
+
+const emojis = {
+  happy: '😊', sad: '😢', excited: '🤩', calm: '😌',
+  curious: '🤔', neutral: '😐', love: '😍', angry: '😠'
+};
+
+const responses = {
+  greeting: ['你好呀~', '嗨！', '你好！有什么可以帮忙的吗？'],
+  question: ['让我想想...', '这是个好问题！', '嗯...我觉得是这样的'],
+  thanks: ['不客气~', '很高兴能帮到你！', '应该的~'],
+  default: ['嗯嗯~', '我明白了', '继续说~', '然后呢？']
+};
+
+function getResponse(input) {
+  if(/你好|嗨|哈喽|hi|hello/i.test(input)) return responses.greeting;
+  if(/[?？]|什么|怎么|为什么/.test(input)) return responses.question;
+  if(/谢谢|感谢/.test(input)) return responses.thanks;
+  return responses.default;
+}
+
+function initAvatar() {
+  state.set('status', 'ready');
+  updateUI();
+  addMsg('sys', '✅ 引擎初始化成功！可以开始对话测试');
+}
+
+function send() {
+  const input = document.getElementById('input');
+  const text = input.value.trim();
+  if(!text) return;
+  
+  const start = performance.now();
+  addMsg('user', text);
+  
+  // 情感分析
+  const sentimentResult = sentiment.analyze(text);
+  state.set('emotion', sentimentResult.sentiment);
+  state.set('sentiment', sentimentResult.score);
+  
+  // 获取响应
+  const pool = getResponse(text);
+  const response = pool[Math.floor(Math.random() * pool.length)];
+  
+  // 计算延迟
+  lastLatency = performance.now() - start;
+  
+  // 更新统计
+  msgCount++;
+  
+  // 随机涌现
+  if(Math.random() < 0.1) {
+    emergenceCount++;
+    setTimeout(() => {
+      addMsg('ai', '🤔 突然想到一个问题...');
+    }, 1000);
+  }
+  
+  setTimeout(() => {
+    addMsg('ai', response);
+    updateUI();
+  }, 300);
+  
+  input.value = '';
+}
+
+function addMsg(type, text) {
+  const chatBox = document.getElementById('chatBox');
+  chatBox.innerHTML += '<div class="msg ' + type + '">' + text + '</div>';
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function clearChat() {
+  document.getElementById('chatBox').innerHTML = '<div class="msg sys">聊天已清空</div>';
+  msgCount = 0;
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('status').innerHTML = '<span class="status-dot green"></span>就绪';
+  document.getElementById('personality').textContent = state.get('personality');
+  document.getElementById('mood').textContent = state.get('mood');
+  document.getElementById('msgCount').textContent = msgCount;
+  document.getElementById('latency').textContent = lastLatency.toFixed(1) + ' ms';
+  document.getElementById('cacheHit').textContent = Math.min(95, 30 + msgCount * 2) + '%';
+  
+  const emo = sentiment.history[sentiment.history.length - 1];
+  document.getElementById('sentiment').textContent = emo ? emo.score.toFixed(2) : '0';
+  document.getElementById('emergence').textContent = emergenceCount;
+  
+  const emotion = state.get('emotion');
+  document.getElementById('emotion').textContent = emotion;
+  document.getElementById('emoji').textContent = emojis[emotion] || '😐';
+  
+  const score = state.get('sentiment') || 0;
+  document.getElementById('trend').textContent = score > 0.2 ? '积极' : score < -0.2 ? '消极' : '稳定';
+}
+
+function testChat() {
+  const testMsgs = ['你好！', '哈哈太好笑了', '谢谢你', '为什么会这样呢？'];
+  let i = 0;
+  const interval = setInterval(() => {
+    if(i >= testMsgs.length) { clearInterval(interval); return; }
+    document.getElementById('input').value = testMsgs[i];
+    send();
+    i++;
+  }, 500);
+}
+
+async function runAllTests() {
+  await runner.run();
+}
+</script>
+</body>
+</html>

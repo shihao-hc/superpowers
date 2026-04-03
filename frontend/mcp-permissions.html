@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP 权限管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    h1 { font-size: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .alert-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold; background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .main-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; }
+    .card { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 1.5rem; margin-bottom: 1rem; }
+    .card-title { font-size: 1rem; color: #888; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .role-list { list-style: none; }
+    .role-item { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.5rem; transition: all 0.2s; border: 1px solid transparent; }
+    .role-item:hover { background: #252540; }
+    .role-item.active { background: #252540; border-color: #667eea; }
+    .role-icon { font-size: 1.5rem; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
+    .role-icon.admin { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .role-icon.operator { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .role-icon.viewer { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .role-info { flex: 1; }
+    .role-name { font-weight: bold; color: #fff; }
+    .role-desc { font-size: 0.8rem; color: #888; }
+    .role-count { font-size: 0.75rem; background: #333; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    .tool-matrix { width: 100%; border-collapse: collapse; }
+    .tool-matrix th { text-align: left; padding: 0.75rem; background: #0f0f23; color: #888; font-size: 0.8rem; text-transform: uppercase; border-bottom: 1px solid #333; }
+    .tool-matrix td { padding: 0.75rem; border-bottom: 1px solid #222; vertical-align: middle; }
+    .tool-matrix tr:hover { background: #252540; }
+    .tool-name { font-family: monospace; color: #667eea; }
+    .tool-desc { color: #888; font-size: 0.85rem; }
+    .perm-cell { text-align: center; }
+    .perm-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }
+    .perm-badge.read { background: #1e3a5f; color: #60a5fa; }
+    .perm-badge.write { background: #3f2d1f; color: #fb923c; }
+    .perm-badge.admin { background: #3d2d5f; color: #a78bfa; }
+    .perm-badge.none { background: #2d1f1f; color: #666; cursor: not-allowed; }
+    .perm-badge:hover:not(.none) { transform: scale(1.05); }
+    .perm-badge.active { box-shadow: 0 0 10px currentColor; }
+    .severity-tag { display: inline-block; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.65rem; margin-left: 0.5rem; }
+    .severity-tag.high { background: #5f2d1f; color: #f87171; }
+    .severity-tag.medium { background: #5f4d1f; color: #fbbf24; }
+    .severity-tag.low { background: #1f3d5f; color: #60a5fa; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 2rem; min-width: 400px; max-width: 90%; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-title { font-size: 1.25rem; font-weight: bold; }
+    .modal-close { background: #333; border: none; width: 32px; height: 32px; border-radius: 50%; color: #fff; cursor: pointer; font-size: 1.25rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .form-input { width: 100%; background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.95rem; }
+    .form-input:focus { outline: none; border-color: #667eea; }
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .alert-rules { margin-top: 1rem; }
+    .rule-item { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; background: #0f0f23; border-radius: 6px; margin-bottom: 0.5rem; }
+    .rule-toggle { position: relative; width: 40px; height: 20px; background: #333; border-radius: 10px; cursor: pointer; transition: background 0.3s; }
+    .rule-toggle.active { background: #667eea; }
+    .rule-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.3s; }
+    .rule-toggle.active::after { transform: translateX(20px); }
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem 1.5rem; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.show { display: block; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .tab-nav { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; }
+    .tab-btn { padding: 0.5rem 1rem; background: none; border: none; color: #888; cursor: pointer; font-size: 0.9rem; border-radius: 6px 6px 0 0; transition: all 0.2s; }
+    .tab-btn:hover { color: #fff; background: #252540; }
+    .tab-btn.active { color: #667eea; background: #252540; border-bottom: 2px solid #667eea; }
+    .add-form { display: none; }
+    .add-form.show { display: block; }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛡️ MCP 权限管理</h1>
+      <span class="alert-badge">👑 管理员模式</span>
+    </header>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="showTab('roles')">角色配置</button>
+      <button class="tab-btn" onclick="showTab('tools')">工具权限矩阵</button>
+      <button class="tab-btn" onclick="showTab('alerts')">告警规则</button>
+      <button class="tab-btn" onclick="showTab('audit')">审计日志</button>
+    </div>
+
+    <div id="tab-roles" class="tab-content">
+      <div class="main-grid">
+        <div>
+          <div class="card">
+            <div class="card-title">角色列表</div>
+            <ul class="role-list" id="roleList">
+              <li class="role-item active" data-role="admin">
+                <span class="role-icon admin">👑</span>
+                <div class="role-info">
+                  <div class="role-name">管理员</div>
+                  <div class="role-desc">完全访问权限</div>
+                </div>
+                <span class="role-count">3</span>
+              </li>
+              <li class="role-item" data-role="operator">
+                <span class="role-icon operator">⚙️</span>
+                <div class="role-info">
+                  <div class="role-name">操作员</div>
+                  <div class="role-desc">部分写入权限</div>
+                </div>
+                <span class="role-count">5</span>
+              </li>
+              <li class="role-item" data-role="viewer">
+                <span class="role-icon viewer">👁️</span>
+                <div class="role-info">
+                  <div class="role-name">访客</div>
+                  <div class="role-desc">只读权限</div>
+                </div>
+                <span class="role-count">8</span>
+              </li>
+            </ul>
+          </div>
+          
+          <div class="card">
+            <div class="card-title">创建自定义角色</div>
+            <div class="form-group">
+              <label class="form-label">角色名称</label>
+              <input type="text" class="form-input" id="newRoleName" placeholder="例如: developer">
+            </div>
+            <div class="form-group">
+              <label class="form-label">默认权限级别</label>
+              <select class="form-input" id="newRoleLevel">
+                <option value="read">只读 (Read)</option>
+                <option value="write">读写 (Write)</option>
+                <option value="admin">完全访问 (Admin)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="createRole()">创建角色</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">角色权限详情 - <span id="currentRoleName">管理员</span></div>
+          <div id="rolePermissions">
+            <p style="color: #888;">点击左侧角色查看详细权限</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-tools" class="tab-content" style="display: none;">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div class="card-title" style="margin: 0;">工具权限矩阵</div>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" class="form-input" style="width: 200px;" placeholder="搜索工具..." id="toolSearch" oninput="filterTools()">
+            <button class="btn btn-secondary" onclick="resetPermissions()">重置默认</button>
+            <button class="btn btn-primary" onclick="savePermissions()">保存更改</button>
+          </div>
+        </div>
+        <table class="tool-matrix" id="toolMatrix">
+          <thead>
+            <tr>
+              <th style="width: 250px;">工具名称</th>
+              <th>描述</th>
+              <th style="width: 100px;">危险级别</th>
+              <th style="width: 100px;">Admin</th>
+              <th style="width: 100px;">Operator</th>
+              <th style="width: 100px;">Viewer</th>
+            </tr>
+          </thead>
+          <tbody id="toolMatrixBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-alerts" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-title">告警规则配置</div>
+        <div class="alert-rules" id="alertRules">
+          <div class="rule-item">
+            <div>
+              <strong>敏感操作告警</strong>
+              <div style="font-size: 0.8rem; color: #888;">delete, create_release, write_file</div>
+            </div>
+            <div class="rule-toggle active" onclick="toggleRule(this)"></div>
+          </div>
+          <div class="rule-item">
+            <div>
+              <strong>认证失败告警</strong>
+              <div style="font-size: 0.8rem; color: #888;">access_denied, Unauthorized</div>
+            </div>
+            <div class="rule-toggle active" onclick="toggleRule(this)"></div>
+          </div>
+          <div class="rule-item">
+            <div>
+              <strong>高频失败告警</strong>
+              <div style="font-size: 0.8rem; color: #888;">连续失败5次以上</div>
+            </div>
+            <div class="rule-toggle active" onclick="toggleRule(this)"></div>
+          </div>
+          <div class="rule-item">
+            <div>
+              <strong>异常时间活动</strong>
+              <div style="font-size: 0.8rem; color: #888;">非工作时间操作</div>
+            </div>
+            <div class="rule-toggle" onclick="toggleRule(this)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">通知渠道配置</div>
+        <div id="notificationChannels">
+          <div class="rule-item">
+            <div>
+              <strong>Slack</strong>
+              <div style="font-size: 0.8rem; color: #888;">#mcp-alerts</div>
+            </div>
+            <span style="color: #4ade80; font-size: 0.85rem;">✓ 已连接</span>
+          </div>
+          <div class="rule-item">
+            <div>
+              <strong>企业微信</strong>
+              <div style="font-size: 0.8rem; color: #888;">MCP告警机器人</div>
+            </div>
+            <span style="color: #4ade80; font-size: 0.85rem;">✓ 已连接</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="showAddChannelModal()">+ 添加通知渠道</button>
+      </div>
+    </div>
+
+    <div id="tab-audit" class="tab-content" style="display: none;">
+      <div class="card">
+        <div class="card-title">实时审计日志</div>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+          <select class="form-input" style="width: 150px;" id="auditRole" onchange="loadAuditLogs()">
+            <option value="">所有角色</option>
+            <option value="admin">管理员</option>
+            <option value="operator">操作员</option>
+            <option value="viewer">访客</option>
+          </select>
+          <select class="form-input" style="width: 150px;" id="auditResult" onchange="loadAuditLogs()">
+            <option value="">所有结果</option>
+            <option value="true">成功</option>
+            <option value="false">失败</option>
+          </select>
+          <button class="btn btn-secondary" onclick="loadAuditLogs()">刷新</button>
+          <button class="btn btn-secondary" onclick="exportAuditLogs()">导出</button>
+        </div>
+        <div id="auditLogs" style="max-height: 400px; overflow-y: auto;">
+          <p style="color: #888; text-align: center; padding: 2rem;">加载中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="addChannelModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">添加通知渠道</span>
+        <button class="modal-close" onclick="hideModal()">&times;</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">平台类型</label>
+        <select class="form-input" id="channelType">
+          <option value="slack">Slack</option>
+          <option value="wechat_work">企业微信</option>
+          <option value="telegram">Telegram</option>
+          <option value="discord">Discord</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">渠道名称</label>
+        <input type="text" class="form-input" id="channelName" placeholder="例如: MCP Alerts">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Webhook URL / Token</label>
+        <input type="text" class="form-input" id="channelToken" placeholder="输入 Webhook URL 或 Token">
+      </div>
+      <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="hideModal()">取消</button>
+        <button class="btn btn-primary" onclick="addChannel()">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const TOOL_PERMISSIONS = [
+      { name: 'filesystem:read_file', desc: '读取文件', severity: 'low' },
+      { name: 'filesystem:write_file', desc: '写入文件', severity: 'medium' },
+      { name: 'filesystem:delete_file', desc: '删除文件', severity: 'high' },
+      { name: 'filesystem:list_directory', desc: '列出目录', severity: 'low' },
+      { name: 'filesystem:move_file', desc: '移动文件', severity: 'high' },
+      { name: 'github:create_issue', desc: '创建 Issue', severity: 'medium' },
+      { name: 'github:create_release', desc: '创建 Release', severity: 'high' },
+      { name: 'github:delete_file', desc: '删除文件', severity: 'high' },
+      { name: 'github:search_repositories', desc: '搜索仓库', severity: 'low' },
+      { name: 'github:get_pull_request', desc: '获取 PR', severity: 'low' },
+      { name: 'brave-search:search', desc: '网络搜索', severity: 'low' },
+      { name: 'sequential-thinking:think', desc: 'AI 思考', severity: 'low' },
+      { name: 'everything:search', desc: '全局搜索', severity: 'low' }
+    ];
+
+    const DEFAULT_PERMISSIONS = {
+      'filesystem:read_file': { admin: 'read', operator: 'read', viewer: 'read' },
+      'filesystem:write_file': { admin: 'write', operator: 'write', viewer: 'none' },
+      'filesystem:delete_file': { admin: 'admin', operator: 'none', viewer: 'none' },
+      'filesystem:list_directory': { admin: 'read', operator: 'read', viewer: 'read' },
+      'filesystem:move_file': { admin: 'admin', operator: 'none', viewer: 'none' },
+      'github:create_issue': { admin: 'write', operator: 'write', viewer: 'none' },
+      'github:create_release': { admin: 'admin', operator: 'none', viewer: 'none' },
+      'github:delete_file': { admin: 'admin', operator: 'none', viewer: 'none' },
+      'github:search_repositories': { admin: 'read', operator: 'read', viewer: 'read' },
+      'github:get_pull_request': { admin: 'read', operator: 'read', viewer: 'read' },
+      'brave-search:search': { admin: 'read', operator: 'read', viewer: 'read' },
+      'sequential-thinking:think': { admin: 'read', operator: 'read', viewer: 'read' },
+      'everything:search': { admin: 'read', operator: 'read', viewer: 'read' }
+    };
+
+    let currentPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
+    let selectedRole = 'admin';
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(`tab-${tab}`).style.display = 'block';
+      event.target.classList.add('active');
+      
+      if (tab === 'tools') renderToolMatrix();
+      if (tab === 'audit') loadAuditLogs();
+    }
+
+    function renderToolMatrix() {
+      const tbody = document.getElementById('toolMatrixBody');
+      tbody.innerHTML = TOOL_PERMISSIONS.map(tool => {
+        const perms = currentPermissions[tool.name] || { admin: 'read', operator: 'read', viewer: 'read' };
+        return `
+          <tr>
+            <td><span class="tool-name">${tool.name}</span></td>
+            <td><span class="tool-desc">${tool.desc}</span></td>
+            <td><span class="severity-tag ${tool.severity}">${tool.severity.toUpperCase()}</span></td>
+            ${['admin', 'operator', 'viewer'].map(role => `
+              <td class="perm-cell">
+                <span class="perm-badge ${perms[role]} ${perms[role] !== 'none' ? 'active' : ''}" 
+                      onclick="changePermission('${tool.name}', '${role}')">
+                  ${perms[role] === 'none' ? '✗' : perms[role].charAt(0).toUpperCase()}
+                </span>
+              </td>
+            `).join('')}
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function changePermission(tool, role) {
+      const current = currentPermissions[tool][role];
+      const levels = ['none', 'read', 'write', 'admin'];
+      const nextIndex = (levels.indexOf(current) + 1) % levels.length;
+      currentPermissions[tool][role] = levels[nextIndex];
+      renderToolMatrix();
+      showToast('权限已更新', 'success');
+    }
+
+    function filterTools() {
+      const search = document.getElementById('toolSearch').value.toLowerCase();
+      const rows = document.getElementById('toolMatrixBody').querySelectorAll('tr');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+      });
+    }
+
+    function savePermissions() {
+      fetch('/api/mcp/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: currentPermissions })
+      }).then(r => r.json()).then(data => {
+        if (data.success) showToast('权限配置已保存', 'success');
+        else showToast('保存失败: ' + data.error, 'error');
+      }).catch(e => showToast('保存失败: ' + e.message, 'error'));
+    }
+
+    function resetPermissions() {
+      currentPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
+      renderToolMatrix();
+      showToast('已重置为默认权限', 'success');
+    }
+
+    function createRole() {
+      const name = document.getElementById('newRoleName').value.trim();
+      const level = document.getElementById('newRoleLevel').value;
+      if (!name) { showToast('请输入角色名称', 'error'); return; }
+      
+      fetch('/api/mcp/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, level })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          showToast(`角色 ${name} 创建成功`, 'success');
+          document.getElementById('newRoleName').value = '';
+        } else {
+          showToast('创建失败: ' + data.error, 'error');
+        }
+      }).catch(e => showToast('创建失败: ' + e.message, 'error'));
+    }
+
+    function toggleRule(el) {
+      el.classList.toggle('active');
+    }
+
+    function showAddChannelModal() {
+      document.getElementById('addChannelModal').classList.add('show');
+    }
+
+    function hideModal() {
+      document.getElementById('addChannelModal').classList.remove('show');
+    }
+
+    function addChannel() {
+      const type = document.getElementById('channelType').value;
+      const name = document.getElementById('channelName').value;
+      const token = document.getElementById('channelToken').value;
+      
+      fetch('/api/mcp/alerts/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, name, token })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          showToast('通知渠道添加成功', 'success');
+          hideModal();
+        } else {
+          showToast('添加失败: ' + data.error, 'error');
+        }
+      }).catch(e => showToast('添加失败: ' + e.message, 'error'));
+    }
+
+    function loadAuditLogs() {
+      const role = document.getElementById('auditRole').value;
+      const success = document.getElementById('auditResult').value;
+      let url = '/api/mcp/audit/logs?limit=50';
+      if (role) url += `&role=${role}`;
+      if (success) url += `&success=${success}`;
+      
+      fetch(url).then(r => r.json()).then(data => {
+        const logs = data.logs || [];
+        const container = document.getElementById('auditLogs');
+        
+        if (logs.length === 0) {
+          container.innerHTML = '<p style="color: #888; text-align: center; padding: 2rem;">暂无日志记录</p>';
+          return;
+        }
+        
+        container.innerHTML = logs.slice(0, 20).map(log => `
+          <div class="rule-item" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+              <span style="color: ${log.result?.success ? '#4ade80' : '#f87171'};">
+                ${log.result?.success ? '✓' : '✗'}
+              </span>
+              <span class="tool-name">${log.toolFullName}</span>
+              <span style="color: #888; font-size: 0.85rem;">${log.user?.username || 'unknown'}</span>
+              <span class="severity-tag ${log.user?.role === 'admin' ? 'high' : log.user?.role === 'operator' ? 'medium' : 'low'}">
+                ${log.user?.role || 'unknown'}
+              </span>
+              <span style="color: #666; font-size: 0.8rem; margin-left: auto;">${new Date(log.timestamp).toLocaleString('zh-CN')}</span>
+            </div>
+            ${log.result?.error ? `<div style="color: #f87171; font-size: 0.8rem;">错误: ${log.result.error}</div>` : ''}
+          </div>
+        `).join('');
+      }).catch(e => {
+        document.getElementById('auditLogs').innerHTML = '<p style="color: #f87171; text-align: center; padding: 2rem;">加载失败</p>';
+      });
+    }
+
+    function exportAuditLogs() {
+      window.open('/api/mcp/audit/export?format=csv', '_blank');
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast show ${type}`;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    document.querySelectorAll('.role-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.role-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        selectedRole = item.dataset.role;
+        document.getElementById('currentRoleName').textContent = item.querySelector('.role-name').textContent;
+      });
+    });
+
+    renderToolMatrix();
+    loadAuditLogs();
+  </script>
+</body>
+</html>

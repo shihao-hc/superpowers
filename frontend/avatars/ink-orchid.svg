@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="inkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2F2F2F"/>
+      <stop offset="100%" style="stop-color:#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <!-- Hair bun traditional style -->
+  <ellipse cx="50" cy="30" rx="22" ry="18" fill="#1a1a1a"/>
+  <ellipse cx="50" cy="38" rx="35" ry="20" fill="#1a1a1a"/>
+  <!-- Hair pins -->
+  <line x1="35" y1="25" x2="20" y2="15" stroke="#C0C0C0" stroke-width="2"/>
+  <circle cx="18" cy="13" r="4" fill="#C0C0C0"/>
+  <line x1="65" y1="25" x2="80" y2="15" stroke="#C0C0C0" stroke-width="2"/>
+  <circle cx="82" cy="13" r="4" fill="#C0C0C0"/>
+  <!-- Face -->
+  <ellipse cx="50" cy="55" rx="28" ry="30" fill="#F5F5DC"/>
+  <!-- Eyes (serene) -->
+  <ellipse cx="38" cy="50" rx="5" ry="6" fill="#2F2F2F"/>
+  <ellipse cx="62" cy="50" rx="5" ry="6" fill="#2F2F2F"/>
+  <ellipse cx="40" cy="49" rx="1.5" ry="1.5" fill="#FFF"/>
+  <ellipse cx="64" cy="49" rx="1.5" ry="1.5" fill="#FFF"/>
+  <!-- Subtle makeup -->
+  <line x1="28" y1="50" x2="32" y2="50" stroke="#FFB6C1" stroke-width="0.5"/>
+  <line x1="68" y1="50" x2="72" y2="50" stroke="#FFB6C1" stroke-width="0.5"/>
+  <!-- Elegant mouth -->
+  <path d="M45 68 Q50 70 55 68" stroke="#8B4513" stroke-width="1.5" fill="none"/>
+  <!-- Blush -->
+  <ellipse cx="28" cy="60" rx="5" ry="3" fill="#FFB6C1" opacity="0.3"/>
+  <ellipse cx="72" cy="60" rx="5" ry="3" fill="#FFB6C1" opacity="0.3"/>
+  <!-- Traditional collar -->
+  <path d="M30 85 L40 75 L50 80 L60 75 L70 85" fill="#8B0000" opacity="0.8"/>
+  <line x1="50" y1="75" x2="50" y2="95" stroke="#8B0000" stroke-width="1" opacity="0.6"/>
+</svg>

@@ -1,0 +1,28 @@
+{
+  "name": "拾号-影视",
+  "short_name": "拾号影视",
+  "description": "免费开源的影视聚合网站，支持多数据源切换，海量影视资源在线观看",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#e50914",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "video"],
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "prefer_related_applications": false
+}

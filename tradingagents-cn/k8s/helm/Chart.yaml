@@ -1,0 +1,15 @@
+apiVersion: v2
+name: tradingagents-cn
+description: Multi-agent stock analysis system with code review
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - trading
+  - multi-agent
+  - langgraph
+  - stock-analysis
+  - code-review
+maintainers:
+  - name: TradingAgents Team
+    email: team@tradingagents.cn

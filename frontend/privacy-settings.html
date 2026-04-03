@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隐私设置 - UltraWork AI</title>
+  <style>
+    :root {
+      --primary: #10a37f;
+      --primary-dark: #0d8a68;
+      --bg-dark: #0a0a0a;
+      --bg-card: #1a1a1a;
+      --bg-hover: #242424;
+      --text: #ffffff;
+      --text-secondary: #a0a0a0;
+      --border: #333;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .header {
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+    }
+
+    .language-selector {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 100;
+    }
+
+    .language-selector select {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    .card-icon.gdpr { background: rgba(59, 130, 246, 0.2); }
+    .card-icon.ccpa { background: rgba(168, 85, 247, 0.2); }
+    .card-icon.hipaa { background: rgba(239, 68, 68, 0.2); }
+    .card-icon.consent { background: rgba(34, 197, 94, 0.2); }
+
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .card-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-left: auto;
+    }
+
+    .status-badge.compliant {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge.pending {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .requirements {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .requirement {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background: var(--bg-hover);
+      border-radius: 0.5rem;
+    }
+
+    .requirement-name {
+      font-size: 0.875rem;
+    }
+
+    .requirement-status {
+      font-size: 0.75rem;
+      color: var(--success);
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.active {
+      background: var(--primary);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(20px);
+    }
+
+    .consent-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      background: var(--bg-hover);
+      border-radius: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .consent-info h4 {
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .consent-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--bg-hover);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .data-rights {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .data-right {
+      padding: 1rem;
+      background: var(--bg-hover);
+      border-radius: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .data-right:hover {
+      background: var(--border);
+      transform: translateY(-2px);
+    }
+
+    .data-right-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .data-right-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-card);
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid var(--border);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .audit-table th,
+    .audit-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .audit-table th {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--primary);
+      border-radius: 0.75rem;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1001;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-icon {
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+  <div class="language-selector">
+    <select id="languageSelect" onchange="changeLanguage(this.value)">
+      <option value="zh-CN">简体中文</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1 id="pageTitle">隐私设置</h1>
+      <p id="pageDesc">管理您的数据隐私、同意和合规设置</p>
+    </div>
+
+    <div class="grid">
+      <!-- GDPR Compliance -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon gdpr">🇪🇺</div>
+          <div>
+            <div class="card-title" data-i18n="GDPR">GDPR</div>
+            <div class="card-subtitle">欧盟通用数据保护条例</div>
+          </div>
+          <span class="status-badge compliant">
+            <span>✓</span> 合规
+          </span>
+        </div>
+        <div class="requirements" id="gdprRequirements">
+          <div class="requirement">
+            <span class="requirement-name">同意管理</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">数据访问权</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">数据删除权</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">数据可携权</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CCPA Compliance -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon ccpa">🇺🇸</div>
+          <div>
+            <div class="card-title">CCPA</div>
+            <div class="card-subtitle">加州消费者隐私法</div>
+          </div>
+          <span class="status-badge compliant">
+            <span>✓</span> 合规
+          </span>
+        </div>
+        <div class="requirements" id="ccpaRequirements">
+          <div class="requirement">
+            <span class="requirement-name">知情权</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">删除权</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">选择退出销售</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HIPAA Compliance -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon hipaa">🏥</div>
+          <div>
+            <div class="card-title">HIPAA</div>
+            <div class="card-subtitle">健康保险流通与责任法案</div>
+          </div>
+          <span class="status-badge compliant">
+            <span>✓</span> 合规
+          </span>
+        </div>
+        <div class="requirements" id="hipaaRequirements">
+          <div class="requirement">
+            <span class="requirement-name">PHI保护</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">访问控制</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+          <div class="requirement">
+            <span class="requirement-name">数据加密</span>
+            <span class="requirement-status">✓ 已实现</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Consent Management -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon consent">📋</div>
+          <div>
+            <div class="card-title">同意管理</div>
+            <div class="card-subtitle">管理您的同意偏好</div>
+          </div>
+        </div>
+        <div id="consentList">
+          <div class="consent-item">
+            <div class="consent-info">
+              <h4>必要Cookie</h4>
+              <p>网站正常运行所必需的Cookie</p>
+            </div>
+            <div class="toggle active" onclick="toggleConsent(this, 'essential')"></div>
+          </div>
+          <div class="consent-item">
+            <div class="consent-info">
+              <h4>分析Cookie</h4>
+              <p>帮助我们了解网站使用情况</p>
+            </div>
+            <div class="toggle active" onclick="toggleConsent(this, 'analytics')"></div>
+          </div>
+          <div class="consent-item">
+            <div class="consent-info">
+              <h4>营销Cookie</h4>
+              <p>用于个性化广告和推荐</p>
+            </div>
+            <div class="toggle" onclick="toggleConsent(this, 'marketing')"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Subject Rights -->
+      <div class="card" style="grid-column: span 2;">
+        <div class="card-header">
+          <div class="card-icon consent">⚖️</div>
+          <div>
+            <div class="card-title">数据主体权利</div>
+            <div class="card-subtitle">行使您的隐私权利</div>
+          </div>
+        </div>
+        <div class="data-rights">
+          <div class="data-right" onclick="openModal('access')">
+            <div class="data-right-icon">📄</div>
+            <div class="data-right-name">访问我的数据</div>
+          </div>
+          <div class="data-right" onclick="openModal('export')">
+            <div class="data-right-icon">📥</div>
+            <div class="data-right-name">导出数据</div>
+          </div>
+          <div class="data-right" onclick="openModal('rectify')">
+            <div class="data-right-icon">✏️</div>
+            <div class="data-right-name">更正数据</div>
+          </div>
+          <div class="data-right" onclick="openModal('delete')">
+            <div class="data-right-icon">🗑️</div>
+            <div class="data-right-name">删除数据</div>
+          </div>
+          <div class="data-right" onclick="openModal('object')">
+            <div class="data-right-icon">🚫</div>
+            <div class="data-right-name">反对处理</div>
+          </div>
+          <div class="data-right" onclick="viewAuditLog()">
+            <div class="data-right-icon">📊</div>
+            <div class="data-right-name">审计日志</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Request Modal -->
+  <div class="modal" id="requestModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">数据请求</h3>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>请求类型</label>
+          <select id="requestType">
+            <option value="access">访问我的数据</option>
+            <option value="export">导出数据</option>
+            <option value="rectification">更正数据</option>
+            <option value="erasure">删除数据</option>
+            <option value="object">反对处理</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>附加说明</label>
+          <textarea id="requestDetails" rows="4" placeholder="请提供更多信息..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitRequest()">提交请求</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Log Modal -->
+  <div class="modal" id="auditModal">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3>审计日志</h3>
+        <button class="modal-close" onclick="closeAuditModal()">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>操作</th>
+              <th>详情</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogBody">
+            <tr>
+              <td>2024-03-21 10:30</td>
+              <td>同意管理</td>
+              <td>Analytics Cookie 已启用</td>
+            </tr>
+            <tr>
+              <td>2024-03-20 15:45</td>
+              <td>数据访问</td>
+              <td>用户请求访问数据</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="exportAuditLog()">导出CSV</button>
+        <button class="btn btn-primary" onclick="closeAuditModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">✓</span>
+    <span id="toastMessage">设置已保存</span>
+  </div>
+
+  <script>
+    const translations = {
+      'zh-CN': {
+        pageTitle: '隐私设置',
+        pageDesc: '管理您的数据隐私、同意和合规设置',
+        GDPR: 'GDPR',
+        CCPA: 'CCPA',
+        HIPAA: 'HIPAA',
+        consent: '同意管理',
+        dataRights: '数据主体权利',
+        accessMyData: '访问我的数据',
+        exportData: '导出数据',
+        rectifyData: '更正数据',
+        deleteData: '删除数据',
+        objectProcessing: '反对处理',
+        auditLog: '审计日志',
+        saved: '设置已保存',
+        submitted: '请求已提交'
+      },
+      'en': {
+        pageTitle: 'Privacy Settings',
+        pageDesc: 'Manage your data privacy, consent and compliance settings',
+        GDPR: 'GDPR',
+        CCPA: 'CCPA',
+        HIPAA: 'HIPAA',
+        consent: 'Consent Management',
+        dataRights: 'Data Subject Rights',
+        accessMyData: 'Access My Data',
+        exportData: 'Export Data',
+        rectifyData: 'Rectify Data',
+        deleteData: 'Delete Data',
+        objectProcessing: 'Object to Processing',
+        auditLog: 'Audit Log',
+        saved: 'Settings saved',
+        submitted: 'Request submitted'
+      },
+      'ja': {
+        pageTitle: 'プライバシー設定',
+        pageDesc: 'データプライバシー、同意、コンプライアンス設定の管理',
+        GDPR: 'GDPR',
+        CCPA: 'CCPA',
+        HIPAA: 'HIPAA',
+        consent: '同意管理',
+        dataRights: 'データ主体の権利',
+        accessMyData: 'データにアクセス',
+        exportData: 'データをエクスポート',
+        rectifyData: 'データを修正',
+        deleteData: 'データを削除',
+        objectProcessing: '処理に異議申立',
+        auditLog: '監査ログ',
+        saved: '設定を保存しました',
+        submitted: 'リクエストを送信しました'
+      }
+    };
+
+    function changeLanguage(locale) {
+      const t = translations[locale];
+      document.getElementById('pageTitle').textContent = t.pageTitle;
+      document.getElementById('pageDesc').textContent = t.pageDesc;
+      document.documentElement.lang = locale;
+      showToast(t.saved);
+    }
+
+    function toggleConsent(element, type) {
+      element.classList.toggle('active');
+      const granted = element.classList.contains('active');
+      
+      fetch('/api/privacy/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consentType: type, granted })
+      });
+    }
+
+    function openModal(type) {
+      document.getElementById('requestModal').classList.add('active');
+      document.getElementById('requestType').value = type;
+    }
+
+    function closeModal() {
+      document.getElementById('requestModal').classList.remove('active');
+    }
+
+    function submitRequest() {
+      const type = document.getElementById('requestType').value;
+      const details = document.getElementById('requestDetails').value;
+      
+      fetch('/api/privacy/gdpr/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestType: type, data: { details } })
+      })
+      .then(r => r.json())
+      .then(data => {
+        showToast('请求已提交，我们将在30天内处理');
+        closeModal();
+      });
+    }
+
+    function viewAuditLog() {
+      document.getElementById('auditModal').classList.add('active');
+    }
+
+    function closeAuditModal() {
+      document.getElementById('auditModal').classList.remove('active');
+    }
+
+    function exportAuditLog() {
+      window.open('/api/privacy/audit/export?format=csv', '_blank');
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>

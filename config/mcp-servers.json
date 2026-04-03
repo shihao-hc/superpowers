@@ -1,0 +1,104 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-filesystem/dist/index.js", "C:\\temp", "D:\\龙虾"],
+      "env": {},
+      "enabled": true,
+      "timeout": 30000,
+      "maxRetries": 3
+    },
+    {
+      "name": "github",
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-github/dist/index.js"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "enabled": false,
+      "timeout": 30000,
+      "maxRetries": 3
+    },
+    {
+      "name": "brave-search",
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-brave-search/dist/index.js"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "enabled": false,
+      "timeout": 30000,
+      "maxRetries": 3
+    },
+    {
+      "name": "sequential-thinking",
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-sequential-thinking/dist/index.js"],
+      "env": {},
+      "enabled": true,
+      "timeout": 60000,
+      "maxRetries": 2
+    },
+    {
+      "name": "everything",
+      "command": "node",
+      "args": ["node_modules/@modelcontextprotocol/server-everything/dist/index.js"],
+      "env": {},
+      "enabled": false,
+      "timeout": 30000,
+      "maxRetries": 3
+    }
+  ],
+  "global": {
+    "toolCacheTTL": 300000,
+    "requestTimeout": 30000,
+    "maxRetries": 3,
+    "heartbeatInterval": 30000,
+    "rateLimit": {
+      "enabled": true,
+      "maxRequestsPerSecond": 20
+    },
+    "circuitBreaker": {
+      "threshold": 5,
+      "timeout": 30000
+    },
+    "autoRefresh": true,
+    "refreshInterval": 60000
+  },
+  "security": {
+    "allowedServers": [],
+    "blockedTools": [],
+    "requireConfirmation": ["github:create_issue", "github:create_release", "filesystem:write_file"],
+    "rateLimitByTool": {
+      "github:create_issue": 10,
+      "github:create_release": 5
+    },
+    "roleRestrictions": {
+      "admin": {
+        "allowedTools": ["*"],
+        "deniedTools": []
+      },
+      "operator": {
+        "allowedTools": ["filesystem:read*", "filesystem:list_directory", "filesystem:search", "github:read*", "github:search_repositories", "brave-search:*", "sequential-thinking:*", "everything:search"],
+        "deniedTools": ["github:create_issue", "github:create_release", "github:delete_file", "filesystem:write_file", "filesystem:delete_file"]
+      },
+      "viewer": {
+        "allowedTools": ["filesystem:read_file", "filesystem:list_directory", "github:read*", "brave-search:*", "sequential-thinking:*", "everything:search"],
+        "deniedTools": ["github:create*", "github:delete*", "filesystem:write*", "filesystem:delete*"]
+      }
+    },
+    "toolPermissions": {
+      "github:create_issue": "operator",
+      "github:create_release": "admin",
+      "github:delete_file": "admin",
+      "filesystem:write_file": "operator",
+      "filesystem:delete_file": "admin"
+    }
+  },
+  "monitoring": {
+    "enableMetrics": true,
+    "enableStructuredLogging": true,
+    "prometheusPort": 9090
+  }
+}

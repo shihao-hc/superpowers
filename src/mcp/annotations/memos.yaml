@@ -1,0 +1,104 @@
+# Memos MCP Annotations
+# Tool annotations for note-taking operations
+
+memos:
+  # 只读操作
+  list_memos:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出笔记"
+
+  get_memo:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取笔记详情"
+
+  search_memos:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "搜索笔记(支持语义)"
+
+  list_tags:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出标签"
+
+  list_instances:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出笔记实例"
+
+  list_shortcuts:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出快捷方式"
+
+  # 写操作
+  create_memo:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "创建笔记"
+    dryRunSupported: true
+
+  update_memo:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "更新笔记"
+    dryRunSupported: true
+
+  delete_memo:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "删除笔记"
+    dryRunSupported: true
+
+  pin_memo:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "置顶笔记"
+
+  connect_instance:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "连接笔记实例"
+
+  switch_instance:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "切换笔记实例"
+
+  upload_attachment:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "上传附件"
+
+  create_tag:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "创建标签"
+
+  delete_tag:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "删除标签"
+
+  auto_tag:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "自动生成标签"

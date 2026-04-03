@@ -1,0 +1,179 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "系统概览",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "title": "运行时间",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_uptime_seconds",
+        "legendFormat": "运行时间"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3600 },
+              { "color": "red", "value": 86400 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "总请求数",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_http_requests_total",
+        "legendFormat": "请求"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [{ "color": "blue", "value": null }]
+          }
+        }
+      }
+    },
+    {
+      "title": "错误率",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_http_errors_total / ultrawork_http_requests_total * 100",
+        "legendFormat": "错误率 %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "内存使用",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_memory_heap_bytes / 1024 / 1024",
+        "legendFormat": "堆内存 MB"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decbytes",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "WebSocket 连接",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_websocket_connections",
+        "legendFormat": "连接数"
+      }]
+    },
+    {
+      "title": "存证数量",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "targets": [{
+        "expr": "ultrawork_attestations_total",
+        "legendFormat": "存证"
+      }]
+    },
+    {
+      "title": "行业工作流",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+    {
+      "title": "价格监控商品数",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "targets": [{
+        "expr": "ultrawork_price_products_total",
+        "legendFormat": "商品"
+      }]
+    },
+    {
+      "title": "价格告警数",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "targets": [{
+        "expr": "ultrawork_price_alerts_total",
+        "legendFormat": "告警"
+      }]
+    },
+    {
+      "title": "Agent 数量",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "targets": [{
+        "expr": "ultrawork_agent_count",
+        "legendFormat": "Agent"
+      }]
+    },
+    {
+      "title": "内存趋势",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        { "expr": "ultrawork_memory_heap_bytes / 1024 / 1024", "legendFormat": "堆内存 MB" },
+        { "expr": "ultrawork_memory_rss_bytes / 1024 / 1024", "legendFormat": "RSS MB" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "decbytes" }
+      }
+    },
+    {
+      "title": "请求趋势",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        { "expr": "rate(ultrawork_http_requests_total[5m])", "legendFormat": "请求速率/s" },
+        { "expr": "rate(ultrawork_http_errors_total[5m])", "legendFormat": "错误速率/s" }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["ultrawork", "industry"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Shanghai",
+  "title": "UltraWork AI - 行业工作流监控",
+  "uid": "ultrawork-industry",
+  "version": 1
+}

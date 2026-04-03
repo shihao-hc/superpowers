@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # UltraWork AI - Main Application
+  # ===========================================
+  ultrawork:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ultrawork-ai
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - API_KEY=${API_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - TRUST_PROXY=true
+      - MCP_CONFIG_PATH=/app/config/mcp-servers.json
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - CHROME_DEBUG_PORT=9222
+      - CHROME_HOST=chrome
+      - REDIS_URL=redis://redis:6379
+      - INFERENCE_ENGINE=${INFERENCE_ENGINE:-ollama}
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+      - ENABLE_GAME=${ENABLE_GAME:-false}
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ultrawork-network
+    mem_limit: 2g
+    cpu_shares: 512
+
+  # ===========================================
+  # Redis - Caching & Session Store
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: ultrawork-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ultrawork-network
+
+  # ===========================================
+  # Ollama - Local LLM Inference
+  # ===========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ultrawork-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - ultrawork-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - gpu  # Only start with: docker-compose --profile gpu up
+
+  # ===========================================
+  # Nginx - Reverse Proxy & SSL
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: ultrawork-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - ultrawork
+    networks:
+      - ultrawork-network
+    profiles:
+      - web  # Only start with: docker-compose --profile web up
+
+  # ===========================================
+  # Prometheus - Metrics Collection
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ultrawork-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - ultrawork-network
+    profiles:
+      - monitoring
+
+  # ===========================================
+  # Grafana - Dashboards & Alerting
+  # ===========================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ultrawork-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3001}
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - ultrawork-network
+    profiles:
+      - monitoring
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  ultrawork-network:
+    driver: bridge
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  redis_data:
+  ollama_data:
+  prometheus_data:
+  grafana_data:
+  nginx_logs:

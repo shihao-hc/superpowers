@@ -1,0 +1,98 @@
+{
+  "name": "UltraWork AI 虚拟角色平台",
+  "short_name": "UltraWork",
+  "description": "多人格 AI 虚拟角色平台，支持 Minecraft 游戏联动和 Discord 机器人",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#667eea",
+  "background_color": "#1a1a2e",
+  "categories": ["entertainment", "social", "games"],
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/frontend/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/frontend/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/frontend/screenshots/desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "桌面端界面"
+    },
+    {
+      "src": "/frontend/screenshots/mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "移动端界面"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "开始聊天",
+      "short_name": "聊天",
+      "description": "快速开始与 AI 对话",
+      "url": "/?chat=true",
+      "icons": [{ "src": "/frontend/icons/chat-shortcut.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "人格切换",
+      "short_name": "人格",
+      "description": "切换 AI 人格",
+      "url": "/?view=personalities",
+      "icons": [{ "src": "/frontend/icons/personality-shortcut.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

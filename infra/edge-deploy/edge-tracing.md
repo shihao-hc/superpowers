@@ -1,0 +1,3 @@
+- Edge Tracing
+- 目的：在边缘节点收集分布式调用的追踪信息（trace-id、span-id）
+- 实现：集成 OpenTelemetry 或简化追踪方案

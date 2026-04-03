@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>拾号-影视 - 免费高清影视在线观看</title>
+  <meta name="description" content="拾号-影视是一个免费开源的影视聚合网站，支持多数据源切换，提供海量高清电影、电视剧、动漫、综艺资源在线观看。">
+  <meta name="keywords" content="影视,电影,电视剧,动漫,综艺,在线观看,免费,高清">
+  <meta name="author" content="拾号-影视">
+  <meta name="theme-color" content="#e50914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-touch-fullscreen" content="yes">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/images/icon-192.png">
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="拾号-影视 - 免费高清影视在线观看">
+  <meta property="og:description" content="免费开源的影视聚合网站，支持多数据源切换，海量影视资源在线观看">
+  <meta property="og:url" content="/">
+  
+  <link rel="stylesheet" href="/css/style.css?v=2">
+  <style>
+    /* 首页特有样式 */
+    .hero-section {
+      background-image: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+    }
+    
+    /* 动画 */
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- 跳过导航链接（无障碍） -->
+  <a href="#mainContent" class="skip-link">跳到主要内容</a>
+  
+  <!-- 导航栏 -->
+  <nav class="navbar" id="navbar" role="navigation" aria-label="主导航">
+    <a href="/" class="navbar-brand">
+      <span>🎬</span> 拾号-影视
+    </a>
+    
+    <div class="navbar-menu">
+      <a href="/" class="active" aria-label="首页">首页</a>
+      <a href="#history-section" onclick="showHistory()" aria-label="观看历史">历史</a>
+      <a href="#favorites-section" onclick="showFavorites()" aria-label="我的收藏">收藏</a>
+      <a href="/setting.html" aria-label="设置">设置</a>
+      <a href="#" class="search-toggle" onclick="toggleMobileSearch(event)" aria-label="展开搜索">🔍</a>
+    </div>
+    
+    <div class="navbar-search" role="search">
+      <label for="searchInput" class="visually-hidden">搜索视频</label>
+      <input type="text" id="searchInput" placeholder="搜索视频..." 
+             onkeypress="handleSearch(event)" 
+             oninput="handleSearchInput(event)"
+             aria-label="搜索视频名称">
+    </div>
+    
+    <div class="navbar-source">
+      <span aria-hidden="true">📡</span>
+      <label for="sourceSelector" class="visually-hidden">选择数据源</label>
+      <select id="sourceSelector" aria-label="切换数据源"></select>
+    </div>
+  </nav>
+
+  <!-- 主容器 -->
+  <div class="main-container" id="mainContent" role="main">
+    <!-- Hero轮播区 -->
+    <section class="hero-section" id="heroSection" aria-label="精选推荐">
+      <div class="hero-content">
+        <h1 class="hero-title" id="heroTitle">欢迎使用拾号-影视</h1>
+        <div class="hero-meta" id="heroMeta"></div>
+        <p class="hero-desc" id="heroDesc">海量影视资源，免费观看，支持多数据源切换，自适应各种设备。</p>
+        <div class="hero-buttons">
+          <button class="btn btn-primary" id="heroPlayBtn" aria-label="立即播放选中的视频">▶ 立即播放</button>
+          <button class="btn btn-secondary" id="heroInfoBtn" aria-label="查看视频详情">ℹ 查看详情</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 分类导航 -->
+    <nav class="category-nav" id="categoryNav" aria-label="视频分类">
+      <button class="category-btn active" data-id="" onclick="loadCategory(null)" aria-label="显示全部视频">全部</button>
+    </nav>
+
+    <!-- 视频列表 -->
+    <section class="content-section" id="videoListSection" aria-label="视频列表">
+      <h2 class="section-title">影视列表</h2>
+      <div class="video-grid" id="videoGrid"></div>
+      <div id="pagination"></div>
+    </section>
+
+    <!-- 历史记录 -->
+    <section class="content-section" id="historySection" style="display: none;">
+      <h2 class="section-title">观看历史</h2>
+      <div class="video-grid" id="historyGrid"></div>
+    </section>
+
+    <!-- 收藏列表 -->
+    <section class="content-section" id="favoritesSection" style="display: none;">
+      <h2 class="section-title">我的收藏</h2>
+      <div class="video-grid" id="favoritesGrid"></div>
+    </section>
+  </div>
+
+  <script src="/js/storage.js?v=3"></script>
+  <script src="/js/app.js?v=3"></script>
+  <script>
+    // XSS防护函数
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // 离线状态检测
+    let offlineBannerElement = null;
+    function initOfflineDetection() {
+      const offlineBanner = document.createElement('div');
+      offlineBanner.id = 'offlineBanner';
+      offlineBanner.style.cssText = `
+        position: fixed;
+        top: 68px;
+        left: 0;
+        right: 0;
+        background: #f44336;
+        color: white;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+        z-index: 9999;
+        display: none;
+        animation: slideDown 0.3s ease;
+      `;
+      offlineBanner.innerHTML = '⚠️ 网络连接已断开，请检查您的网络设置';
+      document.body.insertBefore(offlineBanner, document.body.firstChild);
+      offlineBannerElement = offlineBanner;
+
+      // 监听网络状态变化
+      window.addEventListener('online', () => {
+        // 延迟检查，避免误报
+        setTimeout(checkConnectivity, 1000);
+      });
+
+      window.addEventListener('offline', () => {
+        showOfflineBanner();
+      });
+
+      // 初始检查
+      checkConnectivity();
+    }
+
+    // 检查网络连接（更可靠的方式）
+    async function checkConnectivity() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('/health', {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          hideOfflineBanner();
+          return true;
+        }
+      } catch (e) {
+        // fetch失败，不一定是离线
+      }
+      
+      // 如果浏览器认为离线，显示横幅
+      if (!navigator.onLine) {
+        showOfflineBanner();
+      }
+      return false;
+    }
+
+    function showOfflineBanner() {
+      if (offlineBannerElement) {
+        offlineBannerElement.style.display = 'block';
+      }
+    }
+
+    function hideOfflineBanner() {
+      if (offlineBannerElement) {
+        offlineBannerElement.style.display = 'none';
+      }
+    }
+
+    // 初始化
+    let heroIndex = 0;
+    let heroVideos = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 检查是否需要重置配置 ?reset=1
+      if (new URLSearchParams(window.location.search).get('reset') === '1') {
+        localStorage.removeItem('shihao_sources');
+        localStorage.removeItem('shihao_current_source');
+        localStorage.removeItem('shihao_poster_*');
+        localStorage.removeItem('customBackground');
+        App.showToast('配置已重置');
+      }
+      
+      // 加载自定义背景
+      loadCustomBackground();
+      
+    // 初始化离线检测
+    initOfflineDetection();
+    
+    // 注册Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW注册成功:', registration.scope);
+          })
+          .catch(error => {
+            console.log('SW注册失败:', error);
+          });
+      });
+    }
+    
+    initApp();
+    });
+
+    function loadCustomBackground() {
+      const customBg = localStorage.getItem('customBackground');
+      if (customBg) {
+        // 应用到整个页面背景
+        document.body.style.backgroundImage = `url(${customBg})`;
+        // 应用到Hero区域背景
+        const heroSection = document.getElementById('heroSection');
+        if (heroSection) {
+          heroSection.style.backgroundImage = `url(${customBg}), linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)`;
+        }
+      }
+    }
+
+    async function initApp() {
+      try {
+        // 更新数据源选择器
+        App.updateSourceSelector();
+        
+        // 加载视频列表
+        await loadVideoList();
+        
+        // 导航栏滚动效果
+        window.addEventListener('scroll', () => {
+          const navbar = document.getElementById('navbar');
+          if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+          } else {
+            navbar.classList.remove('scrolled');
+          }
+        });
+      } catch (error) {
+        console.error('初始化失败:', error);
+        App.showToast(error.message, 'error');
+      }
+    }
+
+    async function loadVideoList(categoryId = null, page = 1) {
+      const grid = document.getElementById('videoGrid');
+      App.showLoading(grid);
+      
+      try {
+        const result = await App.fetchList(categoryId, page);
+        
+        if (result.list.length === 0) {
+          App.showEmpty(grid);
+          return;
+        }
+        
+        // 更新Hero区域
+        if (page === 1 && result.list.length > 0) {
+          heroVideos = result.list.slice(0, 5);
+          updateHero();
+        }
+        
+        // 渲染分类
+        if (result.categories.length > 0) {
+          renderCategories(result.categories, categoryId);
+        }
+        
+        // 渲染视频列表 - 先显示占位图，然后异步加载海报 (XSS安全)
+        const cards = result.list.map(video => {
+          const cacheKey = `poster_${video.vod_id}`;
+          const cachedPic = localStorage.getItem(cacheKey);
+          const safeVodName = escapeHtml(video.vod_name);
+          const safeTypeName = video.type_name ? escapeHtml(video.type_name) : '';
+          const safeRemarks = video.vod_remarks ? escapeHtml(video.vod_remarks) : '';
+          const safeEncodedPic = cachedPic ? encodeURIComponent(cachedPic) : '';
+          
+          return `
+            <div class="video-card" data-id="${video.vod_id}" onclick="goToDetail(${video.vod_id})">
+              <div class="video-poster">
+                ${cachedPic ? 
+                  `<img src="/image?url=${safeEncodedPic}" alt="${safeVodName}" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>🎬</div>'">` :
+                  `<div class="placeholder" id="poster-${video.vod_id}">🎬</div>`
+                }
+                <div class="video-overlay">
+                  <div class="play-btn">▶</div>
+                </div>
+              </div>
+              <div class="video-info">
+                <div class="video-title" title="${safeVodName}">${safeVodName}</div>
+                <div class="video-meta">
+                  ${safeTypeName ? `<span>${safeTypeName}</span>` : ''}
+                  ${safeRemarks ? `<span class="video-tag">${safeRemarks}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        grid.innerHTML = cards;
+        
+        // 异步加载未缓存的海报
+        loadMissingPosters(result.list);
+        
+        // 渲染分页
+        App.currentPage = page;
+        App.totalPages = result.pageCount;
+        App.currentCategoryId = categoryId;
+        document.getElementById('pagination').innerHTML = App.renderPagination(
+          page, result.pageCount, 'changePage'
+        );
+        
+      } catch (error) {
+        console.error('加载失败:', error);
+        App.showError(grid, error.message, 'loadVideoList');
+      }
+    }
+
+    function renderCategories(categories, currentId) {
+      const nav = document.getElementById('categoryNav');
+      const html = categories.map(cat => `
+        <button class="category-btn ${currentId === cat.type_id ? 'active' : ''}" 
+                data-id="${cat.type_id}" 
+                onclick="loadCategory(${cat.type_id})">
+          ${cat.type_name}
+        </button>
+      `).join('');
+      
+      nav.innerHTML = `<button class="category-btn ${!currentId ? 'active' : ''}" 
+                               onclick="loadCategory(null)">全部</button>` + html;
+    }
+
+    function loadCategory(categoryId) {
+      loadVideoList(categoryId, 1);
+    }
+
+    function changePage(page) {
+      loadVideoList(App.currentCategoryId || null, page);
+    }
+
+    function updateHero() {
+      if (heroVideos.length === 0) return;
+      
+      const video = heroVideos[heroIndex];
+      document.getElementById('heroTitle').textContent = video.vod_name;
+      document.getElementById('heroMeta').innerHTML = `
+        ${video.type_name ? `<span>📁 ${video.type_name}</span>` : ''}
+        ${video.vod_time ? `<span>🕐 ${video.vod_time.split(' ')[0]}</span>` : ''}
+        ${video.vod_remarks ? `<span>📺 ${video.vod_remarks}</span>` : ''}
+      `;
+      document.getElementById('heroDesc').textContent = '点击播放按钮开始观看，或选择下方分类浏览更多内容。';
+      
+      // 设置背景
+      if (video.vod_pic) {
+        document.getElementById('heroSection').style.backgroundImage = 
+          `url(${video.vod_pic})`;
+      }
+      
+      // 设置按钮事件
+      document.getElementById('heroPlayBtn').onclick = () => goToDetail(video.id);
+      document.getElementById('heroInfoBtn').onclick = () => goToDetail(video.id);
+      
+      // 自动轮播
+      setTimeout(() => {
+        heroIndex = (heroIndex + 1) % heroVideos.length;
+        updateHero();
+      }, 6000);
+    }
+
+    function goToDetail(videoId) {
+      window.location.href = `/detail.html?id=${videoId}`;
+    }
+
+    // 搜索防抖优化
+    let searchTimeout = null;
+    
+    // 移动端搜索切换
+    function toggleMobileSearch(event) {
+      event.preventDefault();
+      const searchDiv = document.querySelector('.navbar-search');
+      searchDiv.classList.toggle('show');
+      if (searchDiv.classList.contains('show')) {
+        document.getElementById('searchInput').focus();
+      }
+    }
+    
+    function handleSearch(event) {
+      if (event.key === 'Enter') {
+        const keyword = document.getElementById('searchInput').value.trim();
+        if (keyword) {
+          doSearch(keyword);
+        }
+      }
+    }
+    
+    // 实时搜索防抖
+    function handleSearchInput(event) {
+      const keyword = event.target.value.trim();
+      
+      // 清除之前的定时器
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+      
+      // 如果关键词为空，恢复显示默认列表
+      if (!keyword) {
+        showDefaultList();
+        return;
+      }
+      
+      // 设置防抖，500ms后执行搜索
+      searchTimeout = setTimeout(() => {
+        if (keyword.length >= 2) { // 至少2个字符才搜索
+          doSearch(keyword);
+        }
+      }, 500);
+    }
+    
+    function showDefaultList() {
+      // 恢复显示默认列表
+      document.getElementById('historySection').style.display = 'none';
+      document.getElementById('favoritesSection').style.display = 'none';
+      document.querySelector('.section-title').textContent = '影视列表';
+      loadVideoList(App.currentCategoryId || null, 1);
+    }
+
+    async function doSearch(keyword) {
+      const grid = document.getElementById('videoGrid');
+      App.showLoading(grid);
+      
+      try {
+        const result = await App.search(keyword);
+        
+        if (result.list.length === 0) {
+          App.showEmpty(grid, `未找到"${keyword}"相关结果`);
+          return;
+        }
+        
+        // 隐藏其他区域
+        document.getElementById('historySection').style.display = 'none';
+        document.getElementById('favoritesSection').style.display = 'none';
+        
+        // 渲染搜索结果 (XSS安全)
+        grid.innerHTML = result.list.map(video => {
+          const cacheKey = `poster_${video.vod_id}`;
+          const cachedPic = localStorage.getItem(cacheKey);
+          const safeVodName = escapeHtml(video.vod_name);
+          const safeTypeName = video.type_name ? escapeHtml(video.type_name) : '';
+          const safeRemarks = video.vod_remarks ? escapeHtml(video.vod_remarks) : '';
+          const safeEncodedPic = cachedPic ? encodeURIComponent(cachedPic) : '';
+          
+          return `
+            <div class="video-card" data-id="${video.vod_id}" onclick="goToDetail(${video.vod_id})">
+              <div class="video-poster">
+                ${cachedPic ? 
+                  `<img src="/image?url=${safeEncodedPic}" alt="${safeVodName}" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>🎬</div>'">` :
+                  `<div class="placeholder" id="poster-${video.vod_id}">🎬</div>`
+                }
+                <div class="video-overlay">
+                  <div class="play-btn">▶</div>
+                </div>
+              </div>
+              <div class="video-info">
+                <div class="video-title" title="${safeVodName}">${safeVodName}</div>
+                <div class="video-meta">
+                  ${safeTypeName ? `<span>${safeTypeName}</span>` : ''}
+                  ${safeRemarks ? `<span class="video-tag">${safeRemarks}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        document.querySelector('.section-title').textContent = `搜索结果: ${keyword}`;
+        
+        // 异步加载搜索结果的海报
+        loadMissingPosters(result.list);
+        App.currentKeyword = keyword;
+        document.getElementById('pagination').innerHTML = App.renderPagination(
+          result.page, result.pageCount, 'changeSearchPage'
+        );
+        
+      } catch (error) {
+        App.showError(grid, error.message);
+      }
+    }
+
+    function changeSearchPage(page) {
+      if (App.currentKeyword) {
+        doSearchWithPage(App.currentKeyword, page);
+      }
+    }
+
+    async function doSearchWithPage(keyword, page) {
+      const grid = document.getElementById('videoGrid');
+      App.showLoading(grid);
+      
+      try {
+        const result = await App.search(keyword, page);
+        
+        if (result.list.length === 0) {
+          App.showEmpty(grid, `未找到"${keyword}"相关结果`);
+          return;
+        }
+        
+        const source = Storage.getCurrentSource();
+        
+        grid.innerHTML = result.list.map(video => {
+          const cacheKey = `poster_${video.vod_id}`;
+          const cachedPic = localStorage.getItem(cacheKey);
+          const safeVodName = escapeHtml(video.vod_name);
+          const safeTypeName = video.type_name ? escapeHtml(video.type_name) : '';
+          const safeRemarks = video.vod_remarks ? escapeHtml(video.vod_remarks) : '';
+          const safeEncodedPic = cachedPic ? encodeURIComponent(cachedPic) : '';
+          
+          return `
+            <div class="video-card" data-id="${video.vod_id}" onclick="goToDetail(${video.vod_id})">
+              <div class="video-poster">
+                ${cachedPic ? 
+                  `<img src="/image?url=${safeEncodedPic}" alt="${safeVodName}" onerror="this.parentElement.innerHTML='<div class=\\'placeholder\\'>🎬</div>'">` :
+                  `<div class="placeholder" id="poster-${video.vod_id}">🎬</div>`
+                }
+                <div class="video-overlay">
+                  <div class="play-btn">▶</div>
+                </div>
+              </div>
+              <div class="video-info">
+                <div class="video-title" title="${safeVodName}">${safeVodName}</div>
+                <div class="video-meta">
+                  ${safeTypeName ? `<span>${safeTypeName}</span>` : ''}
+                  ${safeRemarks ? `<span class="video-tag">${safeRemarks}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        document.getElementById('pagination').innerHTML = App.renderPagination(
+          page, result.pageCount, 'changeSearchPage'
+        );
+        
+        // 异步加载海报
+        loadMissingPosters(result.list);
+        
+      } catch (error) {
+        App.showError(grid, error.message);
+      }
+    }
+
+    // 异步加载海报
+    async function loadMissingPosters(videoList) {
+      const source = Storage.getCurrentSource();
+      if (!source) return;
+      
+      // 找出没有缓存的视频ID
+      const needLoad = videoList.filter(v => !localStorage.getItem(`poster_${v.vod_id}`));
+      if (needLoad.length === 0) return;
+      
+      // 分批获取详情，每次最多5个
+      const batchSize = 5;
+      for (let i = 0; i < needLoad.length; i += batchSize) {
+        const batch = needLoad.slice(i, i + batchSize);
+        const ids = batch.map(v => v.vod_id).join(',');
+        const url = `${source.apiUrl}?ac=detail&ids=${ids}`;
+        const proxyUrl = `/detail?url=${encodeURIComponent(url)}`;
+        
+        try {
+          const response = await fetch(proxyUrl);
+          const data = await response.json();
+          
+          if (data.code === 1 && data.list) {
+            data.list.forEach(item => {
+              if (item.vod_pic) {
+                // 缓存海报URL
+                localStorage.setItem(`poster_${item.vod_id}`, item.vod_pic);
+                // 更新DOM中的图片
+                const placeholder = document.getElementById(`poster-${item.vod_id}`);
+                if (placeholder && placeholder.parentElement) {
+                  placeholder.outerHTML = `<img src="/image?url=${encodeURIComponent(item.vod_pic)}" alt="${item.vod_name}" onerror="this.outerHTML='<div class=\\'placeholder\\'>🎬</div>'">`;
+                }
+              }
+            });
+          }
+        } catch (err) {
+          console.log('海报加载失败:', err);
+        }
+      }
+    }
+
+    function initPosterLazyLoad(videoIds) {
+      // 已使用异步加载替代
+    }
+
+    function showHistory() {
+      const history = Storage.getHistory();
+      const section = document.getElementById('historySection');
+      const grid = document.getElementById('historyGrid');
+      
+      if (history.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📺</div><div class="empty-title">暂无观看记录</div></div>';
+      } else {
+        grid.innerHTML = history.map(video => {
+        const safeName = escapeHtml(video.name);
+        const safeEpisode = video.lastEpisode ? escapeHtml(video.lastEpisode) : '';
+        const progress = App.getPlaybackProgress(video.id);
+        const progressBar = progress && progress.percent > 5 && progress.percent < 95 
+          ? `<div class="progress-bar-mini"><div class="progress-bar-mini-fill" style="width:${progress.percent}%"></div></div>` 
+          : '';
+        return `
+          <div class="video-card" onclick="window.location.href='/detail.html?id=${video.id}'">
+            <div class="video-poster">
+              ${progressBar}
+              <div class="placeholder">🎬</div>
+            </div>
+            <div class="video-info">
+              <div class="video-title">${safeName}</div>
+              <div class="video-meta">
+                ${safeEpisode ? `<span>${safeEpisode}</span>` : ''}
+                <span>${Storage.formatTime(video.watchedAt)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      }
+      
+      section.style.display = 'block';
+      document.getElementById('favoritesSection').style.display = 'none';
+    }
+
+    App.getPlaybackProgress = function(vid) {
+      try {
+        const data = localStorage.getItem(`playback_${vid}`);
+        return data ? JSON.parse(data) : null;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    function showFavorites() {
+      const favorites = Storage.getFavorites();
+      const section = document.getElementById('favoritesSection');
+      const grid = document.getElementById('favoritesGrid');
+      
+      if (favorites.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">❤️</div><div class="empty-title">暂无收藏</div></div>';
+      } else {
+        grid.innerHTML = favorites.map(video => {
+        const safeName = escapeHtml(video.name);
+        const safeTypeName = video.typeName ? escapeHtml(video.typeName) : '';
+        return `
+          <div class="video-card" onclick="window.location.href='/detail.html?id=${video.id}'">
+            <div class="video-poster">
+              <div class="placeholder">🎬</div>
+            </div>
+            <div class="video-info">
+              <div class="video-title">${safeName}</div>
+              <div class="video-meta">
+                ${safeTypeName ? `<span>${safeTypeName}</span>` : ''}
+                <span>${Storage.formatTime(video.addedAt)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      }
+      
+      section.style.display = 'block';
+      document.getElementById('historySection').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

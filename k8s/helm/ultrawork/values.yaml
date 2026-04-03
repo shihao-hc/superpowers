@@ -1,0 +1,131 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/ultrawork/ultrawork
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 3000
+  metricsPort: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  hosts:
+    - host: ultrawork.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ultrawork-tls
+      hosts:
+        - ultrawork.example.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ultrawork
+          topologyKey: kubernetes.io/hostname
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    password: ""
+
+ollama:
+  enabled: true
+  replicaCount: 1
+  service:
+    type: ClusterIP
+
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  grafana:
+    enabled: true
+    adminPassword: ""
+
+env:
+  NODE_ENV: production
+  LOG_LEVEL: info
+  RATE_LIMIT_MAX: 100
+  TRUST_PROXY: "true"
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+
+security:
+  apiKey: ""
+  allowedOrigins: ""
+  corsOrigins: []
+
+workflow:
+  maxConcurrentExecutions: 100
+  defaultTimeout: 300000
+  retryAttempts: 3
+
+enterprise:
+  sso:
+    enabled: false
+    provider: ""
+  audit:
+    enabled: true
+    retentionDays: 90

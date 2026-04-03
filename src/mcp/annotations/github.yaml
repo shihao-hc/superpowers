@@ -1,0 +1,110 @@
+# GitHub MCP Annotations
+# Tool annotations for GitHub operations
+
+github:
+  # 只读操作
+  list_repositories:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出用户仓库"
+
+  get_repository:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取仓库详情"
+
+  list_issues:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出Issue"
+
+  get_issue:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取Issue详情"
+
+  search_repositories:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "搜索仓库"
+
+  list_prs:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出PR"
+
+  get_pr:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取PR详情"
+
+  get_pr_diff:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取PR代码差异"
+
+  # 写操作
+  create_issue:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "创建Issue"
+    dryRunSupported: true
+
+  update_issue:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "更新Issue"
+
+  close_issue:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: true
+    description: "关闭Issue"
+
+  comment_on_issue:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "评论Issue"
+
+  create_pr:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "创建PR"
+    dryRunSupported: true
+
+  merge_pr:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "合并PR"
+    dryRunSupported: true
+
+  close_pr:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: true
+    description: "关闭PR"
+
+  request_review:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "请求代码审查"
+
+  review_pr:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "提交代码审查意见"

@@ -1,0 +1,93 @@
+groups:
+  - name: shihao_trading_alerts
+    interval: 30s
+    rules:
+      - alert: PortfolioDrawdown
+        expr: shihao_max_drawdown < -0.20
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portfolio drawdown exceeded 20%"
+          description: "Portfolio {{ $value | humanizePercentage }} drawdown"
+
+      - alert: DailyLossLimit
+        expr: shihao_daily_pnl < -100000
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Daily loss limit triggered"
+          description: "Daily loss {{ $value | humanizeCurrency }} exceeds limit"
+
+      - alert: KillSwitchActive
+        expr: shihao_kill_switch_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kill switch triggered"
+          description: "Trading system has been halted"
+
+      - alert: HighOrderRate
+        expr: shihao_orders_per_minute > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High order rate detected"
+          description: "Order rate {{ $value }}/min exceeds 50"
+
+      - alert: DataSourceDown
+        expr: shihao_data_source_status == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data source unavailable"
+          description: "Primary data source is down"
+
+      - alert: PositionLimitExceeded
+        expr: shihao_position_utilization > 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Position limit warning"
+          description: "Position utilization {{ $value | humanizePercentage }} exceeds 95%"
+
+      - alert: LowWinRate
+        expr: shihao_win_rate < 0.40
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low win rate"
+          description: "Win rate {{ $value | humanizePercentage }} below 40%"
+
+      - alert: NegativeSharpe
+        expr: shihao_sharpe_ratio < 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Negative Sharpe ratio"
+          description: "Sharpe ratio {{ $value }} is negative"
+
+      - alert: DataLatencyHigh
+        expr: shihao_data_latency_ms > 5000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High data latency"
+          description: "Data latency {{ $value }}ms exceeds 5s"
+
+      - alert: SlippageHigh
+        expr: shihao_slippage_pct > 0.01
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High slippage detected"
+          description: "Slippage {{ $value | humanizePercentage }} exceeds 1%"

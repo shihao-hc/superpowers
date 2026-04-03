@@ -1,0 +1,73 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "env": "development"
+  },
+  "inference": {
+    "engine": "ollama",
+    "ollama": {
+      "host": "http://localhost",
+      "port": 11434,
+      "defaultModel": "llama3.2",
+      "maxTokens": 256,
+      "temperature": 0.7,
+      "timeout": 30000
+    },
+    "mock": {
+      "fallbackResponses": [
+        "嗯，让我想想...",
+        "这个问题很有趣！",
+        "我来帮你分析一下。"
+      ]
+    }
+  },
+  "personality": {
+    "dataPath": "./data/personalities.json",
+    "defaultPersonality": "狐九",
+    "moodDrift": {
+      "enabled": true,
+      "interval": 60000,
+      "minDelta": -5,
+      "maxDelta": 5
+    }
+  },
+  "memory": {
+    "path": "./.opencode/memory.json",
+    "pageSize": 50,
+    "maxMemory": 10000
+  },
+  "game": {
+    "enabled": false,
+    "minecraft": {
+      "host": "localhost",
+      "port": 25565,
+      "username": "UltraBot",
+      "hideErrors": true
+    }
+  },
+  "websocket": {
+    "enabled": true,
+    "compression": {
+      "enabled": true,
+      "threshold": 1024
+    },
+    "pingInterval": 25000,
+    "pingTimeout": 60000
+  },
+  "tts": {
+    "enabled": true,
+    "defaultLang": "zh-CN",
+    "defaultRate": 1.0,
+    "defaultPitch": 1.0
+  },
+  "plugins": {
+    "enabled": true,
+    "path": "./plugins",
+    "autoLoad": true
+  },
+  "logging": {
+    "level": "info",
+    "file": null
+  }
+}

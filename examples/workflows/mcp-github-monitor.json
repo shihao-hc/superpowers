@@ -1,0 +1,91 @@
+{
+  "name": "GitHub Issue监控报表",
+  "description": "监控仓库Issue状态 → 生成统计报表 → 保存到本地",
+  "category": "devops",
+  "tags": ["GitHub", "监控", "报表"],
+  "author": "UltraWork MCP",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "input_repo",
+      "type": "input",
+      "name": "仓库信息",
+      "icon": "📥",
+      "x": 50,
+      "y": 150,
+      "inputs": [],
+      "outputs": [{ "name": "repo", "type": "string" }]
+    },
+    {
+      "id": "search_issues",
+      "type": "mcp.github.search_repositories",
+      "name": "搜索仓库",
+      "icon": "🔍",
+      "x": 250,
+      "y": 150,
+      "inputs": [{ "name": "query", "type": "string" }],
+      "outputs": [{ "name": "repos", "type": "array" }]
+    },
+    {
+      "id": "get_issues",
+      "type": "mcp.github.list_issues",
+      "name": "获取Issues",
+      "icon": "🐙",
+      "x": 450,
+      "y": 150,
+      "inputs": [{ "name": "repo", "type": "string" }],
+      "outputs": [{ "name": "issues", "type": "array" }]
+    },
+    {
+      "id": "filter_issues",
+      "type": "condition",
+      "name": "过滤条件",
+      "icon": "🔎",
+      "x": 650,
+      "y": 150,
+      "inputs": [
+        { "name": "condition", "type": "boolean" },
+        { "name": "trueValue", "type": "any" },
+        { "name": "falseValue", "type": "any" }
+      ],
+      "outputs": [{ "name": "filtered", "type": "array" }]
+    },
+    {
+      "id": "analyze_trends",
+      "type": "mcp.sequential-thinking.think",
+      "name": "趋势分析",
+      "icon": "📈",
+      "x": 850,
+      "y": 150,
+      "inputs": [{ "name": "thought", "type": "string" }],
+      "outputs": [{ "name": "analysis", "type": "object" }]
+    },
+    {
+      "id": "create_report",
+      "type": "llm_call",
+      "name": "生成报表",
+      "icon": "📊",
+      "x": 1050,
+      "y": 150,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "report", "type": "string" }]
+    },
+    {
+      "id": "save_report",
+      "type": "mcp.filesystem.write_file",
+      "name": "保存报告",
+      "icon": "💾",
+      "x": 1250,
+      "y": 150,
+      "inputs": [{ "name": "path", "type": "string" }, { "name": "content", "type": "string" }],
+      "outputs": [{ "name": "success", "type": "boolean" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "input_repo", "output": "repo" }, "target": { "nodeId": "get_issues", "input": "repo" } },
+    { "source": { "nodeId": "get_issues", "output": "issues" }, "target": { "nodeId": "filter_issues", "input": "condition" } },
+    { "source": { "nodeId": "filter_issues", "output": "filtered" }, "target": { "nodeId": "analyze_trends", "input": "thought" } },
+    { "source": { "nodeId": "analyze_trends", "output": "analysis" }, "target": { "nodeId": "create_report", "input": "prompt" } },
+    { "source": { "nodeId": "create_report", "output": "report" }, "target": { "nodeId": "save_report", "input": "content" } }
+  ]
+}

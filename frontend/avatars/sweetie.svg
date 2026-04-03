@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="sweetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB7C5"/>
+      <stop offset="100%" style="stop-color:#FF69B4"/>
+    </linearGradient>
+    <linearGradient id="blushGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF6B6B"/>
+      <stop offset="100%" style="stop-color:#FFB6C1"/>
+    </linearGradient>
+  </defs>
+  <!-- Hair with twin tails -->
+  <ellipse cx="50" cy="35" rx="38" ry="28" fill="#FFD700"/>
+  <ellipse cx="15" cy="55" rx="12" ry="25" fill="#FFD700"/>
+  <ellipse cx="85" cy="55" rx="12" ry="25" fill="#FFD700"/>
+  <!-- Hair ribbons -->
+  <circle cx="18" cy="35" r="8" fill="#FF6B6B"/>
+  <circle cx="82" cy="35" r="8" fill="#FF6B6B"/>
+  <!-- Face -->
+  <ellipse cx="50" cy="58" rx="32" ry="30" fill="#FFF5F5"/>
+  <!-- Big sparkly eyes -->
+  <ellipse cx="35" cy="52" rx="11" ry="13" fill="#4A90D9"/>
+  <ellipse cx="65" cy="52" rx="11" ry="13" fill="#4A90D9"/>
+  <ellipse cx="35" cy="52" rx="8" ry="10" fill="#87CEEB"/>
+  <ellipse cx="65" cy="52" rx="8" ry="10" fill="#87CEEB"/>
+  <ellipse cx="38" cy="49" rx="5" ry="6" fill="#FFF"/>
+  <ellipse cx="68" cy="49" rx="5" ry="6" fill="#FFF"/>
+  <ellipse cx="35" cy="55" rx="3" ry="3" fill="#FFF"/>
+  <ellipse cx="65" cy="55" rx="3" ry="3" fill="#FFF"/>
+  <!-- Sparkle highlights -->
+  <polygon points="42,45 43,47 45,47 43.5,48.5 44,51 42,49 40,51 40.5,48.5 39,47 41,47" fill="#FFF" opacity="0.8"/>
+  <polygon points="72,45 73,47 75,47 73.5,48.5 74,51 72,49 70,51 70.5,48.5 69,47 71,47" fill="#FFF" opacity="0.8"/>
+  <!-- Happy eyebrows -->
+  <path d="M24 42 Q35 38 46 42" stroke="#8B4513" stroke-width="2" fill="none"/>
+  <path d="M54 42 Q65 38 76 42" stroke="#8B4513" stroke-width="2" fill="none"/>
+  <!-- Rosy cheeks -->
+  <ellipse cx="22" cy="62" rx="10" ry="6" fill="url(#blushGrad)" opacity="0.6"/>
+  <ellipse cx="78" cy="62" rx="10" ry="6" fill="url(#blushGrad)" opacity="0.6"/>
+  <!-- Big happy smile -->
+  <path d="M35 70 Q50 85 65 70" stroke="#FF6B6B" stroke-width="3" fill="#FFB6C1"/>
+  <path d="M40 72 Q50 80 60 72" fill="#FFF"/>
+  <!-- Hair shine -->
+  <path d="M35 25 Q50 18 65 25" stroke="#FFF" stroke-width="3" fill="none" opacity="0.5"/>
+</svg>

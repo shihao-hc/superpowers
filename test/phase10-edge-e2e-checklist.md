@@ -1,0 +1,6 @@
+- Phase 10 Edge End-to-End Checklist
+- 1) Health checks: edge health at edge endpoint
+- 2) Edge API: /api/infer via edge path
+- 3) Latency: latency budget between edge and origin
+- 4) Failover: simulate edge failure and verify failover behavior
+- 5) Recovery: bring edge back and verify normal operation

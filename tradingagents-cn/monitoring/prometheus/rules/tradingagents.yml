@@ -1,0 +1,114 @@
+groups:
+  - name: tradingagents
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }}% over the last 5 minutes"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile latency is {{ $value }}s"
+
+      - alert: LLMBudgetExceeded
+        expr: llm_daily_cost > llm_budget_limit
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM budget exceeded"
+          description: "Daily LLM cost {{ $value }} has exceeded budget limit"
+
+      - alert: ServiceDown
+        expr: up{job="tradingagents-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API service is down"
+          description: "TradingAgents-CN API has been down for more than 1 minute"
+
+      - alert: RateLimitExceeded
+        expr: increase(rate_limit_exceeded_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit frequently exceeded"
+          description: "{{ $value }} rate limit violations in the last 5 minutes"
+
+      - alert: OllamaHighLatency
+        expr: histogram_quantile(0.95, rate(ollama_inference_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ollama inference latency too high"
+          description: "P95 Ollama inference latency is {{ $value }}s"
+
+      - alert: OllamaServiceDown
+        expr: rate(ollama_requests_total{status="error"}[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ollama service having errors"
+          description: "Ollama error rate is {{ $value }} requests/s"
+
+      - alert: VLLMHighLatency
+        expr: histogram_quantile(0.95, rate(vllm_inference_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vLLM inference latency too high"
+          description: "P95 vLLM inference latency is {{ $value }}s"
+
+      - alert: VLLMServiceDown
+        expr: rate(vllm_requests_total{status="error"}[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "vLLM service having errors"
+          description: "vLLM error rate is {{ $value }} requests/s"
+
+  - name: system
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}%"
+
+      - alert: HighDiskUsage
+        expr: disk_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}%"

@@ -1,0 +1,47 @@
+# Context7 MCP Annotations
+# Tool annotations for documentation operations
+
+context7:
+  # 只读操作
+  resolve_library_id:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "解析库ID"
+
+  query_docs:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "查询文档"
+
+  list_cached_libraries:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出缓存的库"
+
+  get_library_info:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取库信息"
+
+  # 写操作
+  refresh_docs:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "刷新文档缓存"
+
+  invalidate_cache:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "清除缓存"
+
+  add_library:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "添加库到监控"

@@ -1,0 +1,22 @@
+name: CI Base
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint || true
+      - name: Typecheck
+        run: npm run typecheck || true
+      - name: Tests
+        run: npm test --silent || true

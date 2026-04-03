@@ -1,0 +1,2505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>垂直领域市场 - UltraWork AI</title>
+  <link rel="manifest" href="/frontend/manifest.json">
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --text-secondary: #6b7280;
+      --border: #e5e7eb;
+      --success: #10a37f;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 32px 24px;
+      text-align: center;
+    }
+
+    .header h1 { font-size: 28px; margin-bottom: 8px; }
+    .header p { opacity: 0.9; font-size: 14px; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* Domain Cards */
+    .domains-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .domain-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    .domain-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    }
+
+    .domain-card.active {
+      border-color: var(--primary);
+    }
+
+    .domain-icon { font-size: 48px; margin-bottom: 12px; }
+    .domain-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .domain-name-en { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+    .domain-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+    .domain-stats {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .domain-stat { text-align: center; }
+    .domain-stat-value { font-size: 18px; font-weight: 600; }
+    .domain-stat-label { font-size: 11px; color: var(--text-secondary); }
+
+    /* NEW Badge */
+    .new-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .domain-card {
+      position: relative;
+    }
+
+    /* Collapsible Solutions Panel */
+    .solutions-panel {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+
+    .solutions-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .solutions-toggle:hover {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    }
+
+    .solutions-toggle-text {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--primary);
+    }
+
+    .solutions-toggle-icon {
+      transition: transform 0.3s;
+      font-size: 12px;
+    }
+
+    .solutions-toggle-icon.expanded {
+      transform: rotate(180deg);
+    }
+
+    .solutions-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .solutions-content.expanded {
+      max-height: 1000px;
+    }
+
+    .solution-item {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .solution-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .solution-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .solution-automation {
+      background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .solution-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .solution-stages {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .solution-stage {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .solution-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .solution-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-align: center;
+    }
+
+    .solution-btn-install {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+    }
+
+    .solution-btn-install:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .solution-btn-install.installing {
+      background: var(--warning);
+      cursor: wait;
+    }
+
+    .solution-btn-install.completed {
+      background: var(--success);
+    }
+
+    .solution-btn-try {
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .solution-btn-try:hover {
+      background: #f0f9ff;
+    }
+
+    /* Compliance Tags */
+    .compliance-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .compliance-tag {
+      padding: 4px 8px;
+      background: #f3f4f6;
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    /* Skill compliance badges */
+    .skill-compliance {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .compliance-badge {
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .compliance-badge.hipaa { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .compliance-badge.gdpr { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .compliance-badge.sec { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+    .compliance-badge.fda { background: #fce7f3; color: #9d174d; border: 1px solid #f9a8d4; }
+    .compliance-badge.iso { background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; }
+    .compliance-badge.pci { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .compliance-badge.other { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+
+    .compliance-badge svg { width: 10px; height: 10px; }
+
+    /* Skills Section */
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover { border-color: var(--primary); }
+    .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .skill-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: all 0.2s;
+    }
+
+    .skill-card:hover {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+
+    .skill-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .skill-name { font-size: 16px; font-weight: 600; }
+    .skill-version { font-size: 10px; color: var(--text-secondary); background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }
+
+    .skill-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+
+    .skill-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+    .skill-tag { padding: 3px 8px; background: #eef2ff; color: var(--primary); border-radius: 4px; font-size: 11px; }
+
+    .skill-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .skill-rating { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+    .skill-rating-star { color: #fbbf24; }
+    .skill-downloads { font-size: 12px; color: var(--text-secondary); }
+
+    .skill-actions { display: flex; gap: 8px; }
+    .skill-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .skill-btn-primary { background: var(--primary); color: white; }
+    .skill-btn-primary:hover { background: var(--primary-dark); }
+    .skill-btn-secondary { background: #f3f4f6; color: var(--text); }
+    .skill-btn-secondary:hover { background: #e5e7eb; }
+
+    /* Compliance Modal */
+    .compliance-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+
+    .compliance-modal.show { opacity: 1; visibility: visible; }
+
+    .compliance-content {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .compliance-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+    .compliance-item {
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .compliance-item h4 { font-size: 14px; margin-bottom: 4px; }
+    .compliance-item p { font-size: 12px; color: var(--text-secondary); }
+    .compliance-item .penalty { color: var(--error); font-weight: 500; }
+
+    /* Search */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus { border-color: var(--primary); }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+
+    /* Solution Category Filter */
+    .solution-filter {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .solution-filter-btn {
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .solution-filter-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .solution-filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .solution-filter-btn .count {
+      background: rgba(0,0,0,0.1);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    .solution-filter-btn.active .count {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Try It Modal */
+    .try-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+
+    .try-modal.show { opacity: 1; visibility: visible; }
+
+    .try-modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .try-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .try-modal-title {
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .try-modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .try-modal-body {
+      margin-bottom: 24px;
+    }
+
+    .try-modal-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .try-steps {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .try-step {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .try-step:last-child { margin-bottom: 0; }
+
+    .try-step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .try-step-content h4 {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .try-step-content p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .try-modal-footer {
+      display: flex;
+      gap: 12px;
+    }
+
+    .try-btn {
+      flex: 1;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .try-btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+    }
+
+    .try-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .try-btn-secondary {
+      background: #f3f4f6;
+      color: var(--text);
+    }
+
+    /* Documentation Panel */
+    .doc-panel {
+      position: fixed;
+      right: -400px;
+      top: 0;
+      bottom: 0;
+      width: 400px;
+      background: white;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+      transition: right 0.3s;
+      z-index: 1001;
+      overflow-y: auto;
+    }
+
+    .doc-panel.show { right: 0; }
+
+    .doc-panel-header {
+      padding: 20px;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+    }
+
+    .doc-panel-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .doc-panel-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .doc-panel-content {
+      padding: 20px;
+    }
+
+    .doc-section {
+      margin-bottom: 24px;
+    }
+
+    .doc-section h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .doc-section p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .doc-section ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .doc-section li {
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .doc-section li:last-child { border-bottom: none; }
+
+    .doc-tag {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    /* Try It Button (Floating) */
+    .try-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #10a37f 0%, #059669 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(16, 163, 127, 0.4);
+      transition: all 0.3s;
+      z-index: 100;
+    }
+
+    .try-fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 32px rgba(16, 163, 127, 0.5);
+    }
+
+    .try-fab-tooltip {
+      position: absolute;
+      right: 70px;
+      background: #1f2937;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .try-fab:hover .try-fab-tooltip {
+      opacity: 1;
+    }
+
+    /* Quick Start Modal */
+    .quickstart-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1002;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+
+    .quickstart-modal.show { opacity: 1; visibility: visible; }
+
+    .quickstart-content {
+      background: white;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 550px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .quickstart-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .quickstart-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .quickstart-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .quickstart-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .quickstart-steps {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .quickstart-step {
+      display: flex;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .quickstart-step:last-child { border-bottom: none; }
+
+    .quickstart-step-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .quickstart-step-content h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .quickstart-step-content p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .quickstart-demo {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .quickstart-demo-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quickstart-demo-data {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      font-family: monospace;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .quickstart-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .quickstart-btn {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .quickstart-btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+    }
+
+    .quickstart-btn-primary:hover {
+      transform: translateY(-2px);
+    }
+
+    .quickstart-btn-secondary {
+      background: #f3f4f6;
+      color: var(--text);
+    }
+
+    /* Popular Solutions Section */
+    .popular-section {
+      margin: 32px 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 16px;
+    }
+
+    .popular-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .popular-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .popular-tab {
+      padding: 8px 16px;
+      background: white;
+      border-radius: 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .popular-tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .popular-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .popular-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .popular-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .popular-rank {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .popular-rank.top3 {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    .popular-info {
+      flex: 1;
+    }
+
+    .popular-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .popular-meta {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .popular-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .badge-hot { background: #fee2e2; color: #dc2626; }
+    .badge-automation { background: #dbeafe; color: #2563eb; }
+    .badge-new { background: #d1fae5; color: #059669; }
+
+    /* End-to-End Solutions */
+    .e2e-section {
+      margin: 32px 0;
+      padding: 24px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-radius: 16px;
+      display: none;
+    }
+
+    .e2e-section.show { display: block; }
+
+    .e2e-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .e2e-subtitle {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .e2e-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .e2e-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+    }
+
+    .e2e-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .e2e-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .e2e-card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .e2e-card-icon {
+      font-size: 32px;
+    }
+
+    .e2e-card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .e2e-stages {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .e2e-stage {
+      background: #f3f4f6;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .e2e-stage-num {
+      background: var(--primary);
+      color: white;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .e2e-stats {
+      display: flex;
+      gap: 20px;
+      padding: 12px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .e2e-stat {
+      text-align: center;
+      flex: 1;
+    }
+
+    .e2e-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .e2e-stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .e2e-skills {
+      margin-bottom: 16px;
+    }
+
+    .e2e-skills-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+    }
+
+    .e2e-skill-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .e2e-skill-tag {
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .e2e-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .e2e-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .e2e-btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+    }
+
+    .e2e-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .e2e-btn-secondary {
+      background: #f3f4f6;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .e2e-btn-secondary:hover {
+      background: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>🏢 垂直领域技能市场</h1>
+    <p>专为金融、医疗、法律等行业打造的专业AI技能市场</p>
+  </header>
+
+  <div class="container">
+    <!-- Popular Solutions Section -->
+    <div class="popular-section" id="popular-section">
+      <h3 class="popular-title">🏆 行业解决方案推荐</h3>
+      <div id="popular-solutions">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- Solution Category Filter -->
+    <div class="solution-filter" id="solution-filter">
+      <button class="solution-filter-btn active" data-filter="all" onclick="filterSolutions('all')">
+        🏢 全部行业 <span class="count">11</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="finance" onclick="filterSolutions('finance')">
+        💰 金融 <span class="count">2</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="healthcare" onclick="filterSolutions('healthcare')">
+        🏥 医疗 <span class="count">2</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="manufacturing" onclick="filterSolutions('manufacturing')">
+        🏭 制造 <span class="count">2</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="energy" onclick="filterSolutions('energy')">
+        ⚡ 能源 <span class="count">1</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="agriculture" onclick="filterSolutions('agriculture')">
+        🌾 农业 <span class="count">1</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="government" onclick="filterSolutions('government')">
+        🏛️ 政务 <span class="count">1</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="transportation" onclick="filterSolutions('transportation')">
+        🚗 交通 <span class="count">1</span>
+      </button>
+      <button class="solution-filter-btn" data-filter="media" onclick="filterSolutions('media')">
+        🎬 媒体 <span class="count">1</span>
+      </button>
+    </div>
+
+    <!-- Domain Selection -->
+    <div class="domains-grid" id="domains-grid"></div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <input type="text" class="search-input" id="search-input" placeholder="搜索技能、标签或描述...">
+    </div>
+
+    <!-- Category Filters -->
+    <div class="filters" id="category-filters"></div>
+
+    <!-- End-to-End Solutions -->
+    <div class="e2e-section" id="e2e-section">
+      <h3 class="e2e-title">🔗 端到端解决方案</h3>
+      <p class="e2e-subtitle">预置完整工作流，一键安装即可使用</p>
+      <div class="e2e-grid" id="e2e-grid"></div>
+    </div>
+
+    <!-- Skills Grid -->
+    <h2 class="section-title">
+      <span id="domain-icon">💼</span>
+      <span id="section-title-text">所有技能</span>
+    </h2>
+    <div class="skills-grid" id="skills-grid">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>加载中...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compliance Modal -->
+  <div class="compliance-modal" id="compliance-modal">
+    <div class="compliance-content">
+      <h2 class="compliance-title">合规要求</h2>
+      <div id="compliance-list"></div>
+      <button class="skill-btn skill-btn-secondary" onclick="closeComplianceModal()" style="width: 100%; margin-top: 16px;">关闭</button>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let domains = [];
+    let currentDomain = null;
+    let currentCategory = null;
+    let skills = [];
+    let e2eSolutions = [];
+
+    // End-to-End Solutions data
+    const e2eSolutionsData = {
+      finance: [
+        {
+          id: 'smart-credit-fullflow',
+          name: '智能信贷全流程',
+          icon: '💳',
+          description: '从进件到贷后监控的完整信贷生命周期管理，自动化率高达85%',
+          automationRate: 85,
+          estimatedTime: 480,
+          stages: [
+            { name: '进件审核', skills: ['kyc-customer-verification', 'risk-assessment'] },
+            { name: '反欺诈检测', skills: ['aml-transaction-monitor'] },
+            { name: '信用评分', skills: ['risk-assessment'] },
+            { name: '智能审批', skills: ['compliance-check'] },
+            { name: '放款执行', skills: ['regulatory-report-generator'] },
+            { name: '贷后监控', skills: ['aml-transaction-monitor', 'audit-log-analyzer'] }
+          ],
+          requiredSkills: ['KYC验证', '反洗钱监控', '风险评估', '合规检查', '报告生成', '审计日志']
+        },
+        {
+          id: 'cross-border-payment',
+          name: '跨境支付合规助手',
+          icon: '🌍',
+          description: '自动识别制裁名单、生成监管报告，合规检查自动化率90%',
+          automationRate: 90,
+          estimatedTime: 30,
+          stages: [
+            { name: '制裁名单筛查', skills: ['aml-transaction-monitor'] },
+            { name: '风险评估', skills: ['risk-assessment'] },
+            { name: '合规检查', skills: ['compliance-check'] },
+            { name: '监管报告', skills: ['regulatory-report-generator'] }
+          ],
+          requiredSkills: ['反洗钱监控', '风险评估', '合规检查', '报告生成']
+        }
+      ],
+      healthcare: [
+        {
+          id: 'smart-hospital-service',
+          name: '智慧医院患者服务平台',
+          icon: '👨‍⚕️',
+          description: '覆盖挂号、导诊、病历摘要、用药提醒的全流程患者服务',
+          automationRate: 70,
+          estimatedTime: 120,
+          stages: [
+            { name: '智能挂号', skills: ['appointment-scheduler'] },
+            { name: 'AI导诊', skills: ['symptom-checker'] },
+            { name: '辅助诊断', skills: ['medical-image-analysis', 'health-record-summary'] },
+            { name: '用药管理', skills: ['drug-interaction'] },
+            { name: '随访管理', skills: ['appointment-scheduler'] },
+            { name: '医保结算', skills: ['insurance-claim'] }
+          ],
+          requiredSkills: ['预约调度', '症状检查', '影像分析', '病历摘要', '药物交互', '医保理赔']
+        },
+        {
+          id: 'clinical-decision',
+          name: '临床辅助决策系统',
+          icon: '🔬',
+          description: '整合影像分析、症状检查、诊疗指南的智能诊断支持',
+          automationRate: 60,
+          estimatedTime: 45,
+          stages: [
+            { name: '症状分析', skills: ['symptom-checker'] },
+            { name: '影像分析', skills: ['medical-image-analysis'] },
+            { name: '病历回顾', skills: ['health-record-summary'] },
+            { name: '诊疗建议', skills: ['drug-interaction'] }
+          ],
+          requiredSkills: ['症状检查', '影像分析', '病历摘要', '药物交互']
+        }
+      ],
+      manufacturing: [
+        {
+          id: 'digital-twin-production',
+          name: '数字孪生生产线监控',
+          icon: '🔧',
+          description: '实时数据采集、异常预警、根因分析的全链路监控',
+          automationRate: 75,
+          estimatedTime: 60,
+          stages: [
+            { name: '数据采集', skills: ['process-optimization'] },
+            { name: '实时监控', skills: ['quality-control'] },
+            { name: '异常预警', skills: ['predictive-maintenance'] },
+            { name: '根因分析', skills: ['root-cause-analysis'] },
+            { name: '优化建议', skills: ['process-optimization'] }
+          ],
+          requiredSkills: ['质量控制', '预测性维护', '根因分析', '流程优化']
+        },
+        {
+          id: 'supply-chain-resilience',
+          name: '供应链韧性评估',
+          icon: '📦',
+          description: '风险识别、替代供应商推荐、库存优化的供应链管理',
+          automationRate: 65,
+          estimatedTime: 90,
+          stages: [
+            { name: '风险识别', skills: ['supply-chain-optimization'] },
+            { name: '供应商分析', skills: ['inventory-forecast'] },
+            { name: '库存优化', skills: ['inventory-forecast'] },
+            { name: '应急预案', skills: ['supply-chain-optimization'] }
+          ],
+          requiredSkills: ['供应链优化', '库存预测', '风险管理']
+        }
+      ],
+      energy: [
+        {
+          id: 'smart-grid-optimization',
+          name: '智能电网调度优化',
+          icon: '⚡',
+          description: '负荷预测、发电调度、碳排放优化的一体化解决方案',
+          automationRate: 80,
+          estimatedTime: 45,
+          stages: [
+            { name: '负荷预测', skills: ['load-forecast'] },
+            { name: '发电调度', skills: ['smart-grid-scheduling'] },
+            { name: '碳排放计算', skills: ['carbon-emission-calc'] },
+            { name: '效率优化', skills: ['energy-efficiency-opt'] }
+          ],
+          requiredSkills: ['负荷预测', '电网调度', '碳排放计算', '能效优化']
+        }
+      ],
+      agriculture: [
+        {
+          id: 'precision-farming',
+          name: '精准农业管理方案',
+          icon: '🌾',
+          description: '土壤分析、产量预测、灌溉优化的智能化种植管理',
+          automationRate: 70,
+          estimatedTime: 60,
+          stages: [
+            { name: '土壤分析', skills: ['soil-analysis'] },
+            { name: '产量预测', skills: ['crop-yield-predict'] },
+            { name: '病虫害识别', skills: ['pest-disease-detect'] },
+            { name: '灌溉优化', skills: ['irrigation-optimize'] }
+          ],
+          requiredSkills: ['土壤分析', '产量预测', '病虫害识别', '灌溉优化']
+        }
+      ],
+      government: [
+        {
+          id: 'smart-approval',
+          name: '智能行政审批流程',
+          icon: '🏛️',
+          description: '公文生成、政策分析、审批优化的政务服务自动化',
+          automationRate: 65,
+          estimatedTime: 30,
+          stages: [
+            { name: '公文生成', skills: ['official-doc-generator'] },
+            { name: '政策分析', skills: ['policy-sentiment-analysis'] },
+            { name: '预算优化', skills: ['budget-optimization'] },
+            { name: '审批处理', skills: ['license-approval'] }
+          ],
+          requiredSkills: ['公文生成', '政策分析', '预算优化', '审批处理']
+        }
+      ],
+      transportation: [
+        {
+          id: 'fleet-optimization',
+          name: '车队智能调度方案',
+          icon: '🚛',
+          description: '路径优化、车流预测、实时追踪的物流管理',
+          automationRate: 75,
+          estimatedTime: 25,
+          stages: [
+            { name: '路径优化', skills: ['route-optimization'] },
+            { name: '车流预测', skills: ['traffic-flow-predict'] },
+            { name: '车辆调度', skills: ['vehicle-scheduling'] },
+            { name: '物流追踪', skills: ['logistics-tracking'] }
+          ],
+          requiredSkills: ['路径优化', '车流预测', '车辆调度', '物流追踪']
+        }
+      ],
+      media: [
+        {
+          id: 'content-publishing',
+          name: '智能内容发布流程',
+          icon: '📱',
+          description: '内容标签、版权检测、个性化推荐的内容管理',
+          automationRate: 80,
+          estimatedTime: 20,
+          stages: [
+            { name: '内容标签', skills: ['content-tagging'] },
+            { name: '版权检测', skills: ['copyright-detection'] },
+            { name: '个性化推荐', skills: ['personalized-recommend'] },
+            { name: '舆情监控', skills: ['sentiment-monitoring'] }
+          ],
+          requiredSkills: ['内容标签', '版权检测', '推荐算法', '舆情监控']
+        }
+      ]
+    };
+
+    // Sanitize HTML to prevent XSS
+    function sanitizeHTML(str) {
+      if (typeof str !== 'string') return str || '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Safe innerHTML setter
+    function safeInnerHTML(element, html) {
+      if (element) {
+        element.innerHTML = typeof html === 'string' ? html : '';
+      }
+    }
+
+    // Initialize
+    async function init() {
+      await loadDomains();
+    }
+
+    // Load domains
+    async function loadDomains() {
+      try {
+        const response = await fetch('/api/vertical-domains');
+        domains = await response.json();
+        renderDomains();
+      } catch (e) {
+        console.error('Failed to load domains:', e);
+        // Use default domains
+        domains = getDefaultDomains();
+        renderDomains();
+      }
+    }
+
+    // Default domains (fallback)
+    function getDefaultDomains() {
+      return [
+        { id: 'finance', name: '金融领域', nameEn: 'Finance', icon: '💰', description: '股票、基金、债券、风险管理、财务分析', color: '#10a37f', skillsCount: 18, templatesCount: 12 },
+        { id: 'healthcare', name: '医疗健康', nameEn: 'Healthcare', icon: '🏥', description: '医学影像、诊断辅助、健康管理', color: '#ef4444', skillsCount: 15, templatesCount: 8 },
+        { id: 'legal', name: '法律服务', nameEn: 'Legal', icon: '⚖️', description: '合同审查、法律检索、案件分析', color: '#8b5cf6', skillsCount: 12, templatesCount: 6 },
+        { id: 'manufacturing', name: '制造业', nameEn: 'Manufacturing', icon: '🏭', description: '质量控制、供应链管理、预测性维护', color: '#f59e0b', skillsCount: 14, templatesCount: 10 },
+        { id: 'education', name: '教育行业', nameEn: 'Education', icon: '📚', description: '智能备课、作业批改、学习分析', color: '#3b82f6', skillsCount: 10, templatesCount: 8 },
+        { id: 'retail', name: '零售电商', nameEn: 'Retail', icon: '🛒', description: '商品推荐、库存管理、价格优化', color: '#ec4899', skillsCount: 12, templatesCount: 9 },
+        { id: 'energy', name: '能源行业', nameEn: 'Energy', icon: '⚡', description: '负荷预测、设备故障诊断、碳排放计算、能源效率优化', color: '#22c55e', skillsCount: 6, templatesCount: 5, isNew: true },
+        { id: 'agriculture', name: '智慧农业', nameEn: 'Agriculture', icon: '🌾', description: '作物产量预测、病虫害识别、灌溉优化、土壤分析', color: '#84cc16', skillsCount: 6, templatesCount: 4, isNew: true },
+        { id: 'government', name: '政府政务', nameEn: 'Government', icon: '🏛️', description: '公文智能生成、政策舆情分析、预算优化、电子政务', color: '#6366f1', skillsCount: 6, templatesCount: 6, isNew: true },
+        { id: 'transportation', name: '交通运输', nameEn: 'Transportation', icon: '🚗', description: '路径优化、车流预测、车辆调度、物流追踪', color: '#f97316', skillsCount: 6, templatesCount: 5, isNew: true },
+        { id: 'media', name: '媒体娱乐', nameEn: 'Media & Entertainment', icon: '🎬', description: '内容标签生成、个性化推荐、版权检测、智能剪辑', color: '#ec4899', skillsCount: 6, templatesCount: 4, isNew: true }
+      ];
+    }
+
+    // Render domains
+    function renderDomains() {
+      const grid = document.getElementById('domains-grid');
+      grid.innerHTML = domains.map(domain => {
+        const solutions = e2eSolutionsData[domain.id] || [];
+        return `
+          <div class="domain-card" data-domain="${domain.id}">
+            ${domain.isNew ? '<span class="new-badge">NEW</span>' : ''}
+            <div class="domain-icon">${domain.icon}</div>
+            <div class="domain-name">${domain.name}</div>
+            <div class="domain-name-en">${domain.nameEn}</div>
+            <div class="domain-desc">${domain.description}</div>
+            <div class="compliance-tags">
+              ${(domain.compliance || []).slice(0, 3).map(c => `<span class="compliance-tag">${c}</span>`).join('')}
+            </div>
+            <div class="domain-stats">
+              <div class="domain-stat">
+                <div class="domain-stat-value">${domain.skillsCount || 0}</div>
+                <div class="domain-stat-label">技能数</div>
+              </div>
+              <div class="domain-stat">
+                <div class="domain-stat-value">${domain.templatesCount || 0}</div>
+                <div class="domain-stat-label">模板数</div>
+              </div>
+              ${solutions.length > 0 ? `
+              <div class="domain-stat">
+                <div class="domain-stat-value">${solutions.length}</div>
+                <div class="domain-stat-label">端到端方案</div>
+              </div>
+              ` : ''}
+            </div>
+            ${solutions.length > 0 ? `
+            <div class="solutions-panel">
+              <div class="solutions-toggle" onclick="toggleSolutions(event, '${domain.id}')">
+                <span class="solutions-toggle-text">🔗 查看端到端解决方案</span>
+                <span class="solutions-toggle-icon" id="toggle-icon-${domain.id}">▼</span>
+              </div>
+              <div class="solutions-content" id="solutions-${domain.id}">
+                ${solutions.map(sol => `
+                  <div class="solution-item">
+                    <div class="solution-header">
+                      <div class="solution-title">${sol.icon} ${sol.name}</div>
+                      <div class="solution-automation">${sol.automationRate}% 自动化</div>
+                    </div>
+                    <div class="solution-desc">${sol.description}</div>
+                    <div class="solution-stages">
+                      ${sol.stages.map(stage => `<span class="solution-stage">${stage}</span>`).join('')}
+                    </div>
+                    <div class="solution-actions">
+                      <button class="solution-btn solution-btn-install" id="install-${sol.id}" onclick="installSolution('${domain.id}', '${sol.id}')">
+                        ⚡ 一键安装
+                      </button>
+                      <button class="solution-btn solution-btn-try" onclick="trySolution('${sol.id}')">
+                        🎮 试玩
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle solutions panel
+    function toggleSolutions(event, domainId) {
+      event.stopPropagation();
+      const content = document.getElementById(`solutions-${domainId}`);
+      const icon = document.getElementById(`toggle-icon-${domainId}`);
+      
+      content.classList.toggle('expanded');
+      icon.classList.toggle('expanded');
+    }
+
+    // Install solution
+    async function installSolution(domainId, solutionId) {
+      const btn = document.getElementById(`install-${solutionId}`);
+      if (!btn || btn.classList.contains('installing')) return;
+
+      btn.classList.add('installing');
+      btn.innerHTML = '⏳ 安装中...';
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/vertical-domains/${domainId}/solutions/${solutionId}/install`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.status === 'installing') {
+          // Simulate installation progress
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += 20;
+            if (progress >= 100) {
+              clearInterval(interval);
+              btn.classList.remove('installing');
+              btn.classList.add('completed');
+              btn.innerHTML = '✅ 已安装';
+              
+              // Show success message
+              setTimeout(() => {
+                alert(`「${solutionId}」安装完成！\n\n可在聊天界面中输入"帮我使用${solutionId}"开始体验。`);
+              }, 300);
+            } else {
+              btn.innerHTML = `⏳ 安装中 ${progress}%`;
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Install failed:', error);
+        btn.classList.remove('installing');
+        btn.innerHTML = '❌ 安装失败';
+        setTimeout(() => {
+          btn.innerHTML = '⚡ 一键安装';
+        }, 2000);
+      }
+    }
+
+    // Try solution (redirect to chat)
+    function trySolution(solutionId) {
+      const solutionNames = {
+        'smart-credit-fullflow': '智能信贷全流程',
+        'cross-border-payment': '跨境支付合规助手',
+        'smart-hospital-service': '智慧医院患者服务平台',
+        'clinical-decision': '临床辅助决策系统',
+        'digital-twin-production': '数字孪生生产线监控',
+        'supply-chain-resilience': '供应链韧性评估',
+        'smart-grid-optimization': '智能电网调度优化',
+        'precision-farming': '精准农业管理方案',
+        'smart-approval': '智能行政审批流程',
+        'fleet-optimization': '车队智能调度方案',
+        'content-publishing': '智能内容发布流程'
+      };
+      
+      const name = solutionNames[solutionId] || solutionId;
+      window.location.href = `/chat?workflow=${solutionId}&execute=true`;
+    }
+
+    // Select domain
+    async function selectDomain(domainId) {
+      currentDomain = domains.find(d => d.id === domainId);
+      currentCategory = null;
+
+      // Update UI
+      document.querySelectorAll('.domain-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.domain === domainId);
+      });
+
+      document.getElementById('domain-icon').textContent = currentDomain.icon;
+      document.getElementById('section-title-text').textContent = currentDomain.name;
+
+      // Load skills
+      await loadSkills(domainId);
+
+      // Update filters
+      updateCategoryFilters();
+    }
+
+    // Load skills
+    async function loadSkills(domainId) {
+      const grid = document.getElementById('skills-grid');
+      grid.innerHTML = '<div class="loading"><div class="spinner"></div><p>加载技能...</p></div>';
+
+      try {
+        const response = await fetch(`/api/vertical-domains/${domainId}/skills`);
+        skills = await response.json();
+        renderSkills();
+      } catch (e) {
+        console.error('Failed to load skills:', e);
+        skills = getDefaultSkills(domainId);
+        renderSkills();
+      }
+    }
+
+    // Default skills
+    function getDefaultSkills(domainId) {
+      const defaultSkills = {
+        finance: [
+          { id: 'stock-analysis', name: '股票技术分析', category: 'stocks', description: '基于技术指标进行股票走势分析和预测', rating: 4.8, downloads: 1250, tags: ['股票', 'K线', 'MACD'] },
+          { id: 'risk-assessment', name: '风险评估模型', category: 'risk-management', description: '综合评估投资组合风险', rating: 4.6, downloads: 890, tags: ['风险', 'VaR', '投资组合'] },
+          { id: 'financial-report', name: '财务报表生成', category: 'financial-analysis', description: '自动生成财务报表和分析报告', rating: 4.9, downloads: 2100, tags: ['财务', '报告', 'PDF'] }
+        ],
+        healthcare: [
+          { id: 'medical-image', name: '医学影像分析', category: 'medical-imaging', description: 'X光、CT、MRI等医学影像AI分析', rating: 4.9, downloads: 3200, tags: ['影像', 'AI诊断', 'X光'] },
+          { id: 'symptom-checker', name: '症状自查助手', category: 'diagnosis', description: '基于症状提供初步健康建议', rating: 4.4, downloads: 5600, tags: ['症状', '自查', '分诊'] },
+          { id: 'drug-interaction', name: '药物相互作用检查', category: 'diagnosis', description: '检查药物间的相互作用', rating: 4.8, downloads: 2800, tags: ['药物', '安全', '处方'] }
+        ],
+        energy: [
+          { id: 'load-forecast', name: '电力负荷预测', category: 'grid', description: '基于历史数据和天气预测电力负荷', rating: 4.7, downloads: 850, tags: ['负荷', '预测', '电网'] },
+          { id: 'carbon-calc', name: '碳排放计算', category: 'sustainability', description: '计算和追踪碳排放数据', rating: 4.5, downloads: 720, tags: ['碳排放', 'ESG', '环保'] },
+          { id: 'energy-opt', name: '能源效率优化', category: 'efficiency', description: '优化能源使用效率降低成本', rating: 4.6, downloads: 680, tags: ['能效', '优化', '节能'] }
+        ],
+        agriculture: [
+          { id: 'crop-yield', name: '作物产量预测', category: 'farming', description: '基于天气和土壤数据预测产量', rating: 4.6, downloads: 920, tags: ['产量', '预测', '农业'] },
+          { id: 'pest-detect', name: '病虫害识别', category: 'protection', description: 'AI识别作物病虫害类型', rating: 4.8, downloads: 1500, tags: ['病虫害', '识别', '农业'] },
+          { id: 'irrigation-opt', name: '智能灌溉优化', category: 'irrigation', description: '根据土壤湿度优化灌溉计划', rating: 4.5, downloads: 780, tags: ['灌溉', '节水', '智能'] }
+        ],
+        government: [
+          { id: 'doc-generator', name: '公文智能生成', category: 'document', description: '自动生成各类政务公文', rating: 4.7, downloads: 1200, tags: ['公文', '政务', '自动化'] },
+          { id: 'policy-analysis', name: '政策舆情分析', category: 'analysis', description: '分析政策社会反响和舆情', rating: 4.5, downloads: 650, tags: ['政策', '舆情', '分析'] },
+          { id: 'budget-opt', name: '预算优化建议', category: 'finance', description: 'AI优化政府预算分配', rating: 4.6, downloads: 580, tags: ['预算', '优化', '财政'] }
+        ],
+        transportation: [
+          { id: 'route-opt', name: '路径优化算法', category: 'logistics', description: '计算最优运输路径', rating: 4.8, downloads: 1800, tags: ['路径', '优化', '物流'] },
+          { id: 'traffic-predict', name: '车流预测', category: 'traffic', description: '预测交通流量和拥堵', rating: 4.6, downloads: 1200, tags: ['车流', '预测', '交通'] },
+          { id: 'fleet-schedule', name: '车队调度优化', category: 'fleet', description: '优化车队调度计划', rating: 4.7, downloads: 950, tags: ['车队', '调度', '优化'] }
+        ],
+        media: [
+          { id: 'content-tag', name: '内容智能标签', category: 'content', description: '自动为内容生成标签和分类', rating: 4.7, downloads: 2100, tags: ['标签', '分类', 'AI'] },
+          { id: 'copyright-check', name: '版权检测系统', category: 'compliance', description: '检测内容版权和侵权', rating: 4.5, downloads: 1600, tags: ['版权', '检测', '合规'] },
+          { id: 'recommend', name: '个性化推荐引擎', category: 'recommendation', description: '基于用户行为的个性化推荐', rating: 4.8, downloads: 2400, tags: ['推荐', '个性化', 'AI'] }
+        ]
+      };
+
+      return (defaultSkills[domainId] || []).map(s => ({
+        ...s,
+        domainId,
+        version: '1.0.0'
+      }));
+    }
+
+    // Update category filters
+    function updateCategoryFilters() {
+      const categories = [...new Set(skills.map(s => s.category))];
+      const filters = document.getElementById('category-filters');
+      
+      filters.innerHTML = `
+        <button class="filter-btn ${!currentCategory ? 'active' : ''}" onclick="filterByCategory(null)">全部</button>
+        ${categories.map(cat => `
+          <button class="filter-btn ${currentCategory === cat ? 'active' : ''}" onclick="filterByCategory('${cat}')">${getCategoryName(cat)}</button>
+        `).join('')}
+      `;
+
+      // Update E2E solutions section
+      updateE2ESolutions();
+    }
+
+    // Install E2E Solution
+    function installE2ESolution(solutionId) {
+      const solution = e2eSolutionsData[currentDomain.id]?.find(s => s.id === solutionId);
+      if (!solution) return;
+
+      // Navigate to workflow installation
+      window.location.href = `/chat?workflow=${solutionId}&install=true`;
+    }
+
+    // View E2E Details
+    function viewE2EDetails(solutionId) {
+      const solution = e2eSolutionsData[currentDomain.id]?.find(s => s.id === solutionId);
+      if (!solution) return;
+
+      alert(`${solution.name}\n\n${solution.description}\n\n自动化率: ${solution.automationRate}%\n预计耗时: ${solution.estimatedTime}分钟\n\n所需技能:\n${solution.requiredSkills.join('\n')}`);
+    }
+
+    // Get category name
+    function getCategoryName(category) {
+      const names = {
+        'stocks': '股票',
+        'risk-management': '风险管理',
+        'financial-analysis': '财务分析',
+        'medical-imaging': '医学影像',
+        'diagnosis': '诊断',
+        'health-management': '健康管理'
+      };
+      return names[category] || category;
+    }
+
+    // Filter by category
+    function filterByCategory(category) {
+      currentCategory = category;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === (category ? getCategoryName(category) : '全部'));
+      });
+      renderSkills();
+    }
+
+    // Render skills
+    function renderSkills() {
+      const grid = document.getElementById('skills-grid');
+      let filteredSkills = skills;
+
+      if (currentCategory) {
+        filteredSkills = skills.filter(s => s.category === currentCategory);
+      }
+
+      const searchQuery = document.getElementById('search-input').value.toLowerCase();
+      if (searchQuery) {
+        filteredSkills = filteredSkills.filter(s => 
+          s.name.toLowerCase().includes(searchQuery) ||
+          s.description.toLowerCase().includes(searchQuery) ||
+          s.tags.some(t => t.toLowerCase().includes(searchQuery))
+        );
+      }
+
+      if (filteredSkills.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <p>未找到匹配的技能</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredSkills.map(skill => `
+        <div class="skill-card">
+          <div class="skill-header">
+            <div class="skill-name">${sanitizeHTML(skill.name)}</div>
+            <span class="skill-version">v${sanitizeHTML(skill.version || '1.0.0')}</span>
+          </div>
+          <div class="skill-desc">${sanitizeHTML(skill.description)}</div>
+          ${skill.compliance && skill.compliance.length > 0 ? `
+            <div class="skill-compliance">
+              ${skill.compliance.slice(0, 4).map(c => `<span class="compliance-badge ${c.toLowerCase().replace(/[^a-z]/g, '')}">${getComplianceIcon(c)} ${sanitizeHTML(c)}</span>`).join('')}
+              ${skill.compliance.length > 4 ? `<span class="compliance-badge other">+${skill.compliance.length - 4}</span>` : ''}
+            </div>
+          ` : ''}
+          <div class="skill-tags">
+            ${(skill.tags || []).map(tag => `<span class="skill-tag">${sanitizeHTML(tag)}</span>`).join('')}
+          </div>
+          <div class="skill-meta">
+            <div>
+              <div class="skill-rating">
+                <span class="skill-rating-star">★</span>
+                <span>${skill.rating}</span>
+              </div>
+              <div class="skill-downloads">${skill.downloads} 次下载</div>
+            </div>
+            <div class="skill-actions">
+              <button class="skill-btn skill-btn-secondary" onclick="viewSkillDetails('${sanitizeHTML(skill.id)}')">详情</button>
+              <button class="skill-btn skill-btn-primary" onclick="useSkill('${sanitizeHTML(skill.id)}')">使用</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Get compliance icon
+    function getComplianceIcon(compliance) {
+      const icons = {
+        'HIPAA': '🏥',
+        'GDPR': '🔒',
+        'SEC': '💹',
+        'FDA': '💊',
+        'ISO': '✅',
+        'PCI-DSS': '💳',
+        'SOX': '📊',
+        'FINRA': '📈',
+        'CCPA': '🛡️'
+      };
+      return icons[compliance] || '📋';
+    }
+
+    // View skill details
+    function viewSkillDetails(skillId) {
+      const skill = skills.find(s => s.id === skillId);
+      if (!skill) return;
+
+      // Navigate to chat with skill preselected
+      window.location.href = `/chat?skill=${skillId}`;
+    }
+
+    // Use skill
+    function useSkill(skillId) {
+      const skill = skills.find(s => s.id === skillId);
+      if (!skill) return;
+
+      // Navigate to chat with skill preselected and execute
+      window.location.href = `/chat?skill=${skillId}&execute=true`;
+    }
+
+    // Show compliance
+    function showCompliance() {
+      if (!currentDomain) return;
+
+      const list = document.getElementById('compliance-list');
+      const requirements = getComplianceRequirements(currentDomain.id);
+
+      list.innerHTML = requirements.map(req => `
+        <div class="compliance-item">
+          <h4>${req.regulation}</h4>
+          <p>${req.description}</p>
+          <p class="penalty">违规处罚: ${req.penalty}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('compliance-modal').classList.add('show');
+    }
+
+    // Get compliance requirements
+    function getComplianceRequirements(domainId) {
+      const requirements = {
+        finance: [
+          { regulation: 'SEC', description: '证券交易委员会规定', penalty: '民事/刑事处罚' },
+          { regulation: 'FINRA', description: '金融业监管局规定', penalty: '罚款/吊销执照' },
+          { regulation: 'SOX', description: '萨班斯-奥克斯利法案', penalty: '重大罚款' }
+        ],
+        healthcare: [
+          { regulation: 'HIPAA', description: '健康保险流通与责任法案', penalty: '最高150万美元/违规' },
+          { regulation: 'FDA', description: '食品药品监督管理局规定', penalty: '产品召回/罚款' },
+          { regulation: 'GDPR', description: '通用数据保护条例', penalty: '最高2000万欧元或4%营业额' }
+        ]
+      };
+      return requirements[domainId] || [];
+    }
+
+    // Close compliance modal
+    function closeComplianceModal() {
+      document.getElementById('compliance-modal').classList.remove('show');
+    }
+
+    // Search handler
+    document.getElementById('search-input').addEventListener('input', () => {
+      renderSkills();
+    });
+
+    // Initialize
+    init();
+  </script>
+
+  <!-- Try It Modal -->
+  <div class="try-modal" id="try-modal">
+    <div class="try-modal-content">
+      <div class="try-modal-header">
+        <div class="try-modal-title" id="try-modal-title">🎯 试用方案</div>
+        <button class="try-modal-close" onclick="closeTryModal()">×</button>
+      </div>
+      <div class="try-modal-body">
+        <p class="try-modal-desc" id="try-modal-desc">选择一个方案开始体验...</p>
+        <div class="try-steps" id="try-steps"></div>
+      </div>
+      <div class="try-modal-footer">
+        <button class="try-btn try-btn-secondary" onclick="closeTryModal()">取消</button>
+        <button class="try-btn try-btn-primary" id="try-start-btn">🚀 开始试用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Documentation Panel -->
+  <div class="doc-panel" id="doc-panel">
+    <div class="doc-panel-header">
+      <div class="doc-panel-title" id="doc-panel-title">📖 使用说明</div>
+      <button class="doc-panel-close" onclick="closeDocPanel()">×</button>
+    </div>
+    <div class="doc-panel-content" id="doc-panel-content"></div>
+  </div>
+
+  <!-- Try It FAB -->
+  <div class="try-fab" onclick="showTryModal()">
+    <span>🎮</span>
+    <span class="try-fab-tooltip">一键试玩</span>
+  </div>
+
+  <!-- Quick Start Modal -->
+  <div class="quickstart-modal" id="quickstart-modal">
+    <div class="quickstart-content">
+      <div class="quickstart-header">
+        <div class="quickstart-icon" id="quickstart-icon">🎉</div>
+        <div class="quickstart-title" id="quickstart-title">安装成功！</div>
+        <p class="quickstart-desc" id="quickstart-desc">您的方案已准备就绪</p>
+      </div>
+      
+      <div class="quickstart-steps" id="quickstart-steps">
+        <!-- Steps will be populated dynamically -->
+      </div>
+      
+      <div class="quickstart-demo" id="quickstart-demo">
+        <div class="quickstart-demo-title">📦 演示数据已就绪</div>
+        <div class="quickstart-demo-data" id="quickstart-demo-data">
+          <!-- Demo data preview -->
+        </div>
+      </div>
+      
+      <div class="quickstart-actions">
+        <button class="quickstart-btn quickstart-btn-secondary" onclick="closeQuickStart()">
+          稍后再说
+        </button>
+        <button class="quickstart-btn quickstart-btn-primary" id="quickstart-start-btn">
+          🚀 立即体验
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popular Solutions Section (rendered at top) -->
+
+  <script>
+    // Solution Category Filter
+    let currentSolutionFilter = 'all';
+
+    function filterSolutions(category) {
+      currentSolutionFilter = category;
+      
+      // Update button states
+      document.querySelectorAll('.solution-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === category);
+      });
+
+      // Filter domains
+      if (category === 'all') {
+        renderDomains(domains);
+      } else {
+        const filtered = domains.filter(d => d.id === category || hasE2ESolution(d.id, category));
+        renderDomains(filtered.length > 0 ? filtered : domains);
+      }
+    }
+
+    function hasE2ESolution(domainId, filterCategory) {
+      const solutions = e2eSolutionsData[domainId];
+      return solutions && solutions.length > 0;
+    }
+
+    // Try It Modal Functions
+    let currentTrySolution = null;
+
+    function showTryModal(solutionId) {
+      const modal = document.getElementById('try-modal');
+      
+      if (solutionId) {
+        // Find solution
+        for (const [domainId, solutions] of Object.entries(e2eSolutionsData)) {
+          const sol = solutions.find(s => s.id === solutionId);
+          if (sol) {
+            currentTrySolution = { ...sol, domainId };
+            break;
+          }
+        }
+      }
+
+      if (currentTrySolution) {
+        document.getElementById('try-modal-title').innerHTML = `${currentTrySolution.icon} ${currentTrySolution.name}`;
+        document.getElementById('try-modal-desc').textContent = currentTrySolution.description;
+        
+        document.getElementById('try-steps').innerHTML = currentTrySolution.stages.map((stage, i) => `
+          <div class="try-step">
+            <div class="try-step-num">${i + 1}</div>
+            <div class="try-step-content">
+              <h4>${stage.name}</h4>
+              <p>使用技能: ${stage.skills.join(', ')}</p>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('try-start-btn').onclick = () => startTry(currentTrySolution);
+      } else {
+        // Show solution picker
+        document.getElementById('try-modal-title').innerHTML = '🎮 选择试用方案';
+        document.getElementById('try-modal-desc').textContent = '选择一个端到端解决方案开始体验完整的业务流程：';
+        
+        const allSolutions = Object.entries(e2eSolutionsData).flatMap(([domainId, sols]) => 
+          sols.map(s => ({ ...s, domainId }))
+        );
+        
+        document.getElementById('try-steps').innerHTML = allSolutions.map(sol => `
+          <div class="try-step" style="cursor: pointer;" onclick="closeTryModal(); showTryModal('${sol.id}')">
+            <div class="try-step-num">${sol.icon}</div>
+            <div class="try-step-content">
+              <h4>${sol.name}</h4>
+              <p>自动化率: ${sol.automationRate}% | 预计 ${sol.estimatedTime} 分钟</p>
+            </div>
+          </div>
+        `).join('');
+
+        document.getElementById('try-start-btn').style.display = 'none';
+      }
+      
+      modal.classList.add('show');
+    }
+
+    function closeTryModal() {
+      document.getElementById('try-modal').classList.remove('show');
+      document.getElementById('try-start-btn').style.display = 'block';
+      currentTrySolution = null;
+    }
+
+    function startTry(solution) {
+      // Navigate to chat with solution preselected
+      window.location.href = `/chat?workflow=${solution.id}&domain=${solution.domainId}&execute=true`;
+    }
+
+    // Documentation Panel Functions
+    function showDocPanel(solutionId) {
+      const panel = document.getElementById('doc-panel');
+      let solution = null;
+      let domainId = null;
+
+      for (const [dId, solutions] of Object.entries(e2eSolutionsData)) {
+        const sol = solutions.find(s => s.id === solutionId);
+        if (sol) {
+          solution = sol;
+          domainId = dId;
+          break;
+        }
+      }
+
+      if (!solution) return;
+
+      document.getElementById('doc-panel-title').textContent = `${solution.icon} ${solution.name}`;
+      
+      document.getElementById('doc-panel-content').innerHTML = `
+        <div class="doc-section">
+          <h3>📋 方案概述</h3>
+          <p>${solution.description}</p>
+        </div>
+
+        <div class="doc-section">
+          <h3>📊 关键指标</h3>
+          <ul>
+            <li><span class="doc-tag">自动化率</span> ${solution.automationRate}%</li>
+            <li><span class="doc-tag">预计耗时</span> ${solution.estimatedTime} 分钟</li>
+            <li><span class="doc-tag">处理阶段</span> ${solution.stages.length} 个</li>
+            <li><span class="doc-tag">所需技能</span> ${solution.requiredSkills.length} 个</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>🔄 处理流程</h3>
+          <ul>
+            ${solution.stages.map((stage, i) => `
+              <li><strong>阶段 ${i + 1}:</strong> ${stage.name}</li>
+            `).join('')}
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>🛠️ 所需技能</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${solution.requiredSkills.map(skill => `
+              <span class="doc-tag">${skill}</span>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="doc-section">
+          <h3>💡 使用场景</h3>
+          <ul>
+            <li>新员工培训：快速了解业务流程</li>
+            <li>流程自动化：替代重复性人工操作</li>
+            <li>合规审计：确保流程符合规范要求</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>📝 注意事项</h3>
+          <ul>
+            <li>首次使用建议先进行小规模测试</li>
+            <li>确保相关技能已正确配置</li>
+            <li>敏感数据请确认权限设置</li>
+          </ul>
+        </div>
+      `;
+      
+      panel.classList.add('show');
+    }
+
+    function closeDocPanel() {
+      document.getElementById('doc-panel').classList.remove('show');
+    }
+
+    // Update E2E render to include doc button
+    function updateE2ESolutions() {
+      const section = document.getElementById('e2e-section');
+      const grid = document.getElementById('e2e-grid');
+      
+      if (!currentDomain) {
+        section.classList.remove('show');
+        return;
+      }
+
+      const solutions = e2eSolutionsData[currentDomain.id] || [];
+      
+      if (solutions.length === 0) {
+        section.classList.remove('show');
+        return;
+      }
+
+      section.classList.add('show');
+      grid.innerHTML = solutions.map(sol => `
+        <div class="e2e-card">
+          <div class="e2e-card-header">
+            <div class="e2e-card-title">${sol.name}</div>
+            <div class="e2e-card-icon">${sol.icon}</div>
+          </div>
+          <div class="e2e-card-desc">${sol.description}</div>
+          
+          <div class="e2e-stages">
+            ${sol.stages.map((stage, i) => `
+              <div class="e2e-stage">
+                <span class="e2e-stage-num">${i + 1}</span>
+                <span>${stage.name}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="e2e-stats">
+            <div class="e2e-stat">
+              <div class="e2e-stat-value">${sol.automationRate}%</div>
+              <div class="e2e-stat-label">自动化率</div>
+            </div>
+            <div class="e2e-stat">
+              <div class="e2e-stat-value">${sol.estimatedTime}分钟</div>
+              <div class="e2e-stat-label">预计耗时</div>
+            </div>
+            <div class="e2e-stat">
+              <div class="e2e-stat-value">${sol.stages.length}</div>
+              <div class="e2e-stat-label">处理阶段</div>
+            </div>
+          </div>
+
+          <div class="e2e-skills">
+            <div class="e2e-skills-title">所需技能：</div>
+            <div class="e2e-skill-tags">
+              ${sol.requiredSkills.map(skill => `<span class="e2e-skill-tag">${skill}</span>`).join('')}
+            </div>
+          </div>
+
+          <div class="e2e-actions">
+            <button class="e2e-btn e2e-btn-primary" onclick="installE2ESolution('${sol.id}')">
+              ⚡ 一键安装
+            </button>
+            <button class="e2e-btn e2e-btn-secondary" onclick="showTryModal('${sol.id}')">
+              🎮 试玩
+            </button>
+            <button class="e2e-btn e2e-btn-secondary" onclick="showDocPanel('${sol.id}')">
+              📖 文档
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Chat integration: listen for natural language requests
+    function checkChatRequest() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const trySolution = urlParams.get('try');
+      
+      if (trySolution) {
+        // Find and show the solution
+        showTryModal(trySolution);
+      }
+    }
+
+    // Quick Start Modal Functions
+    let currentQuickStartSolution = null;
+
+    function showQuickStart(solutionId, domainId) {
+      const solutions = e2eSolutionsData[domainId] || [];
+      const solution = solutions.find(s => s.id === solutionId);
+      
+      if (!solution) return;
+      
+      currentQuickStartSolution = { ...solution, domainId };
+      
+      document.getElementById('quickstart-icon').textContent = solution.icon;
+      document.getElementById('quickstart-title').textContent = `「${solution.name}」安装完成！`;
+      document.getElementById('quickstart-desc').textContent = solution.description;
+      
+      // Populate steps
+      document.getElementById('quickstart-steps').innerHTML = solution.stages.map((stage, i) => `
+        <div class="quickstart-step">
+          <div class="quickstart-step-num">${i + 1}</div>
+          <div class="quickstart-step-content">
+            <h4>${typeof stage === 'string' ? stage : stage.name}</h4>
+            <p>${typeof stage === 'string' ? `配置并执行${stage}步骤` : `使用技能: ${stage.skills?.join(', ') || ''}`}</p>
+          </div>
+        </div>
+      `).join('');
+      
+      // Show demo data if available
+      if (solution.demoData) {
+        document.getElementById('quickstart-demo').style.display = 'block';
+        document.getElementById('quickstart-demo-data').innerHTML = `
+          <strong>${solution.demoData.name}</strong><br>
+          ${solution.demoData.description}<br>
+          <br>
+          <code>${JSON.stringify(solution.demoData.sampleApplicant || solution.demoData.samplePatient || solution.demoData.sampleData || solution.demoData.sampleField || {}, null, 2)}</code>
+        `;
+      } else {
+        document.getElementById('quickstart-demo').style.display = 'none';
+      }
+      
+      // Set start button action
+      document.getElementById('quickstart-start-btn').onclick = () => {
+        window.location.href = `/chat?workflow=${solutionId}&demo=true&execute=true`;
+      };
+      
+      document.getElementById('quickstart-modal').classList.add('show');
+    }
+
+    function closeQuickStart() {
+      document.getElementById('quickstart-modal').classList.remove('show');
+      currentQuickStartSolution = null;
+    }
+
+    // Import demo data
+    async function importDemoData(domainId, solutionId) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/vertical-domains/${domainId}/solutions/${solutionId}/demo-data`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+          // Store demo data for use in chat
+          localStorage.setItem(`demo_data_${solutionId}`, JSON.stringify(result.demoData));
+          return result.demoData;
+        }
+      } catch (error) {
+        console.error('Import demo data failed:', error);
+      }
+      return null;
+    }
+
+    // Load and display popular solutions
+    async function loadPopularSolutions() {
+      try {
+        const response = await fetch('/api/vertical-domains/solutions/popular?limit=6');
+        const data = await response.json();
+        
+        const container = document.getElementById('popular-solutions');
+        if (!container) return;
+        
+        container.innerHTML = `
+          <div class="popular-tabs">
+            <button class="popular-tab active" onclick="filterPopular('hot')">🔥 热门</button>
+            <button class="popular-tab" onclick="filterPopular('highAutomation')">⚡ 高自动化</button>
+            <button class="popular-tab" onclick="filterPopular('newlyAdded')">🆕 新增</button>
+          </div>
+          <div class="popular-grid" id="popular-grid">
+            ${renderPopularCards(data.hot)}
+          </div>
+        `;
+        
+        window.popularData = data;
+      } catch (error) {
+        console.error('Load popular solutions failed:', error);
+      }
+    }
+
+    function renderPopularCards(solutions) {
+      return solutions.map((sol, i) => `
+        <div class="popular-card" onclick="showTryModal('${sol.id}')">
+          <div class="popular-rank ${i < 3 ? 'top3' : ''}">${i + 1}</div>
+          <div class="popular-info">
+            <div class="popular-name">${sol.icon} ${sol.name}</div>
+            <div class="popular-meta">自动化率 ${sol.automationRate}% | ${sol.installs} 次安装</div>
+          </div>
+          <span class="popular-badge badge-${sol.badge.includes('热门') ? 'hot' : sol.badge.includes('高') ? 'automation' : 'new'}">${sol.badge}</span>
+        </div>
+      `).join('');
+    }
+
+    function filterPopular(type) {
+      if (!window.popularData) return;
+      
+      document.querySelectorAll('.popular-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      const grid = document.getElementById('popular-grid');
+      grid.innerHTML = renderPopularCards(window.popularData[type] || []);
+    }
+
+    // Update install solution to show quick start
+    async function installSolution(domainId, solutionId) {
+      const btn = document.getElementById(`install-${solutionId}`);
+      if (!btn || btn.classList.contains('installing')) return;
+
+      btn.classList.add('installing');
+      btn.innerHTML = '⏳ 安装中...';
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/vertical-domains/${domainId}/solutions/${solutionId}/install`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.status === 'installing') {
+          // Simulate installation progress
+          let progress = 0;
+          const interval = setInterval(() => {
+            progress += 20;
+            if (progress >= 100) {
+              clearInterval(interval);
+              btn.classList.remove('installing');
+              btn.classList.add('completed');
+              btn.innerHTML = '✅ 已安装';
+              
+              // Import demo data
+              importDemoData(domainId, solutionId);
+              
+              // Show quick start modal
+              setTimeout(() => {
+                showQuickStart(solutionId, domainId);
+              }, 300);
+            } else {
+              btn.innerHTML = `⏳ 安装中 ${progress}%`;
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Install failed:', error);
+        btn.classList.remove('installing');
+        btn.innerHTML = '❌ 安装失败';
+        setTimeout(() => {
+          btn.innerHTML = '⚡ 一键安装';
+        }, 2000);
+      }
+    }
+
+    // Get recommendations for a solution
+    async function getRecommendations(solutionId) {
+      try {
+        const response = await fetch(`/api/vertical-domains/solutions/${solutionId}/recommendations`);
+        return await response.json();
+      } catch (error) {
+        console.error('Get recommendations failed:', error);
+        return [];
+      }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkChatRequest();
+      loadPopularSolutions();
+    });
+  </script>
+</body>
+</html>

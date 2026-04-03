@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UltraWork AI Chat</title>
+  <link rel="manifest" href="/frontend/manifest.json">
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --bg-main: #343541;
+      --bg-sidebar: #202123;
+      --bg-input: #40414f;
+      --text-primary: #ececf1;
+      --text-secondary: #c5c5d2;
+      --border: #4d4d4f;
+      --user-msg: #343541;
+      --ai-msg: #444654;
+      --success: #10a37f;
+      --error: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      transition: transform 0.3s;
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-260px);
+      position: absolute;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .new-chat-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .new-chat-btn:hover { background: var(--bg-input); }
+
+    .chat-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .chat-item {
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .chat-item:hover { background: var(--bg-input); }
+    .chat-item.active { background: var(--bg-input); }
+
+    .chat-item-icon { font-size: 16px; }
+    .chat-item-title { 
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Main Chat Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-main);
+    }
+
+    .chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .model-selector {
+      padding: 8px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* Messages Area */
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .messages-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .user-avatar { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+    .ai-avatar { background: var(--success); }
+
+    .message-content {
+      flex: 1;
+      max-width: calc(100% - 52px);
+    }
+
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .message-role {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .message-text {
+      font-size: 15px;
+      line-height: 1.7;
+      word-wrap: break-word;
+    }
+
+    .message-text p { margin-bottom: 12px; }
+    .message-text p:last-child { margin-bottom: 0; }
+
+    .message-text code {
+      background: var(--bg-input);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+    }
+
+    .message-text pre {
+      background: var(--bg-sidebar);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+
+    .message-text pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .message-text ul, .message-text ol {
+      padding-left: 20px;
+      margin: 12px 0;
+    }
+
+    .message-text li { margin-bottom: 6px; }
+
+    /* Attachment */
+    .attachment {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--bg-input);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .attachment-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .attachment-icon { font-size: 20px; }
+    .attachment-name { font-size: 13px; color: var(--text-secondary); }
+    .attachment-size { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+
+    .attachment-preview {
+      max-width: 100%;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+
+    .attachment-preview img {
+      max-width: 100%;
+      max-height: 300px;
+      border-radius: 6px;
+    }
+
+    /* Skill Execution */
+    .skill-execution {
+      margin-top: 12px;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+      border-radius: 8px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .skill-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .skill-icon { font-size: 18px; }
+    .skill-name { font-weight: 600; font-size: 14px; }
+    .skill-status {
+      margin-left: auto;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    .skill-status.running { background: var(--warning); color: #000; }
+    .skill-status.completed { background: var(--success); }
+    .skill-status.failed { background: var(--error); }
+
+    .skill-progress {
+      height: 4px;
+      background: var(--bg-input);
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .skill-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+      transition: width 0.3s;
+    }
+
+    .skill-message {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Typing Indicator */
+    .typing-indicator {
+      display: flex;
+      gap: 6px;
+      padding: 8px 0;
+    }
+
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-8px); opacity: 1; }
+    }
+
+    /* Input Area */
+    .input-container {
+      padding: 16px 24px 24px;
+      background: var(--bg-main);
+    }
+
+    .input-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--bg-input);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .input-attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: none;
+    }
+
+    .input-attachments.has-files { display: flex; }
+
+    .attachment-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: var(--bg-main);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .attachment-chip .remove {
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .attachment-chip .remove:hover { opacity: 1; }
+
+    .input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .input-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .input-btn {
+      width: 36px;
+      height: 36px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.2s;
+    }
+
+    .input-btn:hover { background: var(--bg-main); color: var(--text-primary); }
+
+    #message-input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 15px;
+      resize: none;
+      max-height: 200px;
+      line-height: 1.5;
+      outline: none;
+    }
+
+    #message-input::placeholder { color: var(--text-secondary); }
+
+    .send-btn {
+      width: 36px;
+      height: 36px;
+      background: var(--success);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .send-btn:hover { background: #0d8a6a; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Status Bar */
+    .status-bar {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-sidebar);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+
+    .status-bar.visible { opacity: 1; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .status-dot.connecting { background: var(--warning); animation: pulse 1s infinite; }
+    .status-dot.error { background: var(--error); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        z-index: 200;
+        height: 100%;
+      }
+      
+      .sidebar.collapsed { transform: translateX(-100%); }
+      
+      .messages-wrapper, .input-wrapper {
+        padding: 12px;
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="new-chat-btn" id="new-chat-btn">
+          <span>✨</span>
+          <span>新对话</span>
+        </button>
+      </div>
+      <div class="chat-list" id="chat-list"></div>
+      <div class="sidebar-footer">
+        <div>UltraWork AI v1.0</div>
+        <div style="margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+          <span class="status-dot" id="connection-dot"></span>
+          <span id="connection-text">连接中...</span>
+          <button id="refresh-session-btn" title="刷新会话" style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;">↻</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Area -->
+    <main class="main-area">
+      <header class="chat-header">
+        <button class="menu-btn" id="menu-btn">☰</button>
+        <h1 class="chat-title" id="chat-title">新对话</h1>
+        <select class="model-selector" id="model-select">
+          <option value="llama3.2">llama3.2</option>
+          <option value="qwen2.5">qwen2.5</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="claude-3.5">Claude 3.5</option>
+        </select>
+      </header>
+
+      <div class="messages-container">
+        <div class="messages-wrapper" id="messages-wrapper">
+          <!-- Welcome Message -->
+          <div class="message">
+            <div class="message-avatar ai-avatar">🤖</div>
+            <div class="message-content">
+              <div class="message-header">
+                <span class="message-role">UltraWork AI</span>
+              </div>
+              <div class="message-text">
+                <p>你好！我是 UltraWork AI 助手。</p>
+                <p>我可以帮你：</p>
+                <ul>
+                  <li>📝 生成文档（Word、PDF、PPT、Excel）</li>
+                  <li>📊 创建图表和数据可视化</li>
+                  <li>🔍 分析和处理数据</li>
+                  <li>🌐 搜索和抓取网页内容</li>
+                  <li>🎨 生成图片和创意内容</li>
+                </ul>
+                <p>有什么我可以帮你的吗？</p>
+                
+                <!-- Quick Trial Buttons -->
+                <div style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px;">
+                  <p style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">🎮 快速试用行业解决方案：</p>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <button onclick="quickTry('smart-credit-fullflow')" style="padding: 8px 14px; background: white; border: 1px solid #10a37f; border-radius: 8px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                      💳 智能信贷
+                    </button>
+                    <button onclick="quickTry('smart-hospital-service')" style="padding: 8px 14px; background: white; border: 1px solid #ef4444; border-radius: 8px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                      🏥 智慧医院
+                    </button>
+                    <button onclick="quickTry('digital-twin-production')" style="padding: 8px 14px; background: white; border: 1px solid #f59e0b; border-radius: 8px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                      🏭 数字孪生
+                    </button>
+                    <button onclick="quickTry('smart-grid-optimization')" style="padding: 8px 14px; background: white; border: 1px solid #22c55e; border-radius: 8px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                      ⚡ 智能电网
+                    </button>
+                    <button onclick="window.location.href='/vertical-markets'" style="padding: 8px 14px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 12px;">
+                      查看全部方案 →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-container">
+        <div class="input-wrapper">
+          <div class="input-attachments" id="input-attachments"></div>
+          <div class="input-row">
+            <div class="input-actions">
+              <button class="input-btn" id="attach-btn" title="上传文件">📎</button>
+              <button class="input-btn" id="voice-btn" title="语音输入">🎤</button>
+            </div>
+            <textarea id="message-input" rows="1" placeholder="输入消息..."></textarea>
+            <button class="send-btn" id="send-btn" title="发送">➤</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" id="status-bar">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">处理中...</span>
+  </div>
+
+  <!-- Hidden File Input -->
+  <input type="file" id="file-input" multiple hidden accept="image/*,.pdf,.doc,.docx,.txt,.json,.csv,.xlsx">
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // State
+    const state = {
+      socket: null,
+      sessionId: null,
+      conversations: [],
+      currentConversation: null,
+      attachedFiles: [],
+      isProcessing: false
+    };
+
+    // Sanitize HTML to prevent XSS
+    function sanitizeHTML(str) {
+      if (typeof str !== 'string') return str;
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Safely set innerHTML with sanitization
+    function safeInnerHTML(element, html) {
+      if (element) {
+        element.innerHTML = typeof html === 'string' ? html : '';
+      }
+    }
+
+    // DOM Elements
+    const elements = {
+      sidebar: document.getElementById('sidebar'),
+      menuBtn: document.getElementById('menu-btn'),
+      newChatBtn: document.getElementById('new-chat-btn'),
+      chatList: document.getElementById('chat-list'),
+      chatTitle: document.getElementById('chat-title'),
+      messagesWrapper: document.getElementById('messages-wrapper'),
+      messageInput: document.getElementById('message-input'),
+      sendBtn: document.getElementById('send-btn'),
+      attachBtn: document.getElementById('attach-btn'),
+      voiceBtn: document.getElementById('voice-btn'),
+      fileInput: document.getElementById('file-input'),
+      inputAttachments: document.getElementById('input-attachments'),
+      modelSelect: document.getElementById('model-select'),
+      connectionDot: document.getElementById('connection-dot'),
+      connectionText: document.getElementById('connection-text'),
+      statusBar: document.getElementById('status-bar'),
+      statusDot: document.getElementById('status-dot'),
+      statusText: document.getElementById('status-text')
+    };
+
+    // Initialize
+    function init() {
+      // Try to restore session from localStorage
+      const savedSessionId = localStorage.getItem('chat_session_id');
+      if (savedSessionId) {
+        state.sessionId = savedSessionId;
+        console.log('恢复保存的会话:', savedSessionId);
+      } else {
+        state.sessionId = generateSessionId();
+        localStorage.setItem('chat_session_id', state.sessionId);
+      }
+      connectSocket();
+      setupEventListeners();
+      loadConversations();
+    }
+
+    // Generate Session ID
+    function generateSessionId() {
+      return 'session_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Connect Socket
+    function connectSocket() {
+      updateConnectionStatus('connecting');
+      
+      state.socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000
+      });
+
+      state.socket.on('connect', () => {
+        updateConnectionStatus('connected');
+        state.socket.emit('join_session', { sessionId: state.sessionId });
+      });
+
+      state.socket.on('session_joined', (data) => {
+        console.log('会话加入成功:', data.sessionId);
+        localStorage.setItem('chat_session_id', data.sessionId);
+        state.sessionId = data.sessionId;
+        showStatus('会话就绪', 'info');
+        setTimeout(() => showStatus(null), 2000);
+      });
+
+      state.socket.on('disconnect', () => {
+        updateConnectionStatus('disconnected');
+      });
+
+      state.socket.on('connect_error', () => {
+        updateConnectionStatus('error');
+      });
+
+      // Chat events
+      state.socket.on('message_start', handleMessageStart);
+      state.socket.on('message_chunk', handleMessageChunk);
+      state.socket.on('message_end', handleMessageEnd);
+      state.socket.on('skill_start', handleSkillStart);
+      state.socket.on('skill_progress', handleSkillProgress);
+      state.socket.on('skill_complete', handleSkillComplete);
+      state.socket.on('skill_error', handleSkillError);
+      state.socket.on('error', handleError);
+    }
+
+    // Update Connection Status
+    function updateConnectionStatus(status) {
+      const dot = elements.connectionDot;
+      const text = elements.connectionText;
+      
+      dot.className = 'status-dot';
+      
+      switch(status) {
+        case 'connected':
+          text.textContent = '已连接';
+          break;
+        case 'connecting':
+          dot.classList.add('connecting');
+          text.textContent = '连接中...';
+          break;
+        case 'disconnected':
+          dot.classList.add('error');
+          text.textContent = '已断开';
+          break;
+        case 'error':
+          dot.classList.add('error');
+          text.textContent = '连接失败';
+          break;
+      }
+    }
+
+    // Setup Event Listeners
+    function setupEventListeners() {
+      // Menu toggle
+      elements.menuBtn.addEventListener('click', () => {
+        elements.sidebar.classList.toggle('collapsed');
+      });
+
+      // New chat
+      elements.newChatBtn.addEventListener('click', createNewConversation);
+
+      // Send message
+      elements.sendBtn.addEventListener('click', sendMessage);
+      elements.messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      // Auto-resize textarea
+      elements.messageInput.addEventListener('input', () => {
+        elements.messageInput.style.height = 'auto';
+        elements.messageInput.style.height = Math.min(elements.messageInput.scrollHeight, 200) + 'px';
+      });
+
+      // File attachment
+      elements.attachBtn.addEventListener('click', () => elements.fileInput.click());
+      elements.fileInput.addEventListener('change', handleFileSelect);
+
+      // Model select
+      elements.modelSelect.addEventListener('change', () => {
+        state.currentConversation.model = elements.modelSelect.value;
+      });
+
+      // Refresh session button
+      document.getElementById('refresh-session-btn').addEventListener('click', refreshSession);
+
+      // Voice input (placeholder)
+      elements.voiceBtn.addEventListener('click', () => {
+        showStatus('语音输入功能开发中...', 'info');
+      });
+    }
+
+    // Handle File Select
+    function handleFileSelect(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        state.attachedFiles.push({
+          file,
+          id: generateSessionId(),
+          name: file.name,
+          size: formatFileSize(file.size),
+          type: file.type
+        });
+      });
+      renderAttachments();
+      e.target.value = '';
+    }
+
+    // Format File Size
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // Render Attachments
+    function renderAttachments() {
+      const container = elements.inputAttachments;
+      
+      if (state.attachedFiles.length === 0) {
+        container.classList.remove('has-files');
+        container.innerHTML = '';
+        return;
+      }
+
+      container.classList.add('has-files');
+      container.innerHTML = state.attachedFiles.map(file => `
+        <div class="attachment-chip" data-id="${sanitizeHTML(file.id)}">
+          <span>${getFileIcon(file.type)}</span>
+          <span>${sanitizeHTML(file.name)}</span>
+          <span style="color: var(--text-secondary)">(${sanitizeHTML(file.size)})</span>
+          <span class="remove" onclick="removeAttachment('${sanitizeHTML(file.id)}')">✕</span>
+        </div>
+      `).join('');
+    }
+
+    // Get File Icon
+    function getFileIcon(type) {
+      if (type.startsWith('image/')) return '🖼️';
+      if (type.includes('pdf')) return '📄';
+      if (type.includes('word') || type.includes('document')) return '📝';
+      if (type.includes('sheet') || type.includes('excel')) return '📊';
+      if (type.includes('presentation') || type.includes('powerpoint')) return '📽️';
+      if (type.includes('text')) return '📃';
+      return '📁';
+    }
+
+    // Remove Attachment
+    window.removeAttachment = function(id) {
+      state.attachedFiles = state.attachedFiles.filter(f => f.id !== id);
+      renderAttachments();
+    };
+
+    // Create New Conversation
+    function createNewConversation() {
+      const conversation = {
+        id: generateSessionId(),
+        title: '新对话',
+        messages: [],
+        model: elements.modelSelect.value,
+        createdAt: Date.now()
+      };
+      
+      state.conversations.unshift(conversation);
+      state.currentConversation = conversation;
+      
+      elements.chatTitle.textContent = conversation.title;
+      elements.messagesWrapper.innerHTML = getWelcomeMessage();
+      
+      renderChatList();
+      saveConversations();
+    }
+
+    // Get Welcome Message
+    function getWelcomeMessage() {
+      return `
+        <div class="message">
+          <div class="message-avatar ai-avatar">🤖</div>
+          <div class="message-content">
+            <div class="message-header">
+              <span class="message-role">UltraWork AI</span>
+            </div>
+            <div class="message-text">
+              <p>你好！我是 UltraWork AI 助手。</p>
+              <p>有什么我可以帮你的吗？</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Send Message
+    async function sendMessage() {
+      const text = elements.messageInput.value.trim();
+      if (!text && state.attachedFiles.length === 0) return;
+      if (state.isProcessing) return;
+
+      // Check for natural language solution requests
+      const solutionIntent = await detectSolutionIntent(text);
+      if (solutionIntent) {
+        handleSolutionIntent(solutionIntent, text);
+        return;
+      }
+
+      // Ensure conversation exists
+      if (!state.currentConversation) {
+        createNewConversation();
+      }
+
+      state.isProcessing = true;
+      updateStatus('处理中...', 'running');
+
+      // Create user message
+      const userMessage = {
+        id: generateSessionId(),
+        role: 'user',
+        content: text,
+        attachments: [...state.attachedFiles],
+        timestamp: Date.now()
+      };
+
+      // Add to UI
+      addMessageToUI(userMessage);
+      state.currentConversation.messages.push(userMessage);
+
+      // Update title if first message
+      if (state.currentConversation.messages.length === 1) {
+        state.currentConversation.title = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+        elements.chatTitle.textContent = state.currentConversation.title;
+        renderChatList();
+      }
+
+      // Clear input
+      elements.messageInput.value = '';
+      elements.messageInput.style.height = 'auto';
+      state.attachedFiles = [];
+      renderAttachments();
+
+      // Create AI message placeholder
+      const aiMessage = {
+        id: generateSessionId(),
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        skillExecution: null
+      };
+
+      addMessageToUI(aiMessage, true);
+      state.currentConversation.messages.push(aiMessage);
+
+      // Send to server
+      try {
+        const attachments = await Promise.all(
+          userMessage.attachments.map(async (att) => ({
+            name: att.name,
+            type: att.type,
+            size: att.size,
+            data: await readFileAsBase64(att.file)
+          }))
+        );
+
+        state.socket.emit('chat_message', {
+          sessionId: state.sessionId,
+          conversationId: state.currentConversation.id,
+          message: text,
+          model: state.currentConversation.model,
+          attachments
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+        updateMessageContent(aiMessage.id, '发送消息时出错，请重试。');
+        state.isProcessing = false;
+        updateStatus('', 'idle');
+      }
+    }
+
+    // Read File as Base64
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Add Message to UI
+    function addMessageToUI(message, isStreaming = false) {
+      const div = document.createElement('div');
+      div.className = 'message';
+      div.id = `message-${message.id}`;
+      
+      const isUser = message.role === 'user';
+      const avatarClass = isUser ? 'user-avatar' : 'ai-avatar';
+      const avatar = isUser ? '👤' : '🤖';
+      const role = isUser ? '你' : 'UltraWork AI';
+      const time = new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+      let attachmentsHTML = '';
+      if (message.attachments && message.attachments.length > 0) {
+        attachmentsHTML = message.attachments.map(att => `
+          <div class="attachment">
+            <div class="attachment-header">
+              <span class="attachment-icon">${getFileIcon(att.type)}</span>
+              <span class="attachment-name">${att.name}</span>
+              <span class="attachment-size">${att.size || ''}</span>
+            </div>
+            ${att.type && att.type.startsWith('image/') && att.data ? `
+              <div class="attachment-preview">
+                <img src="${att.data}" alt="${att.name}">
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+
+      let skillHTML = '';
+      if (message.skillExecution) {
+        skillHTML = renderSkillExecution(message.skillExecution);
+      }
+
+      div.innerHTML = `
+        <div class="message-avatar ${avatarClass}">${avatar}</div>
+        <div class="message-content">
+          <div class="message-header">
+            <span class="message-role">${role}</span>
+            <span class="message-time">${time}</span>
+          </div>
+          <div class="message-text" id="text-${message.id}">${isStreaming ? '<div class="typing-indicator"><span></span><span></span><span></span></div>' : formatMessageContent(message.content)}</div>
+          ${attachmentsHTML}
+          ${skillHTML}
+        </div>
+      `;
+
+      elements.messagesWrapper.appendChild(div);
+      scrollToBottom();
+    }
+
+    // Format Message Content
+    function formatMessageContent(content) {
+      if (!content) return '';
+      
+      // Basic markdown-like formatting
+      let formatted = content
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      
+      return `<p>${formatted}</p>`;
+    }
+
+    // Update Message Content
+    function updateMessageContent(messageId, content) {
+      const textEl = document.getElementById(`text-${messageId}`);
+      if (textEl) {
+        textEl.innerHTML = formatMessageContent(content);
+      }
+    }
+
+    // Update Message Skill
+    function updateMessageSkill(messageId, skillExecution) {
+      const messageEl = document.getElementById(`message-${messageId}`);
+      if (!messageEl) return;
+
+      const contentEl = messageEl.querySelector('.message-content');
+      let skillEl = contentEl.querySelector('.skill-execution');
+      
+      if (!skillEl) {
+        skillEl = document.createElement('div');
+        skillEl.className = 'skill-execution';
+        contentEl.appendChild(skillEl);
+      }
+
+      skillEl.innerHTML = renderSkillExecution(skillExecution);
+    }
+
+    // Render Skill Execution
+    function renderSkillExecution(skill) {
+      return `
+        <div class="skill-header">
+          <span class="skill-icon">⚡</span>
+          <span class="skill-name">${skill.name}</span>
+          <span class="skill-status ${skill.status}">${getSkillStatusText(skill.status)}</span>
+        </div>
+        <div class="skill-progress">
+          <div class="skill-progress-bar" style="width: ${skill.progress || 0}%"></div>
+        </div>
+        <div class="skill-message">${skill.message || ''}</div>
+      `;
+    }
+
+    // Get Skill Status Text
+    function getSkillStatusText(status) {
+      switch(status) {
+        case 'running': return '执行中';
+        case 'completed': return '已完成';
+        case 'failed': return '失败';
+        default: return status;
+      }
+    }
+
+    // Scroll to Bottom
+    function scrollToBottom() {
+      const container = document.querySelector('.messages-container');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Socket Event Handlers
+    let currentAIMessageId = null;
+
+    function handleMessageStart(data) {
+      const messages = state.currentConversation.messages;
+      const aiMessage = messages[messages.length - 1];
+      if (aiMessage && aiMessage.role === 'assistant') {
+        currentAIMessageId = aiMessage.id;
+        updateMessageContent(aiMessage.id, '');
+      }
+    }
+
+    function handleMessageChunk(data) {
+      if (currentAIMessageId) {
+        const textEl = document.getElementById(`text-${currentAIMessageId}`);
+        if (textEl) {
+          // Append chunk
+          const currentContent = state.currentConversation.messages.find(m => m.id === currentAIMessageId)?.content || '';
+          const newContent = currentContent + data.content;
+          
+          // Update state
+          const msg = state.currentConversation.messages.find(m => m.id === currentAIMessageId);
+          if (msg) msg.content = newContent;
+          
+          // Update UI
+          textEl.innerHTML = formatMessageContent(newContent);
+          scrollToBottom();
+        }
+      }
+    }
+
+    function handleMessageEnd(data) {
+      currentAIMessageId = null;
+      state.isProcessing = false;
+      updateStatus('', 'idle');
+      saveConversations();
+    }
+
+    function handleSkillStart(data) {
+      if (currentAIMessageId) {
+        const msg = state.currentConversation.messages.find(m => m.id === currentAIMessageId);
+        if (msg) {
+          msg.skillExecution = {
+            name: data.skillName,
+            status: 'running',
+            progress: 0,
+            message: '正在启动...'
+          };
+          updateMessageSkill(currentAIMessageId, msg.skillExecution);
+        }
+      }
+    }
+
+    function handleSkillProgress(data) {
+      if (currentAIMessageId) {
+        const msg = state.currentConversation.messages.find(m => m.id === currentAIMessageId);
+        if (msg && msg.skillExecution) {
+          msg.skillExecution.progress = data.progress;
+          msg.skillExecution.message = data.message;
+          updateMessageSkill(currentAIMessageId, msg.skillExecution);
+        }
+      }
+    }
+
+    function handleSkillComplete(data) {
+      if (currentAIMessageId) {
+        const msg = state.currentConversation.messages.find(m => m.id === currentAIMessageId);
+        if (msg && msg.skillExecution) {
+          msg.skillExecution.status = 'completed';
+          msg.skillExecution.progress = 100;
+          msg.skillExecution.message = '执行完成';
+          updateMessageSkill(currentAIMessageId, msg.skillExecution);
+        }
+      }
+    }
+
+    function handleSkillError(data) {
+      if (currentAIMessageId) {
+        const msg = state.currentConversation.messages.find(m => m.id === currentAIMessageId);
+        if (msg && msg.skillExecution) {
+          msg.skillExecution.status = 'failed';
+          msg.skillExecution.message = data.error || '执行失败';
+          updateMessageSkill(currentAIMessageId, msg.skillExecution);
+        }
+      }
+    }
+
+    function handleError(data) {
+      console.error('Socket error:', data);
+      
+      // Session recovery: auto-rejoin on "Session not found"
+      if (data.message && data.message.includes('Session not found')) {
+        console.warn('会话丢失，尝试自动恢复...');
+        showStatus('会话恢复中...', 'info');
+        rejoinSession();
+        return;
+      }
+      
+      state.isProcessing = false;
+      updateStatus('出错了', 'error');
+      showStatus(data.message || '发生错误', 'error');
+    }
+
+    // Quick Try - redirect to vertical markets with solution
+    function quickTry(solutionId) {
+      window.location.href = `/vertical-markets?try=${solutionId}`;
+    }
+
+    // Solution Intent Detection with API search
+    async function detectSolutionIntent(text) {
+      const intentPatterns = [
+        { pattern: /试[用用].*?(智能信贷|信贷)/i, solutionId: 'smart-credit-fullflow', domain: 'finance' },
+        { pattern: /试[用用].*?(跨境支付|合规助手)/i, solutionId: 'cross-border-payment', domain: 'finance' },
+        { pattern: /试[用用].*?(智慧医院|患者服务)/i, solutionId: 'smart-hospital-service', domain: 'healthcare' },
+        { pattern: /试[用用].*?(临床决策|诊断)/i, solutionId: 'clinical-decision', domain: 'healthcare' },
+        { pattern: /试[用用].*?(数字孪生|生产线)/i, solutionId: 'digital-twin-production', domain: 'manufacturing' },
+        { pattern: /试[用用].*?(供应链|韧性)/i, solutionId: 'supply-chain-resilience', domain: 'manufacturing' },
+        { pattern: /试[用用].*?(智能电网|电网调度)/i, solutionId: 'smart-grid-optimization', domain: 'energy' },
+        { pattern: /试[用用].*?(精准农业|种植)/i, solutionId: 'precision-farming', domain: 'agriculture' },
+        { pattern: /试[用用].*?(行政审批|政务)/i, solutionId: 'smart-approval', domain: 'government' },
+        { pattern: /试[用用].*?(车队调度|物流)/i, solutionId: 'fleet-optimization', domain: 'transportation' },
+        { pattern: /试[用用].*?(内容发布|媒体)/i, solutionId: 'content-publishing', domain: 'media' },
+        { pattern: /(智能信贷|信贷方案|信贷全流程|贷款审批)/i, solutionId: 'smart-credit-fullflow', domain: 'finance' },
+        { pattern: /(跨境支付|支付合规|制裁名单)/i, solutionId: 'cross-border-payment', domain: 'finance' },
+        { pattern: /(智慧医院|患者服务|挂号|导诊)/i, solutionId: 'smart-hospital-service', domain: 'healthcare' },
+        { pattern: /(临床诊断|辅助诊断|影像分析)/i, solutionId: 'clinical-decision', domain: 'healthcare' },
+        { pattern: /(数字孪生|生产线监控|设备监控)/i, solutionId: 'digital-twin-production', domain: 'manufacturing' },
+        { pattern: /(供应链|库存管理|供应商)/i, solutionId: 'supply-chain-resilience', domain: 'manufacturing' },
+        { pattern: /(电网|能源管理|负荷预测)/i, solutionId: 'smart-grid-optimization', domain: 'energy' },
+        { pattern: /(农业|种植|灌溉|土壤)/i, solutionId: 'precision-farming', domain: 'agriculture' },
+        { pattern: /(审批|政务|公文)/i, solutionId: 'smart-approval', domain: 'government' },
+        { pattern: /(物流|运输|车队)/i, solutionId: 'fleet-optimization', domain: 'transportation' },
+        { pattern: /(内容|媒体|发布)/i, solutionId: 'content-publishing', domain: 'media' },
+        { pattern: /帮我.*?试[用用]|我想做|帮我解决|推荐.*?方案/i, solutionId: 'show_picker', domain: null }
+      ];
+
+      // Check local patterns first
+      for (const { pattern, solutionId, domain } of intentPatterns) {
+        if (pattern.test(text)) {
+          return { solutionId, domain };
+        }
+      }
+      
+      // Try API search for more complex queries
+      try {
+        const response = await fetch(`/api/vertical-domains/solutions/search?q=${encodeURIComponent(text)}`);
+        const results = await response.json();
+        if (results.length > 0) {
+          return { solutionId: results[0].id, domain: results[0].domainId, fromSearch: true };
+        }
+      } catch (e) {
+        console.log('API search failed:', e);
+      }
+      
+      return null;
+    }
+
+    function handleSolutionIntent(intent, originalText) {
+      if (!state.currentConversation) {
+        createNewConversation();
+      }
+
+      // Add user message
+      const userMessage = {
+        id: generateSessionId(),
+        role: 'user',
+        content: originalText,
+        attachments: [],
+        timestamp: Date.now()
+      };
+      addMessageToUI(userMessage);
+      state.currentConversation.messages.push(userMessage);
+
+      // Clear input
+      elements.messageInput.value = '';
+      elements.messageInput.style.height = 'auto';
+
+      // Create AI response with solution card
+      let responseContent = '';
+      
+      if (intent.solutionId === 'show_picker') {
+        responseContent = `
+          <div style="padding: 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; margin: 16px 0;">
+            <h3 style="margin-bottom: 16px;">🎮 选择要试用的解决方案</h3>
+            <p style="color: #6b7280; margin-bottom: 20px;">点击下方按钮跳转到解决方案市场进行试用：</p>
+            <a href="/vertical-markets?try=smart-credit-fullflow" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; text-decoration: none; margin-right: 8px;">
+              💳 智能信贷
+            </a>
+            <a href="/vertical-markets?try=smart-hospital-service" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #10a37f 0%, #059669 100%); color: white; border-radius: 8px; text-decoration: none; margin-right: 8px;">
+              🏥 智慧医院
+            </a>
+            <a href="/vertical-markets" style="display: inline-block; padding: 12px 24px; background: #f3f4f6; color: #1f2937; border-radius: 8px; text-decoration: none;">
+              查看全部方案 →
+            </a>
+          </div>
+        `;
+      } else {
+        const solutionNames = {
+          'smart-credit-fullflow': '智能信贷全流程',
+          'cross-border-payment': '跨境支付合规助手',
+          'smart-hospital-service': '智慧医院患者服务平台',
+          'clinical-decision': '临床辅助决策系统',
+          'digital-twin-production': '数字孪生生产线监控',
+          'supply-chain-resilience': '供应链韧性评估',
+          'smart-grid-optimization': '智能电网调度优化',
+          'precision-farming': '精准农业管理方案',
+          'smart-approval': '智能行政审批流程',
+          'fleet-optimization': '车队智能调度方案',
+          'content-publishing': '智能内容发布流程'
+        };
+
+        const solutionName = solutionNames[intent.solutionId] || '解决方案';
+        
+        responseContent = `
+          <div style="padding: 20px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; margin: 16px 0;">
+            <h3 style="margin-bottom: 16px;">✨ 已为您找到「${solutionName}」</h3>
+            <p style="color: #6b7280; margin-bottom: 20px;">点击下方按钮即可开始试用完整的工作流程：</p>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <a href="/vertical-markets?try=${intent.solutionId}" style="display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
+                🚀 立即试用
+              </a>
+              <a href="/chat?workflow=${intent.solutionId}&execute=true" style="display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; background: #10a37f; color: white; border-radius: 10px; text-decoration: none; font-weight: 600;">
+                ⚡ 直接执行
+              </a>
+            </div>
+          </div>
+        `;
+      }
+
+      const aiMessage = {
+        id: generateSessionId(),
+        role: 'assistant',
+        content: responseContent,
+        timestamp: Date.now(),
+        isHTML: true
+      };
+
+      addMessageToUI(aiMessage);
+      state.currentConversation.messages.push(aiMessage);
+      saveConversations();
+    }
+    function rejoinSession() {
+      const savedSessionId = localStorage.getItem('chat_session_id');
+      if (savedSessionId && savedSessionId !== state.sessionId) {
+        console.log('尝试恢复旧会话:', savedSessionId);
+        state.sessionId = savedSessionId;
+        state.socket.emit('join_session', { sessionId: savedSessionId });
+      } else {
+        console.log('创建新会话...');
+        createNewSession();
+      }
+    }
+
+    function createNewSession() {
+      state.sessionId = generateSessionId();
+      localStorage.setItem('chat_session_id', state.sessionId);
+      state.socket.emit('join_session', { sessionId: state.sessionId });
+      console.log('新会话创建:', state.sessionId);
+    }
+
+    function refreshSession() {
+      console.log('手动刷新会话...');
+      localStorage.removeItem('chat_session_id');
+      createNewSession();
+      showStatus('会话已刷新', 'info');
+    }
+
+    // Show Status
+    function showStatus(message, type = 'info') {
+      const bar = elements.statusBar;
+      const dot = elements.statusDot;
+      const text = elements.statusText;
+
+      if (!message) {
+        bar.classList.remove('visible');
+        return;
+      }
+
+      dot.className = 'status-dot';
+      if (type === 'error') dot.classList.add('error');
+      if (type === 'running') dot.classList.add('connecting');
+
+      text.textContent = message;
+      bar.classList.add('visible');
+
+      setTimeout(() => {
+        bar.classList.remove('visible');
+      }, 3000);
+    }
+
+    // Update Status
+    function updateStatus(message, type) {
+      if (type === 'running') {
+        showStatus(message, 'running');
+      } else if (type === 'idle') {
+        elements.statusBar.classList.remove('visible');
+      }
+    }
+
+    // Render Chat List
+    function renderChatList() {
+      elements.chatList.innerHTML = state.conversations.map(conv => `
+        <div class="chat-item ${conv.id === state.currentConversation?.id ? 'active' : ''}" 
+             onclick="selectConversation('${sanitizeHTML(conv.id)}')">
+          <span class="chat-item-icon">💬</span>
+          <span class="chat-item-title">${sanitizeHTML(conv.title)}</span>
+        </div>
+      `).join('');
+    }
+
+    // Select Conversation
+    window.selectConversation = function(id) {
+      const conv = state.conversations.find(c => c.id === id);
+      if (!conv) return;
+
+      state.currentConversation = conv;
+      elements.chatTitle.textContent = conv.title;
+      elements.modelSelect.value = conv.model || 'llama3.2';
+
+      // Render messages - use safe innerHTML
+      safeInnerHTML(elements.messagesWrapper, '');
+      if (conv.messages.length === 0) {
+        safeInnerHTML(elements.messagesWrapper, getWelcomeMessage());
+      } else {
+        conv.messages.forEach(msg => addMessageToUI(msg));
+      }
+
+      renderChatList();
+    };
+
+    // Load Conversations
+    function loadConversations() {
+      try {
+        const saved = localStorage.getItem('ultrawork_conversations');
+        if (saved) {
+          state.conversations = JSON.parse(saved);
+          if (state.conversations.length > 0) {
+            selectConversation(state.conversations[0].id);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading conversations:', e);
+      }
+    }
+
+    // Save Conversations
+    function saveConversations() {
+      try {
+        localStorage.setItem('ultrawork_conversations', JSON.stringify(state.conversations));
+      } catch (e) {
+        console.error('Error saving conversations:', e);
+      }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

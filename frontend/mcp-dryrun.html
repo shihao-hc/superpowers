@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Dry-Run - 操作预览与差异对比</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    h1 { font-size: 2rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-top: 0.5rem; }
+    
+    .layout { display: grid; grid-template-columns: 420px 1fr; gap: 1.5rem; min-height: calc(100vh - 200px); }
+    .panel { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; overflow: hidden; display: flex; flex-direction: column; }
+    .panel-header { padding: 1rem 1.25rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .panel-title { font-weight: bold; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .panel-body { flex: 1; overflow-y: auto; padding: 1.25rem; }
+    
+    .tool-selector { margin-bottom: 1rem; }
+    .tool-selector label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .tool-select { width: 100%; background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    .tool-select:focus { outline: none; border-color: #f093fb; }
+    
+    .param-group { margin-bottom: 1rem; }
+    .param-group label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .param-input { width: 100%; background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.9rem; }
+    .param-input:focus { outline: none; border-color: #f093fb; }
+    textarea.param-input { min-height: 120px; font-family: 'Fira Code', monospace; resize: vertical; }
+    
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4); }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-success { background: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-full { width: 100%; }
+    
+    .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    .preview-title { font-size: 1.1rem; color: #fff; font-weight: bold; }
+    .preview-meta { font-size: 0.8rem; color: #888; }
+    
+    .diff-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .diff-panel { background: #0f0f23; border-radius: 8px; overflow: hidden; }
+    .diff-header { padding: 0.6rem 1rem; font-size: 0.8rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .diff-header.before { background: #1e3a5f; color: #60a5fa; }
+    .diff-header.after { background: #1f3d5f; color: #4ade80; }
+    .diff-content { padding: 1rem; font-family: 'Fira Code', monospace; font-size: 0.85rem; white-space: pre-wrap; max-height: 350px; overflow-y: auto; line-height: 1.6; }
+    .diff-line { padding: 0.1rem 0.5rem; border-radius: 2px; }
+    .diff-line.added { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .diff-line.removed { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    .diff-line.unchanged { color: #666; }
+    
+    .stats-bar { display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .stat-item { background: #0f0f23; padding: 0.6rem 1rem; border-radius: 6px; display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+    .stat-label { color: #888; }
+    .stat-value { font-weight: bold; }
+    .stat-value.added { color: #4ade80; }
+    .stat-value.removed { color: #f87171; }
+    .stat-value.info { color: #60a5fa; }
+    
+    .action-bar { display: flex; gap: 1rem; margin-top: 1rem; }
+    .action-bar .btn { flex: 1; }
+    
+    .warning-box { background: rgba(220, 38, 38, 0.1); border: 1px solid #dc2626; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .warning-box h4 { color: #f87171; margin-bottom: 0.5rem; }
+    .warning-box p { color: #aaa; font-size: 0.85rem; }
+    
+    .success-box { background: rgba(22, 163, 74, 0.1); border: 1px solid #16a34a; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .success-box h4 { color: #4ade80; margin-bottom: 0.5rem; }
+    
+    .info-box { background: rgba(96, 165, 250, 0.1); border: 1px solid #60a5fa; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .info-box h4 { color: #60a5fa; margin-bottom: 0.5rem; }
+    
+    .history-list { list-style: none; }
+    .history-item { padding: 0.75rem; background: #0f0f23; border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; transition: all 0.2s; }
+    .history-item:hover { background: #252540; }
+    .history-item.active { background: #2d2d4d; border: 1px solid #f093fb; }
+    .history-type { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; margin-right: 0.5rem; }
+    .history-type.edit { background: #1e3a5f; color: #60a5fa; }
+    .history-type.write { background: #3f2d1f; color: #fb923c; }
+    .history-type.delete { background: #5f2d1f; color: #f87171; }
+    .history-type.move { background: #3d2d5f; color: #a78bfa; }
+    .history-path { color: #fff; font-family: monospace; font-size: 0.85rem; }
+    .history-time { font-size: 0.75rem; color: #888; margin-top: 0.25rem; }
+    
+    .tab-nav { display: flex; gap: 0.5rem; }
+    .tab-btn { padding: 0.5rem 1rem; background: none; border: none; color: #888; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active { color: #f093fb; border-bottom-color: #f093fb; }
+    
+    .empty-state { text-align: center; padding: 3rem; color: #888; }
+    .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+    
+    .loading { display: flex; justify-content: center; align-items: center; padding: 2rem; flex-direction: column; gap: 1rem; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #f093fb; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem 1.5rem; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.show { display: block; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    .toast.info { border-color: #60a5fa; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } .diff-container { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>🔍 MCP Dry-Run</h1>
+        <p class="subtitle">操作预览与差异对比 - MCP Protocol</p>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="loadHistory()">📜 历史</button>
+        <button class="btn btn-primary" onclick="resetForm()">🆕 新建预览</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚙️ 预览配置</span>
+        </div>
+        <div class="panel-body">
+          <div class="tool-selector">
+            <label>MCP 工具</label>
+            <select class="tool-select" id="toolType" onchange="updateParams()">
+              <option value="filesystem:write_file">📁 写入文件 (filesystem:write_file)</option>
+              <option value="filesystem:edit_file">✏️ 编辑文件 (filesystem:edit_file)</option>
+              <option value="filesystem:delete_file">🗑️ 删除文件 (filesystem:delete_file)</option>
+              <option value="filesystem:move_file">📦 移动文件 (filesystem:move_file)</option>
+              <option value="filesystem:create_directory">📁 创建目录 (filesystem:create_directory)</option>
+            </select>
+          </div>
+
+          <div class="param-group" id="pathParam">
+            <label>文件路径</label>
+            <input type="text" class="param-input" id="filePath" placeholder="/path/to/file.txt" value="/tmp/example.txt">
+          </div>
+
+          <div class="param-group" id="contentParam" style="display:none;">
+            <label>文件内容</label>
+            <textarea class="param-input" id="fileContent" placeholder="文件内容...">Hello World!</textarea>
+          </div>
+
+          <div class="param-group" id="destParam" style="display:none;">
+            <label>目标路径</label>
+            <input type="text" class="param-input" id="destPath" placeholder="/path/to/destination.txt">
+          </div>
+
+          <div class="param-group" id="editsParam" style="display:none;">
+            <label>编辑内容 (JSON 数组)</label>
+            <textarea class="param-input" id="editsContent" placeholder='[{"oldText": "Hello", "newText": "Hi"}]' style="min-height:80px;">[{"oldText": "Hello", "newText": "Hi"}]</textarea>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="previewBtn" onclick="runDryRun()">
+            🔍 生成预览
+          </button>
+
+          <div class="info-box">
+            <h4>💡 Dry-Run 说明</h4>
+            <p>Dry-Run 模式会先预览变更内容，确认后再执行。符合 MCP Protocol 规范。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📊 预览结果</span>
+          <div class="tab-nav">
+            <button class="tab-btn active" onclick="showTab('preview')" id="tabPreview">预览</button>
+            <button class="tab-btn" onclick="showTab('history')" id="tabHistory">历史记录</button>
+          </div>
+        </div>
+        <div class="panel-body" id="previewContent">
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <p>配置左侧参数并点击"生成预览"</p>
+            <p style="font-size:0.85rem;margin-top:0.5rem;">预览将显示变更前后的差异</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mcp-client.js"></script>
+  <script>
+    const mcp = new MCPClient('/api/mcp');
+    let currentPreview = null;
+    let history = [];
+
+    function updateParams() {
+      const tool = document.getElementById('toolType').value;
+      const [, action] = tool.split(':');
+      
+      document.getElementById('pathParam').style.display = 'block';
+      document.getElementById('contentParam').style.display = action === 'write_file' ? 'block' : 'none';
+      document.getElementById('destParam').style.display = action === 'move_file' ? 'block' : 'none';
+      document.getElementById('editsParam').style.display = action === 'edit_file' ? 'block' : 'none';
+      
+      const placeholders = {
+        write_file: '文件内容...',
+        edit_file: '[{"oldText": "原文本", "newText": "新文本"}]',
+        delete_file: '',
+        move_file: '',
+        create_directory: ''
+      };
+      if (action === 'write_file') {
+        document.getElementById('fileContent').placeholder = placeholders[action];
+      }
+    }
+
+    async function runDryRun() {
+      const tool = document.getElementById('toolType').value;
+      const filePath = document.getElementById('filePath').value;
+      
+      if (!filePath) {
+        showToast('请输入文件路径', 'error');
+        return;
+      }
+      
+      const [, action] = tool.split(':');
+      let params = { path: filePath };
+      
+      if (action === 'write_file') {
+        params.content = document.getElementById('fileContent').value;
+      } else if (action === 'edit_file') {
+        try {
+          params.edits = JSON.parse(document.getElementById('editsContent').value || '[]');
+        } catch (e) {
+          showToast('编辑内容 JSON 格式错误', 'error');
+          return;
+        }
+      } else if (action === 'move_file') {
+        params.destination = document.getElementById('destPath').value;
+      }
+      
+      const btn = document.getElementById('previewBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:2px;"></div> 预览中...';
+      
+      try {
+        const result = await mcp.dryRunPreview(tool, params);
+        currentPreview = result;
+        renderPreview(result);
+        showTab('preview');
+        showToast('预览生成成功', 'success');
+      } catch (err) {
+        showToast('预览失败: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🔍 生成预览';
+      }
+    }
+
+    function renderPreview(data) {
+      const parsed = mcp.parsePreview(data);
+      
+      if (!parsed.isPreview && !data._meta) {
+        document.getElementById('previewContent').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <p>预览生成失败</p>
+            <p style="font-size:0.85rem;color:#f87171;">${data.error || '未知错误'}</p>
+          </div>
+        `;
+        return;
+      }
+      
+      const meta = data._meta || {};
+      const preview = parsed.preview;
+      
+      let content = `
+        <div class="preview-header">
+          <span class="preview-title">${getToolLabel(meta.tool)}</span>
+          <span class="preview-meta">${meta.file || meta.source || 'N/A'}</span>
+        </div>
+      `;
+      
+      if (meta.lineCount) {
+        content += `
+          <div class="stats-bar">
+            <div class="stat-item">
+              <span class="stat-label">修改前:</span>
+              <span class="stat-value info">${meta.lineCount.before} 行</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">修改后:</span>
+              <span class="stat-value info">${meta.lineCount.after} 行</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">变化:</span>
+              <span class="stat-value ${meta.lineCount.delta >= 0 ? 'added' : 'removed'}">
+                ${meta.lineCount.delta >= 0 ? '+' : ''}${meta.lineCount.delta} 行
+              </span>
+            </div>
+          </div>
+        `;
+      }
+      
+      if (meta.size) {
+        content += `
+          <div class="stats-bar">
+            <div class="stat-item">
+              <span class="stat-label">原始大小:</span>
+              <span class="stat-value info">${formatSize(meta.size.before)}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">新大小:</span>
+              <span class="stat-value info">${formatSize(meta.size.after)}</span>
+            </div>
+          </div>
+        `;
+      }
+      
+      if (data.diff || data.preview) {
+        const diffData = data.diff || {};
+        const lines = diffData.lines || [];
+        
+        const addedCount = lines.filter(l => l.type === 'added').length;
+        const removedCount = lines.filter(l => l.type === 'removed').length;
+        
+        content += `
+          <div class="stats-bar">
+            <div class="stat-item">
+              <span class="stat-value added">+${addedCount}</span>
+              <span class="stat-label">行</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value removed">-${removedCount}</span>
+              <span class="stat-label">行</span>
+            </div>
+          </div>
+        `;
+        
+        content += `
+          <div class="diff-container">
+            <div class="diff-panel">
+              <div class="diff-header before">
+                <span>原始内容</span>
+                <span>${meta.willCreate ? '(新建)' : '(现有)'}</span>
+              </div>
+              <div class="diff-content">${renderDiffLines(lines, 'before')}</div>
+            </div>
+            <div class="diff-panel">
+              <div class="diff-header after">
+                <span>预览结果</span>
+                <span>${meta.willCreate ? '(将创建)' : '(将覆盖)'}</span>
+              </div>
+              <div class="diff-content">${renderDiffLines(lines, 'after')}</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      if (meta.willCreate) {
+        content += `
+          <div class="success-box">
+            <h4>✨ 新建文件</h4>
+            <p>此操作将创建一个新文件 ${meta.file}</p>
+          </div>
+        `;
+      } else if (meta.willOverwrite) {
+        content += `
+          <div class="warning-box">
+            <h4>⚠️ 覆盖文件</h4>
+            <p>此操作将覆盖现有文件 ${meta.file}</p>
+          </div>
+        `;
+      }
+      
+      content += `
+        <div class="action-bar">
+          <button class="btn btn-success" onclick="confirmAndExecute()">✅ 确认执行</button>
+          <button class="btn btn-secondary" onclick="copyPreviewContent()">📋 复制内容</button>
+        </div>
+      `;
+      
+      document.getElementById('previewContent').innerHTML = content;
+    }
+
+    function renderDiffLines(lines, side) {
+      if (!lines || lines.length === 0) {
+        return '<span style="color:#888;">无差异数据</span>';
+      }
+      
+      return lines.map(line => {
+        let cls = 'unchanged';
+        let prefix = ' ';
+        
+        if (side === 'before' && line.type === 'removed') {
+          cls = 'removed';
+          prefix = '-';
+        } else if (side === 'after' && line.type === 'added') {
+          cls = 'added';
+          prefix = '+';
+        }
+        
+        return `<div class="diff-line ${cls}">${prefix} ${escapeHtml(line.content || '')}</div>`;
+      }).join('');
+    }
+
+    function getToolLabel(tool) {
+      const labels = {
+        write_file: '📝 写入文件',
+        edit_file: '✏️ 编辑文件',
+        delete_file: '🗑️ 删除文件',
+        move_file: '📦 移动文件',
+        create_directory: '📁 创建目录'
+      };
+      return labels[tool] || tool;
+    }
+
+    function formatSize(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function confirmAndExecute() {
+      if (!currentPreview) return;
+      
+      if (!confirm('确定要执行此操作吗？此操作无法撤销。')) return;
+      
+      showToast('正在执行...', 'info');
+      
+      try {
+        const tool = document.getElementById('toolType').value;
+        const [, action] = tool.split(':');
+        let params = { path: document.getElementById('filePath').value };
+        
+        if (action === 'write_file') {
+          params.content = document.getElementById('fileContent').value;
+        } else if (action === 'edit_file') {
+          params.edits = JSON.parse(document.getElementById('editsContent').value || '[]');
+        } else if (action === 'move_file') {
+          params.destination = document.getElementById('destPath').value;
+        }
+        
+        const result = await mcp.confirmExecution(tool, params);
+        
+        if (result.success) {
+          showToast('执行成功！', 'success');
+          resetForm();
+        } else {
+          showToast('执行失败: ' + result.error, 'error');
+        }
+      } catch (err) {
+        showToast('执行失败: ' + err.message, 'error');
+      }
+    }
+
+    function copyPreviewContent() {
+      if (!currentPreview) return;
+      const content = currentPreview.preview || JSON.stringify(currentPreview, null, 2);
+      navigator.clipboard.writeText(content);
+      showToast('内容已复制', 'success');
+    }
+
+    async function loadHistory() {
+      try {
+        const data = await mcp.getDryRunHistory(20);
+        history = data.history || [];
+        renderHistory();
+        showTab('history');
+      } catch (err) {
+        showToast('加载历史失败', 'error');
+      }
+    }
+
+    function renderHistory() {
+      if (history.length === 0) {
+        document.getElementById('previewContent').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📜</div>
+            <p>暂无历史记录</p>
+          </div>
+        `;
+        return;
+      }
+      
+      document.getElementById('previewContent').innerHTML = `
+        <ul class="history-list">
+          ${history.map((item, idx) => `
+            <li class="history-item" onclick="showHistoryItem(${idx})">
+              <span class="history-type ${item.type || 'edit'}">${item.type || 'edit'}</span>
+              <span class="history-path">${item.filePath || item.source || 'N/A'}</span>
+              <div class="history-time">${new Date(item.timestamp || Date.now()).toLocaleString()}</div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+    }
+
+    function showHistoryItem(idx) {
+      document.querySelectorAll('.history-item').forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+      });
+      showToast('历史详情功能开发中', 'info');
+    }
+
+    function showTab(tab) {
+      document.getElementById('tabPreview').classList.toggle('active', tab === 'preview');
+      document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+    }
+
+    function resetForm() {
+      currentPreview = null;
+      document.getElementById('previewContent').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <p>配置左侧参数并点击"生成预览"</p>
+          <p style="font-size:0.85rem;margin-top:0.5rem;">预览将显示变更前后的差异</p>
+        </div>
+      `;
+      showTab('preview');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    updateParams();
+  </script>
+</body>
+</html>

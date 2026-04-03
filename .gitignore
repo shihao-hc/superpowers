@@ -33,3 +33,4 @@ test-results/
 .cache/
 .DS_Store
 Thumbs.db
+.opencode/

@@ -1,0 +1,453 @@
+# UltraWork AI 安全加固配置
+# 基于安全审计结果的安全策略配置
+
+# 安全策略版本
+version: "1.0.0"
+last_updated: "2026-03-23"
+
+# 安全评级目标
+security_targets:
+  xss_protection: "A+"
+  csrf_protection: "A"
+  csp_compliance: "strict"
+  input_validation: "100%"
+  dependency_security: "critical-free"
+
+# 输入验证配置
+input_validation:
+  enabled: true
+  
+  # 请求体大小限制
+  request_limits:
+    json: "10mb"
+    urlencoded: "10mb"
+    multipart: "50mb"
+  
+  # 字符串长度限制
+  string_limits:
+    username: { min: 3, max: 50 }
+    password: { min: 8, max: 128 }
+    email: { min: 5, max: 254 }
+    message: { min: 1, max: 5000 }
+    api_key: { min: 16, max: 128 }
+  
+  # 正则表达式安全
+  regex_safety:
+    enabled: true
+    max_pattern_length: 256
+    timeout_ms: 100  # ReDoS防护超时
+    forbidden_patterns:
+      - "(a+)+$"
+      - "(a|a)*$"
+      - "(a.*)*$"
+
+# XSS防护配置
+xss_protection:
+  enabled: true
+  
+  # HTML转义配置
+  html_escape:
+    enabled: true
+    method: "dom"  # 使用DOM API转义
+    entities:
+      "&": "&amp;"
+      "<": "&lt;"
+      ">": "&gt;"
+      "\"": "&quot;"
+      "'": "&#x27;"
+  
+  # CSP配置
+  content_security_policy:
+    enabled: true
+    directives:
+      default-src: ["'self'"]
+      script-src: ["'self'", "https://cdn.socket.io", "https://unpkg.com", "https://cdn.jsdelivr.net"]
+      style-src: ["'self'", "'unsafe-inline'"]
+      img-src: ["'self'", "data:", "blob:"]
+      connect-src: ["'self'", "ws:", "wss:"]
+      font-src: ["'self'", "data:"]
+      media-src: ["'self'", "blob:"]
+      object-src: ["'none'"]
+      base-uri: ["'self'"]
+      form-action: ["'self'"]
+      frame-ancestors: ["'none'"]
+      upgrade-insecure-requests: true
+  
+  # DOM净化
+  dom_purify:
+    enabled: true
+    config:
+      ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "p", "br", "ul", "ol", "li", "code", "pre"]
+      ALLOWED_ATTR: ["href", "title", "target", "rel"]
+      ALLOW_DATA_ATTR: false
+
+# CSRF防护配置
+csrf_protection:
+  enabled: true
+  
+  # 令牌配置
+  token:
+    secret_key_env: "CSRF_SECRET"
+    algorithm: "sha256"
+    expires_in: "1h"
+    cookie_name: "csrf-token"
+    header_name: "x-csrf-token"
+  
+  # 同源策略
+  same_site: "strict"
+  secure_cookie: true
+  http_only_cookie: true
+
+# 认证安全配置
+authentication:
+  # JWT配置
+  jwt:
+    secret_env: "JWT_SECRET"
+    algorithm: "HS256"
+    access_token_expires: "15m"
+    refresh_token_expires: "7d"
+    issuer: "ultrawork-ai"
+    audience: "ultrawork-users"
+  
+  # 密码安全
+  password:
+    hashing_algorithm: "bcrypt"
+    bcrypt_rounds: 12
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special: true
+    max_attempts: 5
+    lockout_duration: "15m"
+  
+  # API密钥
+  api_keys:
+    length: 32
+    prefix: "uw_"
+    rotation_days: 90
+    max_per_user: 5
+  
+  # MFA配置
+  mfa:
+    enabled: true
+    methods: ["totp", "webauthn"]
+    totp:
+      digits: 6
+      period: 30
+      window: 1
+    webauthn:
+      rp_name: "UltraWork AI"
+      rp_id: "localhost"
+      timeout: 60000
+
+# 速率限制配置
+rate_limiting:
+  enabled: true
+  
+  # 全局限制
+  global:
+    window_ms: 60000  # 1分钟
+    max_requests: 100
+    skip_successful_requests: false
+  
+  # 端点特定限制
+  endpoints:
+    "/api/auth/login":
+      window_ms: 900000  # 15分钟
+      max_requests: 5
+      message: "登录尝试过于频繁"
+    
+    "/api/auth/register":
+      window_ms: 3600000  # 1小时
+      max_requests: 3
+      message: "注册请求过于频繁"
+    
+    "/api/chat":
+      window_ms: 60000
+      max_requests: 30
+      message: "聊天请求过于频繁"
+    
+    "/api/memory":
+      window_ms: 60000
+      max_requests: 20
+      message: "记忆操作过于频繁"
+    
+    "/api/vision":
+      window_ms: 60000
+      max_requests: 10
+      message: "图片处理请求过于频繁"
+    
+    "/api/agent":
+      window_ms: 60000
+      max_requests: 20
+      message: "Agent执行请求过于频繁"
+  
+  # IP限制
+  ip_limits:
+    max_connections: 10
+    block_duration: "1h"
+    whitelist: []
+    blacklist: []
+
+# WebSocket安全配置
+websocket_security:
+  enabled: true
+  
+  # 连接认证
+  authentication:
+    required: true
+    timeout: 10000  # 10秒
+    token_refresh_interval: 300000  # 5分钟
+  
+  # 消息验证
+  message_validation:
+    max_size: 1048576  # 1MB
+    allowed_types: ["string", "object"]
+    schema_validation: true
+  
+  # 速率限制
+  rate_limit:
+    max_messages_per_second: 10
+    max_connections_per_ip: 10
+    ban_threshold: 100  # 1分钟内超过100条消息封禁
+    ban_duration: "1h"
+  
+  # 心跳检测
+  heartbeat:
+    enabled: true
+    interval: 30000  # 30秒
+    timeout: 10000  # 10秒
+
+# 文件安全配置
+file_security:
+  enabled: true
+  
+  # 上传限制
+  upload:
+    max_file_size: "50mb"
+    allowed_extensions:
+      - ".jpg"
+      - ".jpeg"
+      - ".png"
+      - ".gif"
+      - ".webp"
+      - ".svg"
+      - ".pdf"
+      - ".txt"
+      - ".json"
+      - ".csv"
+    blocked_extensions:
+      - ".exe"
+      - ".bat"
+      - ".sh"
+      - ".js"
+      - ".php"
+      - ".py"
+    scan_for_malware: true
+  
+  # 路径安全
+  path_security:
+    prevent_traversal: true
+    allowed_base_paths:
+      - "./uploads"
+      - "./data"
+      - "./public"
+    max_path_depth: 10
+
+# 日志安全配置
+logging_security:
+  enabled: true
+  
+  # 敏感数据脱敏
+  data_masking:
+    patterns:
+      - pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+        replacement: "[EMAIL_REDACTED]"
+      - pattern: "\\b\\d{16}\\b"
+        replacement: "[CARD_REDACTED]"
+      - pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        replacement: "[SSN_REDACTED]"
+      - pattern: "Bearer\\s+[A-Za-z0-9\\-\\._~+/]+=*"
+        replacement: "Bearer [TOKEN_REDACTED]"
+  
+  # 审计日志
+  audit_log:
+    enabled: true
+    retention_days: 90
+    compress_after_days: 7
+    encrypt: true
+    
+    events:
+      - "authentication.success"
+      - "authentication.failure"
+      - "authorization.denied"
+      - "data.access"
+      - "data.modification"
+      - "admin.action"
+      - "security.alert"
+
+# 依赖安全配置
+dependency_security:
+  enabled: true
+  
+  # 自动扫描
+  auto_scan: true
+  scan_interval: "1d"
+  
+  # 允许的漏洞级别
+  allowed_severity: ["low", "medium"]
+  blocked_severity: ["high", "critical"]
+  
+  # 许可证检查
+  license_check:
+    enabled: true
+    allowed_licenses:
+      - "MIT"
+      - "ISC"
+      - "Apache-2.0"
+      - "BSD-2-Clause"
+      - "BSD-3-Clause"
+      - "CC0-1.0"
+      - "Unlicense"
+    blocked_licenses:
+      - "GPL-3.0"
+      - "AGPL-3.0"
+
+# 安全头配置
+security_headers:
+  enabled: true
+  
+  headers:
+    "X-Content-Type-Options": "nosniff"
+    "X-Frame-Options": "DENY"
+    "X-XSS-Protection": "1; mode=block"
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()"
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+    "X-DNS-Prefetch-Control": "off"
+    "X-Download-Options": "noopen"
+    "X-Permitted-Cross-Domain-Policies": "none"
+
+# 错误处理安全
+error_handling:
+  enabled: true
+  
+  # 错误信息级别
+  error_levels:
+    development: "full"  # 完整错误信息
+    production: "minimal"  # 最小错误信息
+  
+  # 敏感信息过滤
+  filter_sensitive_data: true
+  filtered_fields:
+    - "password"
+    - "token"
+    - "secret"
+    - "key"
+    - "authorization"
+    - "cookie"
+  
+  # 错误页面
+  custom_error_pages: true
+  error_pages:
+    400: "/errors/400.html"
+    401: "/errors/401.html"
+    403: "/errors/403.html"
+    404: "/errors/404.html"
+    500: "/errors/500.html"
+
+# 安全监控配置
+security_monitoring:
+  enabled: true
+  
+  # 威胁检测
+  threat_detection:
+    enabled: true
+    rules:
+      - name: "brute_force"
+        pattern: "authentication.failure"
+        threshold: 5
+        window: "5m"
+        action: "block_ip"
+      
+      - name: "sql_injection"
+        pattern: "request.*union.*select"
+        threshold: 1
+        window: "1m"
+        action: "block_ip"
+      
+      - name: "xss_attempt"
+        pattern: "request.*<script>"
+        threshold: 1
+        window: "1m"
+        action: "block_ip"
+  
+  # 告警配置
+  alerts:
+    enabled: true
+    channels:
+      - type: "console"
+        enabled: true
+      - type: "webhook"
+        enabled: false
+        url: ""
+      - type: "email"
+        enabled: false
+        recipients: []
+    
+    rules:
+      - name: "high_risk_vulnerability"
+        condition: "vulnerability.severity == 'critical'"
+        severity: "critical"
+      
+      - name: "multiple_failed_logins"
+        condition: "authentication.failure > 10 in 5m"
+        severity: "high"
+      
+      - name: "unusual_api_usage"
+        condition: "api.request_rate > 1000/min"
+        severity: "medium"
+
+# 安全测试配置
+security_testing:
+  enabled: true
+  
+  # 静态代码分析
+  static_analysis:
+    enabled: true
+    tools: ["eslint-security", "npm-audit"]
+  
+  # 动态测试
+  dynamic_testing:
+    enabled: true
+    schedule: "weekly"
+    tools: ["zap", "nuclei"]
+  
+  # 渗透测试
+  penetration_testing:
+    enabled: false  # 需要专业团队
+    schedule: "quarterly"
+
+# 合规配置
+compliance:
+  enabled: true
+  
+  # 数据保护
+  data_protection:
+    encryption_at_rest: true
+    encryption_in_transit: true
+    key_rotation_days: 90
+  
+  # 隐私合规
+  privacy:
+    gdpr_compliant: true
+    ccpa_compliant: true
+    data_retention_days: 730  # 2年
+    right_to_deletion: true
+  
+  # 审计要求
+  audit:
+    required: true
+    retention_days: 365
+    format: "json"

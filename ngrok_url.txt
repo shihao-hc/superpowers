@@ -1,0 +1,17 @@
+t=2026-03-17T21:21:16+0800 lvl=info msg="no configuration paths supplied"
+t=2026-03-17T21:21:16+0800 lvl=info msg="using configuration at default config path" path=C:\\Users\\Administrator\\AppData\\Local\\ngrok\\ngrok.yml
+t=2026-03-17T21:21:16+0800 lvl=info msg="open config file" path=C:\\Users\\Administrator\\AppData\\Local\\ngrok\\ngrok.yml err=nil
+t=2026-03-17T21:21:16+0800 lvl=info msg="FIPS 140 mode" enabled=false
+t=2026-03-17T21:21:16+0800 lvl=info msg="starting web service" obj=web addr=127.0.0.1:4040 allow_hosts=[]
+t=2026-03-17T21:21:17+0800 lvl=info msg="client session established" obj=tunnels.session
+t=2026-03-17T21:21:17+0800 lvl=info msg="tunnel session started" obj=tunnels.session
+t=2026-03-17T21:21:18+0800 lvl=info msg="started tunnel" obj=tunnels name=command_line addr=http://localhost:18789 url=https://ungladly-thermolytic-luanna.ngrok-free.dev
+t=2026-03-17T21:21:35+0800 lvl=info msg=start pg=/api/tunnels id=a2ebea781212d50c
+t=2026-03-17T21:21:35+0800 lvl=info msg=end pg=/api/tunnels id=a2ebea781212d50c status=200 dur=0s
+t=2026-03-17T21:46:17+0800 lvl=info msg=start pg=/api/tunnels id=37e26fb2b86b00ce
+t=2026-03-17T21:46:17+0800 lvl=info msg=end pg=/api/tunnels id=37e26fb2b86b00ce status=200 dur=1.3228ms
+t=2026-03-17T21:54:57+0800 lvl=info msg=start pg=/api/tunnels id=d867ca9a6b183c35
+t=2026-03-17T21:54:57+0800 lvl=info msg=end pg=/api/tunnels id=d867ca9a6b183c35 status=200 dur=0s
+t=2026-03-17T22:02:58+0800 lvl=info msg="join connections" obj=join id=63f1a50e17e9 l=[::1]:18789 r=101.126.59.8:60216
+t=2026-03-17T22:03:32+0800 lvl=info msg=start pg=/api/tunnels id=6ad6f2b9ced8df59
+t=2026-03-17T22:03:32+0800 lvl=info msg=end pg=/api/tunnels id=6ad6f2b9ced8df59 status=200 dur=503.8µs

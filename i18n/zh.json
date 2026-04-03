@@ -1,0 +1,60 @@
+{
+  "app": {
+    "title": "UltraWork AI",
+    "subtitle": "AI 虚拟人物平台"
+  },
+  "personality": {
+    "title": "选择人格",
+    "current": "当前"
+  },
+  "chat": {
+    "placeholder": "输入消息... (Enter 发送)",
+    "send": "发送",
+    "system": "系统"
+  },
+  "mood": {
+    "label": "心情",
+    "neutral": "平静",
+    "happy": "开心",
+    "excited": "兴奋",
+    "playful": "调皮",
+    "curious": "好奇",
+    "shy": "害羞"
+  },
+  "memory": {
+    "title": "记忆管理",
+    "search": "搜索记忆...",
+    "filter": "筛选",
+    "export": "导出",
+    "clear": "清空",
+    "empty": "暂无记忆",
+    "exportJson": "导出 JSON",
+    "exportCsv": "导出 CSV"
+  },
+  "tts": {
+    "on": "语音开启",
+    "off": "语音关闭"
+  },
+  "game": {
+    "panel": "游戏面板",
+    "status": "状态",
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "commands": "命令",
+    "events": "最近事件"
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "theme": "主题"
+  },
+  "status": {
+    "online": "在线",
+    "offline": "离线"
+  },
+  "errors": {
+    "connectionFailed": "连接失败，请刷新页面",
+    "serverError": "服务器错误",
+    "timeout": "请求超时"
+  }
+}

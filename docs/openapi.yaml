@@ -1,0 +1,968 @@
+openapi: 3.0.3
+info:
+  title: UltraWork AI API
+  description: |
+    UltraWork AI - 多Agent虚拟人格平台 API
+    
+    ## 概述
+    UltraWork AI 是一个基于 AI 的自动化平台，支持：
+    - 多人格对话系统
+    - 浏览器自动化任务
+    - 电商价格监控
+    - 工作流编排
+    - 模型市场
+    
+    ## 认证
+    所有 `/api/*` 端点需要 API Key 认证：
+    ```
+    X-API-Key: your-api-key
+    ```
+  version: 1.0.0
+  contact:
+    name: UltraWork AI
+    url: https://github.com/user/ultrawork
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: 本地开发服务器
+  - url: https://ultrawork.example.com
+    description: 生产服务器
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: 健康检查
+    description: 系统健康状态和指标
+  - name: 人格管理
+    description: AI 人格切换和管理
+  - name: 聊天
+    description: AI 对话接口
+  - name: Agent
+    description: Agent 任务和身份
+  - name: 工作流
+    description: 工作流和执行
+  - name: 市场
+    description: 模型和工作流市场
+  - name: 电商
+    description: 价格监控
+  - name: 监控
+    description: Prometheus 指标
+  - name: 行业解决方案
+    description: 行业垂直解决方案和自动化工作流
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Something went wrong"
+    
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        uptime:
+          type: number
+          example: 3600
+        version:
+          type: string
+          example: "1.0.0"
+    
+    Personality:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "狐九"
+        description:
+          type: string
+        avatar:
+          type: object
+        modelParams:
+          type: object
+    
+    ChatRequest:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          example: "你好"
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+              content:
+                type: string
+    
+    ChatResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "你好呀！有什么我可以帮你的吗？"
+        source:
+          type: string
+          example: "ollama"
+        model:
+          type: string
+    
+    AgentTask:
+      type: object
+      properties:
+        command:
+          type: string
+          example: "打开百度搜索AI新闻"
+        template:
+          type: string
+          example: "search"
+        params:
+          type: object
+    
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        nodes:
+          type: array
+        connections:
+          type: array
+    
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        currentPrice:
+          type: number
+        targetPrice:
+          type: number
+
+    SolutionWithMeta:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        icon:
+          type: string
+        description:
+          type: string
+        automationRate:
+          type: number
+        estimatedTime:
+          type: number
+        stages:
+          type: array
+          items:
+            type: string
+        requiredSkills:
+          type: array
+          items:
+            type: string
+        templateId:
+          type: string
+        demoData:
+          type: object
+        relatedSolutions:
+          type: array
+          items:
+            type: string
+        domainId:
+          type: string
+        installs:
+          type: number
+        rating:
+          type: string
+        trials:
+          type: number
+        badge:
+          type: string
+
+paths:
+  /health:
+    get:
+      tags: [健康检查]
+      summary: 健康检查
+      description: 返回系统健康状态
+      security: []
+      responses:
+        '200':
+          description: 系统健康
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  
+  /metrics:
+    get:
+      tags: [监控]
+      summary: Prometheus 指标
+      description: 返回 Prometheus 格式的监控指标
+      responses:
+        '200':
+          description: Prometheus 指标
+          content:
+            text/plain:
+              schema:
+                type: string
+  
+  /api/personality:
+    get:
+      tags: [人格管理]
+      summary: 获取当前人格
+      responses:
+        '200':
+          description: 当前人格信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Personality'
+    
+    post:
+      tags: [人格管理]
+      summary: 切换人格
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: "零"
+      responses:
+        '200':
+          description: 切换成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  active:
+                    type: string
+                  mood:
+                    type: string
+  
+  /api/chat:
+    post:
+      tags: [聊天]
+      summary: 发送消息
+      description: 向 AI 发送消息并获取回复
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: AI 回复
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+  
+  /api/agent/execute:
+    post:
+      tags: [Agent]
+      summary: 执行 Agent 任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentTask'
+      responses:
+        '200':
+          description: 任务已接收
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  taskId:
+                    type: string
+  
+  /api/agent/templates:
+    get:
+      tags: [Agent]
+      summary: 获取任务模板
+      responses:
+        '200':
+          description: 模板列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    name:
+                      type: string
+                    icon:
+                      type: string
+                    params:
+                      type: array
+  
+  /api/workflows:
+    get:
+      tags: [工作流]
+      summary: 获取工作流列表
+      responses:
+        '200':
+          description: 工作流列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workflow'
+  
+  /api/executions:
+    post:
+      tags: [工作流]
+      summary: 执行工作流
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workflowId:
+                  type: string
+      responses:
+        '200':
+          description: 执行已启动
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+  
+  /api/marketplace/workflows:
+    get:
+      tags: [市场]
+      summary: 搜索工作流市场
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [downloads, rating, newest]
+      responses:
+        '200':
+          description: 工作流列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workflow'
+    
+    post:
+      tags: [市场]
+      summary: 发布工作流
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                nodes:
+                  type: array
+                connections:
+                  type: array
+      responses:
+        '200':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+  
+  /api/marketplace/workflows/{id}/download:
+    post:
+      tags: [市场]
+      summary: 下载工作流
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 下载成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  downloads:
+                    type: number
+  
+  /api/price-monitor/products:
+    get:
+      tags: [电商]
+      summary: 获取监控商品
+      responses:
+        '200':
+          description: 商品列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    
+    post:
+      tags: [电商]
+      summary: 添加监控商品
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+                targetPrice:
+                  type: number
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+  
+  /api/price-monitor/{id}/predict:
+    get:
+      tags: [电商]
+      summary: 获取价格预测
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 价格预测
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  productId:
+                    type: string
+                  currentPrice:
+                    type: number
+                  predictions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        day:
+                          type: number
+                        price:
+                          type: number
+                        confidence:
+                          type: number
+                  recommendation:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                      reason:
+                        type: string
+  
+  /api/models:
+    get:
+      tags: [市场]
+      summary: 获取模型列表
+      parameters:
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 模型列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    industry:
+                      type: string
+                    type:
+                      type: string
+                    price:
+                      type: number
+                    rating:
+                      type: number
+  
+  /api/models/train:
+    post:
+      tags: [市场]
+      summary: 启动联邦学习训练
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                industry:
+                  type: string
+                participants:
+                  type: array
+      responses:
+        '200':
+          description: 训练已启动
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+  
+  /api/attestations:
+    get:
+      tags: [区块链]
+      summary: 获取存证列表
+      responses:
+        '200':
+          description: 存证列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    hash:
+                      type: string
+                    metadata:
+                      type: object
+    
+    post:
+      tags: [区块链]
+      summary: 创建存证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+                description:
+                  type: string
+      responses:
+        '200':
+          description: 存证创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  hash:
+                    type: string
+
+  /api/vertical-domains:
+    get:
+      tags: [行业解决方案]
+      summary: 获取行业领域列表
+      description: 返回所有可用的行业领域及其解决方案数量
+      security: []
+      responses:
+        '200':
+          description: 行业领域列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      example: "finance"
+                    name:
+                      type: string
+                      example: "金融行业"
+                    icon:
+                      type: string
+                      example: "🏦"
+                    description:
+                      type: string
+                    e2eCount:
+                      type: number
+                      example: 2
+
+  /api/vertical-domains/{domainId}/skills:
+    get:
+      tags: [行业解决方案]
+      summary: 获取行业领域技能
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "finance"
+      responses:
+        '200':
+          description: 技能列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    category:
+                      type: string
+
+  /api/vertical-domains/{domainId}/solutions:
+    get:
+      tags: [行业解决方案]
+      summary: 获取行业领域E2E解决方案
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: E2E解决方案列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    industry:
+                      type: string
+                    automation:
+                      type: number
+                      example: 0.85
+                    skills:
+                      type: array
+                      items:
+                        type: string
+                    workflows:
+                      type: array
+                      items:
+                        type: object
+
+  /api/vertical-domains/{domainId}/solutions/{solutionId}/install:
+    post:
+      tags: [行业解决方案]
+      summary: 安装E2E解决方案工作流
+      description: 将解决方案的工作流安装到用户账户
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: solutionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetEnv:
+                  type: string
+                  default: "development"
+      responses:
+        '200':
+          description: 安装成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  installedWorkflows:
+                    type: array
+                    items:
+                      type: string
+                  nextSteps:
+                    type: array
+                    items:
+                      type: string
+
+  /api/vertical-domains/{domainId}/solutions/{solutionId}/demo-data:
+    post:
+      tags: [行业解决方案]
+      summary: 导入解决方案演示数据
+      description: 生成并导入演示数据到用户账户
+      parameters:
+        - name: domainId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: solutionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sampleSize:
+                  type: number
+                  default: 100
+      responses:
+        '200':
+          description: 演示数据导入成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  imported:
+                    type: number
+                  sample:
+                    type: array
+                    items:
+                      type: object
+
+  /api/vertical-domains/solutions/popular:
+    get:
+      tags: [行业解决方案]
+      summary: 获取热门E2E解决方案
+      description: 返回按热度、自动化率、更新时间排序的解决方案
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [popularity, automation, recent]
+            default: popularity
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: 热门解决方案列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hot:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SolutionWithMeta'
+                  highAutomation:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SolutionWithMeta'
+                  newlyAdded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SolutionWithMeta'
+
+  /api/vertical-domains/solutions/search:
+    get:
+      tags: [行业解决方案]
+      summary: 搜索E2E解决方案
+      description: 根据关键词搜索解决方案
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: minAutomation
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    industry:
+                      type: string
+                    automation:
+                      type: number
+                    score:
+                      type: number
+
+  /api/vertical-domains/solutions/{solutionId}/recommendations:
+    get:
+      tags: [行业解决方案]
+      summary: 获取相关解决方案推荐
+      description: 基于当前解决方案推荐相关的其他解决方案
+      parameters:
+        - name: solutionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 推荐解决方案列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    industry:
+                      type: string
+                    reason:
+                      type: string

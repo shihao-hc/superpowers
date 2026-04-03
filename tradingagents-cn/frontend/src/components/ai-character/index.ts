@@ -1,0 +1,6 @@
+export { default as AICharacter } from './AICharacter.vue'
+export { default as VoiceControl } from './VoiceControl.vue'
+export { default as VTuberAvatar } from './VTuberAvatar.vue'
+export { default as VoiceSync } from './VoiceSync.vue'
+export { default as ChatBubble } from './ChatBubble.vue'
+export { default as TradingOverlay } from './TradingOverlay.vue'

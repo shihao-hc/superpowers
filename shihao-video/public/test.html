@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>测试</title>
+  <style>
+    body { background: #000; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>测试页面</h1>
+  <p>如果看到这段文字，说明页面正常</p>
+  <video id="v" controls style="width:100%"></video>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+  <script>
+    const url = new URLSearchParams(location.search).get('url');
+    document.title = 'URL: ' + url;
+    if (url && typeof Hls !== 'undefined') {
+      const hls = new Hls();
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        document.title = '加载成功';
+      });
+      hls.on(Hls.Events.ERROR, (e, d) => {
+        document.title = '错误: ' + d.details;
+      });
+      hls.loadSource(url);
+      hls.attachMedia(document.getElementById('v'));
+    }
+  </script>
+</body>
+</html>

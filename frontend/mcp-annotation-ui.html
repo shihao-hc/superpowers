@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP 工具市场 - 动态注解驱动 UI</title>
+  <link rel="stylesheet" href="styles/common.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    h1 { font-size: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-top: 0.5rem; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid #333; transition: all 0.2s; }
+    .stat-card:hover { transform: translateY(-2px); border-color: #667eea; }
+    .stat-value { font-size: 2rem; font-weight: bold; }
+    .stat-value.total { color: #667eea; }
+    .stat-value.readonly { color: #4ade80; }
+    .stat-value.writable { color: #fbbf24; }
+    .stat-value.destructive { color: #f87171; }
+    .stat-value.idempotent { color: #60a5fa; }
+    .stat-value.critical { color: #dc2626; }
+    .stat-label { color: #888; font-size: 0.8rem; margin-top: 0.25rem; }
+    
+    .filter-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; background: #1a1a2e; padding: 1rem; border-radius: 12px; border: 1px solid #333; }
+    .search-input { flex: 1; min-width: 200px; background: #0f0f23; border: 1px solid #333; border-radius: 8px; padding: 0.75rem 1rem; color: #fff; font-size: 0.95rem; }
+    .search-input:focus { outline: none; border-color: #667eea; }
+    .filter-select { background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.5rem 1rem; color: #fff; cursor: pointer; }
+    .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; font-weight: 500; }
+    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    
+    .main-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; }
+    .sidebar { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 1rem; height: fit-content; position: sticky; top: 1rem; }
+    .sidebar h3 { font-size: 0.9rem; color: #888; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .server-list { list-style: none; }
+    .server-item { padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; }
+    .server-item:hover { background: #252540; }
+    .server-item.active { background: #667eea; }
+    .server-icon { font-size: 1.25rem; }
+    .server-name { flex: 1; font-size: 0.9rem; }
+    .server-count { font-size: 0.75rem; background: #333; padding: 0.15rem 0.5rem; border-radius: 10px; }
+    
+    .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1rem; }
+    .tool-card { background: #1a1a2e; border: 1px solid #333; border-radius: 12px; padding: 1.25rem; transition: all 0.2s; cursor: pointer; position: relative; overflow: hidden; }
+    .tool-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+    .tool-card.readonly::before { background: #4ade80; }
+    .tool-card.writable::before { background: #fbbf24; }
+    .tool-card.destructive::before { background: #f87171; }
+    .tool-card:hover:not(.no-access) { border-color: #667eea; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2); }
+    .tool-card.no-access { opacity: 0.5; }
+    
+    .tool-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .tool-icon { font-size: 1.5rem; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #0f0f23; border-radius: 8px; }
+    .tool-info { flex: 1; }
+    .tool-name { font-weight: bold; color: #fff; font-family: 'Fira Code', monospace; font-size: 0.95rem; }
+    .tool-server { font-size: 0.7rem; padding: 0.15rem 0.5rem; background: #333; border-radius: 4px; color: #888; margin-left: 0.5rem; }
+    
+    .annotation-badges { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+    .badge.readonly { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .badge.writable { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .badge.idempotent { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .badge.destructive { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    .badge.risk-safe { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .badge.risk-low { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .badge.risk-medium { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .badge.risk-critical { background: rgba(220, 38, 38, 0.15); color: #dc2626; }
+    
+    .tool-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .action-btn { flex: 1; padding: 0.6rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; }
+    .action-btn.execute { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+    .action-btn.execute:hover:not(:disabled) { transform: scale(1.02); }
+    .action-btn.retry { background: #16a34a; color: #fff; }
+    .action-btn.retry:hover:not(:disabled) { background: #15803d; }
+    .action-btn.confirm { background: #dc2626; color: #fff; }
+    .action-btn.confirm:hover:not(:disabled) { background: #b91c1c; }
+    .action-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 2rem; min-width: 600px; max-width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-title { font-size: 1.25rem; font-weight: bold; color: #fff; }
+    .modal-close { background: #333; border: none; width: 32px; height: 32px; border-radius: 50%; color: #fff; cursor: pointer; font-size: 1.25rem; }
+    .modal-close:hover { background: #444; }
+    .modal-body { margin-bottom: 1.5rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; }
+    
+    .param-form { background: #0f0f23; border-radius: 8px; padding: 1rem; }
+    .param-group { margin-bottom: 1rem; }
+    .param-group label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .param-group input, .param-group textarea, .param-group select { width: 100%; background: #1a1a2e; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.9rem; }
+    .param-group input:focus, .param-group textarea:focus { outline: none; border-color: #667eea; }
+    .param-group textarea { min-height: 100px; resize: vertical; font-family: 'Fira Code', monospace; }
+    
+    .confirm-box { background: rgba(220, 38, 38, 0.1); border: 1px solid #dc2626; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .confirm-box h4 { color: #f87171; margin-bottom: 0.5rem; }
+    .confirm-box p { color: #aaa; font-size: 0.9rem; }
+    
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem 1.5rem; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.show { display: block; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    .toast.info { border-color: #60a5fa; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    .loading { display: flex; justify-content: center; align-items: center; padding: 3rem; flex-direction: column; gap: 1rem; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .empty-state { text-align: center; padding: 3rem; color: #888; }
+    .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+    
+    @media (max-width: 1200px) { .main-layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+    @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>🏷️ MCP 工具市场</h1>
+        <p class="subtitle">基于 MCP Protocol 动态注解驱动的工具管理界面</p>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="refreshTools()">🔄 刷新</button>
+      </div>
+    </header>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-value total" id="statTotal">-</div>
+        <div class="stat-label">总工具数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value readonly" id="statReadOnly">-</div>
+        <div class="stat-label">只读</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value writable" id="statWritable">-</div>
+        <div class="stat-label">可写</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value destructive" id="statDestructive">-</div>
+        <div class="stat-label">破坏性</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value idempotent" id="statIdempotent">-</div>
+        <div class="stat-label">幂等</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value critical" id="statCritical">-</div>
+        <div class="stat-label">高危</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" class="search-input" id="searchInput" placeholder="🔍 搜索工具名称或描述..." oninput="filterTools()">
+      <select class="filter-select" id="serverFilter" onchange="filterTools()">
+        <option value="">所有服务器</option>
+      </select>
+      <select class="filter-select" id="riskFilter" onchange="filterTools()">
+        <option value="">风险等级</option>
+        <option value="safe">安全</option>
+        <option value="low">低风险</option>
+        <option value="medium">中风险</option>
+        <option value="critical">高危</option>
+      </select>
+      <select class="filter-select" id="typeFilter" onchange="filterTools()">
+        <option value="">操作类型</option>
+        <option value="readonly">只读</option>
+        <option value="writable">可写</option>
+        <option value="destructive">破坏性</option>
+      </select>
+      <select class="filter-select" id="idempotentFilter" onchange="filterTools()">
+        <option value="">幂等性</option>
+        <option value="true">幂等</option>
+        <option value="false">非幂等</option>
+      </select>
+    </div>
+
+    <div class="main-layout">
+      <div class="sidebar">
+        <h3>服务器列表</h3>
+        <ul class="server-list" id="serverList">
+          <li class="server-item active" onclick="filterByServer('')">
+            <span class="server-icon">📦</span>
+            <span class="server-name">全部</span>
+            <span class="server-count" id="countAll">0</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="tool-grid" id="toolGrid">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>加载工具中...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="executeModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">执行工具</span>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" id="confirmBtn" onclick="executeTool()">执行</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mcp-client.js"></script>
+  <script>
+    const mcp = new MCPClient('/api/mcp');
+    let allTools = [];
+    let filteredTools = [];
+    let currentTool = null;
+
+    async function init() {
+      await loadTools();
+      await loadServers();
+    }
+
+    async function loadTools() {
+      try {
+        const tools = await mcp.listTools();
+        allTools = tools;
+        updateStats();
+        filterTools();
+        renderServers();
+      } catch (err) {
+        showToast('加载工具失败: ' + err.message, 'error');
+      }
+    }
+
+    async function loadServers() {
+      try {
+        const servers = await mcp.listServers();
+        const select = document.getElementById('serverFilter');
+        select.innerHTML = '<option value="">所有服务器</option>';
+        
+        servers.servers?.forEach(server => {
+          const opt = document.createElement('option');
+          opt.value = server.name;
+          opt.textContent = `${server.name} (${server.toolsCount || 0})`;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.warn('Failed to load servers:', err);
+      }
+    }
+
+    function updateStats() {
+      const stats = {
+        total: allTools.length,
+        readOnly: 0,
+        writable: 0,
+        destructive: 0,
+        idempotent: 0,
+        critical: 0
+      };
+
+      allTools.forEach(tool => {
+        const ann = mcp.parseAnnotations(tool);
+        if (ann.readOnlyHint) stats.readOnly++;
+        else stats.writable++;
+        if (ann.destructiveHint) stats.destructive++;
+        if (ann.idempotentHint) stats.idempotent++;
+        if (ann.riskLevel === 'critical') stats.critical++;
+      });
+
+      document.getElementById('statTotal').textContent = stats.total;
+      document.getElementById('statReadOnly').textContent = stats.readOnly;
+      document.getElementById('statWritable').textContent = stats.writable;
+      document.getElementById('statDestructive').textContent = stats.destructive;
+      document.getElementById('statIdempotent').textContent = stats.idempotent;
+      document.getElementById('statCritical').textContent = stats.critical;
+      document.getElementById('countAll').textContent = stats.total;
+    }
+
+    function renderServers() {
+      const groups = mcp.getToolsByServer();
+      const list = document.getElementById('serverList');
+      const servers = Object.entries(groups);
+      
+      list.innerHTML = `
+        <li class="server-item ${!selectedServer ? 'active' : ''}" onclick="filterByServer('')">
+          <span class="server-icon">📦</span>
+          <span class="server-name">全部</span>
+          <span class="server-count">${allTools.length}</span>
+        </li>
+      ` + servers.map(([server, tools]) => `
+        <li class="server-item ${selectedServer === server ? 'active' : ''}" onclick="filterByServer('${server}')">
+          <span class="server-icon">${getServerIcon(server)}</span>
+          <span class="server-name">${server}</span>
+          <span class="server-count">${tools.length}</span>
+        </li>
+      `).join('');
+    }
+
+    let selectedServer = '';
+
+    function filterByServer(server) {
+      selectedServer = server;
+      document.querySelectorAll('.server-item').forEach((el, idx) => {
+        el.classList.toggle('active', (idx === 0 && !server) || servers[idx - 1]?.[0] === server);
+      });
+      filterTools();
+    }
+
+    function filterTools() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const server = selectedServer || document.getElementById('serverFilter').value;
+      const risk = document.getElementById('riskFilter').value;
+      const type = document.getElementById('typeFilter').value;
+      const idempotent = document.getElementById('idempotentFilter').value;
+
+      filteredTools = allTools.filter(tool => {
+        if (search && !tool.name.toLowerCase().includes(search) && 
+            !tool.description?.toLowerCase().includes(search)) return false;
+        
+        if (server && tool.server !== server && tool.name.split(':')[0] !== server) return false;
+        
+        const ann = mcp.parseAnnotations(tool);
+        
+        if (risk && ann.riskLevel !== risk) return false;
+        if (type === 'readonly' && !ann.readOnlyHint) return false;
+        if (type === 'writable' && ann.readOnlyHint) return false;
+        if (type === 'destructive' && !ann.destructiveHint) return false;
+        if (idempotent === 'true' && !ann.idempotentHint) return false;
+        if (idempotent === 'false' && ann.idempotentHint) return false;
+        
+        return true;
+      });
+
+      renderTools();
+    }
+
+    function renderTools() {
+      const grid = document.getElementById('toolGrid');
+      
+      if (filteredTools.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <p>没有匹配的工具</p>
+            <p style="font-size:0.85rem;margin-top:0.5rem;">尝试调整筛选条件</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredTools.map(tool => {
+        const ann = mcp.parseAnnotations(tool);
+        const cardClass = ann.readOnlyHint ? 'readonly' : (ann.destructiveHint ? 'destructive' : 'writable');
+        const serverName = tool.server || tool.name.split(':')[0] || 'unknown';
+        
+        return `
+          <div class="tool-card ${cardClass}" onclick="showExecuteModal('${tool.name}')">
+            <div class="tool-header">
+              <div class="tool-icon">${getToolIcon(tool.name)}</div>
+              <div class="tool-info">
+                <span class="tool-name">${tool.name}</span>
+                <span class="tool-server">${serverName}</span>
+              </div>
+            </div>
+            <div class="annotation-badges">
+              ${ann.readOnlyHint ? '<span class="badge readonly">只读</span>' : '<span class="badge writable">可写</span>'}
+              ${ann.idempotentHint ? '<span class="badge idempotent">幂等</span>' : '<span class="badge" style="background:rgba(251,191,36,0.15);color:#fbbf24;">非幂等</span>'}
+              ${ann.destructiveHint ? '<span class="badge destructive">破坏性</span>' : ''}
+              <span class="badge risk-${ann.riskLevel}">${getRiskLabel(ann.riskLevel)}</span>
+            </div>
+            ${tool.description ? `<p style="color:#888;font-size:0.85rem;margin-top:0.5rem;">${tool.description}</p>` : ''}
+            <div class="tool-actions">
+              <button class="action-btn execute" onclick="event.stopPropagation(); showExecuteModal('${tool.name}', 'execute')">执行</button>
+              <button class="action-btn retry" onclick="event.stopPropagation(); showExecuteModal('${tool.name}', 'retry')" 
+                      ${!ann.idempotentHint ? 'disabled title="非幂等操作不支持重试"' : ''}>重试</button>
+              ${ann.destructiveHint ? `<button class="action-btn confirm" onclick="event.stopPropagation(); showExecuteModal('${tool.name}', 'confirm')">⚠️ 确认</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getToolIcon(name) {
+      if (name.includes('file') || name.includes('dir')) return '📁';
+      if (name.includes('git') || name.includes('issue') || name.includes('pr')) return '🐙';
+      if (name.includes('memo') || name.includes('note')) return '📝';
+      if (name.includes('search')) return '🔍';
+      if (name.includes('browser') || name.includes('page')) return '🌐';
+      if (name.includes('exec') || name.includes('run')) return '⚡';
+      if (name.includes('think')) return '🧠';
+      return '🔧';
+    }
+
+    function getServerIcon(server) {
+      const icons = {
+        filesystem: '📁', github: '🐙', context7: '📚',
+        devtools: '🌐', memos: '📝', sequential_thinking: '🧠'
+      };
+      return icons[server] || '📦';
+    }
+
+    function getRiskLabel(level) {
+      const labels = { safe: '安全', low: '低风险', medium: '中风险', critical: '高危' };
+      return labels[level] || level;
+    }
+
+    function showExecuteModal(toolName, action = 'execute') {
+      currentTool = { name: toolName, action };
+      const tool = allTools.find(t => t.name === toolName);
+      const ann = tool ? mcp.parseAnnotations(tool) : { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
+      
+      let title = '执行工具';
+      if (action === 'retry') title = '🔄 重试工具 (幂等操作)';
+      if (action === 'confirm') title = '⚠️ 确认破坏性操作';
+      
+      document.getElementById('modalTitle').textContent = title;
+      
+      let body = `
+        <div style="margin-bottom:1rem;">
+          <span style="font-family:monospace;color:#667eea;font-size:1.1rem;">${toolName}</span>
+        </div>
+        <div class="annotation-badges" style="margin-bottom:1rem;">
+          ${ann.readOnlyHint ? '<span class="badge readonly">只读</span>' : '<span class="badge writable">可写</span>'}
+          ${ann.idempotentHint ? '<span class="badge idempotent">幂等</span>' : ''}
+          ${ann.destructiveHint ? '<span class="badge destructive">破坏性</span>' : ''}
+          <span class="badge risk-${ann.riskLevel}">${getRiskLabel(ann.riskLevel)}</span>
+        </div>
+      `;
+      
+      if (action === 'confirm') {
+        body += `
+          <div class="confirm-box">
+            <h4>⚠️ 破坏性操作确认</h4>
+            <p>此操作可能会永久删除或修改数据。在继续之前，请确保：</p>
+            <ul style="margin:0.5rem 0 0 1.5rem;color:#aaa;font-size:0.85rem;">
+              <li>您已备份重要数据</li>
+              <li>您了解此操作的影响范围</li>
+              <li>此操作无法撤销</li>
+            </ul>
+          </div>
+        `;
+      }
+      
+      const schema = tool?.inputSchema || tool?.parameters;
+      body += `
+        <div class="param-form">
+          <h4 style="margin-bottom:1rem;color:#888;">参数配置</h4>
+          ${schema ? MCPFormGenerator.generateFormHTML(schema) : `
+            <div class="param-group">
+              <label>参数 (JSON)</label>
+              <textarea id="paramsInput" rows="5" placeholder="{}">{}</textarea>
+            </div>
+          `}
+        </div>
+      `;
+      
+      document.getElementById('modalBody').innerHTML = body;
+      
+      const confirmBtn = document.getElementById('confirmBtn');
+      if (action === 'confirm') {
+        confirmBtn.className = 'btn btn-danger';
+        confirmBtn.textContent = '确认执行';
+      } else {
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = action === 'retry' ? '重试' : '执行';
+      }
+      
+      document.getElementById('executeModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('executeModal').classList.remove('show');
+      currentTool = null;
+    }
+
+    async function executeTool() {
+      if (!currentTool) return;
+      
+      let params;
+      const paramsInput = document.getElementById('paramsInput');
+      
+      if (paramsInput) {
+        try {
+          params = JSON.parse(paramsInput.value || '{}');
+        } catch (e) {
+          showToast('参数 JSON 格式错误', 'error');
+          return;
+        }
+      } else {
+        params = MCPFormGenerator.parseFormData(document.querySelector('.param-form'), currentTool.name);
+      }
+      
+      try {
+        showToast(`正在执行: ${currentTool.name}...`, 'info');
+        
+        const result = await mcp.callTool(currentTool.name, params);
+        
+        if (result.success) {
+          showToast(`执行成功: ${currentTool.name}`, 'success');
+          closeModal();
+        } else {
+          showToast(`执行失败: ${result.error}`, 'error');
+        }
+      } catch (err) {
+        showToast('执行失败: ' + err.message, 'error');
+      }
+    }
+
+    async function refreshTools() {
+      allTools = [];
+      await loadTools();
+      await loadServers();
+      showToast('工具已刷新', 'success');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    init();
+  </script>
+</body>
+</html>

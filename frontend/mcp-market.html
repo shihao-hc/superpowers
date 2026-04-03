@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP 工具市场</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 2.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; font-size: 1.1rem; }
+    .role-selector { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; }
+    .role-selector label { color: #888; font-size: 0.9rem; }
+    .role-select { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; padding: 0.5rem 1rem; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    .role-select:focus { outline: none; border-color: #667eea; }
+    .role-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+    .role-badge.admin { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .role-badge.operator { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .role-badge.viewer { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 1.25rem; border: 1px solid #333; text-align: center; }
+    .stat-value { font-size: 2.5rem; font-weight: bold; color: #667eea; }
+    .stat-value.accessible { color: #4ade80; }
+    .stat-value.restricted { color: #f87171; }
+    .stat-label { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
+    .filter-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .filter-group { display: flex; align-items: center; gap: 0.5rem; }
+    .filter-label { color: #888; font-size: 0.85rem; }
+    .filter-select { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; padding: 0.5rem 0.75rem; color: #fff; font-size: 0.85rem; }
+    .toggle-switch { position: relative; width: 48px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
+    .toggle-switch.active { background: #667eea; }
+    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.3s; }
+    .toggle-switch.active::after { transform: translateX(24px); }
+    .main-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; }
+    .sidebar { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 1rem; height: fit-content; position: sticky; top: 1rem; }
+    .sidebar h3 { font-size: 0.9rem; color: #888; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .server-list { list-style: none; }
+    .server-item { padding: 0.75rem 1rem; border-radius: 8px; cursor: pointer; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; }
+    .server-item:hover { background: #252540; }
+    .server-item.active { background: #667eea; }
+    .server-item.disabled { opacity: 0.5; }
+    .server-icon { font-size: 1.25rem; }
+    .server-name { flex: 1; font-size: 0.9rem; }
+    .server-count { font-size: 0.75rem; background: #333; padding: 0.15rem 0.5rem; border-radius: 10px; }
+    .server-count.accessible { background: #2d5a2d; color: #4ade80; }
+    .content { flex: 1; }
+    .search-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+    .search-input { flex: 1; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 0.75rem 1rem; color: #fff; font-size: 0.95rem; }
+    .search-input:focus { outline: none; border-color: #667eea; }
+    .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1rem; }
+    .tool-card { background: #1a1a2e; border: 1px solid #333; border-radius: 12px; padding: 1.25rem; transition: all 0.2s; cursor: pointer; position: relative; }
+    .tool-card:hover:not(.no-access) { border-color: #667eea; transform: translateY(-2px); }
+    .tool-card.selected { border-color: #667eea; box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+    .tool-card.no-access { opacity: 0.6; background: #151525; }
+    .tool-card.no-access::after { content: '需要更高权限'; position: absolute; top: 0.5rem; right: 0.5rem; background: #f87171; color: #fff; font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    .tool-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .tool-icon { font-size: 1.5rem; }
+    .tool-title { flex: 1; }
+    .tool-name { font-weight: bold; color: #fff; font-size: 1rem; }
+    .tool-server { font-size: 0.7rem; padding: 0.15rem 0.5rem; background: #333; border-radius: 4px; color: #888; }
+    .tool-desc { color: #aaa; font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.75rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .tool-footer { display: flex; justify-content: space-between; align-items: center; }
+    .param-count { font-size: 0.75rem; color: #888; }
+    .use-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 0.5rem 1rem; border-radius: 6px; color: #fff; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .use-btn:hover { transform: scale(1.05); }
+    .use-btn:disabled { background: #333; cursor: not-allowed; transform: none; }
+    .permission-indicator { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+    .permission-badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+    .permission-badge.read { background: #1e3a5f; color: #60a5fa; }
+    .permission-badge.write { background: #3f2d1f; color: #fb923c; }
+    .permission-badge.admin { background: #3d2d5f; color: #a78bfa; }
+    .detail-panel { position: fixed; top: 0; right: -500px; width: 480px; height: 100vh; background: #1a1a2e; border-left: 1px solid #333; padding: 2rem; overflow-y: auto; transition: right 0.3s ease; z-index: 1000; }
+    .detail-panel.open { right: 0; }
+    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .detail-title { display: flex; align-items: center; gap: 0.75rem; }
+    .detail-icon { font-size: 2rem; }
+    .detail-name { font-size: 1.25rem; font-weight: bold; color: #fff; }
+    .close-btn { background: #333; border: none; width: 32px; height: 32px; border-radius: 50%; color: #fff; cursor: pointer; font-size: 1.25rem; line-height: 1; }
+    .close-btn:hover { background: #444; }
+    .detail-desc { color: #aaa; line-height: 1.6; margin-bottom: 1.5rem; }
+    .detail-section { margin-bottom: 1.5rem; }
+    .detail-section h4 { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #333; }
+    .param-list { background: #0f0f23; border-radius: 8px; padding: 1rem; }
+    .param-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #222; }
+    .param-item:last-child { border-bottom: none; }
+    .param-info { flex: 1; }
+    .param-name { color: #667eea; font-family: monospace; font-size: 0.9rem; }
+    .param-required { color: #ff6b6b; font-size: 0.7rem; margin-left: 0.25rem; }
+    .param-desc { color: #888; font-size: 0.8rem; margin-top: 0.25rem; }
+    .param-type { font-size: 0.75rem; color: #666; background: #222; padding: 0.15rem 0.5rem; border-radius: 4px; }
+    .code-block { background: #0f0f23; border-radius: 8px; padding: 1rem; position: relative; margin-bottom: 1rem; }
+    .code-block pre { margin: 0; font-family: 'Fira Code', monospace; font-size: 0.85rem; white-space: pre-wrap; color: #a5d6ff; }
+    .code-label { position: absolute; top: -0.5rem; left: 1rem; background: #667eea; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+    .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; background: #333; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; color: #fff; font-size: 0.75rem; cursor: pointer; }
+    .copy-btn:hover { background: #444; }
+    .copy-btn.copied { background: #2d5a2d; }
+    .workflow-example { background: linear-gradient(135deg, #1a1a2e 0%, #252545 100%); border: 1px solid #444; border-radius: 8px; padding: 1rem; }
+    .workflow-step { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; color: #aaa; font-size: 0.9rem; }
+    .workflow-step .node { color: #667eea; font-family: monospace; }
+    .workflow-arrow { color: #666; }
+    .loading { text-align: center; padding: 4rem; color: #888; }
+    .error { background: #2d1f1f; border: 1px solid #663333; padding: 1.5rem; border-radius: 12px; color: #ff6b6b; text-align: center; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; }
+    .overlay.show { opacity: 1; pointer-events: auto; }
+    .access-denied-overlay { display: none; background: rgba(0,0,0,0.7); padding: 1rem; border-radius: 8px; text-align: center; margin-top: 1rem; }
+    .access-denied-overlay.show { display: block; }
+    .access-denied-overlay .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .access-denied-overlay .text { color: #f87171; font-size: 0.9rem; }
+    .loading-spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #333; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } .sidebar { position: static; } .detail-panel { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MCP 工具市场</h1>
+      <p class="subtitle">统一管理 Model Context Protocol 工具 | 角色权限动态过滤</p>
+      <div class="role-selector">
+        <label for="roleSelect">当前角色:</label>
+        <select id="roleSelect" class="role-select" onchange="onRoleChange()">
+          <option value="admin">👑 管理员 (Admin)</option>
+          <option value="operator" selected>⚙️ 操作员 (Operator)</option>
+          <option value="viewer">👁️ 访客 (Viewer)</option>
+        </select>
+        <span id="roleBadge" class="role-badge operator">⚙️ 操作员</span>
+      </div>
+    </header>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="serverCount">-</div>
+        <div class="stat-label">MCP 服务器</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="toolCount">-</div>
+        <div class="stat-label">可用工具</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value accessible" id="accessibleCount">-</div>
+        <div class="stat-label">可访问</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="nodeCount">-</div>
+        <div class="stat-label">工作流节点</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">显示:</span>
+        <select id="filterAccess" class="filter-select" onchange="renderTools()">
+          <option value="all">全部工具</option>
+          <option value="accessible">仅可访问</option>
+          <option value="restricted">仅受限</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">隐藏无权限工具</label>
+        <div id="hideRestricted" class="toggle-switch" onclick="toggleHideRestricted()"></div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <aside class="sidebar">
+        <h3>服务器</h3>
+        <ul class="server-list" id="serverList">
+          <li class="server-item active" data-server="all">
+            <span class="server-icon">🔗</span>
+            <span class="server-name">全部工具</span>
+            <span class="server-count" id="totalCount">0</span>
+          </li>
+        </ul>
+      </aside>
+
+      <main class="content">
+        <div class="search-bar">
+          <input type="text" class="search-input" id="searchInput" placeholder="搜索工具名称或描述..." oninput="renderTools()">
+        </div>
+        <div id="toolList" class="tool-grid">
+          <div class="loading"><span class="loading-spinner"></span> 加载中...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <div class="detail-title">
+        <span class="detail-icon" id="detailIcon">🔧</span>
+        <div>
+          <div class="detail-name" id="detailName">Tool Name</div>
+          <span class="tool-server" id="detailServer">server</span>
+        </div>
+      </div>
+      <button class="close-btn" id="closeDetail">&times;</button>
+    </div>
+    <p class="detail-desc" id="detailDesc">工具描述</p>
+
+    <div class="permission-indicator" id="detailPermission" style="margin-bottom: 1rem;">
+      <span class="permission-badge" id="permissionBadge">权限</span>
+      <span id="permissionText">权限说明</span>
+    </div>
+
+    <div class="access-denied-overlay" id="accessDenied">
+      <div class="icon">🔒</div>
+      <div class="text">您当前的角色无法使用此工具</div>
+      <div style="color: #888; font-size: 0.8rem; margin-top: 0.5rem;">请联系管理员获取更高权限</div>
+    </div>
+
+    <div id="detailContent">
+      <div class="detail-section">
+        <h4>参数说明</h4>
+        <div class="param-list" id="paramList"></div>
+      </div>
+
+      <div class="detail-section">
+        <h4>调用示例</h4>
+        <div class="code-block">
+          <span class="code-label">JavaScript</span>
+          <button class="copy-btn" data-target="jsCode">复制</button>
+          <pre id="jsCode">// 示例代码</pre>
+        </div>
+        <div class="code-block">
+          <span class="code-label">cURL</span>
+          <button class="copy-btn" data-target="curlCode">复制</button>
+          <pre id="curlCode"># cURL 示例</pre>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>工作流示例</h4>
+        <div class="workflow-example" id="workflowExample">
+          <div class="workflow-step">
+            <span class="node">input</span>
+            <span class="workflow-arrow">→</span>
+            <span class="node" id="wfNode">current-tool</span>
+            <span class="workflow-arrow">→</span>
+            <span class="node">output</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const serverIcons = {
+      'filesystem': '📁', 'github': '🐙', 'chrome': '🌐', 'context7': '📚',
+      'memos': '📝', 'sequential-thinking': '🧠', 'brave-search': '🔍',
+      'slack': '💬', 'postgres': '🗄️', 'sqlite': '💾', 'everart': '🎨',
+      'default': '🔧'
+    };
+
+    const roleNames = { admin: '👑 管理员', operator: '⚙️ 操作员', viewer: '👁️ 访客' };
+    const permissionLevels = {
+      read: { badge: 'read', text: '只读', desc: '可查看和调用读取类工具' },
+      write: { badge: 'write', text: '读写', desc: '可使用部分写入工具' },
+      admin: { badge: 'admin', text: '完全访问', desc: '可使用所有工具' }
+    };
+
+    const TOOL_PERMISSIONS = {
+      'filesystem:read_file': 'read', 'filesystem:list_directory': 'read', 'filesystem:search': 'read',
+      'filesystem:write_file': 'write', 'filesystem:create_directory': 'write',
+      'filesystem:delete_file': 'admin', 'filesystem:move_file': 'admin',
+      'github:search_repositories': 'read', 'github:get_pull_request': 'read', 'github:list_issues': 'read',
+      'github:create_issue': 'write', 'github:create_review_comment': 'write',
+      'github:create_release': 'admin', 'github:delete_file': 'admin',
+      'brave-search:search': 'read', 'sequential-thinking:think': 'read',
+      'everything:search': 'read'
+    };
+
+    let allTools = [];
+    let selectedServer = 'all';
+    let selectedTool = null;
+    let currentRole = 'operator';
+    let hideRestricted = false;
+
+    function getToolPermission(toolName) {
+      return TOOL_PERMISSIONS[toolName] || 'read';
+    }
+
+    function canAccess(toolName, role) {
+      const required = getToolPermission(toolName);
+      const levels = ['read', 'write', 'admin'];
+      const roleAccess = role === 'admin' ? 3 : role === 'operator' ? 2 : 1;
+      const requiredLevel = levels.indexOf(required) + 1;
+      return roleAccess >= requiredLevel;
+    }
+
+    function onRoleChange() {
+      currentRole = document.getElementById('roleSelect').value;
+      const badge = document.getElementById('roleBadge');
+      badge.className = `role-badge ${currentRole}`;
+      badge.textContent = roleNames[currentRole];
+      document.getElementById('accessibleCount').className = `stat-value ${currentRole === 'admin' ? 'accessible' : ''}`;
+      renderTools();
+      renderServers();
+      if (selectedTool) showDetail(selectedTool.name);
+    }
+
+    function toggleHideRestricted() {
+      hideRestricted = !hideRestricted;
+      document.getElementById('hideRestricted').classList.toggle('active', hideRestricted);
+      renderTools();
+    }
+
+    async function loadMCPTools() {
+      try {
+        const [statusRes, toolsRes] = await Promise.all([
+          fetch('/api/mcp/status'),
+          fetch('/api/mcp/tools')
+        ]);
+
+        if (!statusRes.ok) throw new Error('MCP not available');
+
+        const status = await statusRes.json();
+        const { tools } = await toolsRes.json();
+
+        document.getElementById('serverCount').textContent = status.servers ? Object.keys(status.servers).length : 0;
+        document.getElementById('toolCount').textContent = status.tools || 0;
+        document.getElementById('nodeCount').textContent = status.nodes || 0;
+
+        allTools = tools.map(tool => ({
+          ...tool,
+          accessible: canAccess(tool.name, currentRole),
+          permission: getToolPermission(tool.name)
+        }));
+
+        renderServers();
+        renderTools();
+        updateAccessibleCount();
+
+      } catch (error) {
+        document.getElementById('toolList').innerHTML = `
+          <div class="error">
+            <strong>MCP 不可用</strong><br><br>
+            ${error.message}<br><br>
+            <small>确保 MCP 服务器已正确配置并启动</small>
+          </div>
+        `;
+      }
+    }
+
+    function updateAccessibleCount() {
+      const accessible = allTools.filter(t => t.accessible).length;
+      document.getElementById('accessibleCount').textContent = accessible;
+    }
+
+    function renderServers() {
+      const servers = {};
+      allTools.forEach(t => {
+        const server = t.name.split(':')[0];
+        if (!servers[server]) servers[server] = { total: 0, accessible: 0 };
+        servers[server].total++;
+        if (t.accessible) servers[server].accessible++;
+      });
+
+      const listEl = document.getElementById('serverList');
+      const accessible = allTools.filter(t => t.accessible).length;
+      listEl.innerHTML = `
+        <li class="server-item ${selectedServer === 'all' ? 'active' : ''}" data-server="all">
+          <span class="server-icon">🔗</span>
+          <span class="server-name">全部工具</span>
+          <span class="server-count ${currentRole === 'admin' || accessible === allTools.length ? 'accessible' : ''}">${accessible}/${allTools.length}</span>
+        </li>
+        ${Object.entries(servers).map(([name, data]) => {
+          const allAccessible = data.total === data.accessible;
+          return `
+            <li class="server-item ${selectedServer === name ? 'active' : ''} ${allAccessible ? '' : 'disabled'}" data-server="${name}">
+              <span class="server-icon">${serverIcons[name] || serverIcons.default}</span>
+              <span class="server-name">${name}</span>
+              <span class="server-count ${allAccessible ? 'accessible' : ''}">${data.accessible}/${data.total}</span>
+            </li>
+          `;
+        }).join('')}
+      `;
+
+      document.getElementById('totalCount').textContent = allTools.length;
+      listEl.querySelectorAll('.server-item').forEach(item => {
+        item.addEventListener('click', () => {
+          selectedServer = item.dataset.server;
+          listEl.querySelectorAll('.server-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          renderTools();
+        });
+      });
+    }
+
+    function renderTools() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const filterAccess = document.getElementById('filterAccess').value;
+      
+      let tools = selectedServer === 'all' ? allTools : allTools.filter(t => t.name.startsWith(selectedServer + ':'));
+      
+      if (search) {
+        tools = tools.filter(t => 
+          t.name.toLowerCase().includes(search) ||
+          (t.description || '').toLowerCase().includes(search)
+        );
+      }
+
+      if (filterAccess === 'accessible') {
+        tools = tools.filter(t => t.accessible);
+      } else if (filterAccess === 'restricted') {
+        tools = tools.filter(t => !t.accessible);
+      }
+
+      if (hideRestricted) {
+        tools = tools.filter(t => t.accessible);
+      }
+
+      const listEl = document.getElementById('toolList');
+      
+      if (tools.length === 0) {
+        listEl.innerHTML = '<div class="loading">没有找到匹配的工具</div>';
+        return;
+      }
+
+      listEl.innerHTML = tools.map(tool => {
+        const [server, name] = tool.name.split(':');
+        const icon = serverIcons[server] || serverIcons.default;
+        const paramCount = Object.keys(tool.parameters?.properties || {}).length;
+        const perm = permissionLevels[tool.permission];
+
+        return `
+          <div class="tool-card ${selectedTool?.name === tool.name ? 'selected' : ''} ${tool.accessible ? '' : 'no-access'}" data-tool="${tool.name}">
+            <div class="tool-header">
+              <span class="tool-icon">${icon}</span>
+              <div class="tool-title">
+                <div class="tool-name">${name}</div>
+                <span class="tool-server">${server}</span>
+              </div>
+              <span class="permission-badge ${perm.badge}">${perm.text}</span>
+            </div>
+            <p class="tool-desc">${tool.description || '暂无描述'}</p>
+            <div class="tool-footer">
+              <span class="param-count">${paramCount} 个参数</span>
+              <button class="use-btn" ${tool.accessible ? '' : 'disabled'} onclick="event.stopPropagation(); ${tool.accessible ? `showDetail('${tool.name}')` : ''}">
+                ${tool.accessible ? '查看详情' : '无权限'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      listEl.querySelectorAll('.tool-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const tool = allTools.find(t => t.name === card.dataset.tool);
+          if (tool && tool.accessible) showDetail(card.dataset.tool);
+        });
+      });
+    }
+
+    function showDetail(toolName) {
+      const tool = allTools.find(t => t.name === toolName);
+      if (!tool) return;
+
+      selectedTool = tool;
+      const [server, name] = tool.name.split(':');
+
+      document.getElementById('detailIcon').textContent = serverIcons[server] || '🔧';
+      document.getElementById('detailName').textContent = name;
+      document.getElementById('detailServer').textContent = server;
+      document.getElementById('detailDesc').textContent = tool.description || '暂无描述';
+
+      const perm = permissionLevels[tool.permission];
+      document.getElementById('permissionBadge').className = `permission-badge ${perm.badge}`;
+      document.getElementById('permissionBadge').textContent = perm.text;
+      document.getElementById('permissionText').textContent = perm.desc;
+
+      document.getElementById('accessDenied').classList.toggle('show', !tool.accessible);
+      document.getElementById('detailContent').style.display = tool.accessible ? 'block' : 'none';
+
+      const params = tool.parameters?.properties || {};
+      const required = tool.parameters?.required || [];
+      
+      document.getElementById('paramList').innerHTML = Object.keys(params).length > 0
+        ? Object.entries(params).map(([pName, pDef]) => `
+          <div class="param-item">
+            <div class="param-info">
+              <span class="param-name">${pName}</span>
+              ${required.includes(pName) ? '<span class="param-required">必填</span>' : ''}
+              <div class="param-desc">${pDef.description || '无描述'}</div>
+            </div>
+            <span class="param-type">${pDef.type || 'any'}</span>
+          </div>
+        `).join('')
+        : '<div style="color:#888;text-align:center;padding:1rem;">无参数</div>';
+
+      const exampleParams = Object.entries(params).map(([pName, pDef]) => {
+        const example = getExampleValue(pDef.type);
+        return `${pName}: ${example}`;
+      }).join(',\n    ');
+
+      document.getElementById('jsCode').textContent = `// 调用 ${tool.name}
+const result = await fetch('/api/mcp/call', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
+  body: JSON.stringify({
+    toolFullName: '${tool.name}',
+    params: {
+    ${exampleParams}
+    }
+  })
+}).then(r => r.json());
+
+console.log(result);`;
+
+      document.getElementById('curlCode').textContent = `curl -X POST http://localhost:3000/api/mcp/call \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -d '{
+    "toolFullName": "${tool.name}",
+    "params": {
+      ${exampleParams.split(',\n').map((p, i) => i === 0 ? p : '    ' + p.trim()).join(',\n    ')}
+    }
+  }'`;
+
+      document.getElementById('wfNode').textContent = `mcp.${server}.${name}`;
+
+      document.getElementById('overlay').classList.add('show');
+      document.getElementById('detailPanel').classList.add('open');
+    }
+
+    function getExampleValue(type) {
+      switch (type) {
+        case 'string': return '"example"';
+        case 'number': return '123';
+        case 'boolean': return 'true';
+        case 'array': return '[]';
+        case 'object': return '{}';
+        default: return 'null';
+      }
+    }
+
+    function closeDetail() {
+      document.getElementById('overlay').classList.remove('show');
+      document.getElementById('detailPanel').classList.remove('open');
+      selectedTool = null;
+      renderTools();
+    }
+
+    document.getElementById('overlay').addEventListener('click', closeDetail);
+    document.getElementById('closeDetail').addEventListener('click', closeDetail);
+
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = document.getElementById(btn.dataset.target);
+        navigator.clipboard.writeText(target.textContent).then(() => {
+          btn.textContent = '已复制!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+          }, 2000);
+        });
+      });
+    });
+
+    loadMCPTools();
+    setInterval(loadMCPTools, 30000);
+  </script>
+</body>
+</html>

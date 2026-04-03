@@ -1,0 +1,12 @@
+apiVersion: v2
+name: shihao
+description: ShiHao AI Agent Platform - Financial Analysis & Trading System
+type: application
+version: 1.0.0
+appVersion: "1.0"
+keywords:
+  - ai
+  - agent
+  - trading
+  - finance
+  - multi-agent

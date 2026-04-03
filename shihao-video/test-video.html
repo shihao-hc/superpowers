@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频测试</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #000; color: #fff; font-family: sans-serif; }
+        video { max-width: 100%; height: auto; background: #333; }
+        #log { background: #1a1a2e; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 14px; }
+        button { background: #e50914; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>视频播放测试</h1>
+    <div id="log"></div>
+    <video id="testVideo" controls playsinline webkit-playsinline width="480"></video>
+    <br>
+    <button id="loadBtn">加载测试视频</button>
+    <button id="playBtn">播放</button>
+    <button id="pauseBtn">暂停</button>
+
+    <script>
+        const logEl = document.getElementById('log');
+        const video = document.getElementById('testVideo');
+        const loadBtn = document.getElementById('loadBtn');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        
+        function log(msg) {
+            console.log(msg);
+            logEl.textContent += msg + '\n';
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        log('页面加载完成');
+        log('User Agent: ' + navigator.userAgent);
+        log('Is Mobile: ' + /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+        
+        // Test video URL - using a public test HLS stream
+        const testUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+        
+        loadBtn.onclick = () => {
+            log('加载按钮点击');
+            video.src = testUrl;
+            video.load();
+            log('视频源已设置为: ' + testUrl);
+        };
+        
+        playBtn.onclick = () => {
+            log('播放按钮点击');
+            video.play().then(() => {
+                log('视频开始播放');
+            }).catch(e => {
+                log('播放失败: ' + e);
+            });
+        };
+        
+        pauseBtn.onclick = () => {
+            log('暂停按钮点击');
+            video.pause();
+            log('视频已暂停');
+        };
+        
+        video.addEventListener('play', () => {
+            log('视频播放事件触发');
+        });
+        
+        video.addEventListener('pause', () => {
+            log('视频暂停事件触发');
+        });
+        
+        video.addEventListener('loadeddata', () => {
+            log('视频已加载数据');
+        });
+        
+        video.addEventListener('canplay', () => {
+            log('视频可以播放');
+        });
+        
+        video.addEventListener('error', (e) => {
+            log('视频错误: ' + e.target.error.code);
+        });
+    </script>
+</body>
+</html>

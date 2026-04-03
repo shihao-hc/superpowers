@@ -1,0 +1,88 @@
+{
+  "name": "跨平台智能搜索报告",
+  "description": "Brave搜索 → 读取本地数据 → AI分析 → 生成综合报告",
+  "category": "research",
+  "tags": ["搜索", "研究", "报告", "跨平台"],
+  "author": "UltraWork MCP",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "input_query",
+      "type": "input",
+      "name": "搜索关键词",
+      "icon": "🔑",
+      "x": 50,
+      "y": 150,
+      "inputs": [],
+      "outputs": [{ "name": "query", "type": "string" }]
+    },
+    {
+      "id": "brave_search",
+      "type": "mcp.brave-search.search",
+      "name": "网络搜索",
+      "icon": "🌐",
+      "x": 250,
+      "y": 150,
+      "inputs": [{ "name": "query", "type": "string" }],
+      "outputs": [{ "name": "results", "type": "array" }]
+    },
+    {
+      "id": "read_local",
+      "type": "mcp.filesystem.read_file",
+      "name": "读取本地数据",
+      "icon": "📁",
+      "x": 250,
+      "y": 300,
+      "inputs": [{ "name": "path", "type": "string" }],
+      "outputs": [{ "name": "content", "type": "string" }]
+    },
+    {
+      "id": "merge_data",
+      "type": "llm_call",
+      "name": "数据融合",
+      "icon": "🔗",
+      "x": 450,
+      "y": 225,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "merged", "type": "object" }]
+    },
+    {
+      "id": "deep_analysis",
+      "type": "mcp.sequential-thinking.think",
+      "name": "深度分析",
+      "icon": "🧠",
+      "x": 650,
+      "y": 225,
+      "inputs": [{ "name": "thought", "type": "string" }],
+      "outputs": [{ "name": "insights", "type": "object" }]
+    },
+    {
+      "id": "generate_report",
+      "type": "llm_call",
+      "name": "生成报告",
+      "icon": "📝",
+      "x": 850,
+      "y": 225,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "report", "type": "string" }]
+    },
+    {
+      "id": "save_report",
+      "type": "mcp.filesystem.write_file",
+      "name": "保存报告",
+      "icon": "💾",
+      "x": 1050,
+      "y": 225,
+      "inputs": [{ "name": "path", "type": "string" }, { "name": "content", "type": "string" }],
+      "outputs": [{ "name": "success", "type": "boolean" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "input_query", "output": "query" }, "target": { "nodeId": "brave_search", "input": "query" } },
+    { "source": { "nodeId": "brave_search", "output": "results" }, "target": { "nodeId": "merge_data", "input": "prompt" } },
+    { "source": { "nodeId": "read_local", "output": "content" }, "target": { "nodeId": "merge_data", "input": "prompt" } },
+    { "source": { "nodeId": "merge_data", "output": "merged" }, "target": { "nodeId": "deep_analysis", "input": "thought" } },
+    { "source": { "nodeId": "deep_analysis", "output": "insights" }, "target": { "nodeId": "generate_report", "input": "prompt" } },
+    { "source": { "nodeId": "generate_report", "output": "report" }, "target": { "nodeId": "save_report", "input": "content" } }
+  ]
+}

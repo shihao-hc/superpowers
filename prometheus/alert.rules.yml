@@ -1,0 +1,271 @@
+groups:
+  - name: ultrawork_mcp_alerts
+    interval: 30s
+    rules:
+      # MCP 服务器离线告警
+      - alert: MCPServerOffline
+        expr: mcp_servers_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ultrawork-mcp
+        annotations:
+          summary: "MCP 服务器全部离线"
+          description: "所有 MCP 服务器已离线超过 1 分钟，当前连接数: {{ $value }}"
+          
+      # MCP 服务器部分离线
+      - alert: MCPServerPartialOffline
+        expr: mcp_servers_connected < mcp_servers_total and mcp_servers_connected > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: ultrawork-mcp
+        annotations:
+          summary: "部分 MCP 服务器离线"
+          description: "{{ $value }} 个服务器离线，总数 {{ $labels.total }}"
+
+      # MCP 调用失败率过高
+      - alert: MCPHighErrorRate
+        expr: rate(mcp_calls_failed_total[5m]) / (rate(mcp_calls_success_total[5m]) + rate(mcp_calls_failed_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-mcp
+        annotations:
+          summary: "MCP 调用失败率过高"
+          description: "MCP 调用失败率超过 5%，当前: {{ $value | humanizePercentage }}"
+
+      # MCP 响应时间过长
+      - alert: MCPSlowResponseTime
+        expr: histogram_quantile(0.95, rate(mcp_call_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-mcp
+        annotations:
+          summary: "MCP 响应时间过长"
+          description: "P95 响应时间超过 5 秒，当前: {{ $value }}s"
+
+      # 工具错误率过高
+      - alert: MCPToolHighErrorRate
+        expr: rate(mcp_tool_errors_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-mcp
+        annotations:
+          summary: "工具错误率过高"
+          description: "工具 {{ $labels.tool }} 错误率过高"
+
+      # 内存使用过高
+      - alert: MCPHighMemoryUsage
+        expr: mcp_memory_heap_used_bytes / mcp_memory_heap_total_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-mcp
+        annotations:
+          summary: "MCP 内存使用过高"
+          description: "内存使用率超过 90%"
+
+      # 缓存命中率过低
+      - alert: MCPLowCacheHitRate
+        expr: mcp_cache_hits_total / (mcp_cache_hits_total + mcp_cache_misses_total) < 0.5
+        for: 10m
+        labels:
+          severity: info
+          service: ultrawork-mcp
+        annotations:
+          summary: "缓存命中率过低"
+          description: "缓存命中率低于 50%，当前: {{ $value | humanizePercentage }}"
+
+  - name: ultrawork_performance_alerts
+    interval: 30s
+    rules:
+      # 高频技能失败告警
+      - alert: HighFrequencySkillFailure
+        expr: |
+          sum by (skill_name) (rate(skill_calls_total{status="error"}[5m])) 
+          / sum by (skill_name) (rate(skill_calls_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-skills
+        annotations:
+          summary: "高频技能失败率过高"
+          description: "技能 {{ $labels.skill_name }} 错误率超过 5%，当前: {{ $value | humanizePercentage }}"
+
+      # 工作流执行超时
+      - alert: WorkflowExecutionTimeout
+        expr: histogram_quantile(0.95, rate(workflow_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-workflow
+        annotations:
+          summary: "工作流执行时间过长"
+          description: "工作流 P95 执行时间超过 30 秒，当前: {{ $value }}s"
+
+      # 容器内存使用过高
+      - alert: ContainerHighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          service: ultrawork-infrastructure
+        annotations:
+          summary: "容器内存使用过高"
+          description: "容器 {{ $labels.container }} 内存使用超过 90%，当前: {{ $value | humanizePercentage }}"
+
+      # 容器 CPU 节流频繁
+      - alert: ContainerCPUThrottling
+        expr: rate(container_cpu_cfs_throttled_seconds_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: ultrawork-infrastructure
+        annotations:
+          summary: "容器 CPU 节流频繁"
+          description: "容器 {{ $labels.container }} CPU 节流率过高"
+
+      # Redis 内存使用过高
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-redis
+        annotations:
+          summary: "Redis 内存使用过高"
+          description: "Redis 内存使用超过 85%，当前: {{ $value | humanizePercentage }}"
+
+      # 日成本超过预算 80%
+      - alert: DailyCostThreshold
+        expr: daily_cost_usd > budget_daily_usd * 0.8
+        for: 1h
+        labels:
+          severity: warning
+          service: ultrawork-cost
+        annotations:
+          summary: "日成本接近预算上限"
+          description: "当前日成本 {{ $value }} USD 已达到预算的 80% 以上"
+
+      # LLM 调用延迟过高
+      - alert: LLMHighLatency
+        expr: histogram_quantile(0.99, rate(llm_request_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-llm
+        annotations:
+          summary: "LLM 调用延迟过高"
+          description: "LLM P99 延迟超过 10 秒，当前: {{ $value }}s"
+
+      # 业务指标 - 行业解决方案调用成功率低
+      - alert: IndustrySolutionLowSuccessRate
+        expr: |
+          sum by (solution_id) (rate(industry_solution_calls_total{status="success"}[15m]))
+          / sum by (solution_id) (rate(industry_solution_calls_total[15m])) < 0.9
+        for: 15m
+        labels:
+          severity: warning
+          service: ultrawork-business
+        annotations:
+          summary: "行业解决方案成功率低"
+          description: "解决方案 {{ $labels.solution_id }} 成功率低于 90%"
+
+  - name: ultrawork_sla_alerts
+    interval: 60s
+    rules:
+      # SLA - 可用性低于 99.9%
+      - alert: SLAAvailabilityBelowTarget
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[1h])) 
+          / sum(rate(http_requests_total[1h])) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          service: ultrawork-sla
+        annotations:
+          summary: "SLA 可用性低于目标"
+          description: "过去1小时可用性低于 99.9%，当前: {{ $value | humanizePercentage }}"
+
+      # SLA - 响应时间 P95 超标
+      - alert: SLAResponseTimeAboveTarget
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: ultrawork-sla
+        annotations:
+          summary: "SLA 响应时间超标"
+          description: "HTTP P95 响应时间超过 2 秒，当前: {{ $value }}s"
+
+  - name: ultrawork_security_alerts
+    interval: 30s
+    rules:
+      # SQL注入尝试
+      - alert: SQLInjectionAttempt
+        expr: rate(security_sql_injection_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ultrawork-security
+        annotations:
+          summary: "检测到SQL注入尝试"
+          description: "来自IP {{ $labels.ip }} 的SQL注入尝试"
+
+      # XSS尝试
+      - alert: XSSAttempt
+        expr: rate(security_xss_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ultrawork-security
+        annotations:
+          summary: "检测到XSS尝试"
+          description: "来自IP {{ $labels.ip }} 的XSS尝试"
+
+      # 路径遍历尝试
+      - alert: PathTraversalAttempt
+        expr: rate(security_path_traversal_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ultrawork-security
+        annotations:
+          summary: "检测到路径遍历尝试"
+          description: "来自IP {{ $labels.ip }} 的路径遍历尝试"
+
+      # 认证失败率过高
+      - alert: HighAuthFailureRate
+        expr: rate(security_auth_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-security
+        annotations:
+          summary: "认证失败率过高"
+          description: "认证失败率超过 10%，可能存在暴力破解尝试"
+
+      # 速率限制触发
+      - alert: RateLimitTriggered
+        expr: rate(security_rate_limit_triggered_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-security
+        annotations:
+          summary: "速率限制频繁触发"
+          description: "速率限制触发频率过高，可能存在DDoS攻击"
+
+      # 安全评分下降
+      - alert: SecurityScoreDecreased
+        expr: security_score < 8
+        for: 5m
+        labels:
+          severity: warning
+          service: ultrawork-security
+        annotations:
+          summary: "安全评分下降"
+          description: "安全评分低于8分，当前: {{ $value }}"

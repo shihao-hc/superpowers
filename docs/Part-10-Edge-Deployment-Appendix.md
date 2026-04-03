@@ -1,0 +1,3 @@
+- Appendix A: 就近推理入口设计要点
+- Appendix B: 灰度发布策略概要
+- Appendix C: 跨区域路由与容灾的简单示例

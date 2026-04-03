@@ -1,0 +1,4 @@
+- Part 10: Edge Deployment Release Notes
+- 版本：v1.0-Edge
+- 变更摘要：edge 部署模板、就近推理入口、监控接入、灰度发布演练、灾备策略
+- 升级路径：逐步切换到新边缘入口，确保回滚可用

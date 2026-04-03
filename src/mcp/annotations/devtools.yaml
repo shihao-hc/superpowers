@@ -1,0 +1,132 @@
+# Chrome DevTools MCP Annotations
+# Tool annotations for browser debugging operations
+
+devtools:
+  # 只读操作
+  get_page_info:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取页面信息"
+
+  get_console_logs:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取控制台日志"
+
+  screenshot:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "截图"
+
+  get_dom_snapshot:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取DOM快照"
+
+  get_network_requests:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取网络请求"
+
+  take_heap_snapshot:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取堆快照"
+
+  get_performance_metrics:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取性能指标"
+
+  # 写操作
+  navigate:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "导航到URL"
+
+  evaluate:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "执行JavaScript"
+    dryRunSupported: true
+
+  click_element:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "点击元素"
+    dryRunSupported: true
+
+  type_text:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "输入文本"
+    dryRunSupported: true
+
+  inject_script:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "注入脚本"
+    dryRunSupported: true
+
+  start_performance_trace:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "开始性能追踪"
+
+  stop_performance_trace:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "停止性能追踪"
+
+  # 连接管理
+  auto_connect:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "自动连接浏览器"
+
+  launch_browser:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "启动浏览器"
+
+  disconnect:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "断开连接"
+
+  # 录制与回放
+  record_actions:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "开始录制操作"
+
+  stop_recording:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "停止录制"
+
+  replay_actions:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: false
+    description: "回放操作"
+    dryRunSupported: true

@@ -1,0 +1,47 @@
+apiVersion: 1
+
+notifiers:
+  - name: Slack Critical
+    type: slack
+    uid: slack-critical
+    is_default: true
+    send_reminder: true
+    frequency: 15m
+    settings:
+      url: "${SLACK_WEBHOOK_URL}"
+      recipient: "#alerts-critical"
+      username: "Grafana Alerts"
+      icon_emoji: ":warning:"
+      mentionUsers: ""
+      mentionGroups: ""
+      mentionChannel: "here"
+      token: ""
+
+  - name: PagerDuty
+    type: pagerduty
+    uid: pagerduty
+    send_reminder: true
+    frequency: 15m
+    settings:
+      integrationKey: "${PAGERDUTY_INTEGRATION_KEY}"
+      autoResolve: true
+      severity: critical
+
+contactPoints:
+  - name: default-contact-point
+    receivers:
+      - uid: slack-critical
+      - uid: pagerduty
+
+policies:
+  - receiver: default-contact-point
+    group_by: ['alertname', 'severity']
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+      - receiver: default-contact-point
+        matchers:
+          - severity = critical
+        group_wait: 10s
+        repeat_interval: 1h

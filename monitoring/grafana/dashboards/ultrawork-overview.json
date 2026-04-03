@@ -1,0 +1,272 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "ultrawork-overview",
+    "title": "UltraWork AI - 综合监控仪表盘",
+    "tags": ["ultrawork", "mcp", "overview"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "系统概览",
+        "type": "stat",
+        "gridPos": { "h": 3, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "up{job=\"ultrawork-mcp\"}",
+            "legendFormat": "服务状态"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 1, "color": "green" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "MCP 服务器连接数",
+        "type": "stat",
+        "gridPos": { "h": 3, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "mcp_servers_connected",
+            "legendFormat": "已连接"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 1, "color": "yellow" },
+                { "value": 2, "color": "green" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "可用工具数",
+        "type": "stat",
+        "gridPos": { "h": 3, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "mcp_tools_available",
+            "legendFormat": "工具数"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "缓存命中率",
+        "type": "gauge",
+        "gridPos": { "h": 3, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "mcp_cache_hits_total / (mcp_cache_hits_total + mcp_cache_misses_total) * 100",
+            "legendFormat": "命中率 %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 50, "color": "yellow" },
+                { "value": 80, "color": "green" }
+              ]
+            },
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "MCP 调用延迟分布 (P50/P95/P99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 3 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(mcp_call_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(mcp_call_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(mcp_call_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "MCP 调用成功率",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 3 },
+        "targets": [
+          {
+            "expr": "rate(mcp_calls_success_total[5m]) / (rate(mcp_calls_success_total[5m]) + rate(mcp_calls_failed_total[5m])) * 100",
+            "legendFormat": "成功率 %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 20,
+        "title": "内存使用情况",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 11 },
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "物理内存"
+          },
+          {
+            "expr": "process_heap_bytes",
+            "legendFormat": "堆内存"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        }
+      },
+      {
+        "id": 21,
+        "title": "CPU 使用率",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 11 },
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total[5m]) * 100",
+            "legendFormat": "CPU %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 30,
+        "title": "行业解决方案调用统计",
+        "type": "bargauge",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+        "targets": [
+          {
+            "expr": "sum by (solution_id) (rate(industry_solution_calls_total[1h]))",
+            "legendFormat": "{{solution_id}}"
+          }
+        ]
+      },
+      {
+        "id": 31,
+        "title": "技能调用 Top 10",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+        "targets": [
+          {
+            "expr": "topk(10, sum by (skill_name) (rate(skill_calls_total[1h])))",
+            "legendFormat": "{{skill_name}}",
+            "format": "table",
+            "instant": true
+          }
+        ]
+      },
+      {
+        "id": 40,
+        "title": "Redis 内存使用",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "legendFormat": "已用内存"
+          },
+          {
+            "expr": "redis_memory_max_bytes",
+            "legendFormat": "最大内存"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        }
+      },
+      {
+        "id": 41,
+        "title": "Redis 连接数",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+        "targets": [
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "已连接客户端"
+          },
+          {
+            "expr": "redis_total_connections_received",
+            "legendFormat": "总连接数"
+          }
+        ]
+      },
+      {
+        "id": 42,
+        "title": "LLM 调用成本估算",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+        "targets": [
+          {
+            "expr": "sum(rate(llm_tokens_total[24h])) * 0.002",
+            "legendFormat": "日成本 (USD)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD"
+          }
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "job",
+          "label": "Job",
+          "type": "query",
+          "query": "label_values(up, job)",
+          "refresh": 2
+        }
+      ]
+    }
+  }
+}

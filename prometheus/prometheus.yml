@@ -1,0 +1,51 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ultrawork'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - '/etc/prometheus/alert.rules.yml'
+
+scrape_configs:
+  # UltraWork MCP Metrics
+  - job_name: 'ultrawork-mcp'
+    static_configs:
+      - targets: ['ultrawork:3000']
+    metrics_path: '/api/mcp/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    params:
+      format: ['prometheus']
+
+  # UltraWork Health
+  - job_name: 'ultrawork-health'
+    static_configs:
+      - targets: ['ultrawork:3000']
+    metrics_path: '/api/health'
+    scrape_interval: 30s
+
+  # UltraWork Security Metrics
+  - job_name: 'ultrawork-security'
+    static_configs:
+      - targets: ['ultrawork:3000']
+    metrics_path: '/api/security/metrics'
+    scrape_interval: 60s
+    scrape_timeout: 10s
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Redis (if exposed)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s

@@ -1,0 +1,71 @@
+market: us_stock
+tickers: [AAPL, MSFT, AMZN, GOOGL, META, NVDA, TSLA, JPM, V, UNH, HD, DIS, BAC, PYPL, ADBE, CMCSA, NFLX, KO, PFE, CRM]
+start_date: 2025-03-26
+end_date: 2026-03-25
+
+data_sources:
+  price: yfinance
+  sentiment: naive
+  news:
+    provider: mock  # or "news_api", "reuters", "bloomberg"
+    keywords:
+      - 央行
+      - 监管
+      - 产业政策
+      - Fed
+      - FOMC
+      - interest_rate
+      - regulation
+      - subsidy
+
+backtest:
+  top_n: 5
+  window_days: 5
+  transaction_cost: 0.0005
+  survival_bias_correction: true
+  rolling_window: true
+
+model:
+  type: xgboost
+  params:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+
+policy_monitor:
+  enabled: true
+  min_impact: 0.1
+  event_types:
+    - monetary
+    - regulation
+    - industry_policy
+    - trade
+    - fiscal
+  sector_mapping:
+    金融: [银行, 保险, 证券, 金融]
+    科技: [半导体, 人工智能, 软件, 互联网, AI, 芯片]
+    新能源: [光伏, 风电, 锂电池, 新能源车, 电池]
+    医药: [医药, 生物, 疫苗, 医疗器械]
+    消费: [食品, 饮料, 零售, 消费, 白酒]
+    地产: [房地产, 地产, 建筑, 物业]
+    工业: [制造, 装备, 机械, 化工]
+
+daily_review:
+  enabled: true
+  llm_polish: true
+  llm_provider: mock  # or "openai", "anthropic", "local"
+  report_sections:
+    - market_summary
+    - top_signals
+    - policy_events
+    - portfolio_performance
+    - risk_metrics
+
+knowledge_base:
+  enabled: true
+  vector_store: memory  # or "chroma"
+  embedding_model: all-MiniLM-L6-v2
+  persist_directory: ./chroma_db
+  index_on_startup: true

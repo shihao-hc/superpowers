@@ -1,0 +1,116 @@
+# FileSystem MCP Annotations
+# Tool annotations for filesystem operations
+
+filesystem:
+  # 只读操作
+  read_text_file:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "读取文件文本内容"
+
+  read_media_file:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "读取媒体文件(base64)"
+
+  read_multiple_files:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "批量读取多个文件"
+
+  list_directory:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出目录内容"
+
+  list_directory_with_sizes:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出目录内容(含文件大小)"
+
+  directory_tree:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "递归目录树结构"
+
+  search_files:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "搜索文件(glob模式)"
+
+  get_file_info:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "获取文件元数据"
+
+  list_allowed_directories:
+    readOnlyHint: true
+    idempotentHint: true
+    destructiveHint: false
+    description: "列出允许访问的目录"
+
+  # 写操作
+  create_directory:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: false
+    description: "创建目录(幂等)"
+    dryRunSupported: true
+
+  write_file:
+    readOnlyHint: false
+    idempotentHint: true
+    destructiveHint: true
+    description: "写入文件(覆盖)"
+    dryRunSupported: true
+
+  edit_file:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "编辑文件(非幂等)"
+    dryRunSupported: true
+
+  move_file:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "移动/重命名文件"
+    dryRunSupported: true
+
+  delete_file:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "删除文件"
+    dryRunSupported: true
+
+  delete_directory:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "删除目录"
+    dryRunSupported: true
+
+  # 批量操作
+  multi_write:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "批量写入多个文件"
+    dryRunSupported: true
+
+  multi_delete:
+    readOnlyHint: false
+    idempotentHint: false
+    destructiveHint: true
+    description: "批量删除多个文件"
+    dryRunSupported: true

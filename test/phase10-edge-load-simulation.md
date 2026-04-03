@@ -1,0 +1,2 @@
+- Phase 10 Edge Load Simulation
+- 通过脚本模拟边缘节点的并发请求，评估吞吐量与延迟

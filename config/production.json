@@ -1,0 +1,21 @@
+{
+  "server": {
+    "port": 8080,
+    "env": "production"
+  },
+  "inference": {
+    "engine": "ollama"
+  },
+  "logging": {
+    "level": "warn",
+    "file": "./logs/production.log"
+  },
+  "websocket": {
+    "compression": {
+      "enabled": true
+    }
+  },
+  "memory": {
+    "pageSize": 100
+  }
+}

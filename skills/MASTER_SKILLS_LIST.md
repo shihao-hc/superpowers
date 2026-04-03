@@ -1,0 +1,81 @@
+- brain-storming — 设计前的需求理解与确认，位置：brainstorming SKILL.md
+- code-review — 代码全面审查，位置：code-review SKILL.md
+- security-audit — 安全自检（密钥、权限、漏洞等），位置：security-audit SKILL.md
+- security-hardening — 安全加固综合实践，位置：security-hardening SKILL.md
+- fastapi-security-hardening — FastAPI 安全加固，位置：fastapi-security-hardening SKILL.md
+- fastapi-security-patterns — FastAPI 安全模式，位置：fastapi-security-patterns SKILL.md
+- cicd-pipeline — CI/CD 流水线基础，位置：cicd-pipeline SKILL.md
+- github-actions-workflows — GitHub Actions 工作流，位置：github-actions-workflows SKILL.md
+- docker — Docker 容器化，位置：docker SKILL.md
+- e2e-testing-playwright — 端到端测试（Playwright），位置：e2e-testing-playwright SKILL.md
+- ecommerce-solutions — 电商解决方案相关模式，位置：ecommerce-solutions SKILL.md
+- executing-plans — 实施计划执行（独立计划执行），位置：executing-plans SKILL.md
+- frontend-progress-components — Vue3 进度/状态组件，位置：frontend-progress-components SKILL.md
+- generate-unit-test-from-service — 根据服务生成单元测试模板，位置：generate-unit-test-from-service SKILL.md
+- git-workflow — Git 工作流规范，位置：git-workflow SKILL.md
+- graph-memory — 图记忆系统，位置：graph-memory SKILL.md
+- hooks — 钩子/中间件机制，位置：hooks SKILL.md
+- integration-testing-jest — Jest 集成测试，位置：integration-testing-jest SKILL.md
+- kanban-dashboard — 实时看板与任务跟踪，位置：kanban-dashboard SKILL.md
+- kubernetes-helm-charts — Kubernetes Helm 图表，位置：kubernetes-helm-charts SKILL.md
+- llm-budget-alerts — LLM 预算告警，位置：llm-budget-alerts SKILL.md
+- llm-cost-manager — LLM 成本管理，位置：llm-cost-manager SKILL.md
+- mcp-advanced — MCP 高级特性，位置：mcp-advanced SKILL.md
+- mcp-fullstack-implementation — MCP 全栈实现，位置：mcp-fullstack-implementation SKILL.md
+- mcp-integration — MCP 集成模块，位置：mcp-integration SKILL.md
+- mcp-security — MCP 安全加固，位置：mcp-security SKILL.md
+- mcp-security-hardening — MCP 安全加固（强化版），位置：mcp-security-hardening SKILL.md
+- mcp-ui-integration-testing — MCP UI 集成测试，位置：mcp-ui-integration-testing SKILL.md
+- monitoring-dashboard — 监控仪表盘，位置：monitoring-dashboard SKILL.md
+- multi-agent-security-audit-pattern — 多 Agent 安全审计模式，位置：Multi-Agent Security Audit Pattern SKILL.md
+- multi-agent-orchestration — 多 Agent 编排，位置：multi-agent-orchestration SKILL.md
+- multi-orchestrate — 基于 DAG 的多代理编排，位置：multi-orchestrate SKILL.md
+- multimodal-vision — 多模态视觉（Ollama Vision 等），位置：multimodal-vision SKILL.md
+- novel-assistant — AI 小说创作助手，位置：novel-assistant SKILL.md
+- novel-plotter — 小说情节规划师，位置：novel-plotter SKILL.md
+- ollama-adapter — Ollama 本地 LLM 适配，位置：ollama-adapter SKILL.md
+- on-chain-identity — 链上身份与存证，位置：on-chain-identity SKILL.md
+- performance-optimization — 性能优化，位置：performance-optimization SKILL.md
+- performance-optimization-v2 — 性能 AutoScaler 等优化，位置：performance-optimization-v2 SKILL.md
+- performance-testing-k6 — 性能测试（k6），位置：performance-testing-k6 SKILL.md
+- performance-tuning — 性能调优，位置：performance-tuning SKILL.md
+- permission-matrix — 授权矩阵与调用权限控制，位置：permission-matrix SKILL.md
+- pinia-state-management — Pinia 状态管理，位置：pinia-state-management SKILL.md
+- platform-bridge — 跨平台集成，位置：platform-bridge SKILL.md
+- plugin-development-guide — 插件开发指南，位置：plugin-development-guide SKILL.md
+- production-deployment — 生产部署，位置：production-deployment SKILL.md
+- prometheus-health-metrics — Prometheus 健康指标集成，位置：Prometheus Health Metrics Integration SKILL.md
+- receiving-code-review — 接收代码评审反馈阶段的工作，位置：receiving-code-review SKILL.md
+- requesting-code-review — 完成任务前的代码审查，位置：requesting-code-review SKILL.md
+- security-audit — 安全审计技能（重复项合并后保留）
+- security-hardening — 安全加固技能（重复项合并后保留）
+- self-improving — 自我改进，位置：self-improving SKILL.md
+- state-machine — 任务状态机，位置：state-machine SKILL.md
+- stress-testing — 压力测试，位置：stress-testing SKILL.md
+- subagent-driven-development — 子代理驱动开发，位置：subagent-driven-development SKILL.md
+- summarize — 摘要技能，位置：summarize SKILL.md
+- systematic-debugging — 系统性调试，位置：systematic-debugging SKILL.md
+- task-scheduling — 任务调度，位置：task-scheduling SKILL.md
+- tavily-search-rag — Tavily 搜索/ Rag 检索，位置：tavily-search-rag SKILL.md
+- test-driven-development — TDD，位置：test-driven-development SKILL.md
+- test-generation — Jest 单元测试模板生成，位置：test-generation SKILL.md
+- three-provinces-six-ministries — 三省六部编排，位置：three-provinces-six-ministries SKILL.md
+- tradingagents-cn-cicd — TradingAgents-CN CI/CD，位置：tradingagents-cn-cicd SKILL.md
+- tradingagents-cn-security — TradingAgents-CN 安全加固，位置：tradingagents-cn-security SKILL.md
+- truth-files-manager — 真相文件管理器，位置：truth-files-manager SKILL.md
+- ui-ux-design — UI/UX 设计与无障碍，位置：ui-ux-design SKILL.md
+- using-git-worktrees — 使用 git worktree，位置：using-git-worktrees SKILL.md
+- using-superpowers — 启动对话时的技能调度入口，位置：using-superpowers SKILL.md
+- verification-before-completion — 提交/完成前的验收与验证，位置：verification-before-completion SKILL.md
+- verify — 验证循环，位置：verify SKILL.md
+- vibe_coding — Vibe Coding 指南，位置：vibe_coding SKILL.md
+- vidbee_desktop_download — VidBee 桌面下载，位置：vidbee_desktop_download SKILL.md
+- vidbee_download — VidBee 下载，位置：vidbee_download SKILL.md
+- vrm-integration — VRM 模型集成，位置：vrm-integration SKILL.md
+- wacli — 常用 CLI 工具，位置：wacli SKILL.md
+- websocket-state-machine — WebSocket 状态机与重连，位置：websocket-state-machine SKILL.md
+- workflow-optimizer — 工作流优化，位置：workflow-optimizer SKILL.md
+- writing-plans — 预写实现计划，位置：writing-plans SKILL.md
+- writing-skills — 技能创建/编辑能力，位置：writing-skills SKILL.md
+- ecommerce-solutions — 电商解决方案，位置：ecommerce-solutions SKILL.md
+- others 如有重复条目，按需合并

@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  shihao-data-pipeline:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: shihao-data-pipeline
+    environment:
+      - SERVICE_NAME=data-pipeline
+      - DATA_SOURCES=yfinance,akshare
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+    networks:
+      - shihaofin-network
+    restart: unless-stopped
+
+  shihao-strategy-engine:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: shihao-strategy-engine
+    environment:
+      - SERVICE_NAME=strategy-engine
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+      - ../models:/app/models
+    networks:
+      - shihaofin-network
+    depends_on:
+      - shihao-data-pipeline
+    restart: unless-stopped
+
+  shihao-risk-manager:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: shihao-risk-manager
+    environment:
+      - SERVICE_NAME=risk-manager
+      - MAX_DAILY_LOSS=0.02
+      - MAX_POSITION_PCT=0.10
+    volumes:
+      - ../logs:/app/logs
+    networks:
+      - shihaofin-network
+    restart: unless-stopped
+
+  shihao-monitoring:
+    image: prom/prometheus:latest
+    container_name: shihao-monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - shihaofin-network
+    restart: unless-stopped
+
+  shihao-grafana:
+    image: grafana/grafana:latest
+    container_name: shihao-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - shihaofin-network
+    depends_on:
+      - shihao-monitoring
+    restart: unless-stopped
+
+networks:
+  shihaofin-network:
+    driver: bridge

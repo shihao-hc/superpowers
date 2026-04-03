@@ -1,0 +1,4 @@
+- Edge Monitoring Setup (Phase 10)
+- 要点：Prometheus 抓取边缘节点健康、Grafana 提供仪表盘、告警接入
+- 步骤：部署 Prometheus/Grafana、配置抓取目标、在 Grafana 创建数据源与仪表盘
+- 参考：infra/monitoring 的 Prometheus/Grafana 配置

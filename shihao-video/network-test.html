@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络连接测试</title>
+    <style>
+        body { margin: 20px; font-family: sans-serif; background: #1a1a2e; color: #fff; }
+        .test-item { margin: 10px 0; padding: 10px; background: #222; border-radius: 4px; }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .loading { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>网络连接测试</h1>
+    <div id="results"></div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(name, status, message) {
+            const div = document.createElement('div');
+            div.className = 'test-item';
+            div.innerHTML = `<strong>${name}</strong>: <span class="${status}">${message}</span>`;
+            resultsDiv.appendChild(div);
+        }
+        
+        async function testUrl(url, name) {
+            addResult(name, 'loading', '测试中...');
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                
+                const response = await fetch(url, {
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const text = await response.text();
+                    addResult(name, 'success', `成功 (${text.length} 字符)`);
+                    return true;
+                } else {
+                    addResult(name, 'error', `HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                addResult(name, 'error', error.message);
+                return false;
+            }
+        }
+        
+        // Test basic connectivity
+        testUrl('https://httpbin.org/get', '基本网络连接')
+            .then(() => {
+                // Test video sources
+                const sources = [
+                    { name: '百度云资源', url: 'https://api.apibdzy.com/api.php/provide/vod/?ac=list&t=1' },
+                    { name: '闪电资源', url: 'http://sdzyapi.com/api.php/provide/vod/?ac=list&t=1' },
+                    { name: '量子资源', url: 'https://cj.lziapi.com/api.php/provide/vod/?ac=list&t=1' },
+                    { name: '卧龙影视资源', url: 'http://wolongzyw.com/api.php/provide/vod/?ac=list&t=1' },
+                    { name: '新浪资源采集网', url: 'https://api.xinlangapi.com/xinlangapi.php/provide/vod/?ac=list&t=1' },
+                    { name: '金鹰资源站', url: 'http://jinyingzy.com/api.php/provide/vod/?ac=list&t=1' }
+                ];
+                
+                return Promise.all(sources.map(s => testUrl(s.url, s.name)));
+            })
+            .then(() => {
+                addResult('所有测试完成', 'success', '');
+            });
+    </script>
+</body>
+</html>

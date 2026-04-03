@@ -1,0 +1,63 @@
+# Codecov Configuration
+# https://docs.codecov.io/docs/codecov-yaml
+
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
+  status:
+    project:
+      default:
+        enabled: true
+        target: auto
+        threshold: 1%
+        flags:
+          - backend
+          - frontend
+    patch:
+      default:
+        enabled: true
+        target: 70%
+        threshold: 2%
+
+flags:
+  backend:
+    paths:
+      - tradingagents/
+    carries: true
+  frontend:
+    paths:
+      - frontend/src
+    carries: false
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+  branches:
+    - main
+    - develop
+
+parsers:
+  gcov:
+    branch_detection:
+      cooperative: true
+      fallback: true
+      loop: true
+      method: false
+      family: true
+  javascript:
+    branch_detection:
+      cooperative: true
+      fallback: true
+      loop: true
+      method: false
+      family: true
+
+github_checks:
+  annotations: true
+  run_prepare: true

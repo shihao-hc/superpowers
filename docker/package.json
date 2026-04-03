@@ -1,0 +1,20 @@
+{
+  "name": "ultrawork-ai",
+  "version": "1.0.0",
+  "description": "AI Virtual Character Platform with Multi-Agent Architecture",
+  "main": "server/staticServer.js",
+  "scripts": {
+    "start": "node server/staticServer.js",
+    "dev": "node server/staticServer.js",
+    "start:prod": "NODE_ENV=production node server/staticServer.js"
+  },
+  "keywords": ["ai", "chatbot", "personality", "multi-agent"],
+  "author": "UltraWork Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

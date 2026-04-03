@@ -1,0 +1,10 @@
+# 测试输出
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# 截图
+/screenshots/
+
+# Node
+/node_modules/

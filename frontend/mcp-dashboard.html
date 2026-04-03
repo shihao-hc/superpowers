@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP 控制台 - UltraWork AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    
+    header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #333; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    h1 { font-size: 2.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; font-size: 1rem; margin-top: 0.5rem; }
+    .version { font-size: 0.8rem; color: #666; background: #1a1a2e; padding: 0.25rem 0.75rem; border-radius: 4px; }
+    
+    .status-bar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .status-badge { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #1a1a2e; border-radius: 20px; font-size: 0.9rem; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .status-dot.online { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+    .status-dot.offline { background: #f87171; }
+    .status-dot.warning { background: #fbbf24; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 1.5rem; text-align: center; border: 1px solid #333; transition: all 0.3s; cursor: pointer; }
+    .stat-card:hover { transform: translateY(-4px); border-color: #667eea; box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2); }
+    .stat-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .stat-value { font-size: 2.5rem; font-weight: bold; color: #667eea; }
+    .stat-label { color: #888; font-size: 0.9rem; margin-top: 0.25rem; }
+    
+    .section-title { font-size: 1.5rem; color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem; }
+    .section-title span { font-size: 1.75rem; }
+    
+    .feature-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+    .feature-card { background: #1a1a2e; border-radius: 16px; border: 1px solid #333; overflow: hidden; transition: all 0.3s; cursor: pointer; }
+    .feature-card:hover { transform: translateY(-4px); border-color: #667eea; box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2); }
+    .feature-header { padding: 1.5rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid #333; }
+    .feature-icon { font-size: 2.5rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+    .feature-icon.annotations { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .feature-icon.dryrun { background: linear-gradient(135deg, #f093fb, #f5576c); }
+    .feature-icon.thinking { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+    .feature-icon.roots { background: linear-gradient(135deg, #a78bfa, #f472b6); }
+    .feature-info h3 { color: #fff; font-size: 1.25rem; margin-bottom: 0.25rem; }
+    .feature-info p { color: #888; font-size: 0.9rem; }
+    .feature-body { padding: 1.5rem; }
+    .feature-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .feature-tag { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; background: #0f0f23; }
+    .feature-tag.readonly { color: #4ade80; }
+    .feature-tag.write { color: #fbbf24; }
+    .feature-tag.destructive { color: #f87171; }
+    .feature-tag.idempotent { color: #60a5fa; }
+    .feature-desc { color: #888; font-size: 0.9rem; line-height: 1.6; }
+    
+    .nav-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .nav-card { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 1.25rem; text-align: center; transition: all 0.3s; cursor: pointer; text-decoration: none; color: inherit; }
+    .nav-card:hover { transform: translateY(-4px); border-color: #667eea; box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2); }
+    .nav-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .nav-label { color: #fff; font-weight: 500; }
+    .nav-desc { color: #888; font-size: 0.8rem; margin-top: 0.25rem; }
+    
+    .server-list { background: #1a1a2e; border-radius: 16px; border: 1px solid #333; overflow: hidden; margin-bottom: 2rem; }
+    .server-header { padding: 1rem 1.5rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .server-header h3 { color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .server-body { padding: 1rem; }
+    .server-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #0f0f23; border-radius: 8px; margin-bottom: 0.5rem; }
+    .server-item:last-child { margin-bottom: 0; }
+    .server-icon { font-size: 1.5rem; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #1a1a2e; border-radius: 8px; }
+    .server-info { flex: 1; }
+    .server-name { color: #fff; font-weight: 500; }
+    .server-tools { color: #888; font-size: 0.85rem; }
+    .server-status { display: flex; align-items: center; gap: 0.5rem; }
+    
+    .protocol-section { background: #1a1a2e; border-radius: 16px; border: 1px solid #333; padding: 1.5rem; margin-bottom: 2rem; }
+    .protocol-title { color: #fff; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .protocol-diagram { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center; margin: 1.5rem 0; }
+    .protocol-box { background: #0f0f23; border-radius: 8px; padding: 1rem; text-align: center; }
+    .protocol-box h4 { color: #667eea; margin-bottom: 0.5rem; }
+    .protocol-box p { color: #888; font-size: 0.85rem; }
+    .protocol-arrow { color: #667eea; font-size: 2rem; }
+    .protocol-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .protocol-feature { background: #0f0f23; border-radius: 8px; padding: 1rem; text-align: center; }
+    .protocol-feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .protocol-feature-name { color: #fff; font-weight: 500; font-size: 0.9rem; }
+    .protocol-feature-desc { color: #888; font-size: 0.8rem; margin-top: 0.25rem; }
+    
+    .loading { display: flex; justify-content: center; align-items: center; padding: 2rem; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    @media (max-width: 1200px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } .feature-grid { grid-template-columns: 1fr; } .nav-grid { grid-template-columns: repeat(2, 1fr); } .protocol-features { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .nav-grid { grid-template-columns: 1fr; } .protocol-features { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-top">
+        <div>
+          <h1>MCP 控制台</h1>
+          <p class="subtitle">Model Context Protocol - UltraWork AI Platform</p>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <span class="version">v1.0.0</span>
+        </div>
+      </div>
+      <div class="status-bar">
+        <div class="status-badge">
+          <span class="status-dot online" id="statusDot"></span>
+          <span id="statusText">连接中...</span>
+        </div>
+        <div class="status-badge">
+          <span>🖥️</span>
+          <span id="serverCount">-</span> 服务器
+        </div>
+        <div class="status-badge">
+          <span>🔧</span>
+          <span id="toolCount">-</span> 工具
+        </div>
+      </div>
+    </header>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card" onclick="navigateTo('tools')">
+        <div class="stat-icon">🔧</div>
+        <div class="stat-value" id="statTools">-</div>
+        <div class="stat-label">MCP 工具</div>
+      </div>
+      <div class="stat-card" onclick="navigateTo('servers')">
+        <div class="stat-icon">🖥️</div>
+        <div class="stat-value" id="statServers">-</div>
+        <div class="stat-label">已连接服务器</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📋</div>
+        <div class="stat-value" id="statAnnotations">-</div>
+        <div class="stat-label">工具注解</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔄</div>
+        <div class="stat-value" id="statIdempotent">-</div>
+        <div class="stat-label">幂等工具</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🧠</div>
+        <div class="stat-value" id="statChains">0</div>
+        <div class="stat-label">思维链</div>
+      </div>
+    </div>
+
+    <h2 class="section-title"><span>⚡</span> 核心功能</h2>
+    <div class="feature-grid">
+      <div class="feature-card" onclick="navigateTo('annotation')">
+        <div class="feature-header">
+          <div class="feature-icon annotations">🏷️</div>
+          <div class="feature-info">
+            <h3>工具注解驱动 UI</h3>
+            <p>MCP Protocol annotations</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="feature-tags">
+            <span class="feature-tag readonly">readOnlyHint</span>
+            <span class="feature-tag write">destructiveHint</span>
+            <span class="feature-tag idempotent">idempotentHint</span>
+          </div>
+          <p class="feature-desc">根据工具注解动态渲染 UI，只读工具禁用写按钮，破坏性操作二次确认，幂等操作支持重试。</p>
+        </div>
+      </div>
+
+      <div class="feature-card" onclick="navigateTo('dryrun')">
+        <div class="feature-header">
+          <div class="feature-icon dryrun">🔍</div>
+          <div class="feature-info">
+            <h3>Dry-run 可视化</h3>
+            <p>操作预览与差异对比</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="feature-tags">
+            <span class="feature-tag write">预览模式</span>
+            <span class="feature-tag idempotent">差异对比</span>
+            <span class="feature-tag readonly">历史记录</span>
+          </div>
+          <p class="feature-desc">执行前预览变更内容，左右对比 diff 视图，支持一键应用变更。</p>
+        </div>
+      </div>
+
+      <div class="feature-card" onclick="navigateTo('thinking')">
+        <div class="feature-header">
+          <div class="feature-icon thinking">🧠</div>
+          <div class="feature-info">
+            <h3>思维链图谱</h3>
+            <p>thinking:// URI Resources</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="feature-tags">
+            <span class="feature-tag readonly">推理链</span>
+            <span class="feature-tag idempotent">分支管理</span>
+            <span class="feature-tag write">反思回溯</span>
+          </div>
+          <p class="feature-desc">可视化思维推理过程，支持分支、反思、回溯操作，通过 thinking:// URI 访问资源。</p>
+        </div>
+      </div>
+
+      <div class="feature-card" onclick="navigateTo('roots')">
+        <div class="feature-header">
+          <div class="feature-icon roots">📁</div>
+          <div class="feature-info">
+            <h3>Roots 管理</h3>
+            <p>动态目录访问控制</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="feature-tags">
+            <span class="feature-tag readonly">路径沙箱</span>
+            <span class="feature-tag write">权限控制</span>
+            <span class="feature-tag idempotent">临时沙箱</span>
+          </div>
+          <p class="feature-desc">细粒度目录访问控制，路径验证，临时沙箱隔离，权限实时生效。</p>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section-title"><span>🚀</span> 快速导航</h2>
+    <div class="nav-grid">
+      <a href="mcp-annotation-ui.html" class="nav-card">
+        <div class="nav-icon">🏷️</div>
+        <div class="nav-label">工具市场</div>
+        <div class="nav-desc">注解驱动的工具管理</div>
+      </a>
+      <a href="mcp-dryrun.html" class="nav-card">
+        <div class="nav-icon">🔍</div>
+        <div class="nav-label">Dry-run</div>
+        <div class="nav-desc">操作预览对比</div>
+      </a>
+      <a href="mcp-thinking-chain.html" class="nav-card">
+        <div class="nav-icon">🧠</div>
+        <div class="nav-label">思维链</div>
+        <div class="nav-desc">推理可视化</div>
+      </a>
+      <a href="mcp-roots.html" class="nav-card">
+        <div class="nav-icon">📁</div>
+        <div class="nav-label">Roots</div>
+        <div class="nav-desc">目录访问管理</div>
+      </a>
+    </div>
+
+    <div class="protocol-section">
+      <h3 class="protocol-title">🔗 MCP Protocol 架构</h3>
+      <div class="protocol-diagram">
+        <div class="protocol-box">
+          <h4>UltraWork UI</h4>
+          <p>Vanilla HTML/JS</p>
+        </div>
+        <div class="protocol-arrow">⟷</div>
+        <div class="protocol-box">
+          <h4>MCP Server</h4>
+          <p>UnifiedBridge + Engines</p>
+        </div>
+      </div>
+      <div class="protocol-features">
+        <div class="protocol-feature">
+          <div class="protocol-feature-icon">📋</div>
+          <div class="protocol-feature-name">tools/list</div>
+          <div class="protocol-feature-desc">列出可用工具</div>
+        </div>
+        <div class="protocol-feature">
+          <div class="protocol-feature-icon">⚡</div>
+          <div class="protocol-feature-name">tools/call</div>
+          <div class="protocol-feature-desc">执行工具调用</div>
+        </div>
+        <div class="protocol-feature">
+          <div class="protocol-feature-icon">📂</div>
+          <div class="protocol-feature-name">resources/read</div>
+          <div class="protocol-feature-desc">访问思维链资源</div>
+        </div>
+        <div class="protocol-feature">
+          <div class="protocol-feature-icon">🗂️</div>
+          <div class="protocol-feature-name">roots/list</div>
+          <div class="protocol-feature-desc">管理根目录</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="server-list">
+      <div class="server-header">
+        <h3>🖥️ MCP 服务器</h3>
+        <button class="btn" style="background:#333;color:#fff;padding:0.5rem 1rem;border:none;border-radius:6px;cursor:pointer;">刷新</button>
+      </div>
+      <div class="server-body" id="serverList">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/mcp-client.js"></script>
+  <script>
+    const mcp = new MCPClient('/api/mcp');
+
+    async function loadStatus() {
+      try {
+        const status = await mcp.getStatus();
+        document.getElementById('statusDot').className = 'status-dot online';
+        document.getElementById('statusText').textContent = '已连接';
+        
+        document.getElementById('statServers').textContent = Object.keys(status.servers || {}).length;
+        document.getElementById('serverCount').textContent = Object.keys(status.servers || {}).length;
+      } catch (err) {
+        document.getElementById('statusDot').className = 'status-dot offline';
+        document.getElementById('statusText').textContent = '未连接';
+      }
+    }
+
+    async function loadTools() {
+      try {
+        const tools = await mcp.listTools();
+        document.getElementById('statTools').textContent = tools.length;
+        document.getElementById('toolCount').textContent = tools.length;
+        
+        const readonlyCount = tools.filter(t => {
+          const ann = mcp.parseAnnotations(t);
+          return ann.readOnlyHint;
+        }).length;
+        
+        const idempotentCount = tools.filter(t => {
+          const ann = mcp.parseAnnotations(t);
+          return ann.idempotentHint;
+        }).length;
+        
+        document.getElementById('statAnnotations').textContent = tools.length;
+        document.getElementById('statIdempotent').textContent = idempotentCount;
+      } catch (err) {
+        console.error('Failed to load tools:', err);
+      }
+    }
+
+    async function loadServers() {
+      try {
+        const data = await mcp.listServers();
+        const serverList = document.getElementById('serverList');
+        
+        if (!data.servers || data.servers.length === 0) {
+          serverList.innerHTML = '<p style="color:#888;text-align:center;padding:1rem;">暂无已连接的服务器</p>';
+          return;
+        }
+        
+        const icons = {
+          filesystem: '📁', github: '🐙', context7: '📚',
+          devtools: '🌐', memos: '📝', sequential_thinking: '🧠'
+        };
+        
+        serverList.innerHTML = data.servers.map(server => `
+          <div class="server-item">
+            <div class="server-icon">${icons[server.name] || '🖥️'}</div>
+            <div class="server-info">
+              <div class="server-name">${server.name}</div>
+              <div class="server-tools">${server.toolsCount || 0} 工具</div>
+            </div>
+            <div class="server-status">
+              <span class="status-dot ${server.connected ? 'online' : 'offline'}"></span>
+              <span>${server.connected ? '已连接' : '未连接'}</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('serverList').innerHTML = '<p style="color:#f87171;text-align:center;padding:1rem;">加载失败</p>';
+      }
+    }
+
+    async function loadThinkingChains() {
+      try {
+        const data = await mcp.listThinkingChains();
+        document.getElementById('statChains').textContent = data.count || 0;
+      } catch (err) {
+        console.error('Failed to load thinking chains:', err);
+      }
+    }
+
+    function navigateTo(page) {
+      const pages = {
+        tools: 'mcp-annotation-ui.html',
+        servers: 'mcp-annotation-ui.html',
+        annotation: 'mcp-annotation-ui.html',
+        dryrun: 'mcp-dryrun.html',
+        thinking: 'mcp-thinking-chain.html',
+        roots: 'mcp-roots.html'
+      };
+      
+      if (pages[page]) {
+        window.location.href = pages[page];
+      }
+    }
+
+    async function init() {
+      await Promise.all([
+        loadStatus(),
+        loadTools(),
+        loadServers(),
+        loadThinkingChains()
+      ]);
+    }
+
+    init();
+  </script>
+</body>
+</html>

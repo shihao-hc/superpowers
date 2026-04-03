@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Roots - 目录访问管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    h1 { font-size: 2rem; background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-top: 0.5rem; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid #333; }
+    .stat-value { font-size: 2rem; font-weight: bold; color: #a78bfa; }
+    .stat-label { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
+    
+    .section { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; margin-bottom: 1.5rem; overflow: hidden; }
+    .section-header { padding: 1rem 1.25rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .section-title { font-weight: bold; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .section-body { padding: 1.25rem; }
+    
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #a78bfa, #f472b6); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(167, 139, 250, 0.4); }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+    
+    .root-list { list-style: none; }
+    .root-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #0f0f23; border-radius: 8px; margin-bottom: 0.75rem; transition: all 0.2s; }
+    .root-item:hover { background: #151525; }
+    .root-icon { font-size: 1.5rem; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: linear-gradient(135deg, #a78bfa, #f472b6); }
+    .root-info { flex: 1; }
+    .root-path { color: #fff; font-family: monospace; font-size: 0.95rem; word-break: break-all; }
+    .root-meta { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #888; flex-wrap: wrap; }
+    .permission-badge { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+    .permission-badge.read { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .permission-badge.write { background: rgba(251, 191, 36, 0.15); color: #fb923c; }
+    .permission-badge.readonly { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .permission-badge.temporary { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .root-actions { display: flex; gap: 0.5rem; }
+    
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .form-input { width: 100%; background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.9rem; }
+    .form-input:focus { outline: none; border-color: #a78bfa; }
+    .permission-checkboxes { display: flex; gap: 1.5rem; }
+    .checkbox-group { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: #a78bfa; }
+    .checkbox-group label { color: #fff; margin: 0; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 2rem; min-width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-title { font-size: 1.25rem; font-weight: bold; color: #fff; }
+    .modal-close { background: #333; border: none; width: 32px; height: 32px; border-radius: 50%; color: #fff; cursor: pointer; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+    
+    .sandbox-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .sandbox-card { background: #0f0f23; border-radius: 8px; padding: 1rem; border: 1px solid #333; }
+    .sandbox-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .sandbox-id { font-family: monospace; font-size: 0.8rem; color: #a78bfa; }
+    .sandbox-status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+    .sandbox-path { font-family: monospace; font-size: 0.85rem; color: #888; word-break: break-all; margin-top: 0.5rem; }
+    .sandbox-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    
+    .validation-result { margin-top: 1rem; padding: 1rem; border-radius: 8px; }
+    .validation-result.valid { background: rgba(74, 222, 128, 0.1); border: 1px solid #16a34a; }
+    .validation-result.invalid { background: rgba(220, 38, 38, 0.1); border: 1px solid #dc2626; }
+    .validation-result h4 { margin-bottom: 0.5rem; }
+    .validation-result.valid h4 { color: #4ade80; }
+    .validation-result.invalid h4 { color: #f87171; }
+    .validation-result p { color: #888; font-size: 0.9rem; }
+    
+    .path-input-group { display: flex; gap: 0.5rem; }
+    .path-input-group .form-input { flex: 1; }
+    .path-input-group .btn { flex-shrink: 0; }
+    
+    .empty-state { text-align: center; padding: 2rem; color: #888; }
+    .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    
+    .loading { display: flex; justify-content: center; align-items: center; padding: 2rem; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #a78bfa; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem 1.5rem; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.show { display: block; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>📁 MCP Roots</h1>
+        <p class="subtitle">基于 MCP Protocol 的目录访问管理</p>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="loadRoots()">🔄 刷新</button>
+        <button class="btn btn-primary" onclick="showAddRootModal()">➕ 添加根目录</button>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="rootsCount">-</div>
+        <div class="stat-label">已配置根目录</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="readOnlyCount">-</div>
+        <div class="stat-label">只读目录</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="readWriteCount">-</div>
+        <div class="stat-label">读写目录</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="sandboxesCount">0</div>
+        <div class="stat-label">临时沙箱</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">🗂️ 已配置的根目录 (MCP Protocol: roots/list)</span>
+      </div>
+      <div class="section-body">
+        <ul class="root-list" id="rootsList">
+          <li class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <p>暂无配置的根目录</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">🔒 路径验证 (MCP Protocol: roots/validate)</span>
+      </div>
+      <div class="section-body">
+        <div class="path-input-group">
+          <input type="text" class="form-input" id="validatePath" placeholder="输入要验证的路径...">
+          <button class="btn btn-primary" onclick="validatePath()">验证</button>
+        </div>
+        <div id="validationResult"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">🧪 临时沙箱 (MCP Protocol: roots/sandbox)</span>
+        <button class="btn btn-primary btn-small" onclick="createSandbox()">创建沙箱</button>
+      </div>
+      <div class="section-body">
+        <div class="sandbox-list" id="sandboxList">
+          <div class="empty-state">
+            <div class="empty-state-icon">🧪</div>
+            <p>暂无临时沙箱</p>
+            <button class="btn btn-primary btn-small" style="margin-top:1rem;" onclick="createSandbox()">创建第一个沙箱</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="addRootModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">➕ 添加根目录 (MCP Protocol: roots/add)</span>
+        <button class="modal-close" onclick="closeModal('addRootModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>目录路径 (file:// URI 或绝对路径)</label>
+        <input type="text" class="form-input" id="newRootPath" placeholder="/path/to/root 或 file:///path/to/root">
+      </div>
+      <div class="form-group">
+        <label>权限配置</label>
+        <div class="permission-checkboxes">
+          <div class="checkbox-group">
+            <input type="checkbox" id="permRead" checked>
+            <label for="permRead">读取</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="permWrite" checked>
+            <label for="permWrite">写入</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addRootModal')">取消</button>
+        <button class="btn btn-primary" onclick="addRoot()">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mcp-client.js"></script>
+  <script>
+    const mcp = new MCPClient('/api/mcp');
+    let roots = [];
+    let sandboxes = [];
+
+    async function loadRoots() {
+      try {
+        const data = await mcp.listRoots();
+        roots = data.roots || [];
+        renderRoots();
+        updateStats();
+      } catch (err) {
+        showToast('加载根目录失败', 'error');
+      }
+    }
+
+    function renderRoots() {
+      const list = document.getElementById('rootsList');
+      
+      if (roots.length === 0) {
+        list.innerHTML = `
+          <li class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <p>暂无配置的根目录</p>
+            <button class="btn btn-primary btn-small" style="margin-top:1rem;" onclick="showAddRootModal()">添加第一个</button>
+          </li>
+        `;
+        return;
+      }
+      
+      list.innerHTML = roots.map(root => {
+        const uri = root.path.startsWith('file://') ? root.path : `file://${root.path}`;
+        return `
+          <li class="root-item">
+            <div class="root-icon">📁</div>
+            <div class="root-info">
+              <div class="root-path">${escapeHtml(root.path)}</div>
+              <div class="root-meta">
+                <span class="permission-badge ${root.readOnly ? 'readonly' : 'write'}">
+                  ${root.readOnly ? '只读' : '读写'}
+                </span>
+                ${root.temporary ? '<span class="permission-badge temporary">临时</span>' : ''}
+                <span>创建于: ${new Date(root.createdAt).toLocaleDateString()}</span>
+              </div>
+              <div class="root-meta">
+                <span style="font-family:monospace;font-size:0.8rem;color:#60a5fa;">${uri}</span>
+              </div>
+            </div>
+            <div class="root-actions">
+              <button class="btn btn-danger btn-small" onclick="removeRoot('${encodeURIComponent(root.path)}')">删除</button>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function updateStats() {
+      const totalRoots = roots.length;
+      const readOnlyRoots = roots.filter(r => r.readOnly).length;
+      const readWriteRoots = totalRoots - readOnlyRoots;
+      
+      document.getElementById('rootsCount').textContent = totalRoots;
+      document.getElementById('readOnlyCount').textContent = readOnlyRoots;
+      document.getElementById('readWriteCount').textContent = readWriteRoots;
+      document.getElementById('sandboxesCount').textContent = sandboxes.length;
+    }
+
+    function showAddRootModal() {
+      document.getElementById('newRootPath').value = '';
+      document.getElementById('permRead').checked = true;
+      document.getElementById('permWrite').checked = true;
+      document.getElementById('addRootModal').classList.add('show');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('show');
+    }
+
+    async function addRoot() {
+      let path = document.getElementById('newRootPath').value.trim();
+      if (!path) {
+        showToast('请输入目录路径', 'error');
+        return;
+      }
+      
+      if (!path.startsWith('file://') && !path.startsWith('/')) {
+        path = path.replace(/\\/g, '/');
+        if (!path.startsWith('/')) {
+          path = '/' + path;
+        }
+      }
+      
+      const permissions = [];
+      if (document.getElementById('permRead').checked) permissions.push('read');
+      if (document.getElementById('permWrite').checked) permissions.push('write');
+      
+      if (permissions.length === 0) {
+        showToast('至少需要一种权限', 'error');
+        return;
+      }
+      
+      try {
+        await mcp.addRoot(path, permissions);
+        closeModal('addRootModal');
+        await loadRoots();
+        showToast(`根目录已添加: ${path}`, 'success');
+      } catch (err) {
+        showToast('添加失败: ' + err.message, 'error');
+      }
+    }
+
+    async function removeRoot(encodedPath) {
+      const path = decodeURIComponent(encodedPath);
+      if (!confirm(`确定要删除根目录 "${path}" 吗？\n\n删除后该目录将无法访问。`)) return;
+      
+      try {
+        await mcp.removeRoot(path);
+        await loadRoots();
+        showToast('根目录已删除', 'success');
+      } catch (err) {
+        showToast('删除失败', 'error');
+      }
+    }
+
+    async function validatePath() {
+      const path = document.getElementById('validatePath').value.trim();
+      if (!path) {
+        showToast('请输入路径', 'error');
+        return;
+      }
+      
+      try {
+        const result = await mcp.validatePath(path);
+        
+        const resultDiv = document.getElementById('validationResult');
+        if (result.allowed) {
+          resultDiv.innerHTML = `
+            <div class="validation-result valid">
+              <h4>✅ 路径有效</h4>
+              <p>此路径在允许访问的根目录范围内。</p>
+              ${result.permissions ? `<p style="margin-top:0.5rem;">权限: ${result.permissions.join(', ')}</p>` : ''}
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="validation-result invalid">
+              <h4>❌ 路径无效</h4>
+              <p>${result.reason || '此路径不在允许访问的根目录范围内。'}</p>
+            </div>
+          `;
+        }
+      } catch (err) {
+        showToast('验证失败', 'error');
+      }
+    }
+
+    async function createSandbox() {
+      try {
+        const data = await mcp.createSandbox('mcp-ui-sandbox');
+        if (data.sandbox) {
+          sandboxes.push(data.sandbox);
+          renderSandboxes();
+          updateStats();
+          showToast(`沙箱已创建: ${data.sandbox.path || data.sandbox}`, 'success');
+        }
+      } catch (err) {
+        showToast('创建沙箱失败', 'error');
+      }
+    }
+
+    async function removeSandbox(sandboxId) {
+      if (!confirm('确定要删除此沙箱吗？')) return;
+      
+      try {
+        await mcp.removeSandbox(sandboxId);
+        sandboxes = sandboxes.filter(s => (s.id || s) !== sandboxId);
+        renderSandboxes();
+        updateStats();
+        showToast('沙箱已删除', 'success');
+      } catch (err) {
+        showToast('删除沙箱失败', 'error');
+      }
+    }
+
+    function renderSandboxes() {
+      const list = document.getElementById('sandboxList');
+      
+      if (sandboxes.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🧪</div>
+            <p>暂无临时沙箱</p>
+            <button class="btn btn-primary btn-small" style="margin-top:1rem;" onclick="createSandbox()">创建第一个沙箱</button>
+          </div>
+        `;
+        return;
+      }
+      
+      list.innerHTML = sandboxes.map(sb => {
+        const id = sb.id || 'sandbox';
+        const path = sb.path || sb;
+        return `
+          <div class="sandbox-card">
+            <div class="sandbox-card-header">
+              <span class="sandbox-id">${String(id).substring(0, 8)}...</span>
+              <span class="sandbox-status">活跃</span>
+            </div>
+            <div class="sandbox-path">${escapeHtml(path)}</div>
+            <div class="sandbox-actions">
+              <button class="btn btn-secondary btn-small" onclick="copyToClipboard('${escapeHtml(path)}')">复制路径</button>
+              <button class="btn btn-danger btn-small" onclick="removeSandbox('${id}')">删除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text);
+      showToast('路径已复制', 'success');
+    }
+
+    function escapeHtml(text) {
+      if (typeof text !== 'string') return text;
+      return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    loadRoots();
+  </script>
+</body>
+</html>

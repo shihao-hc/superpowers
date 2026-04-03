@@ -1,0 +1,14 @@
+apiVersion: v2
+name: ultrawork
+description: UltraWork AI Platform - Multi-Agent AI Skill System
+type: application
+version: 1.0.0
+appVersion: "1.0"
+keywords:
+  - ai
+  - multi-agent
+  - skills
+  - workflow
+maintainers:
+  - name: UltraWork Team
+    email: team@ultrawork.ai

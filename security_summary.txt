@@ -1,0 +1,19 @@
+# Code Review & Security Audit Summary
+
+## Critical Issues (Must Fix)
+1. **Missing Dependency**: `axios` is not loaded in `index.html`, causing `characterService.js` to fail.
+2. **Incorrect Path**: `characterService.js` is in `src/` but `index.html` tries to load it from `./` (current directory).
+
+## Security
+- **XSS**: No vulnerabilities found (uses `textContent`).
+- **Secrets**: No hardcoded API keys or credentials found.
+
+## Best Practices
+- **Inline Handlers**: `onclick` attributes in HTML should be moved to JavaScript event listeners.
+- **CSP**: No Content Security Policy meta tag (recommended for production).
+
+## Recommendations
+1. Add `<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>` to `index.html`.
+2. Update script path to `../src/characterService.js`.
+3. Refactor inline `onclick` handlers to JavaScript.
+4. (Optional) Add CSP meta tag for production.

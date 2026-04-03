@@ -1,0 +1,1503 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "UltraWork AI Platform API",
+    "description": "Multi-agent AI skill platform with vertical domain markets",
+    "version": "2.0.0",
+    "contact": {
+      "name": "UltraWork Team",
+      "email": "api@ultrawork.ai"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.ultrawork.ai",
+      "description": "Production"
+    },
+    {
+      "url": "https://staging-api.ultrawork.ai",
+      "description": "Staging"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Skills",
+      "description": "技能相关API"
+    },
+    {
+      "name": "Workflows",
+      "description": "工作流相关API"
+    },
+    {
+      "name": "Intent",
+      "description": "意图理解API"
+    },
+    {
+      "name": "Costs",
+      "description": "成本管理API"
+    },
+    {
+      "name": "Compliance",
+      "description": "合规管理API"
+    },
+    {
+      "name": "Workspace",
+      "description": "工作空间API"
+    }
+  ],
+  "paths": {
+    "/api/v1/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "summary": "List all skills",
+        "description": "Get a paginated list of all available skills",
+        "tags": [
+          "Skills"
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by category"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search skills"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Results per page"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Pagination offset"
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "popular",
+                "new",
+                "rating"
+              ]
+            },
+            "description": "Sort by"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Skill"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createSkill",
+        "summary": "Publish a new skill",
+        "tags": [
+          "Skills"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Skill"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/skills/{skillId}": {
+      "get": {
+        "operationId": "getSkill",
+        "summary": "Get skill details",
+        "tags": [
+          "Skills"
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Skill ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/skills/{skillId}/execute": {
+      "post": {
+        "operationId": "executeSkill",
+        "summary": "Execute a skill",
+        "tags": [
+          "Skills"
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/workflows": {
+      "get": {
+        "operationId": "listWorkflows",
+        "summary": "List all workflows",
+        "tags": [
+          "Workflows"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Workflow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      },
+      "post": {
+        "operationId": "createWorkflow",
+        "summary": "Create a new workflow",
+        "tags": [
+          "Workflows"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Workflow"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/workflows/{workflowId}/execute": {
+      "post": {
+        "operationId": "executeWorkflow",
+        "summary": "Execute a workflow",
+        "tags": [
+          "Workflows"
+        ],
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/intent/understand": {
+      "post": {
+        "operationId": "understandIntent",
+        "summary": "Understand user intent",
+        "description": "Analyze user message and extract intent, slots, and recommended skills",
+        "tags": [
+          "Intent"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntentResponse"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/intent/multimodal": {
+      "post": {
+        "operationId": "understandMultimodal",
+        "summary": "Understand multimodal content",
+        "description": "Analyze images, audio, video, or documents and extract intent",
+        "tags": [
+          "Intent"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "image",
+                      "audio",
+                      "video",
+                      "document"
+                    ]
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "caption": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntentResponse"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/costs/report": {
+      "get": {
+        "operationId": "getCostReport",
+        "summary": "Get cost report",
+        "description": "Get detailed cost breakdown for the tenant",
+        "tags": [
+          "Costs"
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ]
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hourly",
+                "daily",
+                "weekly"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostReport"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/costs/forecast": {
+      "get": {
+        "operationId": "getCostForecast",
+        "summary": "Get cost forecast",
+        "description": "Get projected costs based on current usage",
+        "tags": [
+          "Costs"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/compliance/frameworks": {
+      "get": {
+        "operationId": "listFrameworks",
+        "summary": "List compliance frameworks",
+        "tags": [
+          "Compliance"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/compliance/assess": {
+      "post": {
+        "operationId": "runAssessment",
+        "summary": "Run compliance assessment",
+        "tags": [
+          "Compliance"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "framework": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceReport"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/compliance/reports/{framework}": {
+      "get": {
+        "operationId": "getComplianceReport",
+        "summary": "Get compliance report",
+        "tags": [
+          "Compliance"
+        ],
+        "parameters": [
+          {
+            "name": "framework",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "pdf"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "summary": "List workspaces",
+        "tags": [
+          "Workspace"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Workspace"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      },
+      "post": {
+        "operationId": "createWorkspace",
+        "summary": "Create workspace",
+        "tags": [
+          "Workspace"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Workspace"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/members": {
+      "get": {
+        "operationId": "listMembers",
+        "summary": "List workspace members",
+        "tags": [
+          "Workspace"
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "deprecated": false
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Skill": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "skill_abc123"
+          },
+          "name": {
+            "type": "string",
+            "example": "Stock Analyzer"
+          },
+          "description": {
+            "type": "string",
+            "example": "Analyze stock trends and predict prices"
+          },
+          "version": {
+            "type": "string",
+            "example": "1.2.0",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "finance",
+              "healthcare",
+              "legal",
+              "manufacturing",
+              "education",
+              "retail"
+            ]
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillInput"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillOutput"
+            }
+          },
+          "author": {
+            "$ref": "#/components/schemas/Author"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/SkillStats"
+          },
+          "compliance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SkillInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "array",
+              "object",
+              "file"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          },
+          "enum": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SkillOutput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "Author": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string",
+            "format": "uri"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SkillStats": {
+        "type": "object",
+        "properties": {
+          "downloads": {
+            "type": "integer"
+          },
+          "rating": {
+            "type": "number",
+            "format": "float"
+          },
+          "ratingCount": {
+            "type": "integer"
+          },
+          "weeklyInstalls": {
+            "type": "integer"
+          }
+        }
+      },
+      "Workflow": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "paused",
+              "archived"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WorkflowNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "example": "skill.execute"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position"
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      },
+      "WorkflowEdge": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "sourcePort": {
+            "type": "string"
+          },
+          "targetPort": {
+            "type": "string"
+          }
+        }
+      },
+      "Position": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        }
+      },
+      "Model": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "openai-gpt-4"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "local",
+              "custom"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "GPT-4"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "chat",
+              "embedding",
+              "image"
+            ]
+          },
+          "contextWindow": {
+            "type": "integer",
+            "example": 128000
+          },
+          "inputCost": {
+            "type": "number",
+            "example": 0.03
+          },
+          "outputCost": {
+            "type": "number",
+            "example": 0.06
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IntentRequest": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "分析本周销售数据并生成报告"
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string"
+              },
+              "history": {
+                "type": "array"
+              },
+              "attachments": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      },
+      "IntentResponse": {
+        "type": "object",
+        "properties": {
+          "intent": {
+            "type": "string",
+            "example": "report"
+          },
+          "confidence": {
+            "type": "number",
+            "example": 0.92
+          },
+          "slots": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "chain": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "estimatedTime": {
+                "type": "integer"
+              }
+            }
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      },
+      "CostReport": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "totalCost": {
+            "type": "number",
+            "example": 15420.5
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "breakdown": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "byDay": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "cost": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "editor",
+              "viewer",
+              "approver"
+            ]
+          },
+          "workspace": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Workspace": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "starter",
+              "professional",
+              "enterprise"
+            ]
+          },
+          "settings": {
+            "type": "object"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ComplianceReport": {
+        "type": "object",
+        "properties": {
+          "framework": {
+            "type": "string",
+            "example": "GDPR"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "compliant",
+              "non_compliant",
+              "in_progress"
+            ]
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComplianceControl"
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "totalControls": {
+                "type": "integer"
+              },
+              "compliant": {
+                "type": "integer"
+              },
+              "nonCompliant": {
+                "type": "integer"
+              },
+              "complianceRate": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      },
+      "ComplianceControl": {
+        "type": "object",
+        "properties": {
+          "controlId": {
+            "type": "string"
+          },
+          "controlName": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "compliant",
+              "non_compliant"
+            ]
+          },
+          "findings": {
+            "type": "array"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid input parameters"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "responses": {},
+    "parameters": {}
+  }
+}

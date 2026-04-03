@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#e50914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>设置 - 拾号-影视</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar scrolled">
+    <a href="/" class="navbar-brand">
+      <span>🎬</span> 拾号-影视
+    </a>
+    <div class="navbar-menu">
+      <a href="/">首页</a>
+      <a href="/setting.html" class="active">设置</a>
+    </div>
+  </nav>
+
+  <div class="setting-page">
+    <h1 class="setting-title">⚙️ 数据源配置</h1>
+    
+    <!-- 数据源列表 -->
+    <div class="setting-section">
+      <h3>当前数据源</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+        点击数据源右侧的"使用"按钮切换当前使用的数据源。可以添加多个数据源随时切换。
+      </p>
+      <div class="source-list" id="sourceList" role="list" aria-label="数据源列表"></div>
+      
+      <!-- 添加数据源表单 -->
+      <div class="add-source-form">
+        <h3 style="margin-bottom: 16px;">添加新数据源</h3>
+        <div class="form-group">
+          <label for="sourceName">数据源名称</label>
+          <input type="text" id="sourceName" placeholder="例如: 百度云资源" aria-label="输入数据源名称">
+        </div>
+        <div class="form-group">
+          <label for="sourceUrl">接口地址</label>
+          <input type="text" id="sourceUrl" placeholder="例如: https://api.apibdzy.com/api.php/provide/vod/" aria-label="输入API接口地址">
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button class="btn btn-outline" onclick="testSource()" aria-label="测试数据源连接">🔍 测试连接</button>
+          <button class="btn btn-primary" onclick="addSource()" aria-label="添加新数据源">➕ 添加数据源</button>
+        </div>
+        <div id="testResult" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- 使用说明 -->
+    <div class="setting-section">
+      <h3>📖 使用说明</h3>
+      <div style="color: var(--text-secondary); line-height: 2;">
+        <p><strong>1. 什么是数据源？</strong></p>
+        <p>数据源就是影视资源站提供的API接口地址，支持苹果CMS V10等标准采集接口。</p>
+        
+        <p style="margin-top: 16px;"><strong>2. 如何获取数据源？</strong></p>
+        <p>可以搜索"苹果CMS采集接口"找到免费的影视资源站接口，格式通常为:</p>
+        <code style="background: var(--bg-secondary); padding: 8px 16px; border-radius: 4px; display: block; margin-top: 8px;">
+          https://xxx.com/api.php/provide/vod/
+        </code>
+        
+        <p style="margin-top: 16px;"><strong>3. 推荐数据源格式</strong></p>
+        <ul style="padding-left: 20px; list-style: disc;">
+          <li>列表接口: <code>?ac=list</code> - 获取视频列表</li>
+          <li>详情接口: <code>?ac=detail&ids=视频ID</code> - 获取视频详情</li>
+          <li>搜索接口: <code>?ac=list&wd=关键词</code> - 搜索视频</li>
+        </ul>
+        
+        <p style="margin-top: 16px;"><strong>4. 注意事项</strong></p>
+        <ul style="padding-left: 20px; list-style: disc;">
+          <li>数据源不稳定是正常现象，可以随时更换</li>
+          <li>建议添加多个数据源备用</li>
+          <li>播放地址通常为M3U8格式</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 外观设置 -->
+    <div class="setting-section">
+      <h3>🎨 外观设置</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">
+        自定义网站背景图片，让您的影视网站更具个性。
+      </p>
+      
+      <div class="form-group">
+        <label>当前背景图片</label>
+        <div style="margin-top: 8px;">
+          <div id="currentBgPreview" style="width: 200px; height: 120px; border-radius: 8px; background: #333; overflow: hidden;">
+            <img id="bgPreviewImg" src="" alt="当前背景" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            <div id="bgPlaceholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">暂无背景图片</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>上传背景图片</label>
+        <input type="file" id="bgFileInput" accept="image/*" style="margin-top: 8px;">
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">
+          支持 JPG、PNG、WebP 格式，推荐尺寸 1920x1080
+        </p>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button class="btn btn-primary" onclick="applyBackground()">✨ 应用背景</button>
+        <button class="btn btn-secondary" onclick="resetBackground()">🔄 恢复默认</button>
+        <button class="btn btn-outline" onclick="clearBackground()">🗑️ 清除背景</button>
+      </div>
+      
+      <div id="bgApplyResult" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- 关于 -->
+    <div class="setting-section">
+      <h3>ℹ️ 关于</h3>
+      <p style="color: var(--text-secondary);">
+        <strong>拾号-影视</strong> - 免费开源的影视聚合网站<br>
+        版本: 1.0.0<br>
+        技术栈: HTML + CSS + JavaScript + Node.js
+      </p>
+    </div>
+  </div>
+
+  <script src="/js/storage.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    // XSS protection
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSourceList();
+      loadCurrentBackground();
+    });
+
+    // 背景图片管理
+    function loadCurrentBackground() {
+      const savedBg = localStorage.getItem('customBackground');
+      const img = document.getElementById('bgPreviewImg');
+      const placeholder = document.getElementById('bgPlaceholder');
+      
+      if (savedBg) {
+        img.src = savedBg;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+      } else {
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+      }
+    }
+
+    function applyBackground() {
+      const fileInput = document.getElementById('bgFileInput');
+      const file = fileInput.files[0];
+      const resultDiv = document.getElementById('bgApplyResult');
+      
+      if (!file) {
+        resultDiv.innerHTML = `
+          <div class="test-result error">
+            ❌ 请先选择一张图片文件
+          </div>
+        `;
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB限制
+        resultDiv.innerHTML = `
+          <div class="test-result error">
+            ❌ 图片文件过大，请选择小于5MB的图片
+          </div>
+        `;
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          // 保存到本地存储
+          localStorage.setItem('customBackground', e.target.result);
+          
+          // 更新预览
+          loadCurrentBackground();
+          
+          // 应用到页面
+          document.body.style.backgroundImage = `url(${e.target.result})`;
+          
+          resultDiv.innerHTML = `
+            <div class="test-result success">
+              ✅ 背景图片应用成功！刷新页面后生效。
+            </div>
+          `;
+          
+          App.showToast('背景图片已更新', 'success');
+        } catch (error) {
+          resultDiv.innerHTML = `
+            <div class="test-result error">
+              ❌ 应用失败: ${error.message}
+            </div>
+          `;
+        }
+      };
+      
+      reader.onerror = function() {
+        resultDiv.innerHTML = `
+          <div class="test-result error">
+            ❌ 读取文件失败
+          </div>
+        `;
+      };
+      
+      reader.readAsDataURL(file);
+    }
+
+    function resetBackground() {
+      localStorage.removeItem('customBackground');
+      document.body.style.backgroundImage = "url('/images/default-bg.jpg')";
+      loadCurrentBackground();
+      
+      document.getElementById('bgApplyResult').innerHTML = `
+        <div class="test-result success">
+          ✅ 已恢复默认背景图片
+        </div>
+      `;
+      
+      App.showToast('已恢复默认背景', 'success');
+    }
+
+    function clearBackground() {
+      localStorage.removeItem('customBackground');
+      document.body.style.backgroundImage = 'none';
+      document.body.style.backgroundColor = 'var(--bg-primary)';
+      loadCurrentBackground();
+      
+      document.getElementById('bgApplyResult').innerHTML = `
+        <div class="test-result success">
+          ✅ 背景已清除，使用纯色背景
+        </div>
+      `;
+      
+      App.showToast('背景已清除', 'success');
+    }
+
+    function renderSourceList() {
+      const sources = Storage.getSources();
+      const currentSource = Storage.getCurrentSource();
+      const container = document.getElementById('sourceList');
+      
+      if (sources.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding: 40px;">
+            <div class="empty-icon">📡</div>
+            <div class="empty-title">暂无数据源</div>
+            <div class="empty-desc">请添加一个数据源开始使用</div>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = sources.map(source => `
+        <div class="source-item ${currentSource && currentSource.id === source.id ? 'active' : ''}">
+          <div class="source-info">
+            <div class="source-name">
+              ${escapeHtml(source.name)}
+              ${currentSource && currentSource.id === source.id ? 
+                '<span class="video-tag" style="margin-left: 8px;">当前使用</span>' : ''}
+            </div>
+            <div class="source-url">${escapeHtml(source.apiUrl)}</div>
+          </div>
+          <div class="source-actions">
+            ${currentSource && currentSource.id === source.id ? 
+              `<button class="btn btn-small btn-outline" disabled>使用中</button>` :
+              `<button class="btn btn-small btn-primary" onclick="useSource(${source.id})">使用</button>`
+            }
+            <button class="btn btn-small btn-outline" onclick="deleteSource(${source.id})" 
+                    ${currentSource && currentSource.id === source.id ? 'disabled' : ''}>
+              删除
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function useSource(id) {
+      Storage.setCurrentSource(id);
+      App.showToast('已切换数据源');
+      renderSourceList();
+    }
+
+    function deleteSource(id) {
+      if (confirm('确定要删除这个数据源吗？')) {
+        Storage.deleteSource(id);
+        App.showToast('已删除数据源');
+        renderSourceList();
+      }
+    }
+
+    async function testSource() {
+      const url = document.getElementById('sourceUrl').value.trim();
+      const resultDiv = document.getElementById('testResult');
+      
+      if (!url) {
+        App.showToast('请输入接口地址', 'error');
+        return;
+      }
+      
+      resultDiv.innerHTML = `
+        <div class="test-result" style="background: var(--bg-secondary);">
+          <span class="loading-spinner" style="display: inline-block; width: 20px; height: 20px; vertical-align: middle;"></span>
+          测试连接中...
+        </div>
+      `;
+      
+      try {
+        const response = await fetch('/test-source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiUrl: url })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          resultDiv.innerHTML = `
+            <div class="test-result success">
+              ✅ 连接成功！发现 ${escapeHtml(result.classCount)} 个分类，共 ${escapeHtml(result.totalCount)} 部视频
+            </div>
+          `;
+        } else {
+          resultDiv.innerHTML = `
+            <div class="test-result error">
+              ❌ 连接失败: ${escapeHtml(result.message)}
+            </div>
+          `;
+        }
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="test-result error">
+            ❌ 请求失败: ${escapeHtml(error.message)}
+          </div>
+        `;
+      }
+    }
+
+    async function addSource() {
+      const name = document.getElementById('sourceName').value.trim();
+      const url = document.getElementById('sourceUrl').value.trim();
+      
+      if (!name || !url) {
+        App.showToast('请填写完整信息', 'error');
+        return;
+      }
+      
+      // 确保URL以/结尾
+      const apiUrl = url.endsWith('/') ? url : url + '/';
+      
+      Storage.addSource({
+        name,
+        apiUrl,
+        isActive: false
+      });
+      
+      // 清空表单
+      document.getElementById('sourceName').value = '';
+      document.getElementById('sourceUrl').value = '';
+      document.getElementById('testResult').innerHTML = '';
+      
+      App.showToast('数据源添加成功！');
+      renderSourceList();
+    }
+  </script>
+</body>
+</html>

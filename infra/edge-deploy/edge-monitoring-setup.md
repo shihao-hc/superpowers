@@ -1,0 +1,3 @@
+- Edge Monitoring Setup (Phase 10)
+- 描述：Prometheus/Grafana 的初步接入和边缘节点监控点
+- 内容：收集边缘健康、入口延迟、缓存命中率、CPU/内存等指标

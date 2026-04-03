@@ -1,0 +1,18 @@
+{
+  "name": "shihao-backend",
+  "type": "module",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "start": "node src/index.js",
+    "test": "node test/test_api.js && node test/smoke_test.mjs && node test/api_tests.js && node test/api_endpoints_http.js && node test/api_endpoints_batch.js && node test/api_endpoints_more.js && node test_run_times_http.js && node test/api_endpoints_perf.js && node test_canary.js && node test/api_endpoints_health_drift_retrain.js && node test/api_endpoints_more_health.js && node test/api_endpoints_more_health2.js && node test/api_data_source_resilience.js && node test/api_health_canary.js && node test/api_data_source_health.js && node test_api.js && node test/api_retrain_auto_trigger.js && node test/api_market_adapters.js && node test_market_adapters_hk_more.js && node test_market_adapters_hk_more2.js && node test/api_market_adapters_hk_more3.js && node test/api_drift_retrain.js && node test/api_drift_retrain_loop.js && node test/api_drift_retrain_loop2.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "axios": "^1.6.8",
+    "yfinance": "^0.2.36"
+  }
+}

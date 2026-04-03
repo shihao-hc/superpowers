@@ -1,0 +1,61 @@
+{
+  "name": "智能投顾工作流",
+  "description": "采集市场数据 → 分析趋势 → 生成报告 → 通知客户",
+  "category": "finance",
+  "tags": ["金融", "分析", "报告"],
+  "author": "UltraWork 官方",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "market_data",
+      "type": "browser_navigate",
+      "name": "采集市场数据",
+      "icon": "🌐",
+      "x": 100, "y": 150,
+      "inputs": [{ "name": "url", "type": "string" }],
+      "outputs": [{ "name": "success", "type": "boolean" }]
+    },
+    {
+      "id": "extract_data",
+      "type": "browser_extract",
+      "name": "提取数据",
+      "icon": "📊",
+      "x": 300, "y": 150,
+      "inputs": [{ "name": "selector", "type": "string" }],
+      "outputs": [{ "name": "data", "type": "array" }]
+    },
+    {
+      "id": "analyze",
+      "type": "llm_call",
+      "name": "趋势分析",
+      "icon": "🧠",
+      "x": 500, "y": 150,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "response", "type": "string" }]
+    },
+    {
+      "id": "report",
+      "type": "concat",
+      "name": "生成报告",
+      "icon": "📝",
+      "x": 700, "y": 150,
+      "inputs": [{ "name": "a", "type": "string" }, { "name": "b", "type": "string" }],
+      "outputs": [{ "name": "result", "type": "string" }]
+    },
+    {
+      "id": "notify",
+      "type": "notify",
+      "name": "推送给客户",
+      "icon": "🔔",
+      "x": 900, "y": 150,
+      "inputs": [{ "name": "title", "type": "string" }, { "name": "body", "type": "string" }],
+      "outputs": [{ "name": "sent", "type": "boolean" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "market_data", "output": "success" }, "target": { "nodeId": "extract_data", "input": "selector" } },
+    { "source": { "nodeId": "extract_data", "output": "data" }, "target": { "nodeId": "analyze", "input": "prompt" } },
+    { "source": { "nodeId": "analyze", "output": "response" }, "target": { "nodeId": "report", "input": "a" } },
+    { "source": { "nodeId": "report", "output": "result" }, "target": { "nodeId": "notify", "input": "body" } }
+  ]
+}

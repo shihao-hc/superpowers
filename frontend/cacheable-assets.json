@@ -1,0 +1,14 @@
+{
+  "urls": [
+    "/",
+    "/frontend/index.html",
+    "/frontend/script.js",
+    "/frontend/offline.html",
+    "/frontend/manifest.json",
+    "/frontend/service-worker.js",
+    "/frontend/icons/icon-72x72.png",
+    "/frontend/icons/icon-96x96.png",
+    "/frontend/icons/icon-192x192.png",
+    "/frontend/icons/icon-512x512.png"
+  ]
+}

@@ -1,0 +1,197 @@
+# TradingAgents-CN Full Demo Environment
+# 完整演示环境配置 - Ollama + Tavily + Monitoring + Frontend
+
+version: '3.8'
+
+services:
+  # TradingAgents-CN API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-mock}
+      - USE_MOCK_LLM=true
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - ENABLE_METRICS=true
+      - ENABLE_AUDIT_LOG=true
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REDIS_URL=redis://redis:6379
+      - MONGODB_URL=mongodb://mongo:27017
+      - CORS_ORIGINS=http://localhost:3000,http://frontend:5173
+      - RATE_LIMIT_PER_MINUTE=60
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - demo-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  # Ollama (本地模型)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - demo-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Redis (缓存)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - demo-network
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+
+  # MongoDB (审计日志)
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - mongo-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/init.js
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+  # Vue Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    environment:
+      - VITE_API_URL=http://api:8000
+      - VITE_WS_URL=ws://api:8000/ws
+    depends_on:
+      - api
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+  # Prometheus (监控)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+  # Grafana (仪表盘)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_ENABLED=true
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+  # Alertmanager (告警)
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    networks:
+      - demo-network
+    restart: unless-stopped
+
+networks:
+  demo-network:
+    driver: bridge
+
+volumes:
+  ollama-data:
+  redis-data:
+  mongo-data:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI虚拟人物平台 - 测试页面</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      color: #00d4ff;
+    }
+    
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .metric:last-child { border-bottom: none; }
+    
+    .metric-value {
+      font-weight: bold;
+      color: #7b2cbf;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #7b2cbf, #00d4ff);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    
+    button:hover { transform: scale(1.05); }
+    button:active { transform: scale(0.95); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .chat-area {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      height: 300px;
+      overflow-y: auto;
+    }
+    
+    .message {
+      margin-bottom: 10px;
+      padding: 10px 15px;
+      border-radius: 18px;
+      max-width: 80%;
+    }
+    
+    .message.user {
+      background: #7b2cbf;
+      margin-left: auto;
+    }
+    
+    .message.avatar {
+      background: rgba(0, 212, 255, 0.2);
+    }
+    
+    .message.system {
+      background: rgba(255, 193, 7, 0.2);
+      font-style: italic;
+      max-width: 100%;
+      text-align: center;
+    }
+    
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+    
+    input {
+      flex: 1;
+      padding: 12px 20px;
+      border-radius: 25px;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 14px;
+    }
+    
+    input::placeholder { color: rgba(255,255,255,0.5); }
+    
+    .test-results {
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: monospace;
+    }
+    
+    .test-result {
+      padding: 5px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .test-result.passed { color: #4caf50; }
+    .test-result.failed { color: #f44336; }
+    
+    .avatar-preview {
+      width: 200px;
+      height: 250px;
+      margin: 0 auto 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 100px;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-indicator.ready { background: #4caf50; }
+    .status-indicator.loading { background: #ff9800; animation: pulse 1s infinite; }
+    .status-indicator.error { background: #f44336; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 AI虚拟人物平台 - 测试</h1>
+    
+    <div class="controls">
+      <button onclick="runTests()">🧪 运行测试</button>
+      <button onclick="initEngine()">🚀 初始化引擎</button>
+      <button onclick="startInference()">🧠 启动推理</button>
+      <button onclick="stopInference()">⏹️ 停止推理</button>
+      <button onclick="clearChat()">🗑️ 清空聊天</button>
+    </div>
+    
+    <div class="dashboard">
+      <div class="card">
+        <h2>系统状态</h2>
+        <div class="metric">
+          <span>引擎状态</span>
+          <span id="engineStatus"><span class="status-indicator loading"></span>未初始化</span>
+        </div>
+        <div class="metric">
+          <span>当前人格</span>
+          <span class="metric-value" id="personality">-</span>
+        </div>
+        <div class="metric">
+          <span>当前情绪</span>
+          <span class="metric-value" id="mood">-</span>
+        </div>
+        <div class="metric">
+          <span>推理状态</span>
+          <span class="metric-value" id="inferenceStatus">-</span>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h2>性能指标</h2>
+        <div class="metric">
+          <span>平均延迟</span>
+          <span class="metric-value" id="avgLatency">- ms</span>
+        </div>
+        <div class="metric">
+          <span>处理消息数</span>
+          <span class="metric-value" id="msgCount">0</span>
+        </div>
+        <div class="metric">
+          <span>涌现触发次数</span>
+          <span class="metric-value" id="emergenceCount">0</span>
+        </div>
+        <div class="metric">
+          <span>缓存命中率</span>
+          <span class="metric-value" id="cacheHitRate">-</span>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h2>情感状态</h2>
+        <div class="avatar-preview" id="avatarPreview">😊</div>
+        <div class="metric">
+          <span>主导情感</span>
+          <span class="metric-value" id="dominantEmotion">neutral</span>
+        </div>
+        <div class="metric">
+          <span>情感得分</span>
+          <span class="metric-value" id="sentimentScore">0</span>
+        </div>
+        <div class="metric">
+          <span>情感趋势</span>
+          <span class="metric-value" id="sentimentTrend">stable</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="chat-area" id="chatArea">
+      <div class="message system">欢迎使用AI虚拟人物平台！点击"初始化引擎"开始。</div>
+    </div>
+    
+    <div class="input-area">
+      <input type="text" id="chatInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter')sendMessage()">
+      <button onclick="sendMessage()">发送</button>
+    </div>
+    
+    <h2 style="margin: 20px 0 10px; color: #00d4ff;">测试结果</h2>
+    <div class="test-results" id="testResults">
+      点击"运行测试"开始测试
+    </div>
+  </div>
+
+  <!-- 加载组件 -->
+  <script src="../frontend/components/EnhancedAvatarEngine.js"></script>
+  <script src="../tests/avatar-engine.test.js"></script>
+  
+  <script>
+    let avatar = null;
+    
+    const emojis = {
+      happy: '😊',
+      sad: '😢',
+      excited: '🤩',
+      calm: '😌',
+      curious: '🤔',
+      neutral: '😐',
+      love: '😍',
+      angry: '😠'
+    };
+    
+    async function initEngine() {
+      addMessage('system', '正在初始化引擎...');
+      
+      try {
+        avatar = new EnhancedAvatarEngine({
+          containerId: 'avatar-container',
+          renderMode: 'canvas2d',
+          enableVoice: false,
+          enableGesture: false,
+          enableMemory: false,
+          enableEmergence: true,
+          targetLatency: 50
+        });
+        
+        avatar.on('engine:ready', () => {
+          updateStatus('ready', '引擎就绪');
+          updateDashboard();
+          addMessage('system', '✅ 引擎初始化成功！');
+        });
+        
+        avatar.on('text:response', (data) => {
+          addMessage('avatar', data.text);
+          updateMetrics();
+        });
+        
+        avatar.on('avatar:proactive', (data) => {
+          addMessage('avatar', `🤔 ${data.text}`);
+        });
+        
+        avatar.on('sentiment:changed', (data) => {
+          updateSentiment(data);
+        });
+        
+        // 等待初始化
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        updateStatus('error', `错误: ${error.message}`);
+        addMessage('system', `❌ 初始化失败: ${error.message}`);
+      }
+    }
+    
+    function sendMessage() {
+      if (!avatar) {
+        addMessage('system', '请先初始化引擎');
+        return;
+      }
+      
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      addMessage('user', text);
+      avatar.eventBus.emit('text:input', { text, user: 'user' });
+      avatar.eventBus.emit('chat:message', { text, user: 'user' });
+      
+      input.value = '';
+      updateMetrics();
+    }
+    
+    function addMessage(type, text) {
+      const chatArea = document.getElementById('chatArea');
+      const msg = document.createElement('div');
+      msg.className = `message ${type}`;
+      msg.textContent = text;
+      chatArea.appendChild(msg);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    
+    function clearChat() {
+      document.getElementById('chatArea').innerHTML = 
+        '<div class="message system">聊天已清空</div>';
+    }
+    
+    function updateStatus(status, text) {
+      const el = document.getElementById('engineStatus');
+      el.innerHTML = `<span class="status-indicator ${status}"></span>${text}`;
+    }
+    
+    function updateDashboard() {
+      if (!avatar) return;
+      
+      const status = avatar.getStatus();
+      document.getElementById('personality').textContent = status.personality || '-';
+      document.getElementById('mood').textContent = status.mood || '-';
+      document.getElementById('inferenceStatus').textContent = status.isReady ? '运行中' : '未运行';
+      
+      updateMetrics();
+    }
+    
+    function updateMetrics() {
+      if (!avatar) return;
+      
+      const status = avatar.getStatus();
+      const metrics = avatar.getMetrics();
+      
+      document.getElementById('avgLatency').textContent = `${status.latency?.toFixed(1) || 0} ms`;
+      document.getElementById('msgCount').textContent = status.messagesProcessed || 0;
+      document.getElementById('emergenceCount').textContent = status.emergenceTriggers || 0;
+      
+      if (metrics?.latency) {
+        document.getElementById('cacheHitRate').textContent = 
+          `${(metrics.latency.cacheHitRate * 100).toFixed(1)}%`;
+      }
+    }
+    
+    function updateSentiment(data) {
+      document.getElementById('dominantEmotion').textContent = data.current;
+      document.getElementById('sentimentScore').textContent = data.score?.toFixed(2);
+      document.getElementById('avatarPreview').textContent = emojis[data.current] || '😐';
+    }
+    
+    function startInference() {
+      if (!avatar) {
+        addMessage('system', '请先初始化引擎');
+        return;
+      }
+      avatar.startInference();
+      addMessage('system', '🧠 持续推理已启动');
+      document.getElementById('inferenceStatus').textContent = '运行中';
+    }
+    
+    function stopInference() {
+      if (!avatar) return;
+      avatar.stopInference();
+      addMessage('system', '⏹️ 持续推理已停止');
+      document.getElementById('inferenceStatus').textContent = '已停止';
+    }
+    
+    async function runTests() {
+      const resultsEl = document.getElementById('testResults');
+      resultsEl.innerHTML = '<div class="test-result">运行中...</div>';
+      
+      try {
+        const results = await window.runAvatarTests();
+        
+        resultsEl.innerHTML = `
+          <div class="test-result ${results.failed > 0 ? 'failed' : 'passed'}">
+            ${results.failed > 0 ? '❌' : '✅'} 
+            测试完成: ${results.passed}/${results.total} 通过
+          </div>
+          <div class="test-result">
+            ⏱️ 总耗时: ${results.time.toFixed(1)}ms
+          </div>
+          <div class="test-result">
+            ${results.failed > 0 ? '⚠️ 有测试失败，请检查控制台' : '🎉 所有测试通过！'}
+          </div>
+        `;
+        
+      } catch (error) {
+        resultsEl.innerHTML = `<div class="test-result failed">❌ 测试运行错误: ${error.message}</div>`;
+      }
+    }
+    
+    // 自动更新仪表板
+    setInterval(updateDashboard, 1000);
+  </script>
+</body>
+</html>

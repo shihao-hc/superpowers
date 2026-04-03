@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP 思维链 - 推理可视化</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #333; }
+    h1 { font-size: 2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-top: 0.5rem; }
+    
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; min-height: calc(100vh - 200px); }
+    .panel { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; overflow: hidden; display: flex; flex-direction: column; }
+    .panel-header { padding: 1rem 1.25rem; border-bottom: 1px solid #333; }
+    .panel-title { font-weight: bold; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .panel-body { flex: 1; overflow-y: auto; padding: 1rem; }
+    
+    .chain-list { list-style: none; }
+    .chain-item { padding: 1rem; background: #0f0f23; border-radius: 8px; margin-bottom: 0.75rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+    .chain-item:hover { background: #252540; }
+    .chain-item.active { background: #2d2d4d; border-color: #4facfe; }
+    .chain-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .chain-id { font-family: monospace; color: #4facfe; font-size: 0.85rem; }
+    .chain-status { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    .chain-status.in_progress { background: #1e3a5f; color: #60a5fa; }
+    .chain-status.completed { background: #2d5a2d; color: #4ade80; }
+    .chain-preview { color: #888; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .chain-meta { display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.75rem; color: #666; }
+    
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+    .btn-primary { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #fff; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+    
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; color: #888; font-size: 0.85rem; margin-bottom: 0.5rem; }
+    .form-input { width: 100%; background: #0f0f23; border: 1px solid #333; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.9rem; }
+    .form-input:focus { outline: none; border-color: #4facfe; }
+    textarea.form-input { min-height: 100px; resize: vertical; }
+    
+    .graph-container { background: #0f0f23; border-radius: 8px; min-height: 500px; }
+    .chain-tree { padding: 2rem; }
+    .thought-node { position: relative; margin-bottom: 1rem; }
+    .thought-card { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem; position: relative; transition: all 0.2s; cursor: pointer; }
+    .thought-card:hover { border-color: #4facfe; transform: translateX(5px); }
+    .thought-card.main { border-left: 3px solid #4facfe; }
+    .thought-card.reflection { border-left: 3px solid #fbbf24; background: #1f1f2e; }
+    .thought-card.branch { border-left: 3px solid #a78bfa; margin-left: 2rem; background: #1a1a28; }
+    .thought-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .thought-number { background: #333; color: #4facfe; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .thought-card.reflection .thought-number { background: #5f4d1f; color: #fbbf24; }
+    .thought-card.branch .thought-number { background: #3d2d5f; color: #a78bfa; }
+    .thought-label { font-size: 0.8rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+    .thought-label.thinking { background: #1e3a5f; color: #60a5fa; }
+    .thought-label.reasoning { background: #1f3d5f; color: #4ade80; }
+    .thought-label.criticism { background: #5f4d1f; color: #fbbf24; }
+    .thought-label.branch { background: #3d2d5f; color: #a78bfa; }
+    .thought-content { color: #ccc; font-size: 0.9rem; line-height: 1.5; }
+    .thought-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .action-btn { padding: 0.3rem 0.6rem; border-radius: 4px; border: none; cursor: pointer; font-size: 0.75rem; transition: all 0.2s; }
+    .action-btn.branch { background: #3d2d5f; color: #a78bfa; }
+    .action-btn.branch:hover { background: #4d3d6f; }
+    .action-btn.reflect { background: #5f4d1f; color: #fbbf24; }
+    .action-btn.reflect:hover { background: #6f5d2f; }
+    .action-btn.backtrack { background: #1e3a5f; color: #60a5fa; }
+    .action-btn.backtrack:hover { background: #2e4a6f; }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .branch-indicator { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: #2d2d4d; border-radius: 4px; }
+    .branch-indicator-icon { color: #a78bfa; }
+    
+    .stats-bar { display: flex; gap: 1.5rem; margin-bottom: 1rem; padding: 1rem; background: #0f0f23; border-radius: 8px; flex-wrap: wrap; }
+    .stat-item { display: flex; align-items: center; gap: 0.5rem; }
+    .stat-value { font-weight: bold; color: #4facfe; }
+    .stat-label { color: #888; font-size: 0.85rem; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; padding: 2rem; min-width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .modal-title { font-size: 1.25rem; font-weight: bold; color: #fff; }
+    .modal-close { background: #333; border: none; width: 32px; height: 32px; border-radius: 50%; color: #fff; cursor: pointer; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+    
+    .empty-state { text-align: center; padding: 3rem; color: #888; }
+    .empty-state-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+    
+    .loading { display: flex; justify-content: center; align-items: center; padding: 2rem; flex-direction: column; gap: 1rem; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #4facfe; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 1rem 1.5rem; display: none; z-index: 2000; animation: slideIn 0.3s ease; }
+    .toast.show { display: block; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    .resource-uri { font-family: monospace; background: #0f0f23; padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.85rem; color: #60a5fa; margin-top: 0.5rem; }
+    
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>🧠 MCP 思维链</h1>
+        <p class="subtitle">基于 MCP Protocol Resources 的推理可视化 - thinking:// URI</p>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="loadChains()">🔄 刷新</button>
+        <button class="btn btn-primary" onclick="showNewChainModal()">🆕 新建思维链</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 思维链列表</span>
+        </div>
+        <div class="panel-body">
+          <ul class="chain-list" id="chainList">
+            <li class="empty-state">
+              <div class="empty-state-icon">🔗</div>
+              <p>暂无思维链</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title" id="currentChainTitle">🧩 思维链详情</span>
+        </div>
+        <div class="panel-body" id="chainDetail">
+          <div class="empty-state">
+            <div class="empty-state-icon">🧠</div>
+            <p>选择一个思维链查看详情</p>
+            <p style="font-size:0.85rem;margin-top:0.5rem;">或创建新的思维链开始推理</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newChainModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">🆕 创建新思维链</span>
+        <button class="modal-close" onclick="closeModal('newChainModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>初始思考 (MCP Protocol: thinking://new)</label>
+        <textarea class="form-input" id="initialThought" placeholder="输入您的初始问题或思考..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>元数据 (JSON)</label>
+        <input type="text" class="form-input" id="chainMetadata" placeholder='{"task": "..."}'>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('newChainModal')">取消</button>
+        <button class="btn btn-primary" onclick="createChain()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="addThoughtModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">💭 添加思维步骤</span>
+        <button class="modal-close" onclick="closeModal('addThoughtModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>思维内容</label>
+        <textarea class="form-input" id="newThought" placeholder="输入您的思考..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>推理说明 (可选)</label>
+        <input type="text" class="form-input" id="reasoning" placeholder="推理过程说明">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('addThoughtModal')">取消</button>
+        <button class="btn btn-primary" onclick="addThought()">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="reflectModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">🔄 添加反思</span>
+        <button class="modal-close" onclick="closeModal('reflectModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>反思步骤 ID</label>
+        <input type="text" class="form-input" id="reflectStepId" readonly>
+      </div>
+      <div class="form-group">
+        <label>批评/反思内容</label>
+        <textarea class="form-input" id="criticism" placeholder="对这个步骤的批评或反思..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('reflectModal')">取消</button>
+        <button class="btn btn-primary" onclick="addReflection()">添加反思</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="branchModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">🌿 创建分支</span>
+        <button class="modal-close" onclick="closeModal('branchModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>分支起始步骤</label>
+        <input type="text" class="form-input" id="branchFromStep" readonly>
+      </div>
+      <div class="form-group">
+        <label>分支标签</label>
+        <input type="text" class="form-input" id="branchLabel" placeholder="分支名称...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('branchModal')">取消</button>
+        <button class="btn btn-primary" onclick="createBranch()">创建分支</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="backtrackModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">⏪ 回溯</span>
+        <button class="modal-close" onclick="closeModal('backtrackModal')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>回溯到步骤 (数字)</label>
+        <input type="number" class="form-input" id="backtrackStep" min="1" placeholder="1">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('backtrackModal')">取消</button>
+        <button class="btn btn-primary" onclick="doBacktrack()">回溯</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mcp-client.js"></script>
+  <script>
+    const mcp = new MCPClient('/api/mcp');
+    let chains = [];
+    let currentChain = null;
+    let currentReflectStep = null;
+    let currentBranchStep = null;
+
+    async function loadChains() {
+      try {
+        const data = await mcp.listThinkingChains();
+        chains = data.chains || [];
+        renderChainList();
+      } catch (err) {
+        showToast('加载思维链失败', 'error');
+      }
+    }
+
+    function renderChainList() {
+      const list = document.getElementById('chainList');
+      
+      if (chains.length === 0) {
+        list.innerHTML = `
+          <li class="empty-state">
+            <div class="empty-state-icon">🔗</div>
+            <p>暂无思维链</p>
+            <button class="btn btn-primary btn-small" style="margin-top:1rem;" onclick="showNewChainModal()">创建第一个</button>
+          </li>
+        `;
+        return;
+      }
+      
+      list.innerHTML = chains.map(chain => `
+        <li class="chain-item ${currentChain?.id === chain.id ? 'active' : ''}" onclick="selectChain('${chain.id}')">
+          <div class="chain-item-header">
+            <span class="chain-id">${chain.id.substring(0, 16)}...</span>
+            <span class="chain-status ${chain.status}">${chain.status === 'in_progress' ? '进行中' : '已完成'}</span>
+          </div>
+          <div class="chain-preview">${chain.thoughts?.[0]?.thought || '空思维链'}</div>
+          <div class="resource-uri">thinking://${chain.id}</div>
+          <div class="chain-meta">
+            <span>${chain.thoughts?.length || 0} 步</span>
+            <span>${chain.branches?.length || 0} 分支</span>
+          </div>
+        </li>
+      `).join('');
+    }
+
+    async function selectChain(chainId) {
+      try {
+        const chain = await mcp.getThinkingChain(chainId);
+        currentChain = chain;
+        renderChainDetail(chain);
+        renderChainList();
+      } catch (err) {
+        showToast('加载思维链详情失败', 'error');
+      }
+    }
+
+    function renderChainDetail(chain) {
+      const resourceUri = `thinking://${chain.id}`;
+      document.getElementById('currentChainTitle').innerHTML = `
+        🧩 ${chain.id.substring(0, 16)}...
+        <span class="resource-uri">${resourceUri}</span>
+      `;
+      
+      const stats = `
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-value">${chain.thoughts?.length || 0}</span>
+            <span class="stat-label">思维步骤</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${chain.branches?.length || 0}</span>
+            <span class="stat-label">分支数</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${chain.status}</span>
+            <span class="stat-label">状态</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">${chain.currentBranch || '主线'}</span>
+            <span class="stat-label">当前分支</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-small" onclick="showAddThoughtModal()">+ 添加思维</button>
+      `;
+      
+      const thoughts = (chain.thoughts || []).map((thought, idx) => {
+        const isReflection = thought.reflectionOf !== null;
+        const isBranch = thought.branchId !== null;
+        const cardClass = isReflection ? 'reflection' : (isBranch ? 'branch' : 'main');
+        
+        return `
+          <div class="thought-node">
+            <div class="thought-card ${cardClass}">
+              <div class="thought-header">
+                <span class="thought-number">#${thought.thoughtNumber || (idx + 1)}</span>
+                <span class="thought-label ${thought.criticism ? 'criticism' : (thought.reasoning ? 'reasoning' : 'thinking')}">
+                  ${thought.criticism ? '🔄 反思' : (thought.reasoning ? '💡 推理' : '💭 思考')}
+                </span>
+              </div>
+              ${isBranch && thought.branchId ? `
+                <div class="branch-indicator">
+                  <span class="branch-indicator-icon">🌿</span>
+                  <span style="font-size:0.8rem;color:#a78bfa;">分支: ${thought.branchId}</span>
+                </div>
+              ` : ''}
+              <div class="thought-content">${escapeHtml(thought.thought)}</div>
+              ${thought.reasoning ? `<div style="margin-top:0.5rem;font-size:0.8rem;color:#888;">💡 推理: ${escapeHtml(thought.reasoning)}</div>` : ''}
+              ${thought.criticism ? `<div style="margin-top:0.5rem;font-size:0.8rem;color:#fbbf24;">🔄 批评: ${escapeHtml(thought.criticism)}</div>` : ''}
+              <div class="thought-actions">
+                <button class="action-btn branch" onclick="showBranchModal('step_${thought.thoughtNumber || (idx + 1)}')">🌿 分支</button>
+                <button class="action-btn reflect" onclick="showReflectModal('step_${thought.thoughtNumber || (idx + 1)}')">🔄 反思</button>
+                ${(thought.thoughtNumber || idx + 1) > 1 ? `<button class="action-btn backtrack" onclick="showBacktrackModal(${thought.thoughtNumber || idx + 1})">⏪ 回溯</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('chainDetail').innerHTML = stats + '<div class="graph-container"><div class="chain-tree">' + thoughts + '</div></div>';
+    }
+
+    function showNewChainModal() {
+      document.getElementById('initialThought').value = '';
+      document.getElementById('chainMetadata').value = '{}';
+      document.getElementById('newChainModal').classList.add('show');
+    }
+
+    function showAddThoughtModal() {
+      document.getElementById('newThought').value = '';
+      document.getElementById('reasoning').value = '';
+      document.getElementById('addThoughtModal').classList.add('show');
+    }
+
+    function showReflectModal(stepId) {
+      currentReflectStep = stepId;
+      document.getElementById('reflectStepId').value = stepId;
+      document.getElementById('criticism').value = '';
+      document.getElementById('reflectModal').classList.add('show');
+    }
+
+    function showBranchModal(fromStep) {
+      currentBranchStep = fromStep;
+      document.getElementById('branchFromStep').value = fromStep;
+      document.getElementById('branchLabel').value = '';
+      document.getElementById('branchModal').classList.add('show');
+    }
+
+    function showBacktrackModal(toStep) {
+      document.getElementById('backtrackStep').value = toStep;
+      document.getElementById('backtrackModal').classList.add('show');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('show');
+    }
+
+    async function createChain() {
+      const initialThought = document.getElementById('initialThought').value;
+      if (!initialThought) {
+        showToast('请输入初始思考', 'error');
+        return;
+      }
+      
+      let metadata = {};
+      try {
+        const metadataStr = document.getElementById('chainMetadata').value;
+        if (metadataStr) metadata = JSON.parse(metadataStr);
+      } catch (e) {}
+      
+      try {
+        const chain = await mcp.createThinkingChain(initialThought, metadata);
+        closeModal('newChainModal');
+        await loadChains();
+        selectChain(chain.id);
+        showToast('思维链创建成功 (thinking://' + chain.id + ')', 'success');
+      } catch (err) {
+        showToast('创建失败', 'error');
+      }
+    }
+
+    async function addThought() {
+      if (!currentChain) return;
+      
+      const thought = document.getElementById('newThought').value;
+      const reasoning = document.getElementById('reasoning').value;
+      
+      if (!thought) {
+        showToast('请输入思考内容', 'error');
+        return;
+      }
+      
+      try {
+        await mcp.addThought(currentChain.id, thought, { reasoning: reasoning || null });
+        closeModal('addThoughtModal');
+        await selectChain(currentChain.id);
+        showToast('思维步骤添加成功', 'success');
+      } catch (err) {
+        showToast('添加失败', 'error');
+      }
+    }
+
+    async function addReflection() {
+      if (!currentChain || !currentReflectStep) return;
+      
+      const criticism = document.getElementById('criticism').value;
+      if (!criticism) {
+        showToast('请输入反思内容', 'error');
+        return;
+      }
+      
+      try {
+        await mcp.addReflection(currentChain.id, currentReflectStep, criticism);
+        closeModal('reflectModal');
+        await selectChain(currentChain.id);
+        showToast('反思添加成功', 'success');
+      } catch (err) {
+        showToast('添加失败', 'error');
+      }
+    }
+
+    async function createBranch() {
+      if (!currentChain || !currentBranchStep) return;
+      
+      const label = document.getElementById('branchLabel').value;
+      
+      try {
+        await mcp.createBranch(currentChain.id, currentBranchStep, label);
+        closeModal('branchModal');
+        await selectChain(currentChain.id);
+        showToast('分支创建成功', 'success');
+      } catch (err) {
+        showToast('创建失败', 'error');
+      }
+    }
+
+    async function doBacktrack() {
+      if (!currentChain) return;
+      
+      const toStep = parseInt(document.getElementById('backtrackStep').value);
+      if (!toStep || toStep < 1) {
+        showToast('请输入有效的步骤号', 'error');
+        return;
+      }
+      
+      try {
+        await mcp.backtrack(currentChain.id, toStep);
+        closeModal('backtrackModal');
+        await selectChain(currentChain.id);
+        showToast('回溯成功', 'success');
+      } catch (err) {
+        showToast('回溯失败', 'error');
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    loadChains();
+  </script>
+</body>
+</html>

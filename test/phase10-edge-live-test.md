@@ -1,0 +1,3 @@
+- Phase 10 Edge Live Test
+- 验证边缘节点在真实流量下的表现
+- 收集 latency、命中率、错误率等关键指标

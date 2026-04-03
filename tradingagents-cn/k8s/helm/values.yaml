@@ -1,0 +1,261 @@
+# Default values for tradingagents-cn
+# This is the default values file providing sensible defaults
+
+replicaCount: 1
+
+image:
+  repository: tradingagents-cn
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# API Service Configuration
+api:
+  replicaCount: 2
+  
+  image:
+    repository: tradingagents-cn
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8000
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/websocket-services: "tradingagents-cn-api"
+      nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    hosts:
+      - host: api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tradingagents-cn-api-tls
+        hosts:
+          - api.example.com
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  env:
+    - name: LLM_PROVIDER
+      value: "deepseek"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: ENABLE_METRICS
+      value: "true"
+    - name: REDIS_URL
+      value: "redis://redis:6379/0"
+
+  # Secret environment variables (from Kubernetes Secret)
+  secretEnv:
+    - name: DEEPSEEK_API_KEY
+      secretName: tradingagents-cn-secrets
+      secretKey: deepseek-api-key
+    - name: DASHSCOPE_API_KEY
+      secretName: tradingagents-cn-secrets
+      secretKey: dashscope-api-key
+
+# Frontend Configuration
+frontend:
+  enabled: true
+  
+  replicaCount: 1
+
+  image:
+    repository: tradingagents-cn-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: app.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tradingagents-cn-frontend-tls
+        hosts:
+          - app.example.com
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Redis Configuration
+redis:
+  enabled: true
+  architecture: "standalone"
+  
+  auth:
+    enabled: false
+  
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClass: "standard"
+    
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+  
+  server:
+    retention: 15d
+    
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+      storageClass: "standard"
+
+  alertmanager:
+    enabled: true
+    persistentVolume:
+      enabled: true
+      size: 1Gi
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  
+  adminPassword: "admin"
+  
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: "standard"
+  
+  # Pre-configure datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus-server:9090
+          isDefault: true
+
+# Ingress for both services
+ingress:
+  api:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tradingagents-cn-api-tls
+        hosts:
+          - api.example.com
+
+# Monitoring & Alerting
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+  alertmanager:
+    enabled: true
+
+# Alert webhooks
+alerting:
+  dingtalk:
+    enabled: false
+    webhookUrl: ""
+  wechat:
+    enabled: false
+    webhookUrl: ""
+
+# Network policies
+networkPolicy:
+  enabled: true
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - tradingagents-cn-api
+          topologyKey: kubernetes.io/hostname

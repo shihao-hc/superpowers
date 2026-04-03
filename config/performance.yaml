@@ -1,0 +1,349 @@
+# UltraWork AI 性能优化配置
+# 优化策略：资源缓存、压缩、CDN加速、懒加载
+# Generated at 2026-03-20
+
+# 性能指标目标
+performance_targets:
+  p95_latency_ms: 500
+  p99_latency_ms: 1000
+  rps_min: 100
+  memory_usage_max: 80%
+  cpu_usage_max: 70%
+  cache_hit_rate_min: 60%
+
+# 缓存策略
+caching:
+  # 静态资源缓存
+  static_assets:
+    max_age: 31536000  # 1年
+    immutable: true
+    patterns:
+      - "*.js"
+      - "*.css"
+      - "*.woff2"
+      - "*.png"
+      - "*.jpg"
+      - "*.svg"
+  
+  # API响应缓存
+  api_responses:
+    default_ttl: 300  # 5分钟
+    max_size_mb: 100
+    strategies:
+      - path: "/api/personality"
+        ttl: 3600  # 1小时
+        method: "GET"
+      - path: "/api/skills"
+        ttl: 1800  # 30分钟
+        method: "GET"
+      - path: "/api/marketplace"
+        ttl: 300  # 5分钟
+        method: "GET"
+  
+  # WebSocket状态缓存
+  websocket:
+    session_ttl: 3600  # 1小时
+    max_sessions: 1000
+    cleanup_interval: 300000  # 5分钟
+
+# 压缩配置
+compression:
+  enabled: true
+  algorithms:
+    - gzip
+    - br
+  min_size: 1024  # 1KB以上才压缩
+  types:
+    - "text/html"
+    - "text/css"
+    - "application/javascript"
+    - "application/json"
+    - "text/plain"
+    - "image/svg+xml"
+
+# 连接池配置
+connection_pools:
+  database:
+    min: 2
+    max: 10
+    idle_timeout: 300000  # 5分钟
+  
+  ollama:
+    min: 1
+    max: 5
+    idle_timeout: 60000  # 1分钟
+  
+  websocket:
+    max_connections: 1000
+    per_ip_limit: 10
+    heartbeat_interval: 30000  # 30秒
+
+# 懒加载配置
+lazy_loading:
+  components:
+    - name: "EnhancedAvatarEngine"
+      threshold: 0.8  # 可见度80%时加载
+    - name: "GameInteractionSystem"
+      threshold: 0.5  # 可见度50%时加载
+    - name: "VisionSystem"
+      threshold: 0.3  # 可见度30%时加载
+  
+  images:
+    threshold: 0.1  # 可见度10%时加载
+    placeholder: "/images/placeholder.svg"
+
+# 资源限制
+resource_limits:
+  max_heap_size_mb: 2048
+  max_old_space_size_mb: 1536
+  max_semi_space_size_mb: 64
+  max_old_space_size_ratio: 0.75
+  
+  # 前端资源限制
+  frontend:
+    max_canvas_size: 4096
+    max_webgl_texture_size: 4096
+    max_concurrent_requests: 10
+    max_image_size_mb: 10
+
+# 数据库优化
+database:
+  duckdb:
+    memory_limit: "512MB"
+    threads: 4
+    enable_progress_bar: false
+  
+  redis:
+    maxmemory: "256mb"
+    maxmemory_policy: "allkeys-lru"
+    timeout: 300
+    tcp_keepalive: 60
+
+# AI推理优化
+ai_inference:
+  ollama:
+    num_ctx: 4096
+    num_batch: 512
+    num_gpu: 0
+    temperature: 0.7
+    top_p: 0.9
+    repeat_penalty: 1.1
+    
+  cache:
+    enabled: true
+    max_size: 1000
+    ttl: 300000  # 5分钟
+    
+  batching:
+    enabled: true
+    max_batch_size: 10
+    timeout_ms: 100
+
+# 前端优化
+frontend_optimization:
+  bundle_splitting:
+    enabled: true
+    chunks:
+      - name: "vendor"
+        test: /[\\/]node_modules[\\/]/
+      - name: "common"
+        min_chunks: 2
+  
+  tree_shaking:
+    enabled: true
+  
+  minification:
+    enabled: true
+    mangle: true
+    compress:
+      drop_console: true
+      drop_debugger: true
+  
+  source_maps:
+    enabled: false  # 生产环境关闭
+
+# 网络优化
+network:
+  keep_alive:
+    enabled: true
+    timeout: 75000  # 75秒
+    max_sockets: Infinity
+    max_free_sockets: 256
+  
+  timeouts:
+    server: 30000  # 30秒
+    socket: 60000  # 60秒
+    connect: 10000  # 10秒
+  
+  http2:
+    enabled: false  # 需要SSL
+
+# 安全性能优化
+security_performance:
+  rate_limiting:
+    enabled: true
+    window_ms: 60000  # 1分钟
+    max_requests:
+      api: 100
+      chat: 30
+      memory: 20
+      sensitive: 10
+      vision: 10
+  
+  cors:
+    enabled: true
+    max_age: 86400  # 24小时
+  
+  helmet:
+    enabled: true
+    content_security_policy: true
+
+workflow:
+  # 并行工作流最大并发节点数
+  # I/O 密集型节点可设 10-20，CPU 密集型建议 2-4
+  maxConcurrent: 10
+  
+  # 节点结果缓存 TTL（秒）
+  # 高频变动数据缩短，静态数据可延长至 3600+
+  cacheTTL: 60
+  
+  # 是否启用参数级缓存（不同参数分开缓存）
+  enableParameterCache: true
+  
+  # 工作流预热（启动时编译执行计划）
+  enablePreheating: true
+  
+  # 最大缓存执行计划数
+  maxCompiledPlans: 50
+
+mcp:
+  # 每个 MCP 服务器的连接池大小
+  # 0 = 禁用连接池（单进程串行）
+  # 2-3 = 推荐值，注意写操作需串行
+  connectionPoolSize: 2
+  
+  # 调用超时（毫秒）
+  callTimeout: 30000
+  
+  # 只读工具缓存 TTL（毫秒）
+  readonlyCacheTTL: 60000
+  
+  # 写操作缓存 TTL（毫秒）
+  writeCacheTTL: 5000
+  
+  # 熔断器配置
+  circuitBreaker:
+    # 熔断阈值（连续失败次数）
+    failureThreshold: 5
+    # 半开状态尝试次数
+    halfOpenAttempts: 3
+    # 恢复超时（毫秒）
+    recoveryTimeout: 30000
+    # 慢调用阈值（毫秒），超过此值计入失败
+    slowCallThreshold: 10000
+  
+  # 速率限制
+  rateLimit:
+    enabled: true
+    # 每秒最大请求数
+    maxRequestsPerSecond: 20
+    # 速率限制窗口（毫秒）
+    windowMs: 1000
+    # 每用户最大并发
+    maxConcurrentPerUser: 5
+
+agent:
+  # Agent 实例数量限制
+  minInstances: 2
+  maxInstances: 10
+  
+  # 扩缩容指标
+  scalingMetric: queueLength
+  
+  # 扩缩容阈值
+  scaleUpThreshold: 10
+  scaleDownThreshold: 2
+  
+  # 扩缩容冷却时间（毫秒）
+  scalingCooldown: 60000
+  
+  # 单个 Agent 内存限制（MB）
+  memoryLimitMB: 512
+  
+  # Agent 空闲超时（毫秒）
+  idleTimeout: 300000
+
+dataStorage:
+  # 审计日志批量写入大小
+  auditBatchSize: 100
+  
+  # 审计日志刷盘间隔（毫秒）
+  auditFlushInterval: 5000
+  
+  # 审计日志最大内存条目数
+  auditMaxMemoryEntries: 10000
+  
+  # 审计日志保留天数
+  auditRetentionDays: 30
+  
+  # 是否启用 Redis 缓存
+  enableRedisCache: false
+  
+  # Redis 配置（enableRedisCache=true 时生效）
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+    keyPrefix: "mcp:perf:"
+    # 缓存 TTL（秒）
+    ttl: 300
+
+frontend:
+  # 节点编辑器虚拟滚动
+  virtualScrollEnabled: true
+  
+  # 虚拟滚动每批次渲染数量
+  virtualScrollBatchSize: 50
+  
+  # WebSocket 日志缓冲大小
+  wsLogBufferSize: 100
+  
+  # WebSocket 日志采样率（0-1）
+  wsLogSampleRate: 1.0
+  
+  # 最大 WebSocket 订阅数
+  maxWsSubscriptions: 10
+
+monitoring:
+  # 关键指标告警阈值
+  alerts:
+    # 工作流执行 P95 延迟告警（毫秒）
+    workflowP95Latency: 5000
+    # MCP 调用成功率告警阈值
+    mcpSuccessRate: 0.99
+    # 缓存命中率告警阈值
+    cacheHitRate: 0.5
+    # 节点队列长度告警阈值
+    nodeQueueLength: 100
+  
+  # 是否启用 Prometheus 指标
+  prometheusEnabled: true
+  
+  # 指标收集间隔（毫秒）
+  metricsInterval: 10000
+  
+  # 是否启用详细日志
+  verboseLogging: false
+
+hotReload:
+  # 是否启用配置热更新
+  enabled: true
+  
+  # 配置文件检查间隔（毫秒）
+  checkInterval: 30000
+  
+  # 热更新排除的配置键（正则数组）
+  excludePatterns:
+    - "hotReload"
+    - "monitoring.alerts"

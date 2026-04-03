@@ -1,0 +1,51 @@
+{
+  "name": "内容创作工作流",
+  "description": "选题研究 → 内容撰写 → SEO优化 → 多平台发布",
+  "category": "marketing",
+  "tags": ["内容", "营销", "发布"],
+  "author": "UltraWork 官方",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "research",
+      "type": "browser_navigate",
+      "name": "选题研究",
+      "icon": "🔍",
+      "x": 100, "y": 150,
+      "inputs": [{ "name": "url", "type": "string" }],
+      "outputs": [{ "name": "success", "type": "boolean" }]
+    },
+    {
+      "id": "extract_trends",
+      "type": "browser_extract",
+      "name": "提取热点",
+      "icon": "📊",
+      "x": 300, "y": 150,
+      "inputs": [{ "name": "selector", "type": "string" }],
+      "outputs": [{ "name": "data", "type": "array" }]
+    },
+    {
+      "id": "write_content",
+      "type": "llm_call",
+      "name": "撰写内容",
+      "icon": "✍️",
+      "x": 500, "y": 150,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "response", "type": "string" }]
+    },
+    {
+      "id": "seo_optimize",
+      "type": "llm_call",
+      "name": "SEO优化",
+      "icon": "🔎",
+      "x": 700, "y": 150,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "response", "type": "string" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "research", "output": "success" }, "target": { "nodeId": "extract_trends", "input": "selector" } },
+    { "source": { "nodeId": "extract_trends", "output": "data" }, "target": { "nodeId": "write_content", "input": "prompt" } },
+    { "source": { "nodeId": "write_content", "output": "response" }, "target": { "nodeId": "seo_optimize", "input": "prompt" } }
+  ]
+}

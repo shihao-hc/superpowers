@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ultrawork
+  labels:
+    app: ultrawork
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ultrawork
+  template:
+    metadata:
+      labels:
+        app: ultrawork
+    spec:
+      containers:
+        - name: ultrawork
+          image: ultrawork:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ultrawork-secrets
+                  key: api-key
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: screenshots
+              mountPath: /app/screenshots
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ultrawork-data
+        - name: screenshots
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ultrawork
+spec:
+  selector:
+    app: ultrawork
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ultrawork-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+    - hosts:
+        - ultrawork.example.com
+      secretName: ultrawork-tls
+  rules:
+    - host: ultrawork.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ultrawork
+                port:
+                  number: 80
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ultrawork-secrets
+type: Opaque
+data:
+  api-key: BASE64_ENCODED_API_KEY
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ultrawork-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ultrawork-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ultrawork
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

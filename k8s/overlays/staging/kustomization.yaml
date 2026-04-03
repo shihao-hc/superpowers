@@ -1,0 +1,50 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ultrawork-staging
+
+resources:
+  - ../../base
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ultrawork
+      spec:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - name: ultrawork
+                resources:
+                  limits:
+                    memory: "1Gi"
+                    cpu: "1"
+                  requests:
+                    memory: "512Mi"
+                    cpu: "500m"
+                env:
+                  - name: NODE_ENV
+                    value: "staging"
+                  - name: PORT
+                    value: "3000"
+    target:
+      kind: Deployment
+      name: ultrawork
+
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: ultrawork-hpa
+      spec:
+        minReplicas: 2
+        maxReplicas: 4
+    target:
+      kind: HorizontalPodAutoscaler
+      name: ultrawork-hpa
+
+commonLabels:
+  environment: staging

@@ -1,0 +1,2 @@
+- Phase 10 Edge Acceptance Criteria
+- 端点健康、就近入口、跨区域路由、灰度发布、灾备演练

@@ -1,0 +1,60 @@
+{
+  "app": {
+    "title": "UltraWork AI",
+    "subtitle": "AI Virtual Character Platform"
+  },
+  "personality": {
+    "title": "Select Personality",
+    "current": "Current"
+  },
+  "chat": {
+    "placeholder": "Type a message... (Enter to send)",
+    "send": "Send",
+    "system": "System"
+  },
+  "mood": {
+    "label": "Mood",
+    "neutral": "Neutral",
+    "happy": "Happy",
+    "excited": "Excited",
+    "playful": "Playful",
+    "curious": "Curious",
+    "shy": "Shy"
+  },
+  "memory": {
+    "title": "Memory Management",
+    "search": "Search memories...",
+    "filter": "Filter",
+    "export": "Export",
+    "clear": "Clear",
+    "empty": "No memories yet",
+    "exportJson": "Export as JSON",
+    "exportCsv": "Export as CSV"
+  },
+  "tts": {
+    "on": "Voice On",
+    "off": "Voice Off"
+  },
+  "game": {
+    "panel": "Game Panel",
+    "status": "Status",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "commands": "Commands",
+    "events": "Recent Events"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline"
+  },
+  "errors": {
+    "connectionFailed": "Connection failed, please refresh",
+    "serverError": "Server error",
+    "timeout": "Request timeout"
+  }
+}

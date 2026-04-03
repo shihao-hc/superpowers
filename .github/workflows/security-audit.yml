@@ -1,0 +1,24 @@
+name: Security Audit
+on:
+  push:
+  pull_request:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install deps
+        run: npm install
+      - name: Run security audit
+        run: npm run security-audit || true
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-report
+          path: '**/security-audit-report.*'

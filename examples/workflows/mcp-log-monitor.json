@@ -1,0 +1,92 @@
+{
+  "name": "日志监控告警流水线",
+  "description": "监控仓库 Issue → 读取本地日志 → AI分析 → 生成报告并上链存证",
+  "category": "devops",
+  "tags": ["日志", "监控", "GitHub", "自动化"],
+  "author": "UltraWork MCP",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "input_log",
+      "type": "input",
+      "name": "日志路径",
+      "icon": "📁",
+      "x": 50,
+      "y": 150,
+      "inputs": [],
+      "outputs": [{ "name": "path", "type": "string" }]
+    },
+    {
+      "id": "read_log",
+      "type": "mcp.filesystem.read_file",
+      "name": "读取日志",
+      "icon": "📖",
+      "x": 250,
+      "y": 150,
+      "inputs": [{ "name": "path", "type": "string" }],
+      "outputs": [{ "name": "content", "type": "string" }]
+    },
+    {
+      "id": "analyze_error",
+      "type": "mcp.sequential-thinking.think",
+      "name": "AI错误分析",
+      "icon": "🤖",
+      "x": 450,
+      "y": 150,
+      "inputs": [{ "name": "thought", "type": "string" }],
+      "outputs": [{ "name": "result", "type": "object" }]
+    },
+    {
+      "id": "condition_error",
+      "type": "condition",
+      "name": "是否严重错误?",
+      "icon": "❓",
+      "x": 650,
+      "y": 150,
+      "inputs": [
+        { "name": "condition", "type": "boolean" },
+        { "name": "trueValue", "type": "any" },
+        { "name": "falseValue", "type": "any" }
+      ],
+      "outputs": [{ "name": "result", "type": "any" }]
+    },
+    {
+      "id": "create_issue",
+      "type": "mcp.github.create_issue",
+      "name": "创建Issue",
+      "icon": "🐙",
+      "x": 850,
+      "y": 100,
+      "inputs": [{ "name": "data", "type": "object" }],
+      "outputs": [{ "name": "issue", "type": "object" }]
+    },
+    {
+      "id": "generate_report",
+      "type": "llm_call",
+      "name": "生成报告",
+      "icon": "📊",
+      "x": 850,
+      "y": 200,
+      "inputs": [{ "name": "prompt", "type": "string" }],
+      "outputs": [{ "name": "report", "type": "string" }]
+    },
+    {
+      "id": "save_report",
+      "type": "mcp.filesystem.write_file",
+      "name": "保存报告",
+      "icon": "💾",
+      "x": 1050,
+      "y": 150,
+      "inputs": [{ "name": "path", "type": "string" }, { "name": "content", "type": "string" }],
+      "outputs": [{ "name": "success", "type": "boolean" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "input_log", "output": "path" }, "target": { "nodeId": "read_log", "input": "path" } },
+    { "source": { "nodeId": "read_log", "output": "content" }, "target": { "nodeId": "analyze_error", "input": "thought" } },
+    { "source": { "nodeId": "analyze_error", "output": "result" }, "target": { "nodeId": "condition_error", "input": "condition" } },
+    { "source": { "nodeId": "condition_error", "output": "result" }, "target": { "nodeId": "create_issue", "input": "data" } },
+    { "source": { "nodeId": "analyze_error", "output": "result" }, "target": { "nodeId": "generate_report", "input": "prompt" } },
+    { "source": { "nodeId": "generate_report", "output": "report" }, "target": { "nodeId": "save_report", "input": "content" } }
+  ]
+}

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#e50914">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>详情 - 拾号-影视</title>
+  <link rel="stylesheet" href="/css/style.css?v=2">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar scrolled" role="navigation" aria-label="主导航">
+    <a href="/" class="navbar-brand" aria-label="返回首页">
+      <span>🎬</span> 拾号-影视
+    </a>
+    <div class="navbar-menu">
+      <a href="/" aria-label="返回首页">首页</a>
+      <a href="/setting.html" aria-label="打开设置页面">设置</a>
+    </div>
+  </nav>
+
+  <main class="detail-page">
+    <!-- 视频详情头部 -->
+    <section class="detail-header" id="detailHeader" aria-label="视频详情">
+      <div class="loading" id="loadingState" role="status" aria-live="polite">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">加载中...</div>
+      </div>
+      
+      <div class="detail-poster" id="detailPoster" style="display: none;">
+        <img id="posterImg" src="" alt="视频海报">
+      </div>
+      
+      <div class="detail-info" id="detailInfo" style="display: none;">
+        <h1 class="detail-title" id="videoTitle"></h1>
+        
+        <div class="detail-meta" id="videoMeta" aria-label="视频信息"></div>
+        
+        <div class="detail-tags" id="videoTags" aria-label="视频标签"></div>
+        
+        <div class="detail-desc" id="videoDesc" aria-label="视频简介"></div>
+        
+        <div class="detail-actions">
+          <button class="btn btn-primary" onclick="playVideo()" aria-label="立即播放视频">
+            ▶ 立即播放
+          </button>
+          <button class="btn btn-outline fav-btn" id="favBtn" onclick="toggleFavorite()" aria-label="添加或移除收藏">
+            ♡ 收藏
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 剧集列表 -->
+    <section class="episodes-section" id="episodesSection" style="display: none;">
+      <h2 class="section-title">剧集列表</h2>
+      
+      <div class="source-tabs" id="sourceTabs" role="tablist" aria-label="播放源选择"></div>
+      
+      <div class="episodes-grid" id="episodesGrid" role="group" aria-label="剧集列表"></div>
+    </section>
+  </main>
+
+  <script src="/js/storage.js?v=3"></script>
+  <script src="/js/app.js?v=3"></script>
+  <script>
+    // XSS防护函数
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    let currentVideo = null;
+    let playSources = [];
+    let currentSourceIndex = 0;
+
+    // 从URL获取视频ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoId = urlParams.get('id');
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 验证videoId是否为有效的数字ID
+  if (!videoId || !/^\d+$/.test(videoId)) {
+    App.showError(document.getElementById('loadingState'), '无效的视频ID，请从列表重新进入', 'window.history.back()');
+    return;
+  }
+  
+  loadDetail(videoId);
+});
+
+    async function loadDetail(id) {
+      try {
+        currentVideo = await App.getDetail(id);
+        
+        // 更新页面标题
+        document.title = `${currentVideo.vod_name} - 拾号-影视`;
+        
+        // 显示内容
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('detailPoster').style.display = 'block';
+        document.getElementById('detailInfo').style.display = 'block';
+        
+        // 设置海报（通过代理加载）
+        const posterImg = document.getElementById('posterImg');
+        if (currentVideo.vod_pic) {
+          const proxyUrl = `/image?url=${encodeURIComponent(currentVideo.vod_pic)}`;
+          posterImg.src = proxyUrl;
+          posterImg.onerror = function() {
+            this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450"><rect fill="%231a1a2e" width="300" height="450"/><text x="150" y="225" text-anchor="middle" fill="%23666" font-size="48">🎬</text></svg>';
+          };
+          
+          // 设置背景
+          document.getElementById('detailHeader').style.backgroundImage = 
+            `linear-gradient(rgba(20, 20, 20, 0.8), rgba(20, 20, 20, 0.95)), url(${proxyUrl})`;
+        }
+        
+        // 设置标题
+        document.getElementById('videoTitle').textContent = currentVideo.vod_name;
+        
+        // 设置元信息（XSS安全）
+        document.getElementById('videoMeta').innerHTML = `
+          ${currentVideo.vod_year ? `<span>📅 ${escapeHtml(currentVideo.vod_year)}</span>` : ''}
+          ${currentVideo.vod_area ? `<span>🌍 ${escapeHtml(currentVideo.vod_area)}</span>` : ''}
+          ${currentVideo.vod_lang ? `<span>🗣 ${escapeHtml(currentVideo.vod_lang)}</span>` : ''}
+          ${currentVideo.type_name ? `<span>📁 ${escapeHtml(currentVideo.type_name)}</span>` : ''}
+        `;
+        
+        // 设置标签（XSS安全）
+        const tags = [];
+        if (currentVideo.vod_actor) {
+          const actors = currentVideo.vod_actor.split(',').slice(0, 3).join(', ');
+          tags.push(`演员: ${escapeHtml(actors)}`);
+        }
+        if (currentVideo.vod_director) {
+          tags.push(`导演: ${escapeHtml(currentVideo.vod_director)}`);
+        }
+        
+        document.getElementById('videoTags').innerHTML = tags.map(t => 
+          `<span class="tag">${t}</span>`
+        ).join('');
+        
+        // 设置简介
+        const descEl = document.getElementById('videoDesc');
+        if (currentVideo.vod_content) {
+          // 清理HTML内容
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = currentVideo.vod_content;
+          descEl.textContent = tempDiv.textContent || tempDiv.innerText;
+          
+          // 点击展开
+          descEl.onclick = () => {
+            descEl.classList.toggle('expanded');
+          };
+        }
+        
+        // 更新收藏按钮状态
+        updateFavButton();
+        
+        // 解析播放源
+        if (currentVideo.vod_play_from && currentVideo.vod_play_url) {
+          playSources = App.parsePlayUrls(currentVideo.vod_play_from, currentVideo.vod_play_url);
+          renderSources();
+          renderEpisodes(0);
+          document.getElementById('episodesSection').style.display = 'block';
+          
+          // 显示续播进度
+          const progress = getResumeProgress(currentVideo.vod_id);
+          showResumeProgress(progress);
+        }
+        
+} catch (error) {
+  console.error('加载详情失败:', error);
+  let msg = '加载详情失败';
+  if (error.message.includes('未找到')) {
+    msg = '未找到视频信息，可能该资源已失效或需要切换线路';
+  } else if (error.message.includes('网络')) {
+    msg = '网络错误，请检查您的连接';
+  } else if (error.message.includes('超时')) {
+    msg = '请求超时，请稍后重试';
+  } else {
+    msg = error.message || '未知错误';
+  }
+  App.showError(document.getElementById('loadingState'), msg, `loadDetail('${id}')`);
+}
+    }
+
+    function renderSources() {
+      const tabs = document.getElementById('sourceTabs');
+      tabs.innerHTML = playSources.map((source, index) => `
+        <button class="source-tab ${index === currentSourceIndex ? 'active' : ''}" 
+                onclick="selectSource(${index})"
+                role="tab"
+                aria-selected="${index === currentSourceIndex}"
+                aria-controls="episodesGrid"
+                aria-label="${escapeHtml(source.name)}${source.isM3u8 ? ' (M3U8格式)' : ''}">
+          ${escapeHtml(source.name)}
+          ${source.isM3u8 ? '<span class="video-tag" style="margin-left:4px" aria-hidden="true">M3U8</span>' : ''}
+        </button>
+      `).join('');
+    }
+
+    function selectSource(index) {
+      currentSourceIndex = index;
+      renderSources();
+      renderEpisodes(index);
+    }
+
+    function renderEpisodes(sourceIndex) {
+      const grid = document.getElementById('episodesGrid');
+      const episodes = playSources[sourceIndex].episodes;
+      
+      if (episodes.length === 0) {
+        grid.innerHTML = '<div class="empty-state" role="status"><div class="empty-icon" aria-hidden="true">📭</div><div class="empty-title">暂无剧集</div></div>';
+        return;
+      }
+      
+      grid.innerHTML = episodes.map((ep, index) => `
+        <button class="episode-btn" onclick="playEpisode(${sourceIndex}, ${index})" aria-label="播放 ${escapeHtml(ep.name)}">
+          ${escapeHtml(ep.name)}
+        </button>
+      `).join('');
+    }
+
+    function playVideo() {
+      if (playSources.length > 0 && playSources[currentSourceIndex].episodes.length > 0) {
+        playEpisode(currentSourceIndex, 0);
+      } else {
+        App.showToast('暂无播放源', 'error');
+      }
+    }
+
+    function getResumeProgress(vid) {
+      try {
+        const data = localStorage.getItem(`playback_${vid}`);
+        return data ? JSON.parse(data) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function showResumeProgress(progress) {
+      if (!progress || progress.percent < 5 || progress.percent > 95) return;
+      
+      const playBtn = document.querySelector('.detail-actions .btn-primary');
+      if (playBtn) {
+        const resumeText = document.createElement('span');
+        resumeText.style.cssText = 'margin-left: 8px; font-size: 12px; opacity: 0.8;';
+        resumeText.innerHTML = `▶ 已观看${Math.round(progress.percent)}%`;
+        playBtn.appendChild(resumeText);
+        
+        playBtn.onclick = () => {
+          const continueBtn = confirm(`从 ${formatTime(progress.currentTime)} 继续播放？\n点击"确定"继续播放，"取消"从头开始。`);
+          if (continueBtn) {
+            window.location.href = `/player.html?url=${encodeURIComponent(playSources[currentSourceIndex].episodes[0].url)}&name=${encodeURIComponent(currentVideo.vod_name)}&episode=${encodeURIComponent(playSources[currentSourceIndex].episodes[0].name)}&vid=${currentVideo.vod_id}`;
+          } else {
+            playSources[currentSourceIndex].episodes[0].resumeTime = 0;
+            localStorage.removeItem(`playback_${currentVideo.vod_id}`);
+            playEpisode(currentSourceIndex, 0);
+          }
+        };
+      }
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return '00:00';
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function playEpisode(sourceIndex, episodeIndex) {
+      // 使用可选链安全获取数据
+      const source = playSources[sourceIndex];
+      if (!source) {
+        console.error('播放源不存在:', sourceIndex);
+        App.showToast('播放源加载失败', 'error');
+        return;
+      }
+      
+      const episode = source.episodes[episodeIndex];
+      if (!episode) {
+        console.error('剧集不存在:', sourceIndex, episodeIndex);
+        App.showToast('剧集信息不完整', 'error');
+        return;
+      }
+      
+      if (!episode.url || episode.url.trim() === '') {
+        console.error('剧集播放地址为空:', episode);
+        App.showToast('无法播放此剧集：播放地址无效', 'error');
+        return;
+      }
+      
+      // 保存到历史
+      const currentSource = Storage.getCurrentSource();
+      Storage.addHistory({
+        id: currentVideo.vod_id,
+        name: currentVideo.vod_name,
+        pic: currentVideo.vod_pic,
+        sourceId: currentSource ? currentSource.id : null,
+        typeName: currentVideo.type_name
+      }, episode.name);
+      
+      // 跳转到播放页面
+      try {
+        const playerUrl = `/player.html?url=${encodeURIComponent(episode.url)}&name=${encodeURIComponent(currentVideo.vod_name)}&episode=${encodeURIComponent(episode.name)}&vid=${currentVideo.vod_id}`;
+        console.log('跳转到播放页面:', playerUrl);
+        window.location.href = playerUrl;
+      } catch (e) {
+        console.error('构建播放器URL失败:', e);
+        App.showToast('播放地址处理错误', 'error');
+      }
+    }
+
+    function toggleFavorite() {
+      const currentSource = Storage.getCurrentSource();
+      const sourceId = currentSource ? currentSource.id : null;
+      
+      if (Storage.isFavorite(currentVideo.vod_id, sourceId)) {
+        Storage.removeFavorite(currentVideo.vod_id, sourceId);
+        App.showToast('已取消收藏');
+      } else {
+        Storage.addFavorite({
+          id: currentVideo.vod_id,
+          name: currentVideo.vod_name,
+          pic: currentVideo.vod_pic,
+          sourceId: sourceId,
+          typeName: currentVideo.type_name
+        });
+        App.showToast('已添加到收藏');
+      }
+      
+      updateFavButton();
+    }
+
+    function updateFavButton() {
+      const currentSource = Storage.getCurrentSource();
+      const sourceId = currentSource ? currentSource.id : null;
+      const isFav = Storage.isFavorite(currentVideo.vod_id, sourceId);
+      
+      const btn = document.getElementById('favBtn');
+      btn.textContent = isFav ? '♥ 已收藏' : '♡ 收藏';
+      btn.classList.toggle('active', isFav);
+    }
+  </script>
+</body>
+</html>

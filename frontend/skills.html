@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>技能管理 - UltraWork AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 2.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; font-size: 1.1rem; }
+    
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 1.25rem; border: 1px solid #333; text-align: center; }
+    .stat-value { font-size: 2.5rem; font-weight: bold; color: #667eea; }
+    .stat-value.success { color: #4ade80; }
+    .stat-value.warning { color: #fbbf24; }
+    .stat-value.danger { color: #f87171; }
+    .stat-label { color: #888; font-size: 0.85rem; margin-top: 0.25rem; }
+    
+    /* Filters and Controls */
+    .controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .search-input { flex: 1; min-width: 250px; background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 0.75rem 1rem; color: #fff; font-size: 0.95rem; }
+    .search-input:focus { outline: none; border-color: #667eea; }
+    .filter-btn { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 0.75rem 1.25rem; color: #fff; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+    .filter-btn:hover { background: #252540; }
+    .filter-btn.active { background: #667eea; border-color: #667eea; }
+    
+    /* Skills Grid */
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
+    
+    /* Skill Card */
+    .skill-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; border: 1px solid #333; overflow: hidden; transition: all 0.3s; }
+    .skill-card:hover { border-color: #667eea; transform: translateY(-2px); }
+    .skill-card.disabled { opacity: 0.6; }
+    
+    .skill-header { padding: 1.25rem; border-bottom: 1px solid #333; }
+    .skill-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .skill-name { font-size: 1.25rem; font-weight: 600; color: #fff; }
+    .skill-category { font-size: 0.8rem; color: #888; background: #252540; padding: 0.25rem 0.75rem; border-radius: 12px; }
+    .skill-description { color: #aaa; font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.75rem; }
+    
+    .skill-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .meta-tag { font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
+    .meta-tag.pure { background: #2d5a2d; color: #4ade80; }
+    .meta-tag.risk-low { background: #2d5a2d; color: #4ade80; }
+    .meta-tag.risk-medium { background: #5a4d2d; color: #fbbf24; }
+    .meta-tag.risk-high { background: #5a2d2d; color: #f87171; }
+    
+    .skill-actions { padding: 1rem 1.25rem; background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+    .action-btn { background: transparent; border: 1px solid #333; border-radius: 6px; padding: 0.5rem 1rem; color: #fff; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .action-btn:hover { background: #252540; border-color: #667eea; }
+    .action-btn.primary { background: #667eea; border-color: #667eea; }
+    .action-btn.primary:hover { background: #5a6fd6; }
+    .action-btn.danger { background: #ef4444; border-color: #ef4444; }
+    .action-btn.danger:hover { background: #dc2626; }
+    
+    .toggle-switch { position: relative; width: 48px; height: 24px; background: #333; border-radius: 12px; cursor: pointer; transition: background 0.3s; }
+    .toggle-switch.active { background: #4ade80; }
+    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.3s; }
+    .toggle-switch.active::after { transform: translateX(24px); }
+    
+    /* Dependencies */
+    .dependencies { margin-top: 0.75rem; }
+    .dependencies-title { font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; }
+    .dependencies-list { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .dependency { background: #252540; border-radius: 4px; padding: 0.25rem 0.5rem; font-size: 0.75rem; color: #aaa; }
+    .dependency.missing { background: #5a2d2d; color: #f87171; }
+    
+    /* Test Result Modal */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: #1a1a2e; border-radius: 12px; border: 1px solid #333; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { padding: 1.25rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 1.25rem; font-weight: 600; }
+    .modal-close { background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
+    .modal-close:hover { color: #fff; }
+    .modal-body { padding: 1.25rem; }
+    .modal-footer { padding: 1rem 1.25rem; background: rgba(0,0,0,0.2); display: flex; justify-content: flex-end; gap: 1rem; }
+    
+    /* Loading Spinner */
+    .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid #333; border-radius: 50%; border-top-color: #667eea; animation: spin 1s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Toast Notifications */
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 0.5rem; }
+    .toast { background: #1a1a2e; border-radius: 8px; border: 1px solid #333; padding: 1rem 1.25rem; color: #fff; min-width: 300px; animation: slideIn 0.3s ease-out; }
+    .toast.success { border-color: #4ade80; }
+    .toast.error { border-color: #f87171; }
+    .toast.warning { border-color: #fbbf24; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .skills-grid { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+      .search-input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>技能管理</h1>
+      <p class="subtitle">管理 UltraWork AI 平台的所有技能</p>
+    </header>
+    
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalSkills">0</div>
+        <div class="stat-label">总技能数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value success" id="enabledSkills">0</div>
+        <div class="stat-label">已启用</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value warning" id="pureSkills">0</div>
+        <div class="stat-label">纯函数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value danger" id="highRiskSkills">0</div>
+        <div class="stat-label">高风险</div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <input type="text" class="search-input" id="searchInput" placeholder="搜索技能名称或描述...">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="enabled">已启用</button>
+      <button class="filter-btn" data-filter="pure">纯函数</button>
+      <button class="filter-btn" data-filter="high-risk">高风险</button>
+      <button class="action-btn primary" id="refreshBtn">刷新</button>
+      <button class="action-btn" id="clearCacheBtn">清除缓存</button>
+    </div>
+    
+    <div class="skills-grid" id="skillsGrid">
+      <!-- Skills will be loaded here -->
+    </div>
+  </div>
+  
+  <!-- Test Modal -->
+  <div class="modal" id="testModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="testModalTitle">测试技能</h3>
+        <button class="modal-close" id="closeTestModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="testModalContent">正在测试技能...</p>
+        <div id="testResult" style="margin-top: 1rem; white-space: pre-wrap; font-family: monospace; background: #0f0f23; padding: 1rem; border-radius: 8px; border: 1px solid #333; display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" id="cancelTestBtn">取消</button>
+        <button class="action-btn primary" id="confirmTestBtn">确认测试</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Dependency Modal -->
+  <div class="modal" id="dependencyModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="dependencyModalTitle">依赖管理</h3>
+        <button class="modal-close" id="closeDependencyModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="dependencyModalContent">正在加载依赖信息...</p>
+        <div id="dependencyList" style="margin-top: 1rem;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn" id="cancelDependencyBtn">关闭</button>
+        <button class="action-btn primary" id="installMissingBtn">安装缺失依赖</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+  
+  <script>
+    class SkillsManager {
+      constructor() {
+        this.skills = [];
+        this.filteredSkills = [];
+        this.currentFilter = 'all';
+        this.currentSkill = null;
+        
+        this.init();
+      }
+      
+      async init() {
+        this.bindEvents();
+        await this.loadSkills();
+        this.updateStats();
+        this.renderSkills();
+      }
+      
+      bindEvents() {
+        // Search
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+          this.filterSkills();
+        });
+        
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            this.currentFilter = e.target.dataset.filter;
+            this.filterSkills();
+          });
+        });
+        
+        // Refresh
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+          this.loadSkills();
+        });
+        
+        // Clear cache
+        document.getElementById('clearCacheBtn').addEventListener('click', () => {
+          this.clearCache();
+        });
+        
+        // Test modal
+        document.getElementById('closeTestModal').addEventListener('click', () => {
+          this.closeModal('testModal');
+        });
+        document.getElementById('cancelTestBtn').addEventListener('click', () => {
+          this.closeModal('testModal');
+        });
+        document.getElementById('confirmTestBtn').addEventListener('click', () => {
+          this.executeTest();
+        });
+        
+        // Dependency modal
+        document.getElementById('closeDependencyModal').addEventListener('click', () => {
+          this.closeModal('dependencyModal');
+        });
+        document.getElementById('cancelDependencyBtn').addEventListener('click', () => {
+          this.closeModal('dependencyModal');
+        });
+        document.getElementById('installMissingBtn').addEventListener('click', () => {
+          this.installMissingDependencies();
+        });
+      }
+      
+      async loadSkills() {
+        try {
+          const response = await fetch('/api/skills');
+          const data = await response.json();
+          this.skills = data.skills || [];
+          this.filterSkills();
+          this.showToast('技能列表已刷新', 'success');
+        } catch (error) {
+          console.error('Failed to load skills:', error);
+          this.showToast('加载技能列表失败: ' + error.message, 'error');
+        }
+      }
+      
+      filterSkills() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        
+        this.filteredSkills = this.skills.filter(skill => {
+          // Search filter
+          const matchesSearch = !searchTerm || 
+            skill.name.toLowerCase().includes(searchTerm) ||
+            (skill.description || '').toLowerCase().includes(searchTerm);
+          
+          // Category filter
+          let matchesFilter = true;
+          switch (this.currentFilter) {
+            case 'enabled':
+              matchesFilter = skill.enabled !== false;
+              break;
+            case 'pure':
+              matchesFilter = skill.pure === true;
+              break;
+            case 'high-risk':
+              matchesFilter = skill.riskLevel === 'high';
+              break;
+          }
+          
+          return matchesSearch && matchesFilter;
+        });
+        
+        this.renderSkills();
+      }
+      
+      renderSkills() {
+        const grid = document.getElementById('skillsGrid');
+        grid.innerHTML = '';
+        
+        if (this.filteredSkills.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: #888;">
+              <p>没有找到匹配的技能</p>
+            </div>
+          `;
+          return;
+        }
+        
+        this.filteredSkills.forEach(skill => {
+          const card = this.createSkillCard(skill);
+          grid.appendChild(card);
+        });
+      }
+      
+      createSkillCard(skill) {
+        const card = document.createElement('div');
+        card.className = `skill-card ${skill.enabled === false ? 'disabled' : ''}`;
+        card.innerHTML = `
+          <div class="skill-header">
+            <div class="skill-title-row">
+              <div class="skill-name">${skill.name}</div>
+              <div class="skill-category">${skill.category || '未分类'}</div>
+            </div>
+            <div class="skill-description">${skill.description || '无描述'}</div>
+            <div class="skill-meta">
+              ${skill.pure ? '<span class="meta-tag pure">纯函数</span>' : ''}
+              <span class="meta-tag risk-${skill.riskLevel || 'low'}">风险: ${skill.riskLevel || 'low'}</span>
+              <span class="meta-tag">v${skill.version || '1.0.0'}</span>
+            </div>
+            ${skill.dependencies && skill.dependencies.length > 0 ? `
+              <div class="dependencies">
+                <div class="dependencies-title">依赖 (${skill.dependencies.length})</div>
+                <div class="dependencies-list">
+                  ${skill.dependencies.slice(0, 3).map(dep => `<span class="dependency">${dep}</span>`).join('')}
+                  ${skill.dependencies.length > 3 ? `<span class="dependency">+${skill.dependencies.length - 3}</span>` : ''}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          <div class="skill-actions">
+            <div class="toggle-switch ${skill.enabled !== false ? 'active' : ''}" data-skill="${skill.name}"></div>
+            <div>
+              <button class="action-btn" data-action="test" data-skill="${skill.name}">测试</button>
+              <button class="action-btn" data-action="dependencies" data-skill="${skill.name}">依赖</button>
+              <button class="action-btn" data-action="details" data-skill="${skill.name}">详情</button>
+            </div>
+          </div>
+        `;
+        
+        // Add event listeners
+        const toggle = card.querySelector('.toggle-switch');
+        toggle.addEventListener('click', () => {
+          this.toggleSkill(skill.name, toggle.classList.contains('active'));
+        });
+        
+        card.querySelectorAll('.action-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            const skillName = e.target.dataset.skill;
+            this.handleAction(action, skillName);
+          });
+        });
+        
+        return card;
+      }
+      
+      async toggleSkill(skillName, currentlyEnabled) {
+        try {
+          const response = await fetch(`/api/skills/${skillName}/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enable: !currentlyEnabled })
+          });
+          
+          const result = await response.json();
+          if (result.ok) {
+            this.showToast(`技能 ${skillName} 已${currentlyEnabled ? '禁用' : '启用'}`, 'success');
+            await this.loadSkills();
+          } else {
+            this.showToast(`操作失败: ${result.error}`, 'error');
+          }
+        } catch (error) {
+          this.showToast(`操作失败: ${error.message}`, 'error');
+        }
+      }
+      
+      handleAction(action, skillName) {
+        switch (action) {
+          case 'test':
+            this.openTestModal(skillName);
+            break;
+          case 'dependencies':
+            this.openDependencyModal(skillName);
+            break;
+          case 'details':
+            this.openDetails(skillName);
+            break;
+        }
+      }
+      
+      openTestModal(skillName) {
+        this.currentSkill = skillName;
+        document.getElementById('testModalTitle').textContent = `测试技能: ${skillName}`;
+        document.getElementById('testModalContent').textContent = `确定要测试技能 "${skillName}" 吗？`;
+        document.getElementById('testResult').style.display = 'none';
+        document.getElementById('confirmTestBtn').disabled = false;
+        this.openModal('testModal');
+      }
+      
+      async executeTest() {
+        const skillName = this.currentSkill;
+        const resultDiv = document.getElementById('testResult');
+        const confirmBtn = document.getElementById('confirmTestBtn');
+        
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="loading"></span> 测试中...';
+        resultDiv.style.display = 'block';
+        resultDiv.textContent = '正在执行测试...';
+        
+        try {
+          const response = await fetch(`/api/skills/${skillName}/test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs: {} })
+          });
+          
+          const result = await response.json();
+          resultDiv.textContent = JSON.stringify(result, null, 2);
+          
+          if (result.ok) {
+            this.showToast(`技能 ${skillName} 测试成功`, 'success');
+          } else {
+            this.showToast(`技能 ${skillName} 测试失败`, 'error');
+          }
+        } catch (error) {
+          resultDiv.textContent = `测试失败: ${error.message}`;
+          this.showToast(`测试失败: ${error.message}`, 'error');
+        } finally {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = '确认测试';
+        }
+      }
+      
+      openDependencyModal(skillName) {
+        this.currentSkill = skillName;
+        document.getElementById('dependencyModalTitle').textContent = `依赖管理: ${skillName}`;
+        document.getElementById('dependencyModalContent').textContent = `正在加载 ${skillName} 的依赖信息...`;
+        document.getElementById('dependencyList').innerHTML = '';
+        this.openModal('dependencyModal');
+        this.loadDependencies(skillName);
+      }
+      
+      async loadDependencies(skillName) {
+        try {
+          const response = await fetch(`/api/skills/${skillName}/dependencies`);
+          const result = await response.json();
+          
+          const listDiv = document.getElementById('dependencyList');
+          if (result.dependencies && result.dependencies.length > 0) {
+            listDiv.innerHTML = `
+              <div style="margin-bottom: 1rem;">
+                <p><strong>依赖列表:</strong></p>
+                <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                  ${result.dependencies.map(dep => `<li>${dep}</li>`).join('')}
+                </ul>
+              </div>
+              <p style="color: #888; font-size: 0.9rem;">注意: 安装依赖需要管理员权限</p>
+            `;
+          } else {
+            listDiv.innerHTML = '<p style="color: #888;">此技能没有依赖</p>';
+          }
+          
+          document.getElementById('dependencyModalContent').textContent = '';
+        } catch (error) {
+          document.getElementById('dependencyModalContent').textContent = `加载失败: ${error.message}`;
+        }
+      }
+      
+      async installMissingDependencies() {
+        const skillName = this.currentSkill;
+        this.showToast('安装依赖功能需要后端支持', 'warning');
+      }
+      
+      openDetails(skillName) {
+        const skill = this.skills.find(s => s.name === skillName);
+        if (skill) {
+          this.showToast(`查看 ${skillName} 详情`, 'success');
+        }
+      }
+      
+      async clearCache() {
+        try {
+          const response = await fetch('/api/skills/cache/clear', {
+            method: 'POST'
+          });
+          
+          const result = await response.json();
+          if (result.ok) {
+            this.showToast('缓存已清除', 'success');
+          } else {
+            this.showToast(`清除缓存失败: ${result.error}`, 'error');
+          }
+        } catch (error) {
+          this.showToast(`清除缓存失败: ${error.message}`, 'error');
+        }
+      }
+      
+      updateStats() {
+        document.getElementById('totalSkills').textContent = this.skills.length;
+        document.getElementById('enabledSkills').textContent = this.skills.filter(s => s.enabled !== false).length;
+        document.getElementById('pureSkills').textContent = this.skills.filter(s => s.pure === true).length;
+        document.getElementById('highRiskSkills').textContent = this.skills.filter(s => s.riskLevel === 'high').length;
+      }
+      
+      openModal(modalId) {
+        document.getElementById(modalId).classList.add('active');
+      }
+      
+      closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+      }
+      
+      showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.remove();
+        }, 3000);
+      }
+    }
+    
+    // Initialize the skills manager
+    document.addEventListener('DOMContentLoaded', () => {
+      new SkillsManager();
+    });
+  </script>
+</body>
+</html>

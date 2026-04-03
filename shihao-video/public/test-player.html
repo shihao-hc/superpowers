@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>播放器测试</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+</head>
+<body>
+  <h1>播放器测试</h1>
+  <div id="log" style="background:#000;color:#0f0;padding:10px;margin:10px 0;font-family:monospace;"></div>
+  <div id="status" style="padding:10px;"></div>
+  <video id="video" controls style="width:100%;max-width:800px;"></video>
+  
+  <script>
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+    const video = document.getElementById('video');
+    
+    function addLog(msg) {
+      log.innerHTML += msg + '<br>';
+      console.log(msg);
+    }
+    
+    addLog('页面加载完成');
+    addLog('Hls.js 是否可用: ' + (typeof Hls !== 'undefined'));
+    
+    if (typeof Hls !== 'undefined') {
+      addLog('Hls.js 版本: ' + Hls.version);
+    }
+    
+    // 测试URL
+    const testUrl = 'https://b2.bdzybf22.com/videos/202506/25/685bba729acdff069fc0be34/ge13g0/index.m3u8';
+    
+    addLog('测试URL: ' + testUrl);
+    
+    // 检查HLS支持
+    addLog('Hls.isSupported(): ' + Hls.isSupported());
+    
+    if (Hls.isSupported()) {
+      addLog('创建HLS实例...');
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false
+      });
+      
+      hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
+        addLog('✓ MANIFEST_PARSED: ' + data.levels.length + ' levels');
+        status.innerHTML = '<span style="color:green">加载成功！点击播放按钮开始播放</span>';
+      });
+      
+      hls.on(Hls.Events.ERROR, (e, data) => {
+        addLog('✗ ERROR: ' + data.type + ' - ' + data.details);
+        if (data.response) {
+          addLog('  Response: ' + JSON.stringify(data.response));
+        }
+      });
+      
+      addLog('加载源: ' + testUrl);
+      hls.loadSource(testUrl);
+      hls.attachMedia(video);
+    } else {
+      // 浏览器原生支持
+      addLog('浏览器原生支持HLS');
+      video.src = testUrl;
+    }
+  </script>
+</body>
+</html>

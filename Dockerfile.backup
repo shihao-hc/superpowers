@@ -1,0 +1,16 @@
+FROM alpine:latest
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    aws-cli \
+    zip \
+    mc \
+    && rm -rf /var/cache/apk/*
+
+COPY scripts/backup.sh /usr/local/bin/backup.sh
+RUN chmod +x /usr/local/bin/backup.sh
+
+WORKDIR /backups
+
+CMD ["backup.sh"]

@@ -1,0 +1,118 @@
+# Alert Rules for UltraWork AI Platform
+
+groups:
+  - name: ultrawork_alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: rate(ultrawork_errors_total[5m]) / rate(ultrawork_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      # API Latency
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(ultrawork_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency"
+          description: "P95 latency is {{ $value }}s"
+
+      # Skill Execution Failure
+      - alert: SkillExecutionFailure
+        expr: rate(skill_execution_errors_total[5m]) / rate(skill_executions_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Skill execution failure rate is high"
+          description: "{{ $value | humanizePercentage }} of skill executions are failing"
+
+      # Low Cache Hit Rate
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) < 0.5
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      # Disk Space Low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space is low"
+          description: "Disk space is {{ $value | humanizePercentage }}"
+
+  - name: cost_alerts
+    rules:
+      # High Cost Alert
+      - alert: HighDailyCost
+        expr: increase(ultrawork_cost_total[24h]) > 1000
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "High daily cost"
+          description: "Daily cost has exceeded $1000"
+
+      # Budget Alert
+      - alert: BudgetThreshold
+        expr: (sum(ultrawork_cost_total) / sum(ultrawork_budget_total)) > 0.9
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "Budget threshold exceeded"
+          description: "{{ $value | humanizePercentage }} of monthly budget used"
+
+  - name: security_alerts
+    rules:
+      # Failed Login Attempts
+      - alert: HighFailedLogins
+        expr: rate(auth_failures_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "{{ $value }} failed logins per minute"
+
+      # Suspicious Activity
+      - alert: SuspiciousActivity
+        expr: rate(security_events_total{type=~"unusual_access|data_exfiltration"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} suspicious events per second"

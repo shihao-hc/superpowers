@@ -1,0 +1,490 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🎭 UltraWork AI 直播间</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+    }
+    
+    .container {
+      display: flex;
+      height: 100vh;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+    
+    .character-panel {
+      flex: 0 0 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: linear-gradient(180deg, rgba(102,126,234,0.2) 0%, transparent 100%);
+      border-right: 2px solid rgba(255,255,255,0.1);
+    }
+    
+    .avatar-container {
+      position: relative;
+      width: 280px;
+      height: 280px;
+      margin-bottom: 30px;
+    }
+    
+    .avatar-ring {
+      position: absolute;
+      inset: -10px;
+      border-radius: 50%;
+      border: 4px solid transparent;
+      border-top-color: #667eea;
+      border-right-color: #764ba2;
+      animation: spin 3s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 120px;
+      box-shadow: 0 20px 60px rgba(102,126,234,0.4);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+    
+    .character-name {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .character-mood {
+      font-size: 24px;
+      opacity: 0.8;
+      margin-bottom: 20px;
+    }
+    
+    .live-badge {
+      background: #ff4757;
+      color: white;
+      padding: 8px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .chat-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    .chat-header {
+      padding: 15px 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chat-title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    
+    .viewer-count {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #ff6b6b;
+    }
+    
+    .viewer-count::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #ff6b6b;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    
+    #chat-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    #chat-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    #chat-container::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+    }
+    
+    .chat-message {
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      border-radius: 16px;
+      animation: slideIn 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .chat-message.user {
+      background: linear-gradient(135deg, rgba(102,126,234,0.8), rgba(118,75,162,0.8));
+      margin-left: 60px;
+      border-bottom-right-radius: 4px;
+    }
+    
+    .chat-message.ai {
+      background: rgba(255,255,255,0.15);
+      border-bottom-left-radius: 4px;
+    }
+    
+    .chat-message.system {
+      background: rgba(255,193,7,0.2);
+      border: 1px solid rgba(255,193,7,0.3);
+      text-align: center;
+      font-size: 13px;
+    }
+    
+    .chat-message.gift {
+      background: linear-gradient(135deg, rgba(255,215,0,0.3), rgba(255,100,0,0.3));
+      border: 1px solid rgba(255,215,0,0.5);
+    }
+    
+    .message-sender {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+    
+    .message-content {
+      font-size: 16px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+    
+    .message-time {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    .typing-indicator {
+      display: none;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      width: fit-content;
+    }
+    
+    .typing-indicator.show {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .typing-dots span {
+      width: 8px;
+      height: 8px;
+      background: rgba(255,255,255,0.6);
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+    
+    .status-bar {
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      margin-top: 15px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    
+    .ai-reply {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 15px 20px;
+      border-radius: 20px;
+      margin: 10px 0;
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    .ai-reply .name {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      opacity: 0.9;
+    }
+    
+    .ai-reply .text {
+      font-size: 18px;
+      line-height: 1.6;
+    }
+    
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .character-panel { flex: 0 0 auto; padding: 20px; border-right: none; border-bottom: 2px solid rgba(255,255,255,0.1); }
+      .avatar { width: 100px; height: 100px; font-size: 50px; }
+      .character-name { font-size: 24px; }
+      .chat-panel { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="character-panel">
+      <div class="avatar-container">
+        <div class="avatar-ring"></div>
+        <div class="avatar" id="avatar">🤖</div>
+      </div>
+      <div class="character-name" id="character-name">AI 虚拟主播</div>
+      <div class="character-mood" id="character-mood">😐 正在思考</div>
+      <div class="live-badge">🔴 LIVE</div>
+    </div>
+    
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="chat-title">💬 弹幕互动</div>
+        <div class="viewer-count"><span id="viewer-count">1</span> 人在看</div>
+      </div>
+      
+      <div id="chat-container"></div>
+      
+      <div class="typing-indicator" id="typing-indicator">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span>AI 正在回复...</span>
+      </div>
+      
+      <div class="status-bar">
+        <span id="connection-status">● 连接中</span>
+        <span id="uptime">运行时间: 00:00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" 
+          integrity="sha384-5nevKDVkYFKQjdHnihgH0C+g8uJq2JmLDM0M4eR3wZGtG1XiVQy2Zd3T7M2E" 
+          crossorigin="anonymous" 
+          referrerpolicy="no-referrer"></script>
+  <script>
+    let socket = null;
+    let startTime = Date.now();
+    let viewerCount = Math.floor(Math.random() * 100) + 50;
+    const avatarEmojis = ['🤖', '🎭', '🦊', '👾', '🤖', '🎮'];
+    const currentAvatar = avatarEmojis[Math.floor(Math.random() * avatarEmojis.length)];
+    
+    document.getElementById('avatar').textContent = currentAvatar;
+    document.getElementById('viewer-count').textContent = viewerCount;
+    
+    function connect() {
+      socket = io();
+      
+      socket.on('connect', () => {
+        document.getElementById('connection-status').textContent = '● 已连接';
+        document.getElementById('connection-status').style.color = '#4CAF50';
+        addSystemMessage('已连接到 UltraWork AI 直播间');
+      });
+      
+      socket.on('disconnect', () => {
+        document.getElementById('connection-status').textContent = '● 连接断开';
+        document.getElementById('connection-status').style.color = '#f44336';
+        setTimeout(connect, 3000);
+      });
+      
+      socket.on('mood', (mood) => {
+        updateMood(mood);
+      });
+      
+      socket.on('chat', (data) => {
+        addUserMessage(data.sender || '观众', data.message || '');
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          addAIMessage(data.reply || generateAutoReply());
+        }, 1000 + Math.random() * 2000);
+      });
+      
+      socket.on('game_event', (data) => {
+        addSystemMessage(data.event || '游戏事件');
+      });
+      
+      socket.on('status_update', (status) => {
+        if (status.mood) updateMood(status.mood);
+        if (status.connected !== undefined) {
+          viewerCount = status.connected ? viewerCount + Math.floor(Math.random() * 10) : viewerCount - 5;
+          viewerCount = Math.max(1, viewerCount);
+          document.getElementById('viewer-count').textContent = viewerCount;
+        }
+      });
+    }
+    
+    function addUserMessage(sender, content) {
+      const container = document.getElementById('chat-container');
+      const msg = document.createElement('div');
+      msg.className = 'chat-message user';
+      msg.innerHTML = `
+        <div class="message-sender">${escapeHtml(sender)}</div>
+        <div class="message-content">${escapeHtml(content)}</div>
+      `;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+      trimMessages(container, 100);
+    }
+    
+    function addAIMessage(content) {
+      const container = document.getElementById('chat-container');
+      const msg = document.createElement('div');
+      msg.className = 'ai-reply';
+      msg.innerHTML = `
+        <div class="name">${currentAvatar} ${document.getElementById('character-name').textContent}</div>
+        <div class="text">${escapeHtml(content)}</div>
+      `;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+      trimMessages(container, 50);
+    }
+    
+    function addSystemMessage(content) {
+      const container = document.getElementById('chat-container');
+      const msg = document.createElement('div');
+      msg.className = 'chat-message system';
+      msg.textContent = content;
+      container.appendChild(msg);
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function showTyping() {
+      document.getElementById('typing-indicator').classList.add('show');
+    }
+    
+    function hideTyping() {
+      document.getElementById('typing-indicator').classList.remove('show');
+    }
+    
+    function updateMood(mood) {
+      const moodMap = {
+        happy: '😊 开心',
+        excited: '🎉 兴奋',
+        playful: '😄 俏皮',
+        curious: '🤔 好奇',
+        calm: '😌 平静',
+        shy: '😳 害羞',
+        neutral: '😐 中性'
+      };
+      document.getElementById('character-mood').textContent = moodMap[mood] || moodMap.neutral;
+    }
+    
+    function trimMessages(container, max) {
+      while (container.children.length > max) {
+        container.removeChild(container.firstChild);
+      }
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function generateAutoReply() {
+      const replies = [
+        '欢迎来到直播间！🎉',
+        '谢谢大家的支持~',
+        '这个问题很有意思呢！',
+        '让我想想...',
+        '太棒了！',
+        '你们太热情了！',
+        '有什么想聊的吗？',
+        '今天的直播很开心！'
+      ];
+      return replies[Math.floor(Math.random() * replies.length)];
+    }
+    
+    setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const h = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+      const m = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+      const s = (elapsed % 60).toString().padStart(2, '0');
+      document.getElementById('uptime').textContent = `运行时间: ${h}:${m}:${s}`;
+    }, 1000);
+    
+    setInterval(() => {
+      viewerCount += Math.floor(Math.random() * 5) - 2;
+      viewerCount = Math.max(10, Math.min(999, viewerCount));
+      document.getElementById('viewer-count').textContent = viewerCount;
+    }, 10000);
+    
+    connect();
+  </script>
+</body>
+</html>

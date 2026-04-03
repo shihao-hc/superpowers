@@ -1,0 +1,3 @@
+- Edge Telemetry Mock
+- 用于演示阶段的边缘数据点的遥测收集
+- 将来替换为 OpenTelemetry/Zipkin 等实现

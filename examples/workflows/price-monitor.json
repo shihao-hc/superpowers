@@ -1,0 +1,59 @@
+{
+  "name": "电商价格监控",
+  "description": "自动监控商品价格，低于目标价时发送告警通知",
+  "category": "ecommerce",
+  "tags": ["价格", "监控", "告警"],
+  "author": "UltraWork 官方",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "input_product",
+      "type": "input",
+      "name": "商品信息",
+      "icon": "📥",
+      "x": 100,
+      "y": 100,
+      "inputs": [],
+      "outputs": [{ "name": "url", "type": "string" }, { "name": "targetPrice", "type": "number" }]
+    },
+    {
+      "id": "price_check",
+      "type": "price_check",
+      "name": "价格检查",
+      "icon": "💰",
+      "x": 350,
+      "y": 100,
+      "inputs": [{ "name": "url", "type": "string" }],
+      "outputs": [{ "name": "price", "type": "number" }]
+    },
+    {
+      "id": "condition",
+      "type": "condition",
+      "name": "价格判断",
+      "icon": "❓",
+      "x": 600,
+      "y": 100,
+      "inputs": [
+        { "name": "condition", "type": "boolean" },
+        { "name": "trueValue", "type": "any" },
+        { "name": "falseValue", "type": "any" }
+      ],
+      "outputs": [{ "name": "result", "type": "any" }]
+    },
+    {
+      "id": "notify",
+      "type": "notify",
+      "name": "发送告警",
+      "icon": "🔔",
+      "x": 850,
+      "y": 100,
+      "inputs": [{ "name": "title", "type": "string" }, { "name": "body", "type": "string" }],
+      "outputs": [{ "name": "sent", "type": "boolean" }]
+    }
+  ],
+  "connections": [
+    { "source": { "nodeId": "input_product", "output": "url" }, "target": { "nodeId": "price_check", "input": "url" } },
+    { "source": { "nodeId": "price_check", "output": "price" }, "target": { "nodeId": "condition", "input": "condition" } },
+    { "source": { "nodeId": "condition", "output": "result" }, "target": { "nodeId": "notify", "input": "body" } }
+  ]
+}

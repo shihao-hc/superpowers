@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玫瑰星箭</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; }
+        canvas { display: block; position: fixed; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, CX, CY;
+
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    CX = W / 2;
+    CY = H / 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function hx(t) { return 16 * Math.pow(Math.sin(t), 3); }
+function hy(t) { return -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)); }
+
+const heartPts = [];
+for (let i = 0; i <= 628; i += 3) {
+    heartPts.push({ x: hx(i/100), y: hy(i/100) });
+}
+
+let time = 0;
+let bgStars = [];
+let heartParticles = [];
+let sparkles = [];
+let arrow = null;
+let rosePetals = [];
+let arrowTimer = 0;
+
+for (let i = 0; i < 150; i++) {
+    bgStars.push({
+        x: Math.random() * 2000,
+        y: Math.random() * 2000,
+        s: Math.random() * 1.8 + 0.3,
+        spd: Math.random() * 0.3 + 0.05,
+        op: Math.random() * 0.7 + 0.3,
+        tw: Math.random() * 6.28,
+        twSpd: Math.random() * 0.04 + 0.01
+    });
+}
+
+function spawnHeartExplosion(scale) {
+    for (let i = 0; i < 120; i++) {
+        const idx = Math.floor(Math.random() * heartPts.length);
+        const p = heartPts[idx];
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        heartParticles.push({
+            x: CX + p.x * scale,
+            y: CY + p.y * scale,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1,
+            sz: Math.random() * 5 + 2,
+            life: 120,
+            max: 120,
+            hue: 330 + Math.random() * 60,
+            sat: 80 + Math.random() * 20
+        });
+    }
+    for (let i = 0; i < 30; i++) {
+        sparkles.push({
+            x: CX + (Math.random() - 0.5) * 200,
+            y: CY + (Math.random() - 0.5) * 200,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8 - 2,
+            sz: Math.random() * 3 + 1,
+            life: 80,
+            max: 80
+        });
+    }
+}
+
+function spawnRosePetal() {
+    rosePetals.push({
+        x: Math.random() * W,
+        y: H + 20,
+        vx: (Math.random() - 0.5) * 1,
+        vy: -(Math.random() * 1.5 + 0.5),
+        sz: Math.random() * 8 + 4,
+        rot: Math.random() * 6.28,
+        rotSpd: (Math.random() - 0.5) * 0.05,
+        op: Math.random() * 0.5 + 0.5,
+        hue: 330 + Math.random() * 40
+    });
+}
+
+function launchArrow() {
+    const scale = Math.min(W, H) / 14;
+    const ti = Math.random() * 6.28;
+    const tx = CX + hx(ti) * scale;
+    const ty = CY + hy(ti) * scale;
+    const startX = W + 120;
+    const startY = H * 0.85;
+    const angle = Math.atan2(ty - startY, tx - startX);
+    const dist = Math.sqrt((tx - startX)**2 + (ty - startY)**2);
+    const speed = Math.max(dist / 50, 16);
+    arrow = {
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        tx, ty,
+        trail: [],
+        hit: false,
+        hitTime: 0,
+        glow: 0
+    };
+}
+
+setInterval(spawnRosePetal, 400);
+launchArrow();
+
+function drawRosePetal(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    const a = p.op;
+    ctx.fillStyle = `hsla(${p.hue},100%,75%,${a})`;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = `hsla(${p.hue},100%,80%,${a})`;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, p.sz, p.sz * 0.6, 0, 0, 6.28);
+    ctx.fill();
+    ctx.restore();
+}
+
+function loop() {
+    time += 0.016;
+
+    const bgGrd = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrd.addColorStop(0, '#0a0015');
+    bgGrd.addColorStop(0.4, '#1a0030');
+    bgGrd.addColorStop(0.7, '#2d0a3d');
+    bgGrd.addColorStop(1, '#0a0015');
+    ctx.fillStyle = bgGrd;
+    ctx.fillRect(0, 0, W, H);
+
+    bgStars.forEach(s => {
+        s.y += s.spd;
+        if (s.y > H) { s.y = 0; s.x = Math.random() * W; }
+        s.tw += s.twSpd;
+        const a = s.op * (0.3 + Math.sin(s.tw) * 0.7);
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.s, 0, 6.28);
+        ctx.fill();
+    });
+
+    rosePetals = rosePetals.filter(p => {
+        p.x += p.vx + Math.sin(time * 2 + p.rot) * 0.5;
+        p.y += p.vy;
+        p.rot += p.rotSpd;
+        if (p.y < -30) return false;
+        drawRosePetal(p);
+        return true;
+    });
+
+    const scale = Math.min(W, H) / 14;
+    const pulse = Math.sin(time * 2.5) * 0.15 + 0.85;
+    const breathe = Math.sin(time * 1.8) * 0.06 + 1;
+
+    ctx.save();
+    ctx.translate(CX, CY);
+
+    const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, scale * 20);
+    outerGlow.addColorStop(0, `rgba(255,50,120,${pulse * 0.15})`);
+    outerGlow.addColorStop(1, 'rgba(200,30,100,0)');
+    ctx.fillStyle = outerGlow;
+    ctx.fillRect(-W, -H, W*2, H*2);
+
+    const heartGrd = ctx.createRadialGradient(-scale * 3, -scale * 4, 0, 0, 0, scale * 16);
+    heartGrd.addColorStop(0, `rgba(255,120,180,${pulse})`);
+    heartGrd.addColorStop(0.4, `rgba(255,60,120,${pulse * 0.9})`);
+    heartGrd.addColorStop(0.7, `rgba(220,20,80,${pulse * 0.8})`);
+    heartGrd.addColorStop(1, `rgba(180,10,60,${pulse * 0.7})`);
+
+    ctx.shadowBlur = 80;
+    ctx.shadowColor = 'rgba(255,50,150,0.8)';
+    ctx.fillStyle = heartGrd;
+    ctx.beginPath();
+    heartPts.forEach((p, i) => {
+        const px = p.x * scale * breathe;
+        const py = p.y * scale * breathe;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 40;
+    ctx.shadowColor = 'rgba(255,200,230,0.6)';
+    ctx.strokeStyle = `rgba(255,220,240,${pulse * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+
+    heartParticles = heartParticles.filter(p => {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.04;
+        p.vx *= 0.98;
+        p.life--;
+        const a = p.life / p.max;
+        ctx.save();
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `hsla(${p.hue},${p.sat}%,60%,${a})`;
+        ctx.fillStyle = `hsla(${p.hue},${p.sat}%,70%,${a})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.sz * (0.5 + a * 0.5), 0, 6.28);
+        ctx.fill();
+        ctx.restore();
+        return p.life > 0;
+    });
+
+    sparkles = sparkles.filter(p => {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.03;
+        p.life--;
+        const a = p.life / p.max;
+        ctx.save();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = `rgba(255,255,200,${a})`;
+        ctx.fillStyle = `rgba(255,255,220,${a})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.sz * a, 0, 6.28);
+        ctx.fill();
+        for (let i = 0; i < 4; i++) {
+            const len = p.sz * a * 3;
+            ctx.strokeStyle = `rgba(255,255,200,${a * 0.3})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y - len);
+            ctx.lineTo(p.x, p.y + len);
+            ctx.moveTo(p.x - len, p.y);
+            ctx.lineTo(p.x + len, p.y);
+            ctx.stroke();
+        }
+        ctx.restore();
+        return p.life > 0;
+    });
+
+    for (let i = 0; i < 3; i++) {
+        const angle = time * 0.6 + i * 2.1;
+        const r = scale * 1.1 + Math.sin(time * 3 + i) * 12;
+        const px = CX + Math.cos(angle) * r;
+        const py = CY + Math.sin(angle) * r * 0.85;
+        const a = 0.6 + Math.sin(time * 4 + i * 2) * 0.3;
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = `rgba(255,150,200,${a})`;
+        ctx.fillStyle = `rgba(255,200,230,${a})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, 6.28);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    if (arrow) {
+        if (!arrow.hit) {
+            arrow.x += arrow.vx;
+            arrow.y += arrow.vy;
+            arrow.trail.unshift({ x: arrow.x, y: arrow.y });
+            if (arrow.trail.length > 30) arrow.trail.pop();
+
+            arrow.trail.forEach((pt, i) => {
+                const a = 1 - i / arrow.trail.length;
+                ctx.save();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `rgba(255,200,50,${a * 0.8})`;
+                ctx.fillStyle = `rgba(255,220,100,${a * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 4 * a, 0, 6.28);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            ctx.save();
+            ctx.translate(arrow.x, arrow.y);
+            ctx.rotate(Math.atan2(arrow.vy, arrow.vx));
+
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = 'rgba(255,220,50,0.9)';
+            ctx.fillStyle = '#ffe066';
+            ctx.beginPath();
+            ctx.moveTo(40, 0);
+            ctx.lineTo(-40, -8);
+            ctx.lineTo(-28, 0);
+            ctx.lineTo(-40, 8);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'rgba(255,255,255,1)';
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(55, 0);
+            ctx.lineTo(38, -12);
+            ctx.lineTo(38, 12);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            const dx = arrow.tx - arrow.x, dy = arrow.ty - arrow.y;
+            if (Math.sqrt(dx*dx + dy*dy) < 16) {
+                arrow.hit = true;
+                arrow.hitTime = time;
+                spawnHeartExplosion(scale);
+            }
+        } else {
+            if (time - arrow.hitTime > 2) {
+                arrow = null;
+                setTimeout(launchArrow, 3000);
+            }
+        }
+    }
+
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

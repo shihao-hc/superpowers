@@ -1,0 +1,288 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 80}]},
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "expr": "shihao_portfolio_value",
+          "legendFormat": "Portfolio Value",
+          "refId": "A"
+        },
+        {
+          "expr": "shihao_initial_capital",
+          "legendFormat": "Initial Capital",
+          "refId": "B"
+        }
+      ],
+      "title": "Portfolio Value",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": -50000}, {"color": "red", "value": -100000}]},
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "shihao_daily_pnl", "refId": "A"}],
+      "title": "Daily P&L",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "index": 0, "text": "TRIGGERED"}, "1": {"color": "green", "index": 1, "text": "ACTIVE"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+      "id": 3,
+      "options": {"orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": false},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "shihao_kill_switch_status", "refId": "A"}],
+      "title": "Kill Switch Status",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "id": 4,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "shihao_max_drawdown", "legendFormat": "Max Drawdown", "refId": "A"}],
+      "title": "Max Drawdown",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 5,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [
+        {
+          "expr": "shihao_trades_total",
+          "legendFormat": "Total Trades",
+          "refId": "A"
+        },
+        {
+          "expr": "shihao_trades_winning",
+          "legendFormat": "Winning Trades",
+          "refId": "B"
+        }
+      ],
+      "title": "Trade Count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 6,
+      "options": {"legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "shihao_sharpe_ratio", "legendFormat": "Sharpe Ratio", "refId": "A"}],
+      "title": "Sharpe Ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 60}, {"color": "red", "value": 80}]},
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16},
+      "id": 7,
+      "options": {"orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "shihao_win_rate * 100", "refId": "A"}],
+      "title": "Win Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 70}]},
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+      "id": 8,
+      "options": {"orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "shihao_position_utilization * 100", "refId": "A"}],
+      "title": "Position Utilization",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16},
+      "id": 9,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "shihao_active_positions", "legendFormat": "Active Positions", "refId": "A"}],
+      "title": "Active Positions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 16},
+      "id": 10,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "shihao_orders_per_minute", "legendFormat": "Orders/Min", "refId": "A"}],
+      "title": "Order Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"axisLabel": "", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": true},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+      "id": 11,
+      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "single"}},
+      "targets": [{"expr": "shihao_commission_total", "legendFormat": "Total Commission", "refId": "A"}],
+      "title": "Commission",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "index": 0, "text": "DOWN"}, "1": {"color": "green", "index": 1, "text": "UP"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+      "id": 12,
+      "options": {"orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showThresholdLabels": false, "showThresholdMarkers": false},
+      "pluginVersion": "8.0.0",
+      "targets": [{"expr": "shihao_data_source_status", "refId": "A"}],
+      "title": "Data Source Status",
+      "type": "gauge"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["shihao", "trading", "finance"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "ShiHao Finance Dashboard",
+  "uid": "shihao-main",
+  "version": 1
+}

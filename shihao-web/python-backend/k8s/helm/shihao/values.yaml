@@ -1,0 +1,90 @@
+replicaCount: 2
+
+image:
+  repository: shihao/agent
+  pullPolicy: IfNotPresent
+  tag: latest
+  pullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 8000
+  metricsPort: 9090
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: shihao.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: shihao-tls
+      hosts:
+        - shihao.example.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+
+env:
+  NODE_ENV: production
+  OLLAMA_BASE_URL: http://ollama:11434
+  OLLAMA_MODEL: llama3.2
+  REDIS_HOST: shihao-redis
+  MONGO_URI: mongodb://shihao-mongo:27017
+  LOG_LEVEL: INFO
+
+redis:
+  enabled: true
+  fullnameOverride: shihao-redis
+
+mongo:
+  enabled: true
+  fullnameOverride: shihao-mongo
+  persistence:
+    enabled: true
+    size: 10Gi
+
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 5

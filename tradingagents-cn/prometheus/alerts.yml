@@ -1,0 +1,176 @@
+groups:
+  - name: tradingagents_api
+    interval: 30s
+    rules:
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API high latency detected"
+          description: "95th percentile latency is {{ $value }}s, threshold is 1s"
+
+      - alert: APIHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate is high"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: APIRequestsHigh
+        expr: rate(http_requests_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "High API request volume"
+          description: "Request rate is {{ $value }} req/s"
+
+      - alert: InProgressTasksHigh
+        expr: inprogress > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many in-progress tasks"
+          description: "{{ $value }} tasks are running"
+
+  - name: llm_costs
+    interval: 60s
+    rules:
+      - alert: HighLLMCost
+        expr: rate(llm_cost_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High LLM API cost"
+          description: "LLM cost rate is ${{ $value }}/hour"
+
+      - alert: LLMTokensHigh
+        expr: rate(llm_tokens_total[1h]) > 1000000
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "High token usage"
+          description: "Token usage rate is {{ $value | humanize }} tokens/hour"
+
+      - alert: DailyBudgetExceeded
+        expr: increase(llm_cost_total[24h]) > 100
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Daily LLM budget exceeded"
+          description: "Daily cost has exceeded $100 threshold, current: ${{ $value }}"
+
+      - alert: DeepSeekCostHigh
+        expr: rate(llm_cost_total{provider="deepseek"}[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          provider: deepseek
+        annotations:
+          summary: "DeepSeek cost rate is high"
+          description: "DeepSeek API cost rate is ${{ $value }}/hour"
+
+      - alert: OpenAICostHigh
+        expr: rate(llm_cost_total{provider="openai"}[1h]) > 8
+        for: 5m
+        labels:
+          severity: warning
+          provider: openai
+        annotations:
+          summary: "OpenAI cost rate is high"
+          description: "OpenAI API cost rate is ${{ $value }}/hour"
+
+      - alert: LLMDailyBudgetWarning
+        expr: llm_daily_budget_remaining < 2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM daily budget running low"
+          description: "Remaining daily budget: ${{ $value }}"
+
+      - alert: LLMDailyCallLimitWarning
+        expr: llm_daily_calls_remaining < 100
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM daily call limit approaching"
+          description: "Remaining daily calls: {{ $value }}"
+
+      - alert: LLMDailyBudgetExceeded
+        expr: llm_daily_budget_remaining <= 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM daily budget exceeded"
+          description: "LLM daily budget limit has been reached"
+
+      - alert: LLMDailyCallLimitExceeded
+        expr: llm_daily_calls_remaining <= 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM daily call limit reached"
+          description: "LLM daily call limit has been reached"
+
+  - name: health_status
+    interval: 30s
+    rules:
+      - alert: MongoDBUnhealthy
+        expr: mongodb_health == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MongoDB health check failed"
+          description: "MongoDB is not responding"
+
+      - alert: RedisUnhealthy
+        expr: redis_health == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis health check failed"
+          description: "Redis is not responding"
+
+      - alert: LLMServiceUnhealthy
+        expr: llm_services_health == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM services degraded"
+          description: "One or more LLM providers are not available"
+
+  - name: system
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job="tradingagents_api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "TradingAgents API is not responding"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }} MB"

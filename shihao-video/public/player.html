@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <title>播放 - 拾号-影视</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: #000; 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+    
+    .player-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #videoPlayer {
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+    
+    /* 顶部栏 */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: linear-gradient(rgba(0,0,0,0.8), transparent);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      z-index: 100;
+    }
+    
+    .back-btn {
+      color: #fff;
+      font-size: 24px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .title {
+      color: #fff;
+      font-size: 16px;
+      flex: 1;
+    }
+    
+    .episode {
+      color: #e50914;
+      font-size: 14px;
+    }
+    
+    /* 加载状态 */
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    
+    .loading.hidden { display: none; }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: #e50914;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .loading-text {
+      margin-top: 15px;
+      color: #fff;
+    }
+    
+    /* 点击播放按钮 */
+    .play-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      cursor: pointer;
+    }
+    
+    .play-overlay.show { display: flex; }
+    
+    .play-btn {
+      width: 80px;
+      height: 80px;
+      background: rgba(229, 9, 20, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      transition: transform 0.2s;
+    }
+    
+    .play-btn:hover { transform: scale(1.1); }
+    
+    /* 错误提示 */
+    .error {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 70;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .error.show { display: flex; }
+    
+    .error-icon { font-size: 60px; margin-bottom: 20px; }
+    .error-msg { color: #e50914; margin-bottom: 20px; }
+    
+    .error-btn {
+      background: #e50914;
+      color: #fff;
+      border: none;
+      padding: 10px 30px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    /* 移动端优化 */
+    @media (max-width: 768px) {
+      .header { padding: 10px; }
+      .title { font-size: 14px; }
+      .play-btn { width: 70px; height: 70px; font-size: 30px; }
+      .back-btn { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="player-container">
+    <video id="videoPlayer" controls playsinline webkit-playsinline x5-video-player-type="h5" x5-video-orientation="portraint" preload="auto"></video>
+  </div>
+  
+  <!-- 顶部栏 -->
+  <div class="header">
+    <a href="#" class="back-btn" onclick="goBack(); return false;">←</a>
+    <div class="title" id="videoTitle">加载中...</div>
+    <div class="episode" id="episodeName"></div>
+  </div>
+  
+  <!-- 加载中 -->
+  <div class="loading" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">正在加载视频...</div>
+  </div>
+  
+  <!-- 点击播放 -->
+  <div class="play-overlay" id="playOverlay" onclick="startPlay()">
+    <div class="play-btn">▶</div>
+    <p style="margin-top: 15px; font-size: 14px; color: #ccc;">点击播放视频</p>
+  </div>
+  
+  <!-- 错误 -->
+  <div class="error" id="errorOverlay">
+    <div class="error-icon">❌</div>
+    <div class="error-msg" id="errorMsg">视频加载失败</div>
+    <button class="error-btn" onclick="retry()">重试</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+  <script>
+    let hls = null;
+    const video = document.getElementById('videoPlayer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const playOverlay = document.getElementById('playOverlay');
+    const errorOverlay = document.getElementById('errorOverlay');
+    
+    // URL参数
+    const params = new URLSearchParams(window.location.search);
+    const videoUrl = params.get('url');
+    const videoName = decodeURIComponent(params.get('name') || '视频');
+    const episodeName = decodeURIComponent(params.get('episode') || '');
+    
+    document.getElementById('videoTitle').textContent = videoName;
+    document.getElementById('episodeName').textContent = episodeName;
+    document.title = `${videoName} ${episodeName} - 拾号-影视`;
+    
+    function hideLoading() { loadingOverlay.classList.add('hidden'); }
+    function showLoading() { loadingOverlay.classList.remove('hidden'); }
+    function showPlayOverlay() { playOverlay.classList.add('show'); }
+    function hidePlayOverlay() { playOverlay.classList.remove('show'); }
+    function showError(msg) { 
+      document.getElementById('errorMsg').textContent = msg;
+      errorOverlay.classList.add('show'); 
+    }
+    
+    function goBack() {
+      if (videoUrl) {
+        window.location.href = '/';
+      } else {
+        window.history.back();
+      }
+    }
+    
+    function retry() {
+      errorOverlay.classList.remove('show');
+      initPlayer();
+    }
+    
+    function startPlay() {
+      hidePlayOverlay();
+      video.play().catch(e => console.log('Play failed:', e));
+    }
+    
+    function initPlayer() {
+      if (!videoUrl) {
+        showError('缺少播放地址');
+        return;
+      }
+      
+      if (typeof Hls === 'undefined') {
+        showError('播放器加载失败，请刷新');
+        return;
+      }
+      
+      if (!Hls.isSupported()) {
+        showError('浏览器不支持HLS播放');
+        return;
+      }
+      
+      showLoading();
+      
+      if (hls) hls.destroy();
+      
+      hls = new Hls({ enableWorker: true });
+      
+      hls.on(Hls.Events.MANIFEST_PARSED, (e, data) => {
+        console.log('加载成功，画质数:', data.levels.length);
+        hideLoading();
+        
+        // 尝试自动播放
+        video.play().then(() => {
+          console.log('自动播放成功');
+        }).catch(() => {
+          console.log('需要点击播放');
+          showPlayOverlay();
+        });
+      });
+      
+      hls.on(Hls.Events.ERROR, (e, data) => {
+        console.error('HLS错误:', data.type, data.details);
+        if (data.fatal) {
+          hideLoading();
+          showError('视频加载失败: ' + data.details);
+        }
+      });
+      
+      hls.loadSource(videoUrl);
+      hls.attachMedia(video);
+    }
+    
+    // 初始化
+    initPlayer();
+  </script>
+</body>
+</html>
