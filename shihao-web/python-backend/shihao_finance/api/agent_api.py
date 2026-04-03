@@ -252,15 +252,32 @@ class WebSearchRequest(BaseModel):
 @router.post("/websearch")
 async def web_search(request: WebSearchRequest):
     """联网搜索 - 供AI助手使用"""
+    print(f"[WEBSEARCH DEBUG] Endpoint reached with request: {request}")
     if not agent:
+        print("[WEBSEARCH DEBUG] Agent not initialized")
         raise HTTPException(500, "Agent not initialized")
     
     try:
+        print(f"[WEBSEARCH DEBUG] About to call tavily_search_tool with query='{request.query}', max_results={request.max_results}")
         # 使用Tavily搜索工具
         from shihao_finance.agent.tools import tavily_search_tool
-        result = tavily_search_tool(request.query, request.max_results)
+        print(f"[WEBSEARCH DEBUG] tavily_search_tool type: {type(tavily_search_tool)}")
+        print(f"[WEBSEARCH DEBUG] tavily_search_tool dir: {[m for m in dir(tavily_search_tool) if not m.startswith('_')]}")
+        # Try to see if it's callable
+        print(f"[WEBSEARCH DEBUG] Is callable? {callable(tavily_search_tool)}")
+        # If it's a Tool instance from crewai, it might have a .run method
+        if hasattr(tavily_search_tool, 'run'):
+            print("[WEBSEARCH DEBUG] Has .run attribute")
+            result = tavily_search_tool.run(query=request.query, max_results=request.max_results)
+        elif hasattr(tavily_search_tool, '_run'):
+            print("[WEBSEARCH DEBUG] Has ._run attribute")
+            result = tavily_search_tool._run(query=request.query, max_results=request.max_results)
+        else:
+            # Assume it's a plain function
+            result = tavily_search_tool(query=request.query, max_results=request.max_results)
+        print(f"[WEBSEARCH DEBUG] Tavily tool returned: {result}")
         return result
     except Exception as e:
         import traceback
-        print(f"[WEBSEARCH ERROR] {traceback.format_exc()}")
+        print(f"[WEBSEARCH ERROR] Exception in web_search: {traceback.format_exc()}")
         raise HTTPException(500, f"Web search failed: {str(e)}")

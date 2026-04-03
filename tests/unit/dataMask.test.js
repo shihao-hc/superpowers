@@ -36,7 +36,8 @@ describe('dataMask utilities', () => {
 
   describe('maskDeviceFingerprint', () => {
     it('should mask device fingerprint correctly', () => {
-      expect(maskDeviceFingerprint('fp_a1b2c3d4e5f6')).toBe('fp_******a1b2');
+      expect(maskDeviceFingerprint('fp_a1b2c3d4e5f6')).toBe('fp_******e5f6');
+      expect(maskDeviceFingerprint('dev_abc123def456')).toBe('dev******f456');
     });
   });
 

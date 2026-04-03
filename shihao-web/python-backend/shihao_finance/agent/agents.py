@@ -21,6 +21,13 @@ from shihao_finance.agent.tools import (
     news_sentiment_tool,
     stock_selector_tool,
     valuation_tool,
+    technical_indicator_tool,
+    execution_strategy_tool,
+    sentiment_feedback_tool,
+    performance_analysis_tool,
+    concept_heat_tool,
+    fund_flow_tool,
+    index_data_tool,
 )
 
 
@@ -30,26 +37,46 @@ def _get_llm():
         return LLM(
             model=os.getenv("LLM_MODEL", "ollama/llama3.2"),
             base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            api_key="not-needed"
+            api_key="not-needed",
         )
     except Exception:
         return None
 
 
 def create_portfolio_manager() -> Agent:
-    """投资组合经理 - 团队协调者 (Manager Agent)
-    
+    """AI投资主管 - 总负责AI (Chief AI Officer)
+
     来自: TradingAgents-CN 主Agent架构
-    职责: 协调各子Agent，管理整体决策流程
+    职责:
+    1. 与用户直接对接，理解用户投资需求
+    2. 任务分解与智能体调度
+    3. 汇总各专业Agent分析结果
+    4. 整合呈现最终投资建议给用户
     """
     return Agent(
-        role="投资组合总经理",
-        goal="统筹管理整体投资组合，协调各专业Agent工作，确保决策最优",
+        role="AI投资主管 (Chief AI Officer)",
+        goal="""
+        作为团队总负责人，你需要：
+        1. 倾听并理解用户的投资需求和目标
+        2. 将复杂任务分解并派发给最合适的专业Agent
+        3. 监督各Agent工作进度，确保高效协作
+        4. 汇总分析结果，生成清晰易懂的投资报告
+        5. 用通俗易懂的语言向用户解释专业结论
+        """,
         backstory="""
-        你是一位拥有20年经验的资深投资组合经理，曾在全球顶级对冲基金担任首席投资官。
-        你精通多资产配置、风险预算和组合优化，深刻理解A股、港股和美股市场特性。
-        你擅长协调各专业领域专家的工作，从宏观策略到微观执行都能做出最优决策。
-        你的投资理念是：在控制风险的前提下追求稳健收益。
+        你是一位集投资智慧与沟通能力于一身的AI投资主管。
+        
+        专业能力：
+        - 20年全球金融市场经验，曾任多家顶级投行首席投资官
+        - 精通A股、港股、美股全市场投资策略
+        - 深度理解各类资产配置方法论
+        
+        核心优势：
+        - 出色的沟通能力：能将复杂的专业分析转化为用户易懂的语言
+        - 卓越的协调能力：善于调动各领域专家，整合最优方案
+        - 全局视野：从用户角度出发，提供个性化投资建议
+        
+        你始终坚持：以用户利益为核心，专业服务创造价值。
         """,
         llm=_get_llm(),
         verbose=True,
@@ -59,7 +86,7 @@ def create_portfolio_manager() -> Agent:
 
 def create_market_analyst() -> Agent:
     """市场分析师 - 多市场分析
-    
+
     来自: TradingAgents-CN 市场分析模块
     职责: A股/港股/美股技术面和基本面分析
     """
@@ -87,6 +114,7 @@ def create_market_analyst() -> Agent:
             sector_analysis_tool,
             policy_monitor_tool,
             knowledge_search_tool,
+            technical_indicator_tool,
         ],
         verbose=True,
         allow_delegation=True,
@@ -95,7 +123,7 @@ def create_market_analyst() -> Agent:
 
 def create_research_analyst() -> Agent:
     """研究分析师 - 价值投资分析
-    
+
     来自: china-stock-analysis 价值投资模块
     职责: 个股深度分析、估值计算，行业对比
     """
@@ -131,7 +159,7 @@ def create_research_analyst() -> Agent:
 
 def create_risk_manager() -> Agent:
     """风险管理师 - 监控预警
-    
+
     来自: stock-monitor-skill 预警监控模块
     职责: 实时监控、风险预警、仓位管理
     """
@@ -159,6 +187,7 @@ def create_risk_manager() -> Agent:
             portfolio_analysis_tool,
             stock_monitor_tool,
             realtime_quote_tool,
+            technical_indicator_tool,
         ],
         verbose=True,
         allow_delegation=False,
@@ -167,7 +196,7 @@ def create_risk_manager() -> Agent:
 
 def create_trade_executor() -> Agent:
     """交易执行员 - 订单执行
-    
+
     来自: Tauric Research / Lean 量化引擎
     职责: 订单执行、成交优化，风控校验
     """
@@ -193,6 +222,7 @@ def create_trade_executor() -> Agent:
             trading_api_tool,
             realtime_quote_tool,
             risk_metrics_tool,
+            execution_strategy_tool,
         ],
         verbose=True,
         allow_delegation=False,
@@ -201,7 +231,7 @@ def create_trade_executor() -> Agent:
 
 def create_news_analyst() -> Agent:
     """新闻分析师 - 实时资讯
-    
+
     来自: daily_stock_analysis 新闻模块
     职责: 实时新闻监控、舆情分析、情绪判断
     """
@@ -227,6 +257,7 @@ def create_news_analyst() -> Agent:
             news_sentiment_tool,
             policy_monitor_tool,
             realtime_quote_tool,
+            sentiment_feedback_tool,
         ],
         verbose=True,
         allow_delegation=True,
@@ -235,7 +266,7 @@ def create_news_analyst() -> Agent:
 
 def create_backtest_analyst() -> Agent:
     """回测分析师 - 策略回测
-    
+
     来自: Lean 量化引擎
     职责: 策略回测、绩效分析、参数优化
     """
@@ -262,6 +293,7 @@ def create_backtest_analyst() -> Agent:
             backtest_api_tool,
             ashare_data_tool,
             risk_metrics_tool,
+            performance_analysis_tool,
         ],
         verbose=True,
         allow_delegation=True,
@@ -270,7 +302,7 @@ def create_backtest_analyst() -> Agent:
 
 def create_data_analyst() -> Agent:
     """数据分析师 - 数据获取
-    
+
     来自: akshare 数据接口
     职责: A股/港股/美股行情和财务数据获取
     """
@@ -302,6 +334,9 @@ def create_data_analyst() -> Agent:
             stock_info_tool,
             sector_analysis_tool,
             realtime_quote_tool,
+            concept_heat_tool,
+            fund_flow_tool,
+            index_data_tool,
         ],
         verbose=True,
         allow_delegation=True,

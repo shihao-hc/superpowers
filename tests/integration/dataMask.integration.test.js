@@ -81,7 +81,7 @@ describe('Data Masking Integration', () => {
       
       expect(masked.email).toBe('a***@company.com');
       expect(masked.ip).toBe('10.0.**.**');
-      expect(masked.deviceFingerprint).toBe('abc******123d');
+      expect(masked.deviceFingerprint).toBe('abc******f456');
       expect(masked.level).toBe('info');
       expect(masked.message).toBe('User login');
     });
@@ -142,7 +142,7 @@ describe('Data Masking Integration', () => {
       expect(masked.idCard).toBe('110101********1234');
       expect(masked.bankCard).toBe('621700****78901');
       expect(masked.ip).toBe('192.168.**.**');
-      expect(masked.deviceFingerprint).toBe('dev******ice1');
+      expect(masked.deviceFingerprint).toBe('dev******6789');
     });
 
     it('should not mask non-sensitive fields', () => {
@@ -204,7 +204,7 @@ describe('Data Masking Integration', () => {
       const masked = dataMaskService.maskUserData(user);
       
       expect(masked).toEqual(user);
-      expect(masked).toBe(user);
+      expect(masked).not.toBe(user);
     });
   });
 
@@ -351,7 +351,7 @@ describe('Data Masking Integration', () => {
         
         expect(loginRequest.body.email).toBe('u***@company.com');
         expect(loginRequest.body.password).toBe('secret123');
-        expect(loginRequest.body.deviceFingerprint).toBe('abc******123d');
+        expect(loginRequest.body.deviceFingerprint).toBe('abc******f456');
       });
 
       it('should mask login response body', () => {

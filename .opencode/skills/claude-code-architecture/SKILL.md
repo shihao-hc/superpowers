@@ -17,7 +17,11 @@ tags:
 
 > 基于 Claude Code v2.1.88 泄露源码（51.2万行 TypeScript）的深度分析
 
-## 📊 概览
+## 概述
+
+Claude Code 是 Anthropic 推出的 AI 编程助手 CLI 工具，包含 512,000+ 行 TypeScript 代码，1900+ 文件，40+ 专业工具，85+ 斜杠命令，44+ Feature Flags。该架构分析提取了可应用于其他 AI Agent 系统的核心模式。
+
+## 核心架构
 
 | 指标 | 数值 |
 |------|------|
@@ -27,9 +31,28 @@ tags:
 | 命令数 | 85+ 斜杠命令 |
 | 特性开关 | 44+ Feature Flags |
 
----
+## 关键模式
 
-## 🏗️ 一、核心架构模式
+1. **分层架构**: UI层 → 传输层 → 核心引擎 → 外部服务
+2. **异步生成器流式处理**: 使用 `async function*` 实现实时输出
+3. **5层级联压缩**: Snip → Microcompact → Context Collapse → Autocompact → Reactive Compact
+4. **三模式权限系统**: Default / Plan / Auto 模式切换
+5. **Feature Flag DCE**: 使用 `bun:bundle` 的 `feature()` 实现构建时代码消除
+
+## 在 ShiHao 中的实现
+
+参考 Claude Code 架构，可以改进 ShiHao:
+- 在 CrawlerEngine 中实现流式 Agent 循环
+- 添加多层上下文压缩策略
+- 实现权限管理系统
+- 使用 Feature Flag 控制功能开关
+
+## 核心原则
+
+1. **流式优先**: 用户应实时看到处理进度
+2. **错误恢复**: 多层降级机制确保鲁棒性
+3. **状态不可变性**: 使用新对象而非修改状态
+4. **Feature Gating**: 非核心功能通过 Flag 控制
 
 ### 1.1 分层架构设计
 

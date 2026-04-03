@@ -20,7 +20,7 @@ class TestPackageImports:
 
     def test_version_accessible(self):
         """Version is accessible."""
-        assert __version__ == "0.1.0"
+        assert __version__ == "0.6.0"
 
 
 class TestConfigDataclasses:
