@@ -14,6 +14,10 @@ import { TokenBudget } from './token-budget.js';
 import { ErrorRecovery } from './recovery.js';
 import { ContextManager } from '../compact/index.js';
 
+// Re-export from submodules
+export { StateManager, globalStateManager } from './state.js';
+export { AgentError, ModelError, TokenBudgetExceededError, globalErrorHandler } from './errors.js';
+
 export interface AgentLoopConfig {
   /** 最大轮次限制 */
   maxTurns?: number;

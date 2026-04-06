@@ -34,6 +34,14 @@ export interface CommandResult {
   data?: unknown;
 }
 
+// Re-export from submodules
+export { CommandRegistry, globalCommandRegistry } from './registry.js';
+export { CommandParser, globalCommandParser } from './parser.js';
+export * from './builtins/file.js';
+export * from './builtins/git.js';
+export * from './builtins/search.js';
+export * from './builtins/dev.js';
+
 export type CommandCategory = 
   | 'file'
   | 'git'

@@ -435,3 +435,10 @@ const TOOL_DEFAULTS = {
   isReadOnly: () => false,
   isDestructive: () => false,
 };
+
+// Re-export from submodules
+export { ToolRegistry } from './registry.js';
+export { ToolExecutor, ToolQueue } from './executor.js';
+export { StreamingToolExecutor } from './streaming.js';
+export { SchemaValidator, commonSchemas } from './schemas.js';
+export { ToolExecutionError, ToolNotFoundError } from './errors.js';
