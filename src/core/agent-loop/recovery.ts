@@ -31,14 +31,6 @@ export type RecoveryAction =
   | 'compact'
   | 'fail';
 
-export type RecoverableError = 
-  | FallbackTriggeredError
-  | PromptTooLongError
-  | MaxOutputTokensError
-  | ModelError
-  | RateLimitError
-  | NetworkError;
-
 export class FallbackTriggeredError extends Error {
   constructor(
     message: string,
@@ -100,6 +92,15 @@ export class NetworkError extends Error {
     this.name = 'NetworkError';
   }
 }
+
+// 在类定义之后定义联合类型
+export type RecoverableError = 
+  | FallbackTriggeredError
+  | PromptTooLongError
+  | MaxOutputTokensError
+  | ModelError
+  | RateLimitError
+  | NetworkError;
 
 export class ErrorRecovery {
   private retryCount: Map<string, number> = new Map();

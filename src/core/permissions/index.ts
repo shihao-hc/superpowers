@@ -10,46 +10,10 @@
  * - auto: 自动模式
  */
 
-export type PermissionMode = 
-  | 'default'
-  | 'plan'
-  | 'acceptEdits'
-  | 'bypassPermissions'
-  | 'dontAsk'
-  | 'auto';
+export type { PermissionMode, PermissionDecision, PermissionRule, PermissionContext, PERMISSION_MODE_CONFIG } from './types.js';
+export type { RuleCondition } from './types.js';
 
-export interface PermissionRule {
-  source: PermissionRuleSource;
-  behavior: 'allow' | 'deny' | 'ask';
-  toolName?: string;
-  command?: string;  // 可选的命令内容匹配
-  pathPattern?: string;
-}
-
-export type PermissionRuleSource = 
-  | 'settings'
-  | 'cli'
-  | 'env'
-  | 'command'
-  | 'session'
-  | 'project';
-
-export interface PermissionContext {
-  mode: PermissionMode;
-  alwaysAllowRules: PermissionRule[];
-  alwaysDenyRules: PermissionRule[];
-  sessionAllowRules: string[];
-  sessionDenyRules: string[];
-  autoAllowedPaths: string[];
-  autoDeniedPaths: string[];
-  deniedRules: string[];
-}
-
-export interface PermissionDecision {
-  decision: 'allow' | 'deny' | 'ask' | 'pause';
-  reason?: string;
-  action?: 'continue' | 'wait_for_approval' | 'block';
-}
+import type { PermissionMode, PermissionDecision, PermissionRule, PermissionContext } from './types.js';
 
 export interface ToolPermissionInput {
   toolName: string;
@@ -339,16 +303,11 @@ export class PermissionSystem {
   }
 }
 
+// 别名以保持向后兼容
+export { PermissionSystem as PermissionService } from './index.js';
+export { RuleEngine } from './rules.js';
+export { PermissionModeManager } from './modes.js';
+export { PermissionContextManager } from './context.js';
+
 // 权限模式配置
-export const PERMISSION_MODE_CONFIG: Record<PermissionMode, {
-  title: string;
-  symbol: string;
-  color: string;
-}> = {
-  default: { title: 'Default', symbol: '', color: 'text' },
-  plan: { title: 'Plan Mode', symbol: '⏸', color: 'planMode' },
-  acceptEdits: { title: 'Accept edits', symbol: '⏵⏵', color: 'autoAccept' },
-  bypassPermissions: { title: 'Bypass Permissions', symbol: '⏵⏵', color: 'error' },
-  dontAsk: { title: "Don't Ask", symbol: '⏵⏵', color: 'error' },
-  auto: { title: 'Auto mode', symbol: '⏵⏵', color: 'warning' },
-};
+export { PERMISSION_MODE_CONFIG } from './types.js';

@@ -36,11 +36,17 @@ export const gitCommitCommand: Command = {
       return { success: false, error: 'Usage: /commit <message>' };
     }
 
+    // 安全验证：检查消息是否包含潜在的注入字符
+    if (/[;&|`$<>]/.test(message)) {
+      return { success: false, error: 'Commit message contains invalid characters' };
+    }
+
     try {
       const { execSync } = require('child_process');
-      const output = execSync(`git commit -m "${message}"`, {
+      const output = execSync('git', ['commit', '-m', message], {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory
+        cwd: params.context.workingDirectory,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       return { success: true, output: output || 'Commit successful' };
     } catch (error) {
@@ -96,12 +102,15 @@ export const gitBranchCommand: Command = {
   priority: 10,
   patterns: [/^\/(branch|git-branch)(\s+.*)?$/i],
   execute: async (params: CommandParams): Promise<CommandResult> => {
+    // 安全验证：检查参数
+    const branchArgs = params.args.filter(arg => !/[;&|`$<>]/.test(arg));
+    
     try {
       const { execSync } = require('child_process');
-      const args = params.args[0] || '';
-      const output = execSync(`git branch ${args}`, {
+      const output = execSync('git', ['branch', ...branchArgs], {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory
+        cwd: params.context.workingDirectory,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       return { success: true, output };
     } catch (error) {
@@ -117,12 +126,15 @@ export const gitDiffCommand: Command = {
   priority: 10,
   patterns: [/^\/(diff|git-diff)(\s+.*)?$/i],
   execute: async (params: CommandParams): Promise<CommandResult> => {
+    // 安全验证：检查参数
+    const diffArgs = params.args.filter(arg => !/[;&|`$<>]/.test(arg));
+    
     try {
       const { execSync } = require('child_process');
-      const args = params.args.join(' ');
-      const output = execSync(`git diff ${args}`, {
+      const output = execSync('git', ['diff', ...diffArgs], {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory
+        cwd: params.context.workingDirectory,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       return { success: true, output: output || 'No changes' };
     } catch (error) {
@@ -138,12 +150,16 @@ export const gitLogCommand: Command = {
   priority: 10,
   patterns: [/^\/(log|git-log)(\s+.*)?$/i],
   execute: async (params: CommandParams): Promise<CommandResult> => {
+    // 安全验证：检查参数
+    const logArgs = params.args.filter(arg => !/[;&|`$<>]/.test(arg));
+    if (logArgs.length === 0) logArgs.push('-10');
+    
     try {
       const { execSync } = require('child_process');
-      const args = params.args.join(' ') || '-10';
-      const output = execSync(`git log ${args}`, {
+      const output = execSync('git', ['log', ...logArgs], {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory
+        cwd: params.context.workingDirectory,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       return { success: true, output };
     } catch (error) {
@@ -164,11 +180,17 @@ export const gitCheckoutCommand: Command = {
       return { success: false, error: 'Usage: /checkout <branch>' };
     }
 
+    // 安全验证：检查分支名
+    if (/[;&|`$<>]/.test(branch)) {
+      return { success: false, error: 'Branch name contains invalid characters' };
+    }
+
     try {
       const { execSync } = require('child_process');
-      const output = execSync(`git checkout ${branch}`, {
+      const output = execSync('git', ['checkout', branch], {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory
+        cwd: params.context.workingDirectory,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       return { success: true, output: output || `Switched to ${branch}` };
     } catch (error) {

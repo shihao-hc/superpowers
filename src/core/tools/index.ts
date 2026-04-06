@@ -9,6 +9,9 @@
 
 import { EventEmitter } from 'events';
 
+// 共享类型
+export type { PermissionMode, ValidationResult, PermissionResult } from '../permissions/types.js';
+
 // 泛型工具定义
 export interface Tool<
   Input extends Record<string, unknown> = Record<string, unknown>,
@@ -42,24 +45,7 @@ export interface ToolContext {
   sessionId?: string;
 }
 
-export type PermissionMode = 
-  | 'default'
-  | 'plan'
-  | 'acceptEdits'
-  | 'bypassPermissions'
-  | 'dontAsk'
-  | 'auto';
 
-export interface ValidationResult {
-  valid: boolean;
-  errors?: string[];
-}
-
-export interface PermissionResult {
-  allowed: boolean;
-  reason?: string;
-  requiresConfirmation?: boolean;
-}
 
 export interface ToolResult<Output = unknown> {
   success: boolean;

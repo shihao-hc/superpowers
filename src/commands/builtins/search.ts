@@ -16,21 +16,29 @@ export const grepCommand: Command = {
       return { success: false, error: 'Usage: /grep <pattern> [path]' };
     }
 
-    const path = params.args[1] || '.';
+    const searchPath = params.args[1] || '.';
     const flags = params.flags;
+
+    // 安全验证
+    if (/[;&|`$<>]/.test(pattern) || /[;&|`$<>]/.test(searchPath)) {
+      return { success: false, error: 'Search pattern or path contains invalid characters' };
+    }
 
     try {
       const { execSync } = require('child_process');
-      let cmd = `grep -r "${pattern}" "${path}"`;
+      const grepArgs = ['-r'];
       
-      if (flags.i) cmd += ' -i';
-      if (flags.n) cmd += ' -n';
-      if (flags.l) cmd += ' -l';
+      if (flags.i) grepArgs.push('-i');
+      if (flags.n) grepArgs.push('-n');
+      if (flags.l) grepArgs.push('-l');
       
-      const output = execSync(cmd, { 
+      grepArgs.push('--', pattern, searchPath);
+      
+      const output = execSync('grep', grepArgs, { 
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       
       return { success: true, output, data: output.split('\n') };
@@ -56,12 +64,18 @@ export const findCommand: Command = {
       return { success: false, error: 'Usage: /find <filename>' };
     }
 
+    // 安全验证
+    if (/[;&|`$<>]/.test(name)) {
+      return { success: false, error: 'Filename contains invalid characters' };
+    }
+
     try {
       const { execSync } = require('child_process');
-      const output = execSync(`find . -name "${name}"`, {
+      const output = execSync('find', ['.', '-name', name], {
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
       
       return { success: true, output: output || 'No files found', data: output.split('\n') };

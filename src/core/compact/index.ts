@@ -11,7 +11,8 @@
  * - POST_COMPACT_SKILLS_TOKEN_BUDGET = 25000
  */
 
-import type { Message, CompactionResult, CompactConfig } from './types.js';
+import type { Message } from '../agent-loop/types.js';
+export type { CompactType, CompactCheckResult, CompactConfig, CompactResult, CompactionRecord } from './types.js';
 
 export interface ContextManagerConfig {
   maxTokens: number;
@@ -19,18 +20,6 @@ export interface ContextManagerConfig {
   errorThreshold?: number;
   autoCompactBuffer?: number;
 }
-
-export interface CompactCheckResult {
-  shouldCompact: boolean;
-  type: CompactType;
-  reason?: string;
-}
-
-export type CompactType = 
-  | 'auto'        // 自动压缩
-  | 'micro'       // 微压缩
-  | 'partial'     // 部分压缩
-  | 'session';    // 会话记忆压缩
 
 export class ContextManager {
   private config: Required<ContextManagerConfig>;
