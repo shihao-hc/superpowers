@@ -1,3 +1,8 @@
+---
+name: seleniumbase-patterns
+description: SeleniumBase 测试框架，UC Mode 反检测、CDP Mode、浏览器池管理、API 测试、Dashboard
+---
+
 # SeleniumBase Patterns
 
 > SeleniumBase - 全面的 Selenium 测试框架，12.5K stars，UC Mode（反检测）、CDP Mode、API 测试、Dashboard

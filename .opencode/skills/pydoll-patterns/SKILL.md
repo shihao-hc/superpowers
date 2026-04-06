@@ -1,3 +1,11 @@
+---
+name: pydoll-patterns
+description: Pydoll browser automation patterns - CDP-based headless browser control without WebDriver
+version: 1.0.0
+author: Pydoll Community
+riskLevel: low
+---
+
 # Pydoll Patterns
 
 > Pydoll - 无头浏览器自动化库，6.7K stars，直接通过 CDP（Chrome DevTools Protocol）控制浏览器，无需 WebDriver
