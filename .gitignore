@@ -34,3 +34,16 @@ test-results/
 .DS_Store
 Thumbs.db
 .opencode/
+*.bak
+downloads/*.mp4
+downloads/*.wav
+downloads/*.mp3
+shihao-web/python-backend/data/chroma_db/
+uploads/venvs/
+
+# Guardrail
+.guardrail-config.json
+.guardrail-data/
+.guardrail-baseline.json
+guardrail-regressions.jsonl
+tools/guardrail-fix.js
