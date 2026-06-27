@@ -4,6 +4,9 @@
 
 require('dotenv').config();
 
+// 默认为生产环境（开发需显式设置 NODE_ENV=development）
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
 const express = require('express');
 const path = require('path');
 const http = require('http');
@@ -15,11 +18,239 @@ const middleware = require('./middleware');
 const routes = require('./routes');
 const logger = require('./utils/logger');
 const security = require('./middleware/security');
+const { maskResponseBody } = require('./middleware/dataMask');
+
+// ============ Claude Code 模块集成 ============
+const { MessageService, SuggestionPipeline } = require('../src/agent');
+const { FuzzyMatcher } = require('../src/utils');
+const { defaultManager: hooksManager } = require('../src/hooks');
+const { UnifiedMemory } = require('../src/memory');
+const { SettingsSync } = require('../src/config');
+const { SelfLearningSystem, BrainFlow } = require('../src/core');
+const { BrainSystem } = require('../src/core/BrainSystem');
+const { BrainBridge } = require('../src/core/BrainBridge');
+const { MCPManager } = require('../src/mcp');
+const InferenceBridge = require('../src/localInferencing/InferBridge');
+
+// 初始化模块
+let messageService = null;
+let fuzzyMatcher = null;
+let suggestionPipeline = null;
+let unifiedMemory = null;
+let settingsSync = null;
+let selfLearning = null;
+let mcpManager = null;
+let inferenceBridge = null;
+let brainBridge = null;
+let brainFlow = null;
+let brainCodeImprover = null;
+let brainProactiveAdvisor = null;
+let securityWatcher = null;
+
+function initializeModules() {
+  logger.info('[Server] 初始化 Claude Code 模块...');
+
+  // MessageService - 对话消息管理
+  try {
+    messageService = new MessageService({ maxMessages: 500, uuidSetCapacity: 1000 });
+    logger.info('[MessageService] 对话消息管理已启用');
+  } catch (e) {
+    logger.warn('[MessageService] 初始化失败:', e.message);
+  }
+
+  // FuzzyMatcher - 模糊匹配器
+  try {
+    fuzzyMatcher = new FuzzyMatcher({ threshold: 0.3, ignoreCase: true });
+    logger.info('[FuzzyMatcher] 模糊匹配已启用');
+  } catch (e) {
+    logger.warn('[FuzzyMatcher] 初始化失败:', e.message);
+  }
+
+  // SuggestionPipeline - 建议管道
+  try {
+    suggestionPipeline = new SuggestionPipeline({ enabled: true });
+    suggestionPipeline.use('skillSuggestion', async (ctx) => {
+      const { message } = ctx;
+      const skillKeywords = {
+        'test': ['测试', '测试用例', '单元测试'],
+        'git': ['git', 'commit', 'branch', 'push'],
+        'docker': ['docker', 'container', '镜像']
+      };
+      const suggestions = [];
+      const lowerMsg = (message || '').toLowerCase();
+      for (const [skill, keywords] of Object.entries(skillKeywords)) {
+        if (keywords.some((kw) => lowerMsg.includes(kw))) {
+          suggestions.push({ type: 'skill', name: skill, reason: '检测到关键词' });
+        }
+      }
+      return { ...ctx, suggestions };
+    });
+    logger.info('[SuggestionPipeline] 建议管道已启用');
+  } catch (e) {
+    logger.warn('[SuggestionPipeline] 初始化失败:', e.message);
+  }
+
+  // UnifiedMemory - 统一内存
+  try {
+    unifiedMemory = new UnifiedMemory();
+    unifiedMemory.initialize().then(() => {
+      logger.info('[UnifiedMemory] 会话记忆已启用');
+    }).catch((e) => {
+      logger.warn('[UnifiedMemory] 初始化失败:', e.message);
+    });
+  } catch (e) {
+    logger.warn('[UnifiedMemory] 创建失败:', e.message);
+  }
+
+  // SettingsSync - 设置同步
+  try {
+    settingsSync = new SettingsSync({ localPath: path.join(process.cwd(), '.opencode', 'settings') });
+    logger.info('[SettingsSync] 设置同步已启用');
+  } catch (e) {
+    logger.warn('[SettingsSync] 初始化失败:', e.message);
+  }
+
+  // SelfLearningSystem - 自主学习
+  try {
+    selfLearning = new SelfLearningSystem({ enabled: true });
+    logger.info('[SelfLearning] 自主学习已启用');
+  } catch (e) {
+    logger.warn('[SelfLearning] 初始化失败:', e.message);
+  }
+
+  // MCPManager - 条件初始化
+  try {
+    const mcpConfigPath = path.join(process.cwd(), '.opencode', 'mcp-config.json');
+    const fs = require('fs');
+    if (fs.existsSync(mcpConfigPath)) {
+      const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'));
+      if (mcpConfig && Object.keys(mcpConfig).length > 0) {
+        mcpManager = new MCPManager({ maxConcurrent: 3 });
+        mcpManager.updateServers(mcpConfig).catch((e) => {
+          logger.warn('[MCPManager] 更新失败:', e.message);
+          mcpManager = null;
+        });
+        logger.info('[MCPManager] MCP服务器管理已启用');
+      }
+    }
+  } catch (e) {
+    logger.warn('[MCPManager] 初始化失败:', e.message);
+  }
+
+  // InferenceBridge - 推理桥接器
+  try {
+    inferenceBridge = new InferenceBridge();
+    inferenceBridge.loadModel().then(() => {
+      logger.info('[InferenceBridge] 推理服务已就绪');
+    }).catch((e) => {
+      logger.warn('[InferenceBridge] 加载失败:', e.message);
+    });
+  } catch (e) {
+    logger.warn('[InferenceBridge] 初始化失败:', e.message);
+  }
+
+  // ============ BrainSystem 自动化接入 ============
+
+  // 1. 连接 BrainSystem 钩子系统（自动诊断/教训学习/风险分析）
+  try {
+    BrainSystem.connectHooks();
+    logger.info('[BrainSystem] 钩子系统已连接 (自动诊断/教训学习/风险分析/会话管理)');
+  } catch (e) {
+    logger.warn('[BrainSystem] 钩子连接失败:', e.message);
+  }
+
+  // 2. 初始化 BrainBridge（断路器/循环防护/审计日志/Phase C决策）
+  try {
+    brainBridge = new BrainBridge();
+    brainBridge.initialize();
+    logger.info('[BrainBridge] 大脑桥接已启动 (断路器/循环防护/审计日志)');
+  } catch (e) {
+    logger.warn('[BrainBridge] 初始化失败:', e.message);
+  }
+
+  // 3. 启动 BrainFlow 自动监控（每5分钟健康检查）
+  try {
+    const bFlow = new BrainFlow();
+    bFlow.startAutoMonitor(5 * 60 * 1000);
+    brainFlow = bFlow;
+    logger.info('[BrainFlow] 自动监控已启动 (间隔: 5分钟)');
+  } catch (e) {
+    logger.warn('[BrainFlow] 启动失败:', e.message);
+  }
+
+  // 4. 启动 SelfCodeImprover 自动代码改进（每小时）
+  try {
+    const SelfCodeImprover = require('../src/core/SelfCodeImprover');
+    const sci = new SelfCodeImprover();
+    sci.startAutoImprovementLoop(60 * 60 * 1000);
+    brainCodeImprover = sci;
+    logger.info('[SelfCodeImprover] 自动代码改进循环已启动 (间隔: 1小时)');
+  } catch (e) {
+    logger.warn('[SelfCodeImprover] 启动失败:', e.message);
+  }
+
+  // 5. 启动 ProactiveAdvisor 定期扫描（每小时）
+  try {
+    const ProactiveAdvisor = require('../src/core/ProactiveAdvisor');
+    const pa = new ProactiveAdvisor();
+    // 立即执行一次扫描
+    const scanResult = pa.scan();
+    if (scanResult && (scanResult.warnings || scanResult.suggestions)) {
+      logger.info(`[ProactiveAdvisor] 初始扫描: ${scanResult.warnings?.length || 0} 警告, ${scanResult.suggestions?.length || 0} 建议`);
+    }
+    brainProactiveAdvisor = pa;
+    logger.info('[ProactiveAdvisor] 主动建议系统已启动');
+  } catch (e) {
+    logger.warn('[ProactiveAdvisor] 启动失败:', e.message);
+  }
+
+  logger.info('[Server] Claude Code 模块初始化完成');
+}
+
+function cleanupModules() {
+  logger.info('[Server] 清理 Claude Code 模块...');
+  if (hooksManager) {hooksManager.destroy();}
+  if (suggestionPipeline) {suggestionPipeline.destroy();}
+  if (mcpManager) {mcpManager.cleanup();}
+  if (unifiedMemory?.initialized) {unifiedMemory.session.save().catch(() => {});}
+  if (messageService) {logger.info('[MessageService] 会话统计:', messageService.getStats());}
+
+  // BrainSystem 清理
+  if (brainCodeImprover) {
+    try { brainCodeImprover.stopAutoImprovementLoop(); } catch (e) { /* */ }
+  }
+  if (brainFlow) {
+    try { brainFlow.stopAutoMonitor(); } catch (e) { /* */ }
+  }
+  if (BrainSystem.isHooksConnected()) {
+    try { BrainSystem.disconnectHooks(); } catch (e) { /* */ }
+  }
+  logger.info('[BrainSystem] 自动化模块已清理');
+
+  // 安全监控清理
+  if (securityWatcher) {
+    try {
+      const { stopSecurityMonitor } = require('../src/daemon/securityMonitor');
+      stopSecurityMonitor(securityWatcher);
+      securityWatcher = null;
+    } catch (e) { /* */ }
+  }
+}
 
 // 创建Express应用
 const app = express();
+
+// 导出内部模块供中间件使用
+app.getModules = () => ({
+  messageService, fuzzyMatcher, suggestionPipeline, unifiedMemory,
+  settingsSync, selfLearning, mcpManager, inferenceBridge, hooksManager,
+  brainBridge, brainFlow, brainCodeImprover, brainProactiveAdvisor
+});
 const port = config.get('server.port');
 const host = config.get('server.host');
+
+// ============ Claude Code 模块初始化 ============
+initializeModules();
 
 // ============ 基础中间件 ============
 
@@ -32,16 +263,21 @@ app.use(security.securityHeaders);
 // 安全中间件
 if (process.env.NODE_ENV === 'production') {
   app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
+  // nonce-based CSP 允许安全的内联脚本，替代 helmet 静态 CSP
+  app.use(security.enhancedCSP);
+} else {
+  // 开发环境也添加基础安全头
+  app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'", "ws:", "wss:"],
-        fontSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        frameSrc: ["'none'"]
+        defaultSrc: ['\'self\''],
+        scriptSrc: ['\'self\'', '\'unsafe-inline\'', '\'unsafe-eval\''],
+        styleSrc: ['\'self\'', '\'unsafe-inline\''],
+        imgSrc: ['\'self\'', 'data:', 'blob:'],
+        connectSrc: ['\'self\'', 'ws:', 'wss:']
       }
     },
     crossOriginEmbedderPolicy: false
@@ -51,14 +287,14 @@ if (process.env.NODE_ENV === 'production') {
 // 压缩
 app.use(compression());
 
-// 信任代理
+// 信任代理（生产环境默认启用，TRUST_PROXY=false 可关闭）
 if (config.get('server.trustProxy')) {
   app.set('trust proxy', 1);
 }
 
 // 解析JSON
 app.use(express.json({ limit: config.get('server.maxRequestSize') }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // 安全检测中间件
 app.use(security.strictInputValidation);
@@ -66,6 +302,9 @@ app.use(security.sqlInjectionDetection);
 app.use(security.xssDetection);
 app.use(security.pathTraversalDetection);
 app.use(security.rateLimitBypassDetection);
+
+// 数据掩码（响应体PII脱敏）
+app.use(maskResponseBody);
 
 // 请求日志
 if (process.env.NODE_ENV !== 'test') {
@@ -98,7 +337,7 @@ app.all(/.*/, (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  
+
   res.sendFile(path.join(staticPath, 'index.html'));
 });
 
@@ -118,22 +357,23 @@ const server = http.createServer(app);
 try {
   const WebSocketServer = require('./websocket');
   const { FeatureFlagsService } = require('../src/agent/FeatureFlagsService');
-  
+
   // 初始化特性开关服务
   const featureFlags = new FeatureFlagsService();
-  
+
   // 挂载到 app 以便路由访问
   app.set('featureFlags', featureFlags);
   app.set('permissionService', require('./middleware').permissionService);
-  
+
   // 初始化 WebSocket
   if (typeof WebSocketServer === 'function') {
-    WebSocketServer(server, app);
+    const wsServer = WebSocketServer(server, app);
+    app.set('wss', wsServer);
   }
-  
-  console.log('✓ Claude Code 风格服务已集成');
+
+  logger.info('Claude Code 风格服务已集成');
 } catch (error) {
-  console.warn('WebSocket 集成跳过:', error.message);
+  logger.warn('WebSocket 集成跳过', { error: error.message });
 }
 
 // 启动服务器
@@ -144,23 +384,37 @@ server.listen(port, host, () => {
     environment: process.env.NODE_ENV || 'development',
     pid: process.pid
   });
-  
+
   // 验证配置
   const validation = config.validate();
   if (!validation.valid) {
-    logger.warn('配置警告', { errors: validation.errors });
+    logger.error('配置错误', { errors: validation.errors });
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
+
+  // 开发模式启动安全文件监控
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const { startSecurityMonitor } = require('../src/daemon/securityMonitor');
+      securityWatcher = startSecurityMonitor();
+    } catch (err) {
+      console.warn('⚠️  Security monitor unavailable:', err.message);
+    }
   }
 });
 
 // 优雅关闭
 process.on('SIGTERM', () => {
   logger.info('收到SIGTERM信号，开始优雅关闭...');
-  
+  cleanupModules();
+
   server.close(() => {
     logger.info('HTTP服务器已关闭');
     process.exit(0);
   });
-  
+
   // 强制关闭超时
   setTimeout(() => {
     logger.error('强制关闭超时');
@@ -170,7 +424,8 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   logger.info('收到SIGINT信号，开始优雅关闭...');
-  
+  cleanupModules();
+
   server.close(() => {
     logger.info('HTTP服务器已关闭');
     process.exit(0);
@@ -183,7 +438,7 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   logger.error('未处理的Promise拒绝', { reason: String(reason) });
 });
 
