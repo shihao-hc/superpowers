@@ -129,7 +129,7 @@
   "lint-staged": {
     "*.js": [
       "node scripts/security-scan.js --incremental",
-      "eslint --max-warnings=0"
+      "npx eslint --max-warnings=0 --no-warn-ignored"
     ]
   },
   "overrides": {

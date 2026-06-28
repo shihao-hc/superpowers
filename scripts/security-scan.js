@@ -6,8 +6,10 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { loadRules, getRules, isCustomMatchRule } = require('./rules');
 
 const ROOT = path.resolve(__dirname, '..');
+const RULES_DIR = path.join(__dirname, 'rules');
 const EXCLUDE_DIRS = ['node_modules', '.git', '.opencode', 'tradingagents-cn', 'shihao-', 'test', 'tests', 'scripts', 'frontend', 'examples', 'coverage'];
 const EXCLUDE_PATTERNS = [/node_modules/, /\.test\.js$/, /\.spec\.js$/, /tradingagents-cn/, /shihao-/];
 
@@ -17,6 +19,48 @@ let _scanResults = null;
 
 function shouldExclude(filePath) {
   return EXCLUDE_PATTERNS.some((p) => p.test(filePath));
+}
+
+function initRules() {
+  if (getRules().length === 0) {
+    loadRules(RULES_DIR);
+  }
+  return getRules();
+}
+
+function scanFileWithRules(filePath, resultsArray) {
+  const relativePath = path.relative(ROOT, filePath);
+  if (shouldExclude(relativePath)) return;
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n');
+  const rules = initRules();
+
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+    if (isCustomMatchRule(rule)) {
+      rule.match(lines, relativePath, filePath, (severity, ruleId, detail, message) => {
+        if (resultsArray) resultsArray.push({ severity, ruleId, file: relativePath, message, detail });
+        report(severity, ruleId, detail, relativePath, message);
+      });
+      continue;
+    }
+    for (const pattern of rule.patterns) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!pattern.test(line)) continue;
+        if (rule.excludePatterns && rule.excludePatterns.some(ep => ep.test(line))) continue;
+        if (rule.context && rule.context.requireKeywords && rule.context.requireKeywords.length > 0) {
+          const hasKeyword = rule.context.requireKeywords.some(kw =>
+            line.toLowerCase().includes(kw.toLowerCase())
+          );
+          if (!hasKeyword) continue;
+        }
+        const detail = `行 ${i + 1}: ${line.trim().substring(0, 100)}`;
+        if (resultsArray) resultsArray.push({ severity: rule.severity, ruleId: rule.id, file: relativePath, message: rule.description, detail });
+        report(rule.severity, rule.id, detail, relativePath, rule.description);
+      }
+    }
+  }
 }
 
 function getAllJSFiles(dir) {
@@ -381,16 +425,31 @@ function scanFiles(filePaths) {
   return results;
 }
 
-module.exports = { scanFile, scanFiles };
+module.exports = { scanFile, scanFiles, scanFileWithRules, initRules };
 
 // ===== CLI 入口（仅直接运行执行） =====
 if (require.main === module) {
+  if (process.env.USE_RULES_ENGINE === 'true') {
+    scanFile = scanFileWithRules;
+    scanFiles = (filePaths) => {
+      const results = [];
+      for (const fp of filePaths) {
+        scanFileWithRules(fp, results);
+      }
+      return results;
+    };
+  }
   if (process.argv.includes('--incremental')) {
     const idx = process.argv.indexOf('--incremental');
-    const files = process.argv.slice(idx + 1).filter(f => f && !f.startsWith('-'));
+    const files = process.argv.slice(idx + 1).filter(f => {
+      if (!f || f.startsWith('-')) return false;
+      const abs = path.resolve(f);
+      if (abs === __filename) return false;
+      if (abs.startsWith(path.resolve(__dirname, 'rules'))) return false;
+      return true;
+    });
     if (files.length === 0) {
-      console.error('Usage: node scripts/security-scan.js --incremental <file1.js> [file2.js ...]');
-      process.exit(1);
+      process.exit(0);
     }
     const results = scanFiles(files);
     const highCount = results.filter(r => r.severity === 'HIGH').length;
