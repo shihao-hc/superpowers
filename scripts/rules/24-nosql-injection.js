@@ -16,6 +16,7 @@ module.exports = {
       }
     }
   },
+  suggest: '使用 MongoDB 的安全查询模式：避免将用户输入直接拼入 $where 操作符；对 $regex 输入进行转义（escapeRegex）；使用 schema 验证和白名单允许的操作符；优先使用 Mongoose 的类型化查询而非原生 MongoDB 驱动。',
   references: ['CWE-943'],
   since: '2026-06-28',
 };

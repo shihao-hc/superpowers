@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 class SkillLoader {
   constructor(skillsDir = path.join(process.cwd(), 'skills-source', 'skills')) {
@@ -35,7 +36,7 @@ class SkillLoader {
   // Load a single skill by folder name
   loadSkill(skillName) {
     const skillPath = path.join(this.skillsDir, skillName);
-    if (!fs.existsSync(skillPath)) return null;
+    if (!fs.existsSync(skillPath)) {return null;}
 
     // Try to load skill.md or README.md
     let skillFile = null;
@@ -47,7 +48,7 @@ class SkillLoader {
       }
     }
 
-    if (!skillFile) return null;
+    if (!skillFile) {return null;}
 
     const content = fs.readFileSync(skillFile, 'utf8');
     const skill = this.parseSkill(content, skillName);
@@ -105,9 +106,9 @@ class SkillLoader {
   // Fallback parsing from content when no frontmatter
   parseFromContent(content, skillName) {
     // Simple heuristic: look for description after title
-    const lines = content.split('\n');
+    const lines = splitLines(content);
     let description = '';
-    let inputs = [];
+    const inputs = [];
 
     // Look for a line that starts with # or ## for title, then take next lines as description
     let foundTitle = false;
@@ -118,17 +119,18 @@ class SkillLoader {
         continue;
       }
       if (foundTitle && line && !line.startsWith('#')) {
-        description += line + ' ';
+        description += `${line} `;
       } else if (foundTitle && line.startsWith('#')) {
         break;
       }
     }
 
     // Look for inputs section (simple)
+    // eslint-disable-next-line security/detect-unsafe-regex
     const inputsMatch = content.match(/inputs:\s*((?:\s*-\s*name:.*\n)*)/i);
     if (inputsMatch) {
       const inputsText = inputsMatch[1];
-      const inputLines = inputsText.split('\n');
+      const inputLines = splitLines(inputsText);
       for (const line of inputLines) {
         const nameMatch = line.match(/name:\s*(\S+)/);
         if (nameMatch) {

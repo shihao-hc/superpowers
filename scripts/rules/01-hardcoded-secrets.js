@@ -17,6 +17,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将所有密钥、密码和令牌移至环境变量（process.env.*）或密钥管理服务（如 AWS Secrets Manager、Vault）。确保 .env 文件不被提交到版本控制（添加到 .gitignore）。',
   references: ['CWE-798'],
   since: '2026-06-28',
 };

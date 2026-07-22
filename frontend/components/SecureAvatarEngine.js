@@ -1,6 +1,6 @@
 /**
  * AI虚拟人物核心引擎 v2.1 - 安全加固版
- * 
+ *
  * 修复内容:
  * - 输入验证加强
  * - XSS防护增强
@@ -9,18 +9,20 @@
  * - 防止无限递归
  */
 
+const { EnhancedAvatarEngine, LatencyOptimizer, SentimentFeedbackLoop, ContinuousInferenceSystem } = require('./EnhancedAvatarEngine');
+
 // ============ 安全工具函数 ============
 const SecurityUtils = {
   // 输入验证
   validateInput(text, maxLength = 10000) {
-    if (typeof text !== 'string') return '';
-    if (text.length > maxLength) return text.slice(0, maxLength);
+    if (typeof text !== 'string') {return '';}
+    if (text.length > maxLength) {return text.slice(0, maxLength);}
     return text.trim();
   },
 
   // HTML转义
   escapeHTML(str) {
-    if (typeof str !== 'string') return '';
+    if (typeof str !== 'string') {return '';}
     return str
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -31,7 +33,7 @@ const SecurityUtils = {
 
   // 安全对象展开(防止原型污染)
   safeObjectSpread(obj) {
-    if (!obj || typeof obj !== 'object') return {};
+    if (!obj || typeof obj !== 'object') {return {};}
     const result = {};
     for (const key of Object.keys(obj)) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -47,7 +49,7 @@ const SecurityUtils = {
       try {
         const result = fn(...args);
         if (result && typeof result.catch === 'function') {
-          result.catch(err => console.error('[SafeCallback]', err));
+          result.catch((err) => console.error('[SafeCallback]', err));
         }
         return result;
       } catch (err) {
@@ -88,7 +90,7 @@ class SecureAvatarEngine extends EnhancedAvatarEngine {
     if (this.options.enableInputValidation) {
       const originalText = data.text;
       data.text = SecurityUtils.validateInput(data.text, this.options.maxInputLength);
-      
+
       if (data.text !== originalText) {
         this.securityStats.blockedInputs++;
         console.warn('[Security] Input truncated or blocked');
@@ -103,13 +105,14 @@ class SecureAvatarEngine extends EnhancedAvatarEngine {
    * 安全的人格过滤
    */
   _applyPersonaFilter(text) {
-    if (!text || typeof text !== 'string') return '';
-    
+    if (!text || typeof text !== 'string') {return '';}
+
     // XSS防护
     let filtered = text;
     if (this.options.enableXSSProtection) {
       // 移除潜在危险内容
       filtered = filtered
+        // eslint-disable-next-line security/detect-unsafe-regex
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/javascript:/gi, '')
         .replace(/on\w+\s*=/gi, '');
@@ -117,10 +120,10 @@ class SecureAvatarEngine extends EnhancedAvatarEngine {
 
     // 内容过滤
     filtered = filtered.replace(/讨厌|垃圾|笨蛋/g, '').trim();
-    
+
     // HTML转义
     filtered = SecurityUtils.escapeHTML(filtered);
-    
+
     return filtered;
   }
 
@@ -143,7 +146,7 @@ class SecureAvatarEngine extends EnhancedAvatarEngine {
     }
 
     this._isSavingMemory = true;
-    
+
     try {
       await super._saveToMemory(user, input, response);
     } catch (error) {
@@ -200,10 +203,10 @@ class SecureContinuousInferenceSystem extends ContinuousInferenceSystem {
    * 安全启动(带回调清理)
    */
   start() {
-    if (this.isRunning || this._isDestroyed) return;
-    
+    if (this.isRunning || this._isDestroyed) {return;}
+
     super.start();
-    
+
     // 注册自动清理
     if (typeof window !== 'undefined') {
       const cleanup = () => this.stop();
@@ -236,19 +239,19 @@ class SecureContinuousInferenceSystem extends ContinuousInferenceSystem {
    * 安全添加输入(验证数据)
    */
   receiveInput(data) {
-    if (!data || typeof data !== 'object') return;
-    
+    if (!data || typeof data !== 'object') {return;}
+
     const validated = {
       text: SecurityUtils.validateInput(data.text || '', 5000),
       user: SecurityUtils.validateInput(data.user || 'anonymous', 100),
       timestamp: Date.now()
     };
-    
+
     super.receiveInput(validated);
   }
 
   addCleanupHandler(handler) {
-    if (!this._cleanupHandlers) this._cleanupHandlers = [];
+    if (!this._cleanupHandlers) {this._cleanupHandlers = [];}
     this._cleanupHandlers.push(handler);
   }
 }
@@ -266,21 +269,21 @@ class SecureSentimentFeedbackLoop extends SentimentFeedbackLoop {
    */
   processMessage(text, metadata = {}) {
     // 输入验证
-    if (!text || typeof text !== 'string') return this.currentSentiment;
-    
+    if (!text || typeof text !== 'string') {return this.currentSentiment;}
+
     // 长度限制
     if (text.length > 10000) {
       text = text.slice(0, 10000);
     }
-    
+
     // 调用父类
     const result = super.processMessage(text, metadata);
-    
+
     // 缓冲区限制
     if (this.sentimentBuffer.length > this._maxBufferSize) {
       this.sentimentBuffer = this.sentimentBuffer.slice(-this._maxBufferSize);
     }
-    
+
     return result;
   }
 
@@ -312,32 +315,23 @@ class SecureLatencyOptimizer extends LatencyOptimizer {
     if (!input || typeof input !== 'string') {
       return { content: '', source: 'invalid', latency: 0, withinTarget: false };
     }
-    
+
     // 长度限制
     if (input.length > 10000) {
       input = input.slice(0, 10000);
     }
-    
+
     return super.processInput(input, context);
   }
 
   /**
-   * 安全预计算(限制数量)
+   * 安全预计算(限制数量 + 缓存管理)
    */
   precomputeResponses(inputs) {
-    if (!Array.isArray(inputs)) return;
-    
-    const limited = inputs.slice(0, 100); // 限制数量
-    super.precomputeResponses(limited);
-  }
+    if (!Array.isArray(inputs)) {return;}
 
-  /**
-   * 缓存大小限制
-   */
-  precomputeResponses(inputs) {
-    if (!Array.isArray(inputs)) return;
-    
-    // 清理旧缓存
+    const limited = inputs.slice(0, 100);
+
     if (this.cache.size > this._maxCacheSize) {
       const keys = Array.from(this.cache.keys());
       const toRemove = keys.slice(0, Math.floor(keys.length / 2));
@@ -345,8 +339,8 @@ class SecureLatencyOptimizer extends LatencyOptimizer {
         this.cache.delete(key);
       }
     }
-    
-    super.precomputeResponses(inputs);
+
+    super.precomputeResponses(limited);
   }
 }
 

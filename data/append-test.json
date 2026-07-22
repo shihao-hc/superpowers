@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "msg": "first",
+      "timestamp": 1784724778880
+    },
+    {
+      "msg": "second",
+      "timestamp": 1784724778894
+    }
+  ],
+  "total": 2
+}

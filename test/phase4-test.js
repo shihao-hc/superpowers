@@ -33,4 +33,4 @@ function request(path, method = 'GET', payload) {
   } catch (e) {
     console.error('Phase4-test error:', e.message);
   }
-})()
+})();

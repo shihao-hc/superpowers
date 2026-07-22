@@ -19,6 +19,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将 CORS Access-Control-Allow-Origin: * 替换为具体的允许域名列表。从环境变量读取允许的 origin 列表并动态设置。如果必须使用通配符，确保不同时设置 Access-Control-Allow-Credentials: true。',
   references: ['CWE-942'],
   since: '2026-06-28',
 };

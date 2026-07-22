@@ -1,6 +1,6 @@
 /**
  * VoiceInteractionManager - 统一的语音交互管理器
- * 
+ *
  * 功能:
  * - STT (Speech-to-Text): 语音识别
  * - TTS (Text-to-Text): 语音合成
@@ -32,7 +32,7 @@ class VoiceActivityDetector {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.microphone = this.audioContext.createMediaStreamSource(stream);
       this.microphone.connect(this.analyser);
-      
+
       return true;
     } catch (error) {
       console.error('VAD初始化失败:', error);
@@ -41,12 +41,12 @@ class VoiceActivityDetector {
   }
 
   start() {
-    if (!this.audioContext || this.isListening) return;
-    
+    if (!this.audioContext || this.isListening) {return;}
+
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume();
     }
-    
+
     this.isListening = true;
     this.detect();
   }
@@ -60,7 +60,7 @@ class VoiceActivityDetector {
   }
 
   detect() {
-    if (!this.isListening) return;
+    if (!this.isListening) {return;}
 
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
@@ -72,7 +72,7 @@ class VoiceActivityDetector {
         this.speechStartTime = Date.now();
         this.onSpeechStart({ volume, timestamp: this.speechStartTime });
       }
-      
+
       // Clear silence timeout
       if (this.silenceTimeout) {
         clearTimeout(this.silenceTimeout);
@@ -83,10 +83,10 @@ class VoiceActivityDetector {
       if (!this.silenceTimeout) {
         this.silenceTimeout = setTimeout(() => {
           const duration = Date.now() - this.speechStartTime;
-          this.onSpeechEnd({ 
-            duration, 
+          this.onSpeechEnd({
+            duration,
             startTime: this.speechStartTime,
-            endTime: Date.now() 
+            endTime: Date.now()
           });
           this.speechStartTime = null;
           this.silenceTimeout = null;
@@ -106,7 +106,7 @@ class VoiceActivityDetector {
   }
 
   getVolumeLevel() {
-    if (!this.analyser) return 0;
+    if (!this.analyser) {return 0;}
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
     return this.calculateVolume(dataArray);
@@ -132,13 +132,13 @@ class SpeechRecognition {
     this.onError = options.onError || (() => {});
     this.onEnd = options.onEnd || (() => {});
     this.onInterim = options.onInterim || (() => {});
-    
+
     this.init();
   }
 
   init() {
-    const SpeechRecognitionAPI = 
-      window.SpeechRecognition || 
+    const SpeechRecognitionAPI =
+      window.SpeechRecognition ||
       window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
@@ -188,8 +188,8 @@ class SpeechRecognition {
   }
 
   start() {
-    if (!this.recognition) return false;
-    
+    if (!this.recognition) {return false;}
+
     try {
       this.recognition.start();
       this.isListening = true;
@@ -201,8 +201,8 @@ class SpeechRecognition {
   }
 
   stop() {
-    if (!this.recognition) return;
-    
+    if (!this.recognition) {return;}
+
     try {
       this.recognition.stop();
       this.isListening = false;
@@ -252,30 +252,30 @@ class EmotionDetector {
 
   detectFromVoice(audioData) {
     // Analyze pitch, volume, and speaking rate
-    const { pitch, volume, rate } = audioData;
-    
-    let emotions = [];
-    
-    if (pitch > 200) emotions.push(...this.toneEmotions.highPitch);
-    else if (pitch < 100) emotions.push(...this.toneEmotions.lowPitch);
-    
-    if (rate > 150) emotions.push(...this.toneEmotions.fastRate);
-    else if (rate < 80) emotions.push(...this.toneEmotions.slowRate);
-    
+    const { pitch, volume: _volume, rate } = audioData;
+
+    const emotions = [];
+
+    if (pitch > 200) {emotions.push(...this.toneEmotions.highPitch);}
+    else if (pitch < 100) {emotions.push(...this.toneEmotions.lowPitch);}
+
+    if (rate > 150) {emotions.push(...this.toneEmotions.fastRate);}
+    else if (rate < 80) {emotions.push(...this.toneEmotions.slowRate);}
+
     // Return most common emotion
     const counts = emotions.reduce((acc, e) => {
       acc[e] = (acc[e] || 0) + 1;
       return acc;
     }, {});
-    
+
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return sorted[0]?.[0] || 'neutral';
   }
 
   detectFromVolume(volume) {
-    if (volume > 0.7) return 'excited';
-    if (volume > 0.4) return 'happy';
-    if (volume > 0.2) return 'calm';
+    if (volume > 0.7) {return 'excited';}
+    if (volume > 0.4) {return 'happy';}
+    if (volume > 0.2) {return 'calm';}
     return 'neutral';
   }
 }
@@ -298,18 +298,18 @@ class VoiceInteractionManager {
     });
 
     this.emotionDetector = new EmotionDetector();
-    
+
     this.tts = null; // Will be set from existing TTSSystem
     this.character = null; // Virtual character reference
-    
+
     this.isVoiceEnabled = false;
     this.currentEmotion = 'neutral';
     this.conversationHistory = [];
-    
+
     this.onUserMessage = options.onUserMessage || (() => {});
     this.onAIResponse = options.onAIResponse || (() => {});
     this.onEmotionChange = options.onEmotionChange || (() => {});
-    
+
     this.autoRespond = options.autoRespond !== false;
     this.responseDelay = options.responseDelay || 500;
   }
@@ -325,13 +325,13 @@ class VoiceInteractionManager {
   async init() {
     const vadReady = await this.vad.init();
     const sttSupported = this.stt.isSupported();
-    
+
     console.log('Voice System Initialized:', {
       vad: vadReady,
       stt: sttSupported,
       tts: !!this.tts
     });
-    
+
     return vadReady && sttSupported;
   }
 
@@ -346,7 +346,7 @@ class VoiceInteractionManager {
     this.isVoiceEnabled = false;
     this.vad.stop();
     this.stt.stop();
-    if (this.tts) this.tts.stop();
+    if (this.tts) {this.tts.stop();}
     console.log('Voice interaction disabled');
   }
 
@@ -364,7 +364,7 @@ class VoiceInteractionManager {
 
   handleSTTResult(data) {
     const { transcript, confidence } = data;
-    
+
     if (confidence < 0.5) {
       console.log('Low confidence result, ignoring:', transcript);
       return;
@@ -372,7 +372,7 @@ class VoiceInteractionManager {
 
     const detectedEmotion = this.emotionDetector.detectFromText(transcript);
     this.updateEmotion(detectedEmotion);
-    
+
     const userMessage = {
       type: 'user',
       text: transcript,
@@ -380,10 +380,10 @@ class VoiceInteractionManager {
       confidence,
       timestamp: Date.now()
     };
-    
+
     this.conversationHistory.push(userMessage);
     this.onUserMessage(userMessage);
-    
+
     if (this.autoRespond) {
       setTimeout(() => {
         this.generateResponse(transcript);
@@ -391,7 +391,7 @@ class VoiceInteractionManager {
     }
   }
 
-  handleSTTInterim(data) {
+  handleSTTInterim(_data) {
     // Could be used for real-time subtitle display
     if (this.character) {
       this.character.setMood('listening');
@@ -412,7 +412,7 @@ class VoiceInteractionManager {
     if (emotion !== this.currentEmotion) {
       this.currentEmotion = emotion;
       this.onEmotionChange(emotion);
-      
+
       if (this.character) {
         this.character.setMood(emotion);
       }
@@ -423,7 +423,7 @@ class VoiceInteractionManager {
     // This should be connected to the main AI system
     // For now, emit event for external handler
     const response = await this.fetchAIResponse(userText);
-    
+
     if (response) {
       const aiMessage = {
         type: 'ai',
@@ -431,15 +431,15 @@ class VoiceInteractionManager {
         emotion: response.emotion || 'happy',
         timestamp: Date.now()
       };
-      
+
       this.conversationHistory.push(aiMessage);
       this.onAIResponse(aiMessage);
-      
+
       // Speak the response
       if (this.tts) {
         this.tts.speak(response.text);
       }
-      
+
       // Update character emotion
       if (this.character) {
         this.character.setMood(response.emotion || 'happy');
@@ -455,25 +455,25 @@ class VoiceInteractionManager {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
       });
-      
+
       if (response.ok) {
         return await response.json();
       }
     } catch (error) {
       console.error('Failed to fetch AI response:', error);
     }
-    
+
     return null;
   }
 
   speak(text, emotion = null) {
-    if (!this.tts || !text) return;
-    
+    if (!this.tts || !text) {return;}
+
     const detectedEmotion = emotion || this.emotionDetector.detectFromText(text);
     this.updateEmotion(detectedEmotion);
-    
+
     this.tts.speak(text);
-    
+
     if (this.character) {
       this.character.setMood(detectedEmotion);
       this.character.speak(text);
@@ -481,8 +481,8 @@ class VoiceInteractionManager {
   }
 
   stopSpeaking() {
-    if (this.tts) this.tts.stop();
-    if (this.character) this.character.stopSpeaking();
+    if (this.tts) {this.tts.stop();}
+    if (this.character) {this.character.stopSpeaking();}
   }
 
   getVolumeLevel() {

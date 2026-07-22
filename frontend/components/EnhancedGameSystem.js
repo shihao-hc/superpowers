@@ -1,9 +1,9 @@
 /**
  * EnhancedGameSystem - 增强的游戏交互系统
- * 
+ *
  * 参考 moeru-ai/airi 的 Minecraft/Factorio 集成
  * 和 Neuro-sama 的实时游戏解说能力
- * 
+ *
  * 功能:
  * - 屏幕捕获和视觉分析
  * - 游戏事件检测
@@ -22,7 +22,7 @@ class ScreenAnalyzer {
     this.captureRate = options.captureRate || 1000;
     this.width = options.width || 640;
     this.height = options.height || 360;
-    
+
     // 视觉分析配置
     this.analysisConfig = {
       colorSampling: true,
@@ -30,7 +30,7 @@ class ScreenAnalyzer {
       objectTracking: true,
       textRecognition: false
     };
-    
+
     this.lastFrame = null;
     this.motionThreshold = 30;
   }
@@ -74,25 +74,25 @@ class ScreenAnalyzer {
 
   startCaptureLoop() {
     const capture = () => {
-      if (!this.isCapturing) return;
-      
+      if (!this.isCapturing) {return;}
+
       this.ctx.drawImage(this.video, 0, 0, this.width, this.height);
       const imageData = this.ctx.getImageData(0, 0, this.width, this.height);
-      
+
       // 分析帧
       const analysis = this.analyzeFrame(imageData);
-      
+
       // 检测运动
       if (this.lastFrame) {
         analysis.motion = this.detectMotion(this.lastFrame, imageData);
       }
       this.lastFrame = imageData;
-      
+
       // 发送分析结果
       if (this.onFrame) {
         this.onFrame(analysis);
       }
-      
+
       setTimeout(capture, this.captureRate);
     };
     capture();
@@ -102,28 +102,28 @@ class ScreenAnalyzer {
     const data = imageData.data;
     const width = imageData.width;
     const height = imageData.height;
-    
+
     // 颜色分析
     let r = 0, g = 0, b = 0;
     const sampleSize = Math.min(data.length, 1000 * 4);
-    
+
     for (let i = 0; i < sampleSize; i += 16) {
       r += data[i];
       g += data[i + 1];
       b += data[i + 2];
     }
-    
+
     const samples = sampleSize / 16;
     r = Math.round(r / samples);
     g = Math.round(g / samples);
     b = Math.round(b / samples);
-    
+
     // 亮度分析
     const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
-    
+
     // 检测UI元素（简单边缘检测）
     const edgeDensity = this.detectEdges(imageData);
-    
+
     return {
       timestamp: Date.now(),
       color: { r, g, b },
@@ -137,16 +137,16 @@ class ScreenAnalyzer {
     const prevData = prevFrame.data;
     const currData = currentFrame.data;
     let diff = 0;
-    
+
     const step = Math.max(1, Math.floor(prevData.length / 10000));
-    
+
     for (let i = 0; i < prevData.length; i += step * 4) {
       const rDiff = Math.abs(prevData[i] - currData[i]);
       const gDiff = Math.abs(prevData[i + 1] - currData[i + 1]);
       const bDiff = Math.abs(prevData[i + 2] - currData[i + 2]);
       diff += (rDiff + gDiff + bDiff) / 3;
     }
-    
+
     const avgDiff = diff / (prevData.length / step / 4);
     return {
       level: avgDiff,
@@ -160,27 +160,27 @@ class ScreenAnalyzer {
     const width = imageData.width;
     const height = imageData.height;
     let edges = 0;
-    
+
     for (let y = 1; y < height - 1; y += 4) {
       for (let x = 1; x < width - 1; x += 4) {
         const idx = (y * width + x) * 4;
         const idxRight = (y * width + x + 1) * 4;
         const idxDown = ((y + 1) * width + x) * 4;
-        
+
         const gx = Math.abs(data[idx] - data[idxRight]);
         const gy = Math.abs(data[idx] - data[idxDown]);
-        
-        if (gx + gy > 50) edges++;
+
+        if (gx + gy > 50) {edges++;}
       }
     }
-    
+
     return edges / ((width / 4) * (height / 4));
   }
 
   stop() {
     this.isCapturing = false;
     if (this.video?.srcObject) {
-      this.video.srcObject.getTracks().forEach(track => track.stop());
+      this.video.srcObject.getTracks().forEach((track) => track.stop());
     }
   }
 }
@@ -216,7 +216,7 @@ class GameEventDetector {
 
   detect(frameAnalysis) {
     const events = [];
-    
+
     if (!this.lastState) {
       this.lastState = frameAnalysis;
       return events;
@@ -224,10 +224,10 @@ class GameEventDetector {
 
     // 检测亮度变化
     const brightnessDelta = frameAnalysis.brightness - this.lastState.brightness;
-    
+
     // 检测运动
     const motion = frameAnalysis.motion;
-    
+
     // 检测颜色变化
     const colorDelta = this._colorDistance(frameAnalysis.color, this.lastState.color);
 
@@ -239,7 +239,7 @@ class GameEventDetector {
         data: { motion: motion.level, colorChange: colorDelta }
       });
     }
-    
+
     // 胜利检测：亮度突然增加
     if (brightnessDelta > 0.2 && motion?.significant) {
       events.push({
@@ -248,7 +248,7 @@ class GameEventDetector {
         data: { brightnessChange: brightnessDelta }
       });
     }
-    
+
     // 危险检测：红色调增加
     const redRatio = frameAnalysis.color.r / (frameAnalysis.color.g + frameAnalysis.color.b + 1);
     if (redRatio > 1.5 && frameAnalysis.brightness < 0.4) {
@@ -258,7 +258,7 @@ class GameEventDetector {
         data: { redRatio }
       });
     }
-    
+
     // 探索检测：稳定运动
     if (motion && !motion.significant && frameAnalysis.brightness > 0.4) {
       events.push({
@@ -323,7 +323,7 @@ class GameCommentaryEngine {
         '噗哈哈哈~'
       ]
     };
-    
+
     this.lastCommentTime = 0;
     this.commentCooldown = 3000;
     this.commentaryHistory = [];
@@ -336,7 +336,7 @@ class GameCommentaryEngine {
     }
 
     const templates = this.commentaryTemplates[event.type];
-    if (!templates) return null;
+    if (!templates) {return null;}
 
     let comment;
     if (Array.isArray(templates)) {
@@ -396,12 +396,12 @@ class EnhancedGameSystem {
     this.analyzer = new ScreenAnalyzer(options.capture);
     this.eventDetector = new GameEventDetector();
     this.commentaryEngine = new GameCommentaryEngine(options);
-    
+
     this.isRunning = false;
     this.currentGame = null;
     this.onCommentary = options.onCommentary || (() => {});
     this.onEmotionChange = options.onEmotionChange || (() => {});
-    
+
     // 游戏特定配置
     this.gameProfiles = {
       minecraft: {
@@ -424,9 +424,9 @@ class EnhancedGameSystem {
     const profile = this.gameProfiles[gameType] || this.gameProfiles.generic;
     this.analyzer.captureRate = profile.captureRate;
     this.eventDetector.eventPatterns.battle.motionThreshold = profile.motionThreshold;
-    
+
     this.analyzer.onFrame = (analysis) => this.processFrame(analysis);
-    
+
     const started = await this.analyzer.start();
     if (started) {
       this.isRunning = true;
@@ -436,13 +436,13 @@ class EnhancedGameSystem {
   }
 
   processFrame(analysis) {
-    if (!this.isRunning) return;
-    
+    if (!this.isRunning) {return;}
+
     // 检测游戏事件
     const events = this.eventDetector.detect(analysis);
-    
+
     // 为每个事件生成解说
-    events.forEach(event => {
+    events.forEach((event) => {
       const commentary = this.commentaryEngine.generateComment(event);
       if (commentary) {
         this.onCommentary(commentary);
@@ -465,17 +465,17 @@ class EnhancedGameSystem {
   simulateEvents() {
     const events = ['battle', 'victory', 'exploration', 'danger', 'funny'];
     let index = 0;
-    
+
     const simulate = () => {
-      if (!this.isRunning) return;
-      
+      if (!this.isRunning) {return;}
+
       const event = events[index % events.length];
       this.triggerEvent(event);
       index++;
-      
+
       setTimeout(simulate, 5000 + Math.random() * 5000);
     };
-    
+
     setTimeout(simulate, 3000);
   }
 

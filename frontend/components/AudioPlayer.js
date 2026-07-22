@@ -1,6 +1,6 @@
 /**
  * AudioPlayer - 音频文件播放系统
- * 
+ *
  * 功能:
  * - 播放RVC生成的歌曲/翻唱
  * - 音频可视化
@@ -38,15 +38,15 @@ class AudioPlayer {
     // 播放器
     this.audio = new Audio();
     this.audio.crossOrigin = 'anonymous';
-    
+
     // 队列
     this.queue = [];
     this.currentIndex = -1;
-    
+
     // 状态
     this.isPlaying = false;
     this.isPaused = false;
-    
+
     // 均衡器预设
     this.equalizerPresets = {
       flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -76,25 +76,25 @@ class AudioPlayer {
   _initAudioContext() {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
+
       // 创建分析器
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
-      
+
       // 创建增益节点
       this.gainNode = this.audioContext.createGain();
       this.gainNode.gain.value = this.options.volume;
-      
+
       // 创建均衡器
       this._createEqualizer();
-      
+
       // 连接节点
       this.sourceNode = this.audioContext.createMediaElementSource(this.audio);
       this.sourceNode.connect(this.equalizer.input);
       this.equalizer.output.connect(this.gainNode);
       this.gainNode.connect(this.analyser);
       this.analyser.connect(this.audioContext.destination);
-      
+
     } catch (e) {
       console.warn('[AudioPlayer] AudioContext init failed:', e);
     }
@@ -106,11 +106,11 @@ class AudioPlayer {
   _createEqualizer() {
     const frequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
     const filters = [];
-    
+
     const input = this.audioContext.createGain();
     const output = this.audioContext.createGain();
-    
-    frequencies.forEach((freq, i) => {
+
+    frequencies.forEach((freq, _i) => {
       const filter = this.audioContext.createBiquadFilter();
       filter.type = 'peaking';
       filter.frequency.value = freq;
@@ -149,17 +149,17 @@ class AudioPlayer {
     this.audio.onplay = () => {
       this.isPlaying = true;
       this.isPaused = false;
-      if (this.options.onPlay) this.options.onPlay(this.getCurrentTrack());
+      if (this.options.onPlay) {this.options.onPlay(this.getCurrentTrack());}
     };
 
     this.audio.onpause = () => {
       this.isPaused = true;
-      if (this.options.onPause) this.options.onPause(this.getCurrentTrack());
+      if (this.options.onPause) {this.options.onPause(this.getCurrentTrack());}
     };
 
     this.audio.onended = () => {
       this.isPlaying = false;
-      if (this.options.onEnd) this.options.onEnd(this.getCurrentTrack());
+      if (this.options.onEnd) {this.options.onEnd(this.getCurrentTrack());}
       this._playNext();
     };
 
@@ -175,7 +175,7 @@ class AudioPlayer {
 
     this.audio.onerror = (e) => {
       console.error('[AudioPlayer] Error:', e);
-      if (this.options.onError) this.options.onError(e);
+      if (this.options.onError) {this.options.onError(e);}
     };
   }
 
@@ -199,7 +199,7 @@ class AudioPlayer {
       this.stats.currentTrack = url;
     } catch (error) {
       console.error('[AudioPlayer] Play error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
     }
   }
 
@@ -214,8 +214,8 @@ class AudioPlayer {
    * 播放队列
    */
   async playQueue(startIndex = 0) {
-    if (this.queue.length === 0) return;
-    
+    if (this.queue.length === 0) {return;}
+
     this.currentIndex = startIndex;
     await this._playCurrent();
   }
@@ -224,11 +224,11 @@ class AudioPlayer {
    * 播放当前曲目
    */
   async _playCurrent() {
-    if (this.currentIndex < 0 || this.currentIndex >= this.queue.length) return;
-    
+    if (this.currentIndex < 0 || this.currentIndex >= this.queue.length) {return;}
+
     const track = this.queue[this.currentIndex];
     await this.play(track.url);
-    
+
     if (this.options.onPlay) {
       this.options.onPlay({
         ...track,
@@ -328,11 +328,11 @@ class AudioPlayer {
    * 获取可视化数据
    */
   getVisualizerData() {
-    if (!this.analyser) return null;
-    
+    if (!this.analyser) {return null;}
+
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
-    
+
     return {
       frequency: Array.from(dataArray),
       waveform: this.getWaveformData(),
@@ -344,8 +344,8 @@ class AudioPlayer {
    * 获取波形数据
    */
   getWaveformData() {
-    if (!this.analyser) return null;
-    
+    if (!this.analyser) {return null;}
+
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteTimeDomainData(dataArray);
     return Array.from(dataArray);
@@ -355,8 +355,8 @@ class AudioPlayer {
    * 获取音量
    */
   getVolume() {
-    if (!this.analyser) return 0;
-    
+    if (!this.analyser) {return 0;}
+
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
     const sum = dataArray.reduce((a, b) => a + b, 0);
@@ -387,17 +387,17 @@ class AudioPlayer {
    * 渲染可视化器
    */
   renderVisualizer(canvas, options = {}) {
-    if (!canvas || !this.analyser) return;
+    if (!canvas || !this.analyser) {return;}
 
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    
+
     const draw = () => {
       requestAnimationFrame(draw);
-      
+
       const data = this.getVisualizerData();
-      if (!data) return;
+      if (!data) {return;}
 
       // 清除画布
       ctx.fillStyle = options.background || 'rgba(0,0,0,0.1)';
@@ -411,12 +411,12 @@ class AudioPlayer {
       for (let i = 0; i < barCount; i++) {
         const value = data.frequency[i * step];
         const barHeight = (value / 255) * height;
-        
+
         // 渐变颜色
         const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
         gradient.addColorStop(0, options.colorStart || '#667eea');
         gradient.addColorStop(1, options.colorEnd || '#764ba2');
-        
+
         ctx.fillStyle = gradient;
         ctx.fillRect(
           i * barWidth + 1,

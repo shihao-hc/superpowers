@@ -2,7 +2,7 @@
  * Skill Discovery System
  * Agent 在对话中自动判断何时需要调用技能，并选择最合适的技能
  * 类似 Claude 的 function calling 功能
- * 
+ *
  * Features:
  * - Intent matching with confidence scoring
  * - Learning from user feedback
@@ -15,11 +15,11 @@ class SkillDiscovery {
     this.skillManager = options.skillManager;
     this.skillLoader = options.skillLoader;
     this.feedbackSystem = options.feedbackSystem || null;
-    
+
     // 技能索引缓存
     this.skillIndex = new Map();
     this.intentPatterns = new Map();
-    
+
     // Learning data
     this.learningData = {
       acceptedRecommendations: new Map(),
@@ -28,18 +28,18 @@ class SkillDiscovery {
       contextMappings: new Map(),
       keywordWeights: new Map()
     };
-    
+
     // 配置
     this.config = {
-      maxSkillsInPrompt: 20,
-      confidenceThreshold: 0.6,
-      enableAutoSelect: true,
-      enableConfirmation: true,
-      contextWindow: 10,
+      maxSkillsInPrompt: options.maxSkillsInPrompt || 20,
+      confidenceThreshold: options.confidenceThreshold ?? 0.6,
+      enableAutoSelect: options.enableAutoSelect !== false,
+      enableConfirmation: options.enableConfirmation !== false,
+      contextWindow: options.contextWindow || 10,
       learningEnabled: options.learningEnabled !== false,
       adaptiveThreshold: options.adaptiveThreshold !== false
     };
-    
+
     // Performance tracking
     this.performanceStats = {
       totalRecommendations: 0,
@@ -47,7 +47,7 @@ class SkillDiscovery {
       rejectedRecommendations: 0,
       averageConfidence: 0
     };
-    
+
     // 初始化技能索引
     this._buildSkillIndex();
   }
@@ -58,7 +58,7 @@ class SkillDiscovery {
   _buildSkillIndex() {
     try {
       const skills = this.skillManager.getAllSkills ? this.skillManager.getAllSkills() : [];
-      
+
       for (const skill of skills) {
         // 基础信息
         const indexEntry = {
@@ -75,18 +75,18 @@ class SkillDiscovery {
           synonyms: skill.synonyms || [],
           useCases: skill.useCases || []
         };
-        
+
         // 提取关键词
         indexEntry.keywords = this._extractKeywords(
           `${skill.name} ${skill.description} ${(skill.tags || []).join(' ')}`
         );
-        
+
         // 提取意图模式
         indexEntry.intentPatterns = this._extractIntentPatterns(skill);
-        
+
         this.skillIndex.set(skill.name, indexEntry);
       }
-      
+
       console.log(`[SkillDiscovery] Indexed ${this.skillIndex.size} skills`);
     } catch (error) {
       console.error('[SkillDiscovery] Failed to build index:', error.message);
@@ -97,15 +97,15 @@ class SkillDiscovery {
    * 提取关键词
    */
   _extractKeywords(text) {
-    if (!text) return [];
-    
+    if (!text) {return [];}
+
     const stopWords = new Set(['的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '一个', '上', '也', '很', '到', '说', '要', '去', '你', '会', '着', '没有', '看', '好', '自己', '这']);
-    
+
     const words = text.toLowerCase()
       .replace(/[^\w\s\u4e00-\u9fa5]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 1 && !stopWords.has(word));
-    
+      .filter((word) => word.length > 1 && !stopWords.has(word));
+
     return [...new Set(words)];
   }
 
@@ -114,14 +114,14 @@ class SkillDiscovery {
    */
   _extractIntentPatterns(skill) {
     const patterns = [];
-    
+
     // 从描述中提取动词+名词模式
-    const verbs = ['创建', '生成', '制作', '写', '读', '编辑', '删除', '转换', '分析', '处理', '优化', '计算', '查询', '搜索', '获取'];
-    const nouns = ['报告', '文档', '图表', '表格', '图片', '代码', '文件', '数据', '分析', '测试', '演示', '幻灯片'];
-    
+    const _verbs = ['创建', '生成', '制作', '写', '读', '编辑', '删除', '转换', '分析', '处理', '优化', '计算', '查询', '搜索', '获取'];
+    const _nouns = ['报告', '文档', '图表', '表格', '图片', '代码', '文件', '数据', '分析', '测试', '演示', '幻灯片'];
+
     // 基于技能名称和描述推断意图
     const combinedText = `${skill.name} ${skill.description}`.toLowerCase();
-    
+
     // 常见的技能调用模式
     const intentMappings = {
       'docx': ['写文档', '创建文档', '生成word', 'word文档', '文档编辑'],
@@ -135,14 +135,14 @@ class SkillDiscovery {
       'statistics': ['统计分析', '数据分析', '计算统计'],
       'chart-generator': ['画图表', '图表生成', '数据可视化']
     };
-    
+
     // 匹配已知的意图映射
     for (const [skillPattern, intents] of Object.entries(intentMappings)) {
       if (combinedText.includes(skillPattern)) {
         patterns.push(...intents);
       }
     }
-    
+
     return [...new Set(patterns)];
   }
 
@@ -151,17 +151,17 @@ class SkillDiscovery {
    */
   getSkillsForLLM(options = {}) {
     const { maxSkills = this.config.maxSkillsInPrompt, category = null } = options;
-    
+
     let skills = Array.from(this.skillIndex.values());
-    
+
     // 按类别过滤
     if (category) {
-      skills = skills.filter(s => s.category === category);
+      skills = skills.filter((s) => s.category === category);
     }
-    
+
     // 转换为工具格式
-    const tools = skills.slice(0, maxSkills).map(skill => this._convertToToolFormat(skill));
-    
+    const tools = skills.slice(0, maxSkills).map((skill) => this._convertToToolFormat(skill));
+
     return {
       tools,
       toolCount: tools.length,
@@ -179,26 +179,26 @@ class SkillDiscovery {
       properties: {},
       required: []
     };
-    
+
     for (const input of skill.inputs || []) {
       parameters.properties[input.name] = {
         type: input.type || 'string',
         description: input.description || ''
       };
-      
+
       if (input.required) {
         parameters.required.push(input.name);
       }
-      
+
       if (input.enum) {
         parameters.properties[input.name].enum = input.enum;
       }
-      
+
       if (input.default !== undefined) {
         parameters.properties[input.name].default = input.default;
       }
     }
-    
+
     return {
       type: 'function',
       function: {
@@ -221,25 +221,25 @@ class SkillDiscovery {
    */
   _formatDescription(skill) {
     let description = skill.description || '';
-    
+
     // 添加用法示例
     if (skill.examples && skill.examples.length > 0) {
       description += '\n\n用法示例:';
-      skill.examples.slice(0, 2).forEach(example => {
+      skill.examples.slice(0, 2).forEach((example) => {
         description += `\n- ${example}`;
       });
     }
-    
+
     // 添加适用场景
     if (skill.useCases && skill.useCases.length > 0) {
-      description += '\n\n适用场景: ' + skill.useCases.join(', ');
+      description += `\n\n适用场景: ${skill.useCases.join(', ')}`;
     }
-    
+
     // 添加风险提示
     if (skill.riskLevel === 'high') {
       description += '\n\n⚠️ 此技能需要确认才能执行（高风险操作）';
     }
-    
+
     return description;
   }
 
@@ -255,16 +255,16 @@ class SkillDiscovery {
       needsConfirmation: false,
       suggestedClarification: null
     };
-    
+
     // 提取用户输入的关键词
     const inputKeywords = this._extractKeywords(userInput);
-    
+
     // 计算每个技能的匹配分数
     const scoredSkills = [];
-    
-    for (const [skillName, skillIndex] of this.skillIndex) {
+
+    for (const [_skillName, skillIndex] of this.skillIndex) {
       const score = this._calculateMatchScore(skillIndex, inputLower, inputKeywords, conversationHistory);
-      
+
       if (score >= this.config.confidenceThreshold) {
         scoredSkills.push({
           skill: skillIndex,
@@ -273,25 +273,25 @@ class SkillDiscovery {
         });
       }
     }
-    
+
     // 按分数排序
     scoredSkills.sort((a, b) => b.score - a.score);
-    
+
     // 取前3个最佳匹配
-    results.matchedSkills = scoredSkills.slice(0, 3).map(s => ({
+    results.matchedSkills = scoredSkills.slice(0, 3).map((s) => ({
       ...s.skill,
       confidence: s.score,
       matchReasons: s.matchReasons
     }));
-    
+
     results.hasMatch = scoredSkills.length > 0;
     results.confidence = scoredSkills.length > 0 ? scoredSkills[0].score : 0;
-    
+
     // 检查是否需要确认
     if (results.matchedSkills.length > 0 && results.matchedSkills[0].riskLevel === 'high') {
       results.needsConfirmation = true;
     }
-    
+
     // 如果匹配度不高，可能需要澄清
     if (results.hasMatch && results.confidence < 0.8 && results.confidence >= this.config.confidenceThreshold) {
       results.suggestedClarification = this._generateClarificationQuestion(
@@ -299,49 +299,49 @@ class SkillDiscovery {
         userInput
       );
     }
-    
+
     return results;
   }
 
   /**
    * 计算匹配分数
    */
-  _calculateMatchScore(skillIndex, inputLower, inputKeywords, conversationHistory) {
+  _calculateMatchScore(skillIndex, inputLower, inputKeywords, _conversationHistory) {
     let score = 0;
-    
+
     // 1. 关键词匹配（权重 40%）
-    const keywordMatches = skillIndex.keywords.filter(kw => 
+    const keywordMatches = skillIndex.keywords.filter((kw) =>
       inputLower.includes(kw) || inputKeywords.includes(kw)
     ).length;
-    const keywordScore = skillIndex.keywords.length > 0 
-      ? keywordMatches / Math.min(skillIndex.keywords.length, 10) 
+    const keywordScore = skillIndex.keywords.length > 0
+      ? keywordMatches / Math.min(skillIndex.keywords.length, 10)
       : 0;
     score += keywordScore * 0.4;
-    
+
     // 2. 意图模式匹配（权重 30%）
-    const intentMatches = skillIndex.intentPatterns.filter(pattern => 
+    const intentMatches = skillIndex.intentPatterns.filter((pattern) =>
       inputLower.includes(pattern)
     ).length;
-    const intentScore = skillIndex.intentPatterns.length > 0 
-      ? intentMatches / skillIndex.intentPatterns.length 
+    const intentScore = skillIndex.intentPatterns.length > 0
+      ? intentMatches / skillIndex.intentPatterns.length
       : 0;
     score += intentScore * 0.3;
-    
+
     // 3. 描述相似度（权重 20%）
     const descWords = this._extractKeywords(skillIndex.description);
-    const descMatches = descWords.filter(w => inputLower.includes(w)).length;
+    const descMatches = descWords.filter((w) => inputLower.includes(w)).length;
     const descScore = descWords.length > 0 ? descMatches / descWords.length : 0;
     score += descScore * 0.2;
-    
+
     // 4. 同义词匹配（权重 10%）
-    const synonymMatches = (skillIndex.synonyms || []).filter(syn => 
+    const synonymMatches = (skillIndex.synonyms || []).filter((syn) =>
       inputLower.includes(syn)
     ).length;
-    const synonymScore = (skillIndex.synonyms || []).length > 0 
-      ? synonymMatches / skillIndex.synonyms.length 
+    const synonymScore = (skillIndex.synonyms || []).length > 0
+      ? synonymMatches / skillIndex.synonyms.length
       : 0;
     score += synonymScore * 0.1;
-    
+
     return Math.min(1, score);
   }
 
@@ -350,36 +350,36 @@ class SkillDiscovery {
    */
   _getMatchReasons(skillIndex, inputLower, inputKeywords) {
     const reasons = [];
-    
+
     // 关键词匹配
-    const matchedKeywords = skillIndex.keywords.filter(kw => 
+    const matchedKeywords = skillIndex.keywords.filter((kw) =>
       inputLower.includes(kw) || inputKeywords.includes(kw)
     );
     if (matchedKeywords.length > 0) {
       reasons.push(`关键词匹配: ${matchedKeywords.slice(0, 3).join(', ')}`);
     }
-    
+
     // 意图匹配
-    const matchedIntents = skillIndex.intentPatterns.filter(pattern => 
+    const matchedIntents = skillIndex.intentPatterns.filter((pattern) =>
       inputLower.includes(pattern)
     );
     if (matchedIntents.length > 0) {
       reasons.push(`意图匹配: ${matchedIntents.slice(0, 2).join(', ')}`);
     }
-    
+
     return reasons;
   }
 
   /**
    * 生成澄清问题
    */
-  _generateClarificationQuestion(skill, userInput) {
+  _generateClarificationQuestion(skill, _userInput) {
     const questions = [
       `您是想使用"${skill.name}"技能吗？此技能可以${skill.description.substring(0, 50)}...`,
       `我检测到您可能需要"${skill.name}"技能，是否要使用它？`,
       `"${skill.name}"技能可以帮您完成这个任务，需要我使用吗？`
     ];
-    
+
     return questions[Math.floor(Math.random() * questions.length)];
   }
 
@@ -391,7 +391,7 @@ class SkillDiscovery {
     if (!skill) {
       throw new Error(`Skill not found: ${skillName}`);
     }
-    
+
     return {
       id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'function',
@@ -412,7 +412,7 @@ class SkillDiscovery {
    */
   parseToolCalls(llmResponse) {
     const toolCalls = [];
-    
+
     // OpenAI格式
     if (llmResponse.tool_calls) {
       for (const call of llmResponse.tool_calls) {
@@ -423,7 +423,7 @@ class SkillDiscovery {
         });
       }
     }
-    
+
     // Anthropic格式
     if (llmResponse.content && Array.isArray(llmResponse.content)) {
       for (const block of llmResponse.content) {
@@ -436,7 +436,7 @@ class SkillDiscovery {
         }
       }
     }
-    
+
     return toolCalls;
   }
 
@@ -463,17 +463,17 @@ class SkillDiscovery {
   getSkillSummary(maxSkills = 10) {
     const skills = Array.from(this.skillIndex.values())
       .slice(0, maxSkills)
-      .map(s => ({
+      .map((s) => ({
         name: s.name,
         description: s.description.substring(0, 100),
         category: s.category,
         riskLevel: s.riskLevel
       }));
-    
+
     return {
       totalSkills: this.skillIndex.size,
       skills,
-      usage: `您可以调用以下技能: ${skills.map(s => s.name).join(', ')}。使用技能可以完成特定任务，如文档生成、数据分析等。`
+      usage: `您可以调用以下技能: ${skills.map((s) => s.name).join(', ')}。使用技能可以完成特定任务，如文档生成、数据分析等。`
     };
   }
 
@@ -489,13 +489,13 @@ class SkillDiscovery {
    * 记录推荐结果（用于学习）
    */
   recordRecommendationResult(skillName, userInput, wasAccepted, confidence = 0.5) {
-    if (!this.config.learningEnabled) return;
+    if (!this.config.learningEnabled) {return;}
 
     this.performanceStats.totalRecommendations++;
 
     if (wasAccepted) {
       this.performanceStats.acceptedRecommendations++;
-      
+
       // Update accepted count
       const current = this.learningData.acceptedRecommendations.get(skillName) || 0;
       this.learningData.acceptedRecommendations.set(skillName, current + 1);
@@ -523,7 +523,7 @@ class SkillDiscovery {
 
     // Update average confidence
     const total = this.performanceStats.acceptedRecommendations + this.performanceStats.rejectedRecommendations;
-    this.performanceStats.averageConfidence = 
+    this.performanceStats.averageConfidence =
       (this.performanceStats.averageConfidence * (total - 1) + confidence) / total;
   }
 
@@ -564,7 +564,7 @@ class SkillDiscovery {
    */
   getSkillSuccessRate(skillName) {
     const data = this.learningData.skillSuccessRates.get(skillName);
-    if (!data || data.total === 0) return 0.5;
+    if (!data || data.total === 0) {return 0.5;}
     return data.successful / data.total;
   }
 
@@ -575,8 +575,8 @@ class SkillDiscovery {
     const accepted = this.learningData.acceptedRecommendations.get(skillName) || 0;
     const rejected = this.learningData.rejectedRecommendations.get(skillName) || 0;
     const total = accepted + rejected;
-    
-    if (total === 0) return null;
+
+    if (total === 0) {return null;}
     return accepted / total;
   }
 
@@ -596,7 +596,7 @@ class SkillDiscovery {
     // If acceptance is low, increase threshold to be more selective
     // If acceptance is high, lower threshold to be more inclusive
     let threshold = this.config.confidenceThreshold;
-    
+
     if (acceptanceRate < 0.3) {
       threshold = Math.min(0.9, threshold + 0.1);
     } else if (acceptanceRate < 0.5) {
@@ -684,7 +684,7 @@ class SkillDiscovery {
 
     // High/low performing skills
     const bySuccess = skillAcceptances
-      .filter(s => s.successRate > 0)
+      .filter((s) => s.successRate > 0)
       .sort((a, b) => b.successRate - a.successRate);
 
     patterns.highPerformingSkills = bySuccess.slice(0, 5);
@@ -748,7 +748,7 @@ class SkillDiscovery {
    */
   getPerformanceStats() {
     const total = this.performanceStats.acceptedRecommendations + this.performanceStats.rejectedRecommendations;
-    
+
     return {
       totalRecommendations: total,
       acceptedRecommendations: this.performanceStats.acceptedRecommendations,

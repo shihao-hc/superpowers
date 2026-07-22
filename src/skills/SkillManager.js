@@ -105,9 +105,9 @@ class SkillManager {
   // Setup file watcher for hot reloading
   setupWatcher(skillName) {
     const skillPath = path.join(this.skillsDir, skillName);
-    if (!fs.existsSync(skillPath)) return;
+    if (!fs.existsSync(skillPath)) {return;}
 
-    const watcher = fs.watch(skillPath, (eventType, filename) => {
+    const watcher = fs.watch(skillPath, (eventType, _filename) => {
       if (eventType === 'change' || eventType === 'rename') {
         console.log(`Skill ${skillName} changed, reloading...`);
         // In a real implementation, we would reload just this skill
@@ -134,11 +134,6 @@ class SkillManager {
     return Array.from(this.enabledSkills);
   }
 
-  // Get skill information
-  getSkillInfo(skillName) {
-    return this.skillLoader.getSkill(skillName);
-  }
-
   // Get all skills from the source
   getAllAvailableSkills() {
     return this.skillLoader.getAllSkills();
@@ -148,7 +143,7 @@ class SkillManager {
   getAllSkills() {
     const skills = this.getAllAvailableSkills();
     // Add enabled status to each skill
-    return skills.map(skill => ({
+    return skills.map((skill) => ({
       ...skill,
       enabled: this.enabledSkills.has(skill.name)
     }));

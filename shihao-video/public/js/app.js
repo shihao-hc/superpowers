@@ -13,51 +13,51 @@ const App = {
   currentPage: 1,
   totalPages: 1,
   isLoading: false,
-  
+
   // 性能优化：缓存系统
   cache: {
     data: new Map(),
     maxSize: 100,
     ttl: 5 * 60 * 1000, // 5分钟缓存
-    
+
     set(key, value) {
       if (this.data.size >= this.maxSize) {
         // 删除最旧的缓存
         const firstKey = this.data.keys().next().value;
         this.data.delete(firstKey);
       }
-      
+
       this.data.set(key, {
         value,
         timestamp: Date.now()
       });
     },
-    
+
     get(key) {
       const item = this.data.get(key);
-      if (!item) return null;
-      
+      if (!item) {return null;}
+
       if (Date.now() - item.timestamp > this.ttl) {
         this.data.delete(key);
         return null;
       }
-      
+
       return item.value;
     },
-    
+
     clear() {
       this.data.clear();
     }
   },
-  
+
   // 性能监控
   performance: {
     metrics: {},
-    
+
     start(name) {
       this.metrics[name] = performance.now();
     },
-    
+
     end(name) {
       if (this.metrics[name]) {
         const duration = performance.now() - this.metrics[name];
@@ -88,7 +88,7 @@ const App = {
    */
   async fetchList(categoryId = null, page = 1) {
     this.performance.start('fetchList');
-    
+
     const source = Storage.getCurrentSource();
     if (!source) {
       throw new Error('未配置数据源，请先前往设置页面添加');
@@ -97,7 +97,7 @@ const App = {
     // 生成缓存键
     const cacheKey = `list_${source.id}_${categoryId}_${page}`;
     const cachedData = this.cache.get(cacheKey);
-    
+
     if (cachedData) {
       console.log('使用缓存数据:', cacheKey);
       this.performance.end('fetchList');
@@ -110,16 +110,16 @@ const App = {
     }
 
     const proxyUrl = this.getProxyUrl(url);
-    
+
     try {
       const response = await fetch(proxyUrl, {
         signal: AbortSignal.timeout(10000) // 10秒超时
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP错误: ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data.code !== 1) {
@@ -133,20 +133,20 @@ const App = {
         total: data.total || 0,
         categories: data.class || []
       };
-      
+
       // 缓存结果
       this.cache.set(cacheKey, result);
-      
+
       this.performance.end('fetchList');
       return result;
     } catch (error) {
       this.performance.end('fetchList');
       console.error('获取列表失败:', error);
-      
+
       if (error.name === 'AbortError') {
         throw new Error('请求超时，请检查网络连接');
       }
-      
+
       throw error;
     }
   },
@@ -180,9 +180,9 @@ const App = {
   /**
    * 获取视频详情（带缓存和重试）
    */
-    async getDetail(videoId, retryCount = 0) {
+  async getDetail(videoId, retryCount = 0) {
     this.performance.start('getDetail');
-    
+
     const source = Storage.getCurrentSource();
     if (!source) {
       throw new Error('未配置数据源，请先在设置页面添加数据源');
@@ -191,7 +191,7 @@ const App = {
     // 生成缓存键
     const cacheKey = `detail_${source.id}_${videoId}`;
     const cachedData = this.cache.get(cacheKey);
-    
+
     if (cachedData) {
       console.log('使用缓存详情:', cacheKey);
       this.performance.end('getDetail');
@@ -200,25 +200,25 @@ const App = {
 
     const url = `${source.apiUrl}?ac=detail&ids=${videoId}`;
     console.log('获取详情:', url);
-    
+
     const proxyUrl = this.getDetailProxyUrl(url);
-    
+
     try {
       const response = await fetch(proxyUrl, {
         signal: AbortSignal.timeout(15000) // 15秒超时
       });
-      
+
       if (!response.ok) {
         throw new Error(`网络错误: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('详情响应:', data);
 
       if (data.code !== 1) {
         throw new Error(`接口返回异常: ${data.msg || '未知错误'}`);
       }
-      
+
       if (!data.list || data.list.length === 0) {
         // 后端未返回有效数据，使用前端模拟数据作为兜底，确保前端仍可工作
         console.warn('未找到该视频信息，使用前端Mock数据兜底');
@@ -226,10 +226,10 @@ const App = {
       }
 
       const result = data.list[0];
-      
+
       // 缓存结果
       this.cache.set(cacheKey, result);
-      
+
       this.performance.end('getDetail');
       return result;
     } catch (err) {
@@ -239,18 +239,18 @@ const App = {
       // 自动重试逻辑
       if (retryCount < 2 && !err.message.includes('未找到')) {
         console.log(`重试获取详情 (${retryCount + 1}/2)...`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (retryCount + 1)));
         return this.getDetail(videoId, retryCount + 1);
       }
-      
+
       if (err.name === 'AbortError') {
         throw new Error('请求超时，请稍后重试');
       }
-      
+
       if (err.message.includes('Failed to fetch')) {
         throw new Error('网络连接失败，请检查网络');
       }
-      
+
       throw err;
     }
   },
@@ -270,7 +270,7 @@ const App = {
       vod_director: '导演X',
       vod_content: '演示数据：当前为前端兜底测试使用。',
       vod_play_from: '源1',
-      vod_play_url: '集1$https://example.com/demo.m3u8',
+      vod_play_url: '集1$https://example.com/demo.m3u8'
     };
     // 直接返回对象，loadDetail 会把它渲染到界面
     return mock;
@@ -287,10 +287,10 @@ const App = {
     for (let i = 0; i < urlParts.length; i++) {
       const name = fromNames[i] || `源${i + 1}`;
       const episodes = this.parseEpisodes(urlParts[i]);
-      
+
       // 检查是否为m3u8源
-      const hasM3u8 = episodes.some(ep => ep.url.includes('.m3u8'));
-      
+      const hasM3u8 = episodes.some((ep) => ep.url.includes('.m3u8'));
+
       sources.push({
         name,
         episodes,
@@ -299,8 +299,8 @@ const App = {
     }
 
     // 优先返回m3u8源
-    const m3u8Sources = sources.filter(s => s.isM3u8);
-    const otherSources = sources.filter(s => !s.isM3u8);
+    const m3u8Sources = sources.filter((s) => s.isM3u8);
+    const otherSources = sources.filter((s) => !s.isM3u8);
 
     return [...m3u8Sources, ...otherSources];
   },
@@ -313,10 +313,10 @@ const App = {
     const parts = urlString.split('#');
 
     for (const part of parts) {
-      if (!part.trim()) continue;
-      
+      if (!part.trim()) {continue;}
+
       const dollarIndex = part.indexOf('$');
-      if (dollarIndex === -1) continue;
+      if (dollarIndex === -1) {continue;}
 
       const name = part.substring(0, dollarIndex).trim();
       const url = part.substring(dollarIndex + 1).trim();
@@ -339,10 +339,10 @@ const App = {
     const source = Storage.getCurrentSource();
     const sourceId = source ? source.id : null;
     const isFav = Storage.isFavorite(video.id, sourceId);
-    
+
     // 生成唯一标识
     const uid = `${sourceId}_${video.vod_id}`;
-    
+
     // 检查是否有缓存的海报
     const cacheKey = `poster_${video.vod_id}`;
     const cachedPic = localStorage.getItem(cacheKey);
@@ -357,10 +357,10 @@ const App = {
     return `
       <div class="video-card hover-lift card-shine fade-in" data-id="${video.id}" data-uid="${uid}" ${onclick ? `onclick="${onclick}(${video.id})"` : ''} aria-label="视频：${safeVodName}">
         <div class="video-poster skeleton-poster" data-video-id="${video.vod_id}">
-          ${hasCachedPoster ? 
-            `<img src="/image?url=${safeEncodedPic}" alt="${safeVodName}" class="poster-img" onerror="this.parentElement.innerHTML='<div class=\\'placeholder poster-placeholder\\'>🎬</div>'">` :
-            `<div class="placeholder poster-placeholder skeleton">🎬</div>`
-          }
+          ${hasCachedPoster ?
+    `<img src="/image?url=${safeEncodedPic}" alt="${safeVodName}" class="poster-img" onerror="this.parentElement.innerHTML='<div class=\\'placeholder poster-placeholder\\'>🎬</div>'">` :
+    '<div class="placeholder poster-placeholder skeleton">🎬</div>'
+}
           <div class="video-overlay">
             <div class="play-btn">▶</div>
           </div>
@@ -381,11 +381,11 @@ const App = {
    */
   async loadPosters(videoIds) {
     const source = Storage.getCurrentSource();
-    if (!source || !videoIds.length) return;
-    
-    const needLoad = videoIds.filter(id => !this.posterCache[`${source.id}_${id}`]);
-    if (needLoad.length === 0) return;
-    
+    if (!source || !videoIds.length) {return;}
+
+    const needLoad = videoIds.filter((id) => !this.posterCache[`${source.id}_${id}`]);
+    if (needLoad.length === 0) {return;}
+
     try {
       // 分批请求详情，每次最多5个
       const batchSize = 5;
@@ -393,19 +393,19 @@ const App = {
         const batch = needLoad.slice(i, i + batchSize);
         const url = `${source.apiUrl}?ac=detail&ids=${batch.join(',')}`;
         const proxyUrl = this.getDetailProxyUrl(url);
-        
+
         fetch(proxyUrl)
-          .then(r => r.json())
-          .then(data => {
+          .then((r) => r.json())
+          .then((data) => {
             if (data.code === 1 && data.list) {
-              data.list.forEach(item => {
+              data.list.forEach((item) => {
                 const uid = `${source.id}_${item.vod_id}`;
                 this.posterCache[uid] = item.vod_pic || '';
                 this.updatePosterInDOM(uid, item.vod_pic);
               });
             }
           })
-          .catch(err => console.log('海报加载失败:', err));
+          .catch((err) => console.log('海报加载失败:', err));
       }
     } catch (error) {
       console.log('海报批量加载失败:', error);
@@ -416,14 +416,14 @@ const App = {
    * 更新DOM中的海报图片（通过代理加载）
    */
   updatePosterInDOM(uid, picUrl) {
-    if (!picUrl) return;
-    
+    if (!picUrl) {return;}
+
     const card = document.querySelector(`[data-uid="${uid}"]`);
-    if (!card) return;
-    
+    if (!card) {return;}
+
     const img = card.querySelector('.poster-img');
     const placeholder = card.querySelector('.poster-placeholder');
-    
+
     if (img) {
       // 通过代理加载图片
       const proxyImageUrl = `/image?url=${encodeURIComponent(picUrl)}`;
@@ -431,9 +431,9 @@ const App = {
       img.style.display = 'block';
       img.onerror = function() {
         this.style.display = 'none';
-        if (placeholder) placeholder.style.display = 'flex';
+        if (placeholder) {placeholder.style.display = 'flex';}
       };
-      if (placeholder) placeholder.style.display = 'none';
+      if (placeholder) {placeholder.style.display = 'none';}
     }
   },
 
@@ -441,7 +441,7 @@ const App = {
    * HTML转义函数 - 防止XSS攻击
    */
   escapeHtml(text) {
-    if (!text) return '';
+    if (!text) {return '';}
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -477,14 +477,14 @@ const App = {
         <span>${message}</span>
       </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // 显示动画
     setTimeout(() => {
       notification.classList.add('show');
     }, 10);
-    
+
     // 自动隐藏
     setTimeout(() => {
       notification.classList.remove('show');
@@ -493,7 +493,7 @@ const App = {
       }, 300);
     }, duration);
   },
-  
+
   getNotificationIcon(type) {
     const icons = {
       success: '✅',
@@ -546,12 +546,12 @@ const App = {
    * 渲染分页
    */
   renderPagination(currentPage, totalPages, onPageChange) {
-    if (totalPages <= 1) return '';
+    if (totalPages <= 1) {return '';}
 
     const pages = [];
     const maxVisible = 5;
     let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
+    const end = Math.min(totalPages, start + maxVisible - 1);
 
     if (end - start < maxVisible - 1) {
       start = Math.max(1, end - maxVisible + 1);
@@ -559,7 +559,7 @@ const App = {
 
     if (start > 1) {
       pages.push(`<button class="page-btn" onclick="${onPageChange}(1)">1</button>`);
-      if (start > 2) pages.push(`<span class="page-info">...</span>`);
+      if (start > 2) {pages.push('<span class="page-info">...</span>');}
     }
 
     for (let i = start; i <= end; i++) {
@@ -567,7 +567,7 @@ const App = {
     }
 
     if (end < totalPages) {
-      if (end < totalPages - 1) pages.push(`<span class="page-info">...</span>`);
+      if (end < totalPages - 1) {pages.push('<span class="page-info">...</span>');}
       pages.push(`<button class="page-btn" onclick="${onPageChange}(${totalPages})">${totalPages}</button>`);
     }
 
@@ -585,12 +585,12 @@ const App = {
    */
   updateSourceSelector() {
     const selector = document.getElementById('sourceSelector');
-    if (!selector) return;
+    if (!selector) {return;}
 
     const sources = Storage.getSources();
     const currentSource = Storage.getCurrentSource();
 
-    selector.innerHTML = sources.map(s => 
+    selector.innerHTML = sources.map((s) =>
       `<option value="${s.id}" ${currentSource && s.id === currentSource.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`
     ).join('');
 
@@ -607,13 +607,13 @@ const App = {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
-    
+
     if (h > 0) {
       return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
     return `${m}:${s.toString().padStart(2, '0')}`;
   },
-  
+
   /**
    * 性能监控报告
    */
@@ -629,16 +629,16 @@ const App = {
         total: 0
       }
     };
-    
+
     // 检查内存使用情况
     if (performance.memory) {
       report.memory.used = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
       report.memory.total = Math.round(performance.memory.totalJSHeapSize / 1024 / 1024);
     }
-    
+
     return report;
   },
-  
+
   /**
    * 清理缓存
    */
@@ -646,7 +646,7 @@ const App = {
     this.cache.clear();
     this.showToast('缓存已清理', 'success');
   },
-  
+
   /**
    * 预加载关键资源
    */
@@ -656,8 +656,8 @@ const App = {
       '/css/style.css',
       '/js/storage.js'
     ];
-    
-    resources.forEach(resource => {
+
+    resources.forEach((resource) => {
       const link = document.createElement('link');
       link.rel = 'preload';
       link.as = resource.endsWith('.css') ? 'style' : 'script';

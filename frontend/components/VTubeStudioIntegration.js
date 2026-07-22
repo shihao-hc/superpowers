@@ -1,6 +1,6 @@
 /**
  * VTubeStudioIntegration - VTube Studio插件集成
- * 
+ *
  * 功能:
  * - VTube Studio API连接
  * - 模型/道具控制
@@ -32,7 +32,7 @@ class VTubeStudioIntegration {
     this.isConnected = false;
     this.currentModel = null;
     this.parameters = new Map();
-    
+
     // WebSocket
     this.ws = null;
     this.reconnectTimer = null;
@@ -54,16 +54,16 @@ class VTubeStudioIntegration {
 
       // 建立WebSocket连接
       await this._connectWebSocket();
-      
+
       // 获取当前模型信息
       await this._getModelInfo();
-      
+
       this.isConnected = true;
-      if (this.options.onConnect) this.options.onConnect();
-      
+      if (this.options.onConnect) {this.options.onConnect();}
+
     } catch (error) {
       console.error('[VTubeStudio] Connect error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
       throw error;
     }
   }
@@ -76,9 +76,9 @@ class VTubeStudioIntegration {
       this.ws.close();
       this.ws = null;
     }
-    
+
     this.isConnected = false;
-    if (this.options.onDisconnect) this.options.onDisconnect();
+    if (this.options.onDisconnect) {this.options.onDisconnect();}
   }
 
   /**
@@ -99,11 +99,11 @@ class VTubeStudioIntegration {
    * WebSocket连接
    */
   _connectWebSocket() {
-    return new Promise((resolve, reject) => {
-      const wsUrl = this.options.endpoint.replace('http', 'ws') + '/api/v1/events';
-      
+    return new Promise((resolve, _reject) => {
+      const wsUrl = `${this.options.endpoint.replace('http', 'ws')}/api/v1/events`;
+
       this.ws = new WebSocket(wsUrl);
-      
+
       this.ws.onopen = () => {
         console.log('[VTubeStudio] WebSocket connected');
         resolve();
@@ -115,13 +115,13 @@ class VTubeStudioIntegration {
 
       this.ws.onerror = (error) => {
         console.error('[VTubeStudio] WebSocket error:', error);
-        if (this.options.onError) this.options.onError(error);
+        if (this.options.onError) {this.options.onError(error);}
       };
 
       this.ws.onclose = () => {
         this.isConnected = false;
-        if (this.options.onDisconnect) this.options.onDisconnect();
-        
+        if (this.options.onDisconnect) {this.options.onDisconnect();}
+
         // 自动重连
         if (this.options.autoReconnect) {
           this.reconnectTimer = setTimeout(() => {
@@ -149,7 +149,7 @@ class VTubeStudioIntegration {
    * API请求
    async _apiRequest(method, endpoint, body = null) {
     const url = `${this.options.endpoint}${endpoint}`;
-    
+
     const options = {
       method,
       headers: {
@@ -162,7 +162,7 @@ class VTubeStudioIntegration {
     }
 
     const response = await fetch(url, options);
-    
+
     if (!response.ok) {
       throw new Error(`VTube Studio API error: ${response.status}`);
     }
@@ -175,25 +175,25 @@ class VTubeStudioIntegration {
    */
   _handleEvent(event) {
     switch (event.messageType) {
-      case 'ModelLoaded':
-        this.currentModel = event.data;
-        if (this.options.onModelChanged) {
-          this.options.onModelChanged(event.data);
+    case 'ModelLoaded':
+      this.currentModel = event.data;
+      if (this.options.onModelChanged) {
+        this.options.onModelChanged(event.data);
+      }
+      break;
+
+    case 'AnimationFrame':
+      // 实时参数更新
+      if (event.data && event.data.parameters) {
+        for (const param of event.data.parameters) {
+          this.parameters.set(param.name, param.value);
         }
-        break;
-        
-      case 'AnimationFrame':
-        // 实时参数更新
-        if (event.data && event.data.parameters) {
-          for (const param of event.data.parameters) {
-            this.parameters.set(param.name, param.value);
-          }
-        }
-        break;
-        
-      case 'HotkeyTriggered':
-        console.log('[VTubeStudio] Hotkey triggered:', event.data);
-        break;
+      }
+      break;
+
+    case 'HotkeyTriggered':
+      console.log('[VTubeStudio] Hotkey triggered:', event.data);
+      break;
     }
   }
 
@@ -203,7 +203,7 @@ class VTubeStudioIntegration {
   async _getModelInfo() {
     const response = await this._apiRequest('GET', '/api/v1/models');
     if (response && response.models) {
-      this.currentModel = response.models.find(m => m.loaded) || response.models[0];
+      this.currentModel = response.models.find((m) => m.loaded) || response.models[0];
       this.models = response.models;
     }
     return this.currentModel;
@@ -216,14 +216,14 @@ class VTubeStudioIntegration {
     const response = await this._apiRequest('POST', '/api/v1/models/load', {
       modelId
     });
-    
+
     if (response && response.modelLoaded) {
       this.currentModel = response;
       if (this.options.onModelChanged) {
         this.options.onModelChanged(response);
       }
     }
-    
+
     return response;
   }
 
@@ -234,7 +234,7 @@ class VTubeStudioIntegration {
     if (this.modelCache.size > 0) {
       return Array.from(this.modelCache.values());
     }
-    
+
     const response = await this._apiRequest('GET', '/api/v1/models');
     if (response && response.models) {
       for (const model of response.models) {
@@ -351,8 +351,8 @@ class VTubeStudioIntegration {
    * 同步嘴型
    */
   syncLipSync(volume) {
-    if (!this.isConnected) return;
-    
+    if (!this.isConnected) {return;}
+
     // VTube Studio的嘴型参数
     this.setParameter('MouthOpen', volume, 50);
   }
@@ -361,13 +361,13 @@ class VTubeStudioIntegration {
    * 同步眨眼
    */
   syncBlink(force = false) {
-    if (!this.isConnected) return;
-    
+    if (!this.isConnected) {return;}
+
     // 随机眨眼
     if (force || Math.random() < 0.01) {
       this.setParameter('EyeOpenLeft', 0, 100);
       this.setParameter('EyeOpenRight', 0, 100);
-      
+
       setTimeout(() => {
         this.setParameter('EyeOpenLeft', 1, 100);
         this.setParameter('EyeOpenRight', 1, 100);
@@ -379,8 +379,8 @@ class VTubeStudioIntegration {
    * 同步眼球追踪
    */
   syncEyeTracking(x, y) {
-    if (!this.isConnected) return;
-    
+    if (!this.isConnected) {return;}
+
     // 映射到VTube Studio参数
     this.setParameter('EyeLeftX', 0.5 + x * 0.5);
     this.setParameter('EyeLeftY', 0.5 + y * 0.5);
@@ -392,7 +392,7 @@ class VTubeStudioIntegration {
    * 根据情绪设置表情
    */
   async setEmotion(emotion) {
-    if (!this.isConnected) return;
+    if (!this.isConnected) {return;}
 
     const emotionMap = {
       happy: { MouthForm: 1, BrowInnerUp: 0.8 },
@@ -403,7 +403,7 @@ class VTubeStudioIntegration {
     };
 
     const params = emotionMap[emotion] || emotionMap.neutral;
-    
+
     for (const [name, value] of Object.entries(params)) {
       await this.setParameter(name, value, 500);
     }

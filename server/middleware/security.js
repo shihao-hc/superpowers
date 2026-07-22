@@ -3,6 +3,7 @@
  */
 
 const crypto = require('crypto');
+const { warnLog } = require('../utils/logger');
 
 /**
  * 生成随机nonce用于CSP
@@ -16,25 +17,30 @@ function generateNonce() {
  */
 function enhancedCSP(req, res, next) {
   const nonce = generateNonce();
-  
+
   // 将nonce附加到请求对象
   res.locals.nonce = nonce;
-  
+
   // 设置CSP头
   res.setHeader('Content-Security-Policy', [
-    "default-src 'self'",
+    'default-src \'self\'',
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    `style-src 'self' 'unsafe-inline'`,
-    "img-src 'self' data: blob:",
-    "connect-src 'self' ws: wss:",
-    "font-src 'self' data:",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests"
+    'style-src \'self\' \'unsafe-inline\'',
+    'img-src \'self\' data: blob:',
+    'connect-src \'self\' ws: wss:',
+    'font-src \'self\' data:',
+    'object-src \'none\'',
+    'base-uri \'self\'',
+    'form-action \'self\'',
+    'frame-ancestors \'none\'',
+    'upgrade-insecure-requests',
+    'report-uri /api/security/csp-violation',
+    'report-to csp-endpoint'
   ].join('; '));
-  
+
+  // 设置报告端点
+  res.setHeader('Reporting-Endpoints', 'csp-endpoint="/api/security/csp-violation"');
+
   next();
 }
 
@@ -45,34 +51,43 @@ function strictInputValidation(req, res, next) {
   // 检查请求体大小
   const contentLength = parseInt(req.headers['content-length'] || '0');
   if (contentLength > 10 * 1024 * 1024) { // 10MB
-    return res.status(413).json({ 
+    return res.status(413).json({
       error: '请求体过大',
       code: 'PAYLOAD_TOO_LARGE'
     });
   }
-  
+
   // 检查Content-Type
   if (req.method === 'POST' || req.method === 'PUT') {
     const contentType = req.headers['content-type'];
     if (!contentType || !contentType.includes('application/json')) {
       // 允许form-data用于文件上传
       if (!contentType.includes('multipart/form-data')) {
-        return res.status(415).json({ 
+        return res.status(415).json({
           error: '不支持的Content-Type',
           code: 'UNSUPPORTED_MEDIA_TYPE'
         });
       }
     }
   }
-  
+
   // 防止HTTP响应拆分
   if (req.url.includes('\r') || req.url.includes('\n')) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: '无效的URL',
       code: 'INVALID_URL'
     });
   }
-  
+
+  // 检测无效的URL编码（裸%不跟两个hex字符）
+  const invalidEncoding = /%(?![0-9a-fA-F]{2})/.test(req.url);
+  if (invalidEncoding) {
+    return res.status(400).json({
+      error: '无效的URL编码',
+      code: 'INVALID_ENCODING'
+    });
+  }
+
   next();
 }
 
@@ -82,27 +97,34 @@ function strictInputValidation(req, res, next) {
 function securityHeaders(req, res, next) {
   // 防止点击劫持
   res.setHeader('X-Frame-Options', 'DENY');
-  
+
   // 防止MIME类型嗅探
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  
+
   // 启用XSS过滤
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  
+
   // 严格传输安全
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
-  
+
   // 引用策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   // 权限策略
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()');
-  
+
+  // 跨域隔离
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+
+  // 禁止DNS预取
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+
   // 隐藏服务器信息
   res.removeHeader('X-Powered-By');
-  
+
   next();
 }
 
@@ -127,23 +149,23 @@ function rateLimitBypassDetection(req, res, next) {
     'x-client-ip',
     'cf-connecting-ip'
   ];
-  
+
   let ipCount = 0;
   for (const header of suspiciousHeaders) {
     if (req.headers[header]) {
-      const ips = req.headers[header].split(',').map(ip => ip.trim());
+      const ips = req.headers[header].split(',').map((ip) => ip.trim());
       ipCount += ips.length;
     }
   }
-  
+
   // 如果检测到多个IP头，可能是绕过尝试
   if (ipCount > 3) {
-    console.warn('Rate limit bypass attempt detected', {
+    warnLog('Rate limit bypass attempt detected', {
       ip: req.ip,
-      headers: suspiciousHeaders.filter(h => req.headers[h])
+      headers: suspiciousHeaders.filter((h) => req.headers[h])
     });
   }
-  
+
   next();
 }
 
@@ -151,6 +173,7 @@ function rateLimitBypassDetection(req, res, next) {
  * SQL注入检测
  */
 function sqlInjectionDetection(req, res, next) {
+  /* eslint-disable no-useless-escape */
   const sqlPatterns = [
     /(\%27)|(\')|(\-\-)|(\%23)|(#)/gi,
     /((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/gi,
@@ -163,27 +186,28 @@ function sqlInjectionDetection(req, res, next) {
     /DELETE[\s\S]*FROM/gi,
     /DROP[\s\S]*TABLE/gi
   ];
-  
+  /* eslint-enable no-useless-escape */
+
   const checkValue = (value) => {
-    if (typeof value !== 'string') return false;
-    return sqlPatterns.some(pattern => pattern.test(value));
+    if (typeof value !== 'string') {return false;}
+    return sqlPatterns.some((pattern) => pattern.test(value));
   };
-  
+
   // 检查查询参数
   for (const key in req.query) {
     if (checkValue(req.query[key])) {
-      console.warn('SQL injection attempt detected', {
+      warnLog('SQL injection attempt detected', {
         ip: req.ip,
         path: req.path,
         param: key
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: '检测到可疑输入',
         code: 'SUSPICIOUS_INPUT'
       });
     }
   }
-  
+
   // 检查请求体
   if (req.body && typeof req.body === 'object') {
     const checkObject = (obj) => {
@@ -197,19 +221,19 @@ function sqlInjectionDetection(req, res, next) {
       }
       return false;
     };
-    
+
     if (checkObject(req.body)) {
-      console.warn('SQL injection attempt detected', {
+      warnLog('SQL injection attempt detected', {
         ip: req.ip,
         path: req.path
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: '检测到可疑输入',
         code: 'SUSPICIOUS_INPUT'
       });
     }
   }
-  
+
   next();
 }
 
@@ -226,27 +250,27 @@ function xssDetection(req, res, next) {
     /<object[\s\S]*?>/gi,
     /<embed[\s\S]*?>/gi
   ];
-  
+
   const checkValue = (value) => {
-    if (typeof value !== 'string') return false;
-    return xssPatterns.some(pattern => pattern.test(value));
+    if (typeof value !== 'string') {return false;}
+    return xssPatterns.some((pattern) => pattern.test(value));
   };
-  
+
   // 检查查询参数
   for (const key in req.query) {
     if (checkValue(req.query[key])) {
-      console.warn('XSS attempt detected', {
+      warnLog('XSS attempt detected', {
         ip: req.ip,
         path: req.path,
         param: key
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: '检测到可疑输入',
         code: 'SUSPICIOUS_INPUT'
       });
     }
   }
-  
+
   next();
 }
 
@@ -263,39 +287,39 @@ function pathTraversalDetection(req, res, next) {
     /%2e%2e%5c/gi,
     /%2e%2e\\/g
   ];
-  
+
   const checkValue = (value) => {
-    if (typeof value !== 'string') return false;
-    return pathPatterns.some(pattern => pattern.test(value));
+    if (typeof value !== 'string') {return false;}
+    return pathPatterns.some((pattern) => pattern.test(value));
   };
-  
+
   // 检查URL
   if (checkValue(req.url)) {
-    console.warn('Path traversal attempt detected', {
+    warnLog('Path traversal attempt detected', {
       ip: req.ip,
       path: req.path
     });
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: '无效的路径',
       code: 'INVALID_PATH'
     });
   }
-  
+
   // 检查查询参数
   for (const key in req.query) {
     if (checkValue(req.query[key])) {
-      console.warn('Path traversal attempt detected', {
+      warnLog('Path traversal attempt detected', {
         ip: req.ip,
         path: req.path,
         param: key
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: '检测到可疑输入',
         code: 'SUSPICIOUS_INPUT'
       });
     }
   }
-  
+
   next();
 }
 
@@ -308,7 +332,7 @@ module.exports = {
   sqlInjectionDetection,
   xssDetection,
   pathTraversalDetection,
-  
+
   // 新增安全模块
   outputEncoder: require('../../src/security/OutputEncoder'),
   inputValidator: require('../../src/security/EnhancedInputValidator'),

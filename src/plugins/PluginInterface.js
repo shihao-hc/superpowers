@@ -6,9 +6,9 @@ class PluginInterface {
     this.permissions = [];
   }
   init() {}
-  async onMessage(message, context) { return { message }; }
-  async onMemory(memory, context) { return memory; }
-  async onEvent(event, context) { return event; }
+  async onMessage(message, _context) { return { message }; }
+  async onMemory(memory, _context) { return memory; }
+  async onEvent(event, _context) { return event; }
   getCapabilities() { return []; }
 }
 module.exports = PluginInterface;

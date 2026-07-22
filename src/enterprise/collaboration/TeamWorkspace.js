@@ -12,7 +12,7 @@ class TeamWorkspace {
     this.members = new Map();
     this.projects = new Map();
     this.activities = [];
-    
+
     this._initDefaultRoles();
   }
 
@@ -90,7 +90,7 @@ class TeamWorkspace {
     };
 
     this.workspaces.set(workspace.id, workspace);
-    
+
     // 创建默认团队
     this.createTeam({
       workspaceId: workspace.id,
@@ -204,10 +204,10 @@ class TeamWorkspace {
 
   _getRolePermissions(roleName) {
     const role = this.roles[roleName];
-    if (!role) return [];
+    if (!role) {return [];}
 
     let permissions = [...role.permissions];
-    
+
     // 继承权限
     for (const inheritedRole of role.inherits) {
       permissions = permissions.concat(this._getRolePermissions(inheritedRole));
@@ -253,7 +253,7 @@ class TeamWorkspace {
 
   acceptInvitation(invitationId, userId) {
     const invitation = this.activities.find(
-      a => a.type === 'member.invited' && a.data.id === invitationId
+      (a) => a.type === 'member.invited' && a.data.id === invitationId
     );
 
     if (!invitation) {
@@ -366,7 +366,7 @@ class TeamWorkspace {
       project.members = [];
     }
 
-    const existingMember = project.members.find(m => m.userId === userId);
+    const existingMember = project.members.find((m) => m.userId === userId);
     if (existingMember) {
       existingMember.role = role;
     } else {
@@ -387,7 +387,7 @@ class TeamWorkspace {
   hasPermission(userId, workspaceId, permission) {
     const key = `${userId}:${workspaceId}`;
     const member = this.members.get(key);
-    
+
     if (!member) {
       return false;
     }
@@ -416,25 +416,25 @@ class TeamWorkspace {
   }
 
   getActivities(workspaceId, options = {}) {
-    let activities = this.activities.filter(a => a.workspaceId === workspaceId);
-    
+    let activities = this.activities.filter((a) => a.workspaceId === workspaceId);
+
     if (options.type) {
-      activities = activities.filter(a => a.type.startsWith(options.type));
+      activities = activities.filter((a) => a.type.startsWith(options.type));
     }
     if (options.actor) {
-      activities = activities.filter(a => a.actor === options.actor);
+      activities = activities.filter((a) => a.actor === options.actor);
     }
     if (options.since) {
-      activities = activities.filter(a => a.timestamp >= options.since);
+      activities = activities.filter((a) => a.timestamp >= options.since);
     }
     if (options.until) {
-      activities = activities.filter(a => a.timestamp <= options.until);
+      activities = activities.filter((a) => a.timestamp <= options.until);
     }
 
     // 分页
     const limit = options.limit || 50;
     const offset = options.offset || 0;
-    
+
     return {
       activities: activities.slice(offset, offset + limit),
       total: activities.length,
@@ -445,11 +445,11 @@ class TeamWorkspace {
   // 获取工作空间统计
   getWorkspaceStats(workspaceId) {
     const workspace = this.workspaces.get(workspaceId);
-    if (!workspace) return null;
+    if (!workspace) {return null;}
 
     const members = this._getWorkspaceMembers(workspaceId);
     const projects = this._getWorkspaceProjects(workspaceId);
-    const activities = this.activities.filter(a => a.workspaceId === workspaceId);
+    const activities = this.activities.filter((a) => a.workspaceId === workspaceId);
 
     return {
       workspace: {
@@ -462,21 +462,21 @@ class TeamWorkspace {
         members: {
           current: members.length,
           limit: workspace.limits.members,
-          percentage: workspace.limits.members > 0 
-            ? Math.round(members.length / workspace.limits.members * 100) 
+          percentage: workspace.limits.members > 0
+            ? Math.round(members.length / workspace.limits.members * 100)
             : 0
         },
         projects: {
           current: projects.length,
           limit: workspace.limits.projects,
-          percentage: workspace.limits.projects > 0 
-            ? Math.round(projects.length / workspace.limits.projects * 100) 
+          percentage: workspace.limits.projects > 0
+            ? Math.round(projects.length / workspace.limits.projects * 100)
             : 0
         }
       },
       activity: {
-        last24h: activities.filter(a => a.timestamp > Date.now() - 24 * 60 * 60 * 1000).length,
-        last7d: activities.filter(a => a.timestamp > Date.now() - 7 * 24 * 60 * 60 * 1000).length
+        last24h: activities.filter((a) => a.timestamp > Date.now() - 24 * 60 * 60 * 1000).length,
+        last7d: activities.filter((a) => a.timestamp > Date.now() - 7 * 24 * 60 * 60 * 1000).length
       }
     };
   }

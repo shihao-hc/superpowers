@@ -69,11 +69,13 @@ ${bodies.join('\n\n')}
 
 function renderToSvg(dotContent) {
   try {
-    return execSync('dot -Tsvg', {
+    const { spawnSync } = require('child_process');
+    const result = spawnSync('dot', ['-Tsvg'], {
       input: dotContent,
       encoding: 'utf-8',
       maxBuffer: 10 * 1024 * 1024
     });
+    return result.stdout;
   } catch (err) {
     console.error('Error running dot:', err.message);
     if (err.stderr) console.error(err.stderr.toString());
@@ -109,7 +111,8 @@ function main() {
 
   // Check if dot is available
   try {
-    execSync('which dot', { encoding: 'utf-8' });
+    const { spawnSync } = require('child_process');
+    spawnSync('which', ['dot'], { encoding: 'utf-8' });
   } catch {
     console.error('Error: graphviz (dot) not found. Install with:');
     console.error('  brew install graphviz    # macOS');

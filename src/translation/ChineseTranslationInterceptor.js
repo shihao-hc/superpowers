@@ -1,13 +1,13 @@
 /**
  * 中文翻译拦截器 - Chinese Translation Interceptor
- * 
+ *
  * 功能特性:
  * - 实时翻译AI回复为中文
  * - 保留专业术语和代码
  * - 上下文感知翻译
  * - 术语表支持
  * - 批量翻译
- * 
+ *
  * 基于 i18n-actions/ai-i18n 和 ShermanTsang/i18n-translator 设计
  */
 
@@ -59,11 +59,11 @@ class ChineseTranslationInterceptor {
 
     // 翻译缓存
     this.cache = new Map();
-    
+
     // 批量翻译队列
     this.batchQueue = [];
     this.batchTimer = null;
-    
+
     // 翻译统计
     this.stats = {
       totalTranslations: 0,
@@ -104,7 +104,7 @@ class ChineseTranslationInterceptor {
       'NoSQL': 'NoSQL',
       'Redis': 'Redis',
       'MongoDB': 'MongoDB',
-      
+
       // 常用术语
       'GitHub': 'GitHub',
       'npm': 'npm',
@@ -116,7 +116,7 @@ class ChineseTranslationInterceptor {
       'GPU': 'GPU',
       'CPU': 'CPU',
       'RAM': '内存',
-      
+
       // 项目特定术语
       'TradingAgents': 'TradingAgents',
       'UltraWork': 'UltraWork',
@@ -130,10 +130,10 @@ class ChineseTranslationInterceptor {
 
     // 合并自定义术语
     this.terminology = { ...this.defaultTerminology, ...this.options.terminology };
-    
+
     // 代码块正则
     this.codeBlockRegex = /```[\s\S]*?```|`[^`\n]+`/g;
-    
+
     // Markdown格式正则
     this.markdownRegex = /(\*\*|__|[*_]|~~|#{1,6}\s|>\s|\[.*?\]\(.*?\)|!\[.*?\]\(.*?\)|-{3,}|\|.*\||- \[.*?\])/g;
   }
@@ -164,9 +164,9 @@ class ChineseTranslationInterceptor {
    * 验证数组输入
    */
   validateArray(arr) {
-    if (!Array.isArray(arr)) return [];
+    if (!Array.isArray(arr)) {return [];}
     // 限制数组长度
-    return arr.slice(0, 100).filter(item => typeof item === 'string');
+    return arr.slice(0, 100).filter((item) => typeof item === 'string');
   }
 
   /**
@@ -190,18 +190,18 @@ class ChineseTranslationInterceptor {
    * 翻译文本
    */
   async translate(text, context = {}) {
-    if (!text || typeof text !== 'string') return text;
-    
+    if (!text || typeof text !== 'string') {return text;}
+
     // 输入长度验证
     if (text.length > this.options.maxTextLength) {
       throw new Error('Text exceeds maximum length');
     }
-    
+
     // 防止空文本攻击
-    if (!text.trim()) return text;
-    
+    if (!text.trim()) {return text;}
+
     const startTime = Date.now();
-    
+
     try {
       // 检查缓存
       const cacheKey = this.getCacheKey(text);
@@ -212,32 +212,32 @@ class ChineseTranslationInterceptor {
 
       // 提取需要保留的内容
       const preserved = this.extractPreservedContent(text);
-      
+
       // 应用术语表替换
-      let processed = this.applyTerminology(preserved.placeholderText);
-      
+      const processed = this.applyTerminology(preserved.placeholderText);
+
       // 翻译
       let translated;
       switch (this.options.engine) {
-        case 'openai':
-          translated = await this.translateWithOpenAI(processed, context);
-          break;
-        case 'deepl':
-          translated = await this.translateWithDeepL(processed, context);
-          break;
-        case 'google':
-          translated = await this.translateWithGoogle(processed, context);
-          break;
-        case 'local':
-          translated = this.translateLocal(processed);
-          break;
-        default:
-          translated = await this.translateWithOpenAI(processed, context);
+      case 'openai':
+        translated = await this.translateWithOpenAI(processed, context);
+        break;
+      case 'deepl':
+        translated = await this.translateWithDeepL(processed, context);
+        break;
+      case 'google':
+        translated = await this.translateWithGoogle(processed, context);
+        break;
+      case 'local':
+        translated = this.translateLocal(processed);
+        break;
+      default:
+        translated = await this.translateWithOpenAI(processed, context);
       }
-      
+
       // 恢复保留的内容
       const result = this.restorePreservedContent(translated, preserved.placeholders);
-      
+
       // 更新缓存
       if (this.options.enableCache) {
         this.cache.set(cacheKey, result);
@@ -246,18 +246,18 @@ class ChineseTranslationInterceptor {
           this.cache.delete(firstKey);
         }
       }
-      
+
       // 更新统计
       this.stats.totalTranslations++;
       this.stats.avgLatency = (this.stats.avgLatency * (this.stats.totalTranslations - 1) + (Date.now() - startTime)) / this.stats.totalTranslations;
-      
+
       // 触发回调
       if (this.options.onTranslation) {
         this.options.onTranslation({ original: text, translated: result, latency: Date.now() - startTime });
       }
-      
+
       return result;
-      
+
     } catch (error) {
       this.stats.errors++;
       if (this.options.onError) {
@@ -273,10 +273,10 @@ class ChineseTranslationInterceptor {
    */
   async *translateStream(textStream, context = {}) {
     let buffer = '';
-    
+
     for await (const chunk of textStream) {
       buffer += chunk;
-      
+
       // 检查是否到达断句点
       const sentences = this.splitSentences(buffer);
       if (sentences.length > 1) {
@@ -287,7 +287,7 @@ class ChineseTranslationInterceptor {
         buffer = sentences[sentences.length - 1];
       }
     }
-    
+
     // 处理剩余内容
     if (buffer.trim()) {
       const translated = await this.translate(buffer, context);
@@ -300,7 +300,7 @@ class ChineseTranslationInterceptor {
    */
   async translateBatch(texts, context = {}) {
     const results = await Promise.all(
-      texts.map(text => this.translate(text, context))
+      texts.map((text) => this.translate(text, context))
     );
     return results;
   }
@@ -424,7 +424,7 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
   /**
    * 使用DeepL翻译
    */
-  async translateWithDeepL(text, context = {}) {
+  async translateWithDeepL(text, _context = {}) {
     const apiKey = this.options.apiKey || process.env.DEEPL_API_KEY;
     if (!apiKey) {
       throw new Error('DeepL API key not configured');
@@ -453,17 +453,17 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
   /**
    * 使用Google翻译
    */
-  async translateWithGoogle(text, context = {}) {
+  async translateWithGoogle(text, _context = {}) {
     // Google Translate API (需要API key)或使用免费接口
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${this.options.sourceLang === 'auto' ? 'en' : this.options.sourceLang}&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-    
+
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Google Translate error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data[0].map(item => item[0]).join('');
+    return data[0].map((item) => item[0]).join('');
   }
 
   /**
@@ -501,18 +501,18 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
     let current = '';
     const sentenceEnders = /[.!?。！？]\s*/g;
     let match;
-    
+
     while ((match = sentenceEnders.exec(text)) !== null) {
       current += text.slice(current.length, match.index + match[0].length);
       sentences.push(current);
       current = '';
     }
-    
+
     if (current || text.slice(sentences.join('').length)) {
       sentences.push(text.slice(sentences.join('').length));
     }
-    
-    return sentences.filter(s => s.trim());
+
+    return sentences.filter((s) => s.trim());
   }
 
   /**
@@ -526,7 +526,7 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
    * 生成缓存键
    */
   getCacheKey(text) {
-    return text.slice(0, 100) + '_' + this.options.targetLang;
+    return `${text.slice(0, 100)}_${this.options.targetLang}`;
   }
 
   /**
@@ -565,14 +565,14 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
       // 检查是否需要翻译
       const acceptLang = req.headers['accept-language'] || '';
       const needsTranslation = acceptLang.includes('zh');
-      
+
       if (!needsTranslation) {
         return next();
       }
 
       // 保存原始的json方法
       const originalJson = res.json.bind(res);
-      
+
       // 重写json方法以拦截响应
       res.json = async (body) => {
         if (body && typeof body === 'object') {
@@ -585,7 +585,7 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
         }
         return originalJson(body);
       };
-      
+
       next();
     };
   }
@@ -598,44 +598,44 @@ ${context.style ? `翻译风格: ${context.style}` : ''}`;
     if (!obj || typeof obj !== 'object') {
       return obj;
     }
-    
+
     // 限制嵌套深度
     const maxDepth = 10;
     if (context.depth && context.depth > maxDepth) {
       return obj;
     }
     const newContext = { ...context, depth: (context.depth || 0) + 1 };
-    
+
     if (Array.isArray(obj)) {
       // 限制数组长度
       if (obj.length > 1000) {
         obj = obj.slice(0, 1000);
       }
-      return Promise.all(obj.map(item => this.translateObject(item, newContext)));
+      return Promise.all(obj.map((item) => this.translateObject(item, newContext)));
     }
-    
+
     const translated = {};
     let keyCount = 0;
-    
+
     for (const [key, value] of Object.entries(obj)) {
       // 跳过原型属性
       if (!Object.prototype.hasOwnProperty.call(obj, key)) {
         continue;
       }
-      
+
       // 限制键数量
       if (++keyCount > 500) {
         break;
       }
-      
+
       // 键名安全验证(只允许字母数字下划线)
       if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)) {
         continue;
       }
-      
+
       translated[key] = await this.translateObject(value, newContext);
     }
-    
+
     return translated;
   }
 }

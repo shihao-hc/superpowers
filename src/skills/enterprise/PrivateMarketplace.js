@@ -13,7 +13,7 @@ class PrivateMarketplace {
     this.configFile = path.join(this.dataDir, 'config.json');
     this.skillsFile = path.join(this.dataDir, 'skills.json');
     this.teamsFile = path.join(this.dataDir, 'teams.json');
-    
+
     this.config = {
       organization: '',
       enableApproval: true,
@@ -25,10 +25,10 @@ class PrivateMarketplace {
       requireSecurityScan: true,
       requireDocumentation: true
     };
-    
+
     this.skills = new Map();
     this.teams = new Map();
-    
+
     this._ensureDataDir();
     this._loadData();
   }
@@ -39,18 +39,34 @@ class PrivateMarketplace {
     }
   }
 
+  _calculateStorageUsage() {
+    let total = 0;
+    try {
+      const files = [this.configFile, this.skillsFile, this.teamsFile];
+      for (const filePath of files) {
+        if (fs.existsSync(filePath)) {
+          const stat = fs.statSync(filePath);
+          if (stat.isFile()) { total += stat.size; }
+        }
+      }
+    } catch {
+      // ignore stat errors
+    }
+    return total;
+  }
+
   _loadData() {
     try {
       if (fs.existsSync(this.configFile)) {
         const configData = JSON.parse(fs.readFileSync(this.configFile, 'utf8'));
         this.config = { ...this.config, ...configData };
       }
-      
+
       if (fs.existsSync(this.skillsFile)) {
         const skillsData = JSON.parse(fs.readFileSync(this.skillsFile, 'utf8'));
         this.skills = new Map(Object.entries(skillsData.skills || {}));
       }
-      
+
       if (fs.existsSync(this.teamsFile)) {
         const teamsData = JSON.parse(fs.readFileSync(this.teamsFile, 'utf8'));
         this.teams = new Map(Object.entries(teamsData.teams || {}));
@@ -63,12 +79,12 @@ class PrivateMarketplace {
   _saveData() {
     try {
       fs.writeFileSync(this.configFile, JSON.stringify(this.config, null, 2));
-      
+
       fs.writeFileSync(this.skillsFile, JSON.stringify({
         skills: Object.fromEntries(this.skills),
         lastUpdated: new Date().toISOString()
       }, null, 2));
-      
+
       fs.writeFileSync(this.teamsFile, JSON.stringify({
         teams: Object.fromEntries(this.teams),
         lastUpdated: new Date().toISOString()
@@ -111,7 +127,7 @@ class PrivateMarketplace {
     }
 
     const teamId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
+
     if (this.teams.has(teamId)) {
       throw new Error(`Team already exists: ${teamId}`);
     }
@@ -167,8 +183,8 @@ class PrivateMarketplace {
 
     // 检查团队是否有技能
     const teamSkills = Array.from(this.skills.values())
-      .filter(s => s.teamId === teamId);
-    
+      .filter((s) => s.teamId === teamId);
+
     if (teamSkills.length > 0) {
       throw new Error('Cannot delete team with existing skills');
     }
@@ -188,7 +204,7 @@ class PrivateMarketplace {
       throw new Error(`Team not found: ${teamId}`);
     }
 
-    const existingMember = team.members.find(m => m.userId === userId);
+    const existingMember = team.members.find((m) => m.userId === userId);
     if (existingMember) {
       existingMember.role = role;
     } else {
@@ -211,7 +227,7 @@ class PrivateMarketplace {
       throw new Error(`Team not found: ${teamId}`);
     }
 
-    team.members = team.members.filter(m => m.userId !== userId);
+    team.members = team.members.filter((m) => m.userId !== userId);
     team.updatedAt = new Date().toISOString();
     this.teams.set(teamId, team);
     this._saveData();
@@ -273,7 +289,7 @@ class PrivateMarketplace {
     };
 
     this.skills.set(skillId, skill);
-    
+
     // 更新团队技能计数
     if (teamId) {
       const team = this.teams.get(teamId);
@@ -342,7 +358,7 @@ class PrivateMarketplace {
     // 检查可见性
     if (skill.visibility === 'team' && userId) {
       const team = this.teams.get(skill.teamId);
-      if (team && !team.members.some(m => m.userId === userId)) {
+      if (team && !team.members.some((m) => m.userId === userId)) {
         return null; // 无权查看
       }
     }
@@ -354,75 +370,75 @@ class PrivateMarketplace {
    * 列出技能
    */
   listSkills(options = {}) {
-    const { 
-      teamId, 
-      category, 
+    const {
+      teamId,
+      category,
       status = 'approved',
-      search, 
-      tags, 
+      search,
+      tags,
       visibility,
-      limit = 50, 
+      limit = 50,
       offset = 0,
       userId = null
     } = options;
-    
+
     let skills = Array.from(this.skills.values());
-    
+
     // 状态过滤
     if (status) {
-      skills = skills.filter(s => s.status === status);
+      skills = skills.filter((s) => s.status === status);
     }
-    
+
     // 团队过滤
     if (teamId) {
-      skills = skills.filter(s => s.teamId === teamId);
+      skills = skills.filter((s) => s.teamId === teamId);
     }
-    
+
     // 分类过滤
     if (category) {
-      skills = skills.filter(s => s.category === category);
+      skills = skills.filter((s) => s.category === category);
     }
-    
+
     // 搜索过滤
     if (search) {
       const searchLower = search.toLowerCase();
-      skills = skills.filter(s => 
+      skills = skills.filter((s) =>
         s.name.toLowerCase().includes(searchLower) ||
         s.description.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // 标签过滤
     if (tags && tags.length > 0) {
-      skills = skills.filter(s => 
-        tags.some(tag => s.tags.includes(tag))
+      skills = skills.filter((s) =>
+        tags.some((tag) => s.tags.includes(tag))
       );
     }
-    
+
     // 可见性过滤
     if (visibility) {
-      skills = skills.filter(s => s.visibility === visibility);
+      skills = skills.filter((s) => s.visibility === visibility);
     }
-    
+
     // 用户权限过滤
     if (userId) {
-      skills = skills.filter(s => {
-        if (s.visibility === 'public') return true;
+      skills = skills.filter((s) => {
+        if (s.visibility === 'public') {return true;}
         if (s.teamId) {
           const team = this.teams.get(s.teamId);
-          return team && team.members.some(m => m.userId === userId);
+          return team && team.members.some((m) => m.userId === userId);
         }
         return true;
       });
     }
-    
+
     // 排序（按更新时间）
     skills.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    
+
     // 分页
     const total = skills.length;
     const paginatedSkills = skills.slice(offset, offset + limit);
-    
+
     return {
       skills: paginatedSkills,
       total,
@@ -434,7 +450,7 @@ class PrivateMarketplace {
   /**
    * 记录下载
    */
-  recordDownload(skillId, userId = null) {
+  recordDownload(skillId, _userId = null) {
     const skill = this.skills.get(skillId);
     if (!skill) {
       throw new Error(`Skill not found: ${skillId}`);
@@ -454,27 +470,27 @@ class PrivateMarketplace {
    */
   _canUpload(userId, userRole, teamId) {
     // 管理员可以上传到任何地方
-    if (userRole === 'admin') return true;
-    
+    if (userRole === 'admin') {return true;}
+
     // 检查允许的上传者列表
     if (this.config.allowedUploaders.length > 0) {
       if (!this.config.allowedUploaders.includes(userId)) {
         return false;
       }
     }
-    
+
     // 如果指定了团队，检查用户是否是团队成员
     if (teamId) {
       const team = this.teams.get(teamId);
-      if (!team) return false;
-      
-      const member = team.members.find(m => m.userId === userId);
-      if (!member) return false;
-      
+      if (!team) {return false;}
+
+      const member = team.members.find((m) => m.userId === userId);
+      if (!member) {return false;}
+
       // 只有管理员和开发者可以上传
       return ['admin', 'developer'].includes(member.role);
     }
-    
+
     return true;
   }
 
@@ -492,7 +508,7 @@ class PrivateMarketplace {
    */
   getPendingSkills(limit = 50) {
     return Array.from(this.skills.values())
-      .filter(s => s.status === 'pending')
+      .filter((s) => s.status === 'pending')
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .slice(0, limit);
   }
@@ -503,18 +519,18 @@ class PrivateMarketplace {
   getStats() {
     const skills = Array.from(this.skills.values());
     const teams = Array.from(this.teams.values());
-    
+
     const stats = {
       totalSkills: skills.length,
-      approvedSkills: skills.filter(s => s.status === 'approved').length,
-      pendingSkills: skills.filter(s => s.status === 'pending').length,
-      rejectedSkills: skills.filter(s => s.status === 'rejected').length,
+      approvedSkills: skills.filter((s) => s.status === 'approved').length,
+      pendingSkills: skills.filter((s) => s.status === 'pending').length,
+      rejectedSkills: skills.filter((s) => s.status === 'rejected').length,
       totalTeams: teams.length,
       totalDownloads: skills.reduce((sum, s) => sum + (s.downloads || 0), 0),
-      storageUsed: 0, // TODO: 计算实际存储使用量
+      storageUsed: this._calculateStorageUsage(),
       storageQuota: this.config.storageQuota
     };
-    
+
     return stats;
   }
 

@@ -25,9 +25,9 @@ describe('Data Masking Integration', () => {
         bankCard: '6222021234567890',
         ip: '192.168.1.100'
       };
-      
+
       const masked = dataMaskService.maskUserData(user);
-      
+
       expect(masked.email).toBe('u***@test.com');
       expect(masked.phone).toBe('138****5678');
       expect(masked.idCard).toBe('110101********1234');
@@ -53,9 +53,9 @@ describe('Data Masking Integration', () => {
         { id: 1, email: 'user1@test.com', phone: '13812345678' },
         { id: 2, email: 'user2@test.com', phone: '13912345678' }
       ];
-      
+
       const masked = dataMaskService.batchMask(users, ['email', 'phone']);
-      
+
       expect(masked[0].email).toBe('u***@test.com');
       expect(masked[0].phone).toBe('138****5678');
       expect(masked[1].email).toBe('u***@test.com');
@@ -76,9 +76,9 @@ describe('Data Masking Integration', () => {
         ip: '10.0.0.1',
         deviceFingerprint: 'abc123def456'
       };
-      
+
       const masked = dataMaskService.getMaskedLogEntry(log);
-      
+
       expect(masked.email).toBe('a***@company.com');
       expect(masked.ip).toBe('10.0.**.**');
       expect(masked.deviceFingerprint).toBe('abc******f456');
@@ -91,19 +91,19 @@ describe('Data Masking Integration', () => {
       const authKey = 'test-auth-key-123';
       const originalValue = '13812345678';
       const reversible = dataMaskUtil.reversibleMask(originalValue, 'phone', authKey);
-      
+
       const unmasked = dataMaskService.unmaskField(reversible, 'phone', authKey);
-      
+
       expect(unmasked).toBe(originalValue);
     });
 
     it('should return original value when unmaskField has missing parameters', () => {
       const result1 = dataMaskService.unmaskField(null, 'phone', 'authKey');
       expect(result1).toBeNull();
-      
+
       const result2 = dataMaskService.unmaskField('value', null, 'authKey');
       expect(result2).toBe('value');
-      
+
       const result3 = dataMaskService.unmaskField('value', 'phone', null);
       expect(result3).toBe('value');
     });
@@ -134,9 +134,9 @@ describe('Data Masking Integration', () => {
         ip: '192.168.1.50',
         deviceFingerprint: 'device123456789'
       };
-      
+
       const masked = dataMaskService.maskUserData(user);
-      
+
       expect(masked.email).toBe('s***@company.com');
       expect(masked.phone).toBe('139****1111');
       expect(masked.idCard).toBe('110101********1234');
@@ -153,9 +153,9 @@ describe('Data Masking Integration', () => {
         age: 30,
         email: 'john@test.com'
       };
-      
+
       const masked = dataMaskService.maskUserData(user);
-      
+
       expect(masked.username).toBe('john_doe');
       expect(masked.name).toBe('John Doe');
       expect(masked.age).toBe(30);
@@ -184,9 +184,9 @@ describe('Data Masking Integration', () => {
         ip: '192.168.1.50',
         deviceFingerprint: 'device123456789'
       };
-      
+
       const masked = dataMaskService.maskUserData(user);
-      
+
       expect(masked.email).toBe('sensitive@company.com');
       expect(masked.phone).toBe('13900001111');
       expect(masked.idCard).toBe('110101199001011234');
@@ -200,9 +200,9 @@ describe('Data Masking Integration', () => {
         username: 'john_doe',
         email: 'test@test.com'
       };
-      
+
       const masked = dataMaskService.maskUserData(user);
-      
+
       expect(masked).toEqual(user);
       expect(masked).not.toBe(user);
     });
@@ -210,31 +210,32 @@ describe('Data Masking Integration', () => {
 
   describe('Middleware Integration', () => {
     const { maskResponseBody, maskRequestBody } = require('../../server/middleware/dataMask');
-    
+
     describe('maskResponseBody middleware', () => {
       it('should mask response body in res.json', () => {
         applyMaskConfig();
-        
+
         const req = {};
         let capturedBody = null;
+        let nextCalled = false;
         const res = {
           json: function(obj) {
             capturedBody = obj;
             return obj;
           }
         };
-        const next = jest.fn();
-        
+        const next = () => { nextCalled = true; };
+
         const user = {
           id: 1,
           email: 'login@company.com',
           phone: '13812345678'
         };
-        
+
         maskResponseBody(req, res, next);
         res.json(user);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
         expect(capturedBody.email).toBe('l***@company.com');
         expect(capturedBody.phone).toBe('138****5678');
         expect(capturedBody.id).toBe(1);
@@ -242,7 +243,7 @@ describe('Data Masking Integration', () => {
 
       it('should mask response body in res.send', () => {
         applyMaskConfig();
-        
+
         const req = {};
         let capturedBody = null;
         const res = {
@@ -251,25 +252,26 @@ describe('Data Masking Integration', () => {
             return body;
           }
         };
-        const next = jest.fn();
-        
+        let nextCalled = false;
+        const next = () => { nextCalled = true; };
+
         const data = {
           id: 2,
           email: 'admin@test.com',
           idCard: '110101199001011234'
         };
-        
+
         maskResponseBody(req, res, next);
         res.send(data);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
         expect(capturedBody.email).toBe('a***@test.com');
         expect(capturedBody.idCard).toBe('110101********1234');
       });
 
       it('should pass through non-object responses unchanged', () => {
         applyMaskConfig();
-        
+
         const req = {};
         let capturedBody = null;
         const res = {
@@ -278,11 +280,11 @@ describe('Data Masking Integration', () => {
             return obj;
           }
         };
-        const next = jest.fn();
-        
+        const next = () => {};
+
         maskResponseBody(req, res, next);
         res.json('not an object');
-        
+
         expect(capturedBody).toBe('not an object');
       });
     });
@@ -290,7 +292,7 @@ describe('Data Masking Integration', () => {
     describe('maskRequestBody middleware', () => {
       it('should mask request body', () => {
         applyMaskConfig();
-        
+
         const req = {
           body: {
             username: 'john_doe',
@@ -299,11 +301,12 @@ describe('Data Masking Integration', () => {
           }
         };
         const res = {};
-        const next = jest.fn();
-        
+        let nextCalled = false;
+        const next = () => { nextCalled = true; };
+
         maskRequestBody(req, res, next);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
         expect(req.body.email).toBe('l***@company.com');
         expect(req.body.phone).toBe('138****5678');
         expect(req.body.username).toBe('john_doe');
@@ -311,26 +314,28 @@ describe('Data Masking Integration', () => {
 
       it('should handle empty request body', () => {
         applyMaskConfig();
-        
+
         const req = {};
         const res = {};
-        const next = jest.fn();
-        
+        let nextCalled = false;
+        const next = () => { nextCalled = true; };
+
         maskRequestBody(req, res, next);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
       });
 
       it('should handle non-object request body', () => {
         applyMaskConfig();
-        
+
         const req = { body: 'string body' };
         const res = {};
-        const next = jest.fn();
-        
+        let nextCalled = false;
+        const next = () => { nextCalled = true; };
+
         maskRequestBody(req, res, next);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
         expect(req.body).toBe('string body');
       });
     });
@@ -338,7 +343,7 @@ describe('Data Masking Integration', () => {
     describe('Login endpoint simulation', () => {
       it('should mask login request body', () => {
         applyMaskConfig();
-        
+
         const loginRequest = {
           body: {
             email: 'user@company.com',
@@ -346,9 +351,9 @@ describe('Data Masking Integration', () => {
             deviceFingerprint: 'abc123def456'
           }
         };
-        
+
         maskRequestBody(loginRequest, {}, () => {});
-        
+
         expect(loginRequest.body.email).toBe('u***@company.com');
         expect(loginRequest.body.password).toBe('secret123');
         expect(loginRequest.body.deviceFingerprint).toBe('abc******f456');
@@ -356,7 +361,7 @@ describe('Data Masking Integration', () => {
 
       it('should mask login response body', () => {
         applyMaskConfig();
-        
+
         let responseBody = null;
         const res = {
           json: function(obj) {
@@ -364,11 +369,12 @@ describe('Data Masking Integration', () => {
             return obj;
           }
         };
-        
+
         const req = {};
-        const next = jest.fn();
+        let nextCalled = false;
+        const next = () => { nextCalled = true; };
         maskResponseBody(req, res, next);
-        
+
         const responseData = {
           success: true,
           message: 'Login successful',
@@ -376,10 +382,10 @@ describe('Data Masking Integration', () => {
           phone: '13900001111',
           ip: '192.168.1.100'
         };
-        
+
         res.json(responseData);
-        
-        expect(next).toHaveBeenCalled();
+
+        expect(nextCalled).toBe(true);
         expect(responseBody).not.toBeNull();
         expect(responseBody.email).toBe('u***@company.com');
         expect(responseBody.phone).toBe('139****1111');

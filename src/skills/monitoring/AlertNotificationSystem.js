@@ -9,7 +9,7 @@ class AlertNotificationSystem {
     this.alertRules = [];
     this.alertHistory = [];
     this.maxHistory = 1000;
-    
+
     this._initializeChannels(options.channels || {});
     this._initializeDefaultRules();
   }
@@ -128,7 +128,7 @@ class AlertNotificationSystem {
       throttle: rule.throttle || 300000,
       lastTriggered: 0
     };
-    
+
     this.alertRules.push(newRule);
     return newRule;
   }
@@ -182,22 +182,22 @@ class AlertNotificationSystem {
    */
   async _sendToChannel(channelName, alert) {
     const channel = this.channels.get(channelName);
-    if (!channel || !channel.enabled) return;
+    if (!channel || !channel.enabled) {return;}
 
     try {
       switch (channel.type) {
-        case 'slack':
-          await this._sendSlack(channel, alert);
-          break;
-        case 'email':
-          await this._sendEmail(channel, alert);
-          break;
-        case 'webhook':
-          await this._sendWebhook(channel, alert);
-          break;
-        case 'pagerduty':
-          await this._sendPagerDuty(channel, alert);
-          break;
+      case 'slack':
+        await this._sendSlack(channel, alert);
+        break;
+      case 'email':
+        await this._sendEmail(channel, alert);
+        break;
+      case 'webhook':
+        await this._sendWebhook(channel, alert);
+        break;
+      case 'pagerduty':
+        await this._sendPagerDuty(channel, alert);
+        break;
       }
     } catch (error) {
       console.error(`[AlertSystem] Failed to send to ${channelName}:`, error);
@@ -221,7 +221,7 @@ class AlertNotificationSystem {
     };
 
     const fields = [];
-    
+
     if (alert.metrics) {
       if (alert.metrics.successRate !== undefined) {
         fields.push({
@@ -418,17 +418,17 @@ class AlertNotificationSystem {
    */
   getHistory(options = {}) {
     const { skillName, severity, limit = 50 } = options;
-    
+
     let history = [...this.alertHistory];
-    
+
     if (skillName) {
-      history = history.filter(a => a.skillName === skillName);
+      history = history.filter((a) => a.skillName === skillName);
     }
-    
+
     if (severity) {
-      history = history.filter(a => a.severity === severity);
+      history = history.filter((a) => a.severity === severity);
     }
-    
+
     return history.slice(0, limit);
   }
 
@@ -445,7 +445,7 @@ class AlertNotificationSystem {
 
     for (const alert of this.alertHistory) {
       stats.bySeverity[alert.severity] = (stats.bySeverity[alert.severity] || 0) + 1;
-      
+
       for (const channel of alert.channels) {
         stats.byChannel[channel] = (stats.byChannel[channel] || 0) + 1;
       }

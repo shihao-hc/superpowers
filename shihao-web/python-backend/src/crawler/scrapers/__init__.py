@@ -5,6 +5,7 @@ from .firecrawl_adapter import FirecrawlAdapter
 from .crawl4ai_adapter import Crawl4AIAdapter
 from .pydoll_adapter import PydollScraper
 from .seleniumbase_adapter import SeleniumBaseScraper
+from .stdlib_adapter import StdlibAdapter
 from .registry import ScraperRegistry, register_default_scrapers
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "Crawl4AIAdapter",
     "PydollScraper",
     "SeleniumBaseScraper",
+    "StdlibAdapter",
     "ScraperRegistry",
     "register_default_scrapers",
 ]

@@ -35,19 +35,19 @@ const MODEL_ALIASES = {
 class MultiModelManager extends EventEmitter {
   constructor(options = {}) {
     super();
-    
+
     this.client = options.client || new OpenClawClient(options);
     this.defaultModel = options.defaultModel || 'deepseek-web/deepseek-chat';
     this.currentModel = this.defaultModel;
-    
+
     this.models = [];
     this.providers = new Map();
     this.modelCache = new Map();
     this.cacheTTL = options.cacheTTL || 300000; // 5 分钟
-    
+
     this.initialized = false;
   }
-  
+
   /**
    * 初始化 - 获取模型列表
    */
@@ -64,17 +64,17 @@ class MultiModelManager extends EventEmitter {
       throw error;
     }
   }
-  
+
   /**
    * 构建提供商索引
    */
   _buildProviderIndex(models) {
     this.providers.clear();
-    
+
     for (const model of models) {
-      const [provider, ...rest] = model.id.split('/');
-      const providerId = provider.replace(/-web$|-api$/, '');
-      
+      const [provider, ..._rest] = model.id.split('/');
+      const _providerId = provider.replace(/-web$|-api$/, '');
+
       if (!this.providers.has(provider)) {
         this.providers.set(provider, {
           id: provider,
@@ -82,11 +82,11 @@ class MultiModelManager extends EventEmitter {
           models: []
         });
       }
-      
+
       this.providers.get(provider).models.push(model);
     }
   }
-  
+
   /**
    * 获取提供商显示名称
    */
@@ -105,7 +105,7 @@ class MultiModelManager extends EventEmitter {
     };
     return names[provider] || provider;
   }
-  
+
   /**
    * 解析模型 ID (支持别名)
    */
@@ -115,74 +115,74 @@ class MultiModelManager extends EventEmitter {
     if (MODEL_ALIASES[lower]) {
       return MODEL_ALIASES[lower];
     }
-    
+
     // 检查是否已经是完整 ID
-    if (this.models.find(m => m.id === input)) {
+    if (this.models.find((m) => m.id === input)) {
       return input;
     }
-    
+
     // 尝试模糊匹配
     for (const model of this.models) {
       if (model.id.includes(input) || model.id.toLowerCase().includes(lower)) {
         return model.id;
       }
     }
-    
+
     // 返回默认值
     return this.defaultModel;
   }
-  
+
   /**
    * 切换当前模型
    */
   async switchModel(modelId) {
     const resolvedId = this.resolveModelId(modelId);
-    const model = this.models.find(m => m.id === resolvedId);
-    
+    const model = this.models.find((m) => m.id === resolvedId);
+
     if (!model) {
       throw new Error(`Model not found: ${modelId}`);
     }
-    
+
     this.currentModel = resolvedId;
     this.emit('modelSwitched', { model: resolvedId, details: model });
     return model;
   }
-  
+
   /**
    * 获取当前模型
    */
   getCurrentModel() {
-    return this.models.find(m => m.id === this.currentModel);
+    return this.models.find((m) => m.id === this.currentModel);
   }
-  
+
   /**
    * 发送聊天消息
    */
   async chat(messages, options = {}) {
-    const modelId = options.model 
-      ? this.resolveModelId(options.model) 
+    const modelId = options.model
+      ? this.resolveModelId(options.model)
       : this.currentModel;
-    
+
     const response = await this.client.chatCompletion({
       model: modelId,
       messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens
     }, options.onChunk || null);
-    
+
     return response;
   }
-  
+
   /**
    * 发送流式聊天消息
    */
   async streamChat(messages, options = {}) {
-    const modelId = options.model 
-      ? this.resolveModelId(options.model) 
+    const modelId = options.model
+      ? this.resolveModelId(options.model)
       : this.currentModel;
-    
+
     const chunks = [];
-    
+
     await this.client.streamChatCompletion({
       model: modelId,
       messages,
@@ -195,17 +195,17 @@ class MultiModelManager extends EventEmitter {
         options.onChunk(chunk);
       }
     });
-    
+
     return this._mergeChunks(chunks);
   }
-  
+
   /**
    * 合并流式响应块
    */
   _mergeChunks(chunks) {
     let content = '';
     let reasoning = '';
-    
+
     for (const chunk of chunks) {
       const delta = chunk.choices?.[0]?.delta;
       if (delta?.content) {
@@ -215,31 +215,31 @@ class MultiModelManager extends EventEmitter {
         reasoning += delta.thinking || delta.reasoning;
       }
     }
-    
+
     return {
       content,
       reasoning,
       raw: chunks
     };
   }
-  
+
   /**
    * 简单的问答
    */
   async ask(prompt, options = {}) {
     const messages = [{ role: 'user', content: prompt }];
-    
+
     if (options.stream) {
       return this.streamChat(messages, options);
     }
-    
+
     const response = await this.chat(messages, options);
     return {
       content: response.choices?.[0]?.message?.content || '',
       raw: response
     };
   }
-  
+
   /**
    * AskOnce: 同时向多个模型提问
    */
@@ -247,7 +247,7 @@ class MultiModelManager extends EventEmitter {
     if (modelIds.length === 0) {
       modelIds = [this.currentModel];
     }
-    
+
     const results = await Promise.allSettled(
       modelIds.map(async (modelId) => {
         try {
@@ -267,17 +267,17 @@ class MultiModelManager extends EventEmitter {
         }
       })
     );
-    
-    return results.map(r => r.value || r.reason);
+
+    return results.map((r) => r.value || r.reason);
   }
-  
+
   /**
    * 获取提供商列表
    */
   getProviders() {
-    return Array.from(this.providers.values()).map(p => ({
+    return Array.from(this.providers.values()).map((p) => ({
       ...p,
-      models: p.models.map(m => ({
+      models: p.models.map((m) => ({
         id: m.id,
         name: m.name || m.id,
         contextLength: m.context_length,
@@ -285,7 +285,7 @@ class MultiModelManager extends EventEmitter {
       }))
     }));
   }
-  
+
   /**
    * 获取模型列表 (带缓存)
    */
@@ -295,38 +295,38 @@ class MultiModelManager extends EventEmitter {
     }
     return this.initialize();
   }
-  
+
   /**
    * 按类型筛选模型
    */
   filterModels(criteria) {
-    return this.models.filter(model => {
+    return this.models.filter((model) => {
       if (criteria.provider) {
-        if (!model.id.startsWith(criteria.provider)) return false;
+        if (!model.id.startsWith(criteria.provider)) {return false;}
       }
       if (criteria.contextLength) {
-        if ((model.context_length || 0) < criteria.contextLength) return false;
+        if ((model.context_length || 0) < criteria.contextLength) {return false;}
       }
       if (criteria.features) {
         for (const feature of criteria.features) {
-          if (!model.supported_features?.includes(feature)) return false;
+          if (!model.supported_features?.includes(feature)) {return false;}
         }
       }
       return true;
     });
   }
-  
+
   /**
    * 搜索模型
    */
   searchModels(query) {
     const lower = query.toLowerCase();
-    return this.models.filter(model => 
+    return this.models.filter((model) =>
       model.id.toLowerCase().includes(lower) ||
       (model.name && model.name.toLowerCase().includes(lower))
     );
   }
-  
+
   /**
    * 获取统计信息
    */
@@ -361,9 +361,9 @@ function getMultiModelManager(options) {
   return defaultManager;
 }
 
-module.exports = { 
-  MultiModelManager, 
-  createMultiModelManager, 
+module.exports = {
+  MultiModelManager,
+  createMultiModelManager,
   getMultiModelManager,
   DEFAULT_PROVIDERS,
   MODEL_ALIASES

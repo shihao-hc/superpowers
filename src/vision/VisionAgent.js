@@ -31,20 +31,20 @@ class VisionAgent {
     try {
       const parsed = new URL(url);
       const hostname = parsed.hostname.toLowerCase();
-      
+
       if (BLOCKED_HOSTS.includes(hostname)) {
         return true;
       }
-      
-      if (/^10\.\d+\.\d+\.\d+$/.test(hostname)) return true;
-      if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)) return true;
-      if (/^192\.168\.\d+\.\d+$/.test(hostname)) return true;
-      
+
+      if (/^10\.\d+\.\d+\.\d+$/.test(hostname)) {return true;}
+      if (/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)) {return true;}
+      if (/^192\.168\.\d+\.\d+$/.test(hostname)) {return true;}
+
       const ip = await dns.lookup(hostname).catch(() => null);
       if (ip && BLOCKED_IPS.includes(ip.address)) {
         return true;
       }
-      
+
       return false;
     } catch {
       return true;
@@ -54,7 +54,7 @@ class VisionAgent {
   async checkAvailable() {
     try {
       const models = await this._request('/api/tags', 'GET');
-      const hasVision = models.models?.some(m => 
+      const hasVision = models.models?.some((m) =>
         ['llava', 'moondream', 'bakllava', 'llava-llama3'].includes(m.name)
       );
       this.enabled = hasVision;
@@ -69,19 +69,19 @@ class VisionAgent {
     const normalized = path.normalize(filePath);
     const forbidden = ['.env', '.git', 'node_modules', '.ssh', '.config'];
     const normalizedLower = normalized.toLowerCase();
-    
+
     for (const dir of forbidden) {
-      if (normalizedLower.includes(path.sep + dir.toLowerCase() + path.sep) || 
+      if (normalizedLower.includes(path.sep + dir.toLowerCase() + path.sep) ||
           normalizedLower.endsWith(path.sep + dir.toLowerCase())) {
         return false;
       }
     }
-    
+
     const stats = fs.statSync(normalized);
     if (stats.size > this.maxFileSize) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -95,7 +95,7 @@ class VisionAgent {
 
     try {
       let imageBase64;
-      
+
       if (imagePath.startsWith('data:')) {
         imageBase64 = imagePath;
       } else if (fs.existsSync(imagePath)) {
@@ -114,7 +114,7 @@ class VisionAgent {
       }
 
       const model = await this._getVisionModel();
-      
+
       const result = await this._request('/api/generate', 'POST', {
         model: model,
         prompt: question,
@@ -146,7 +146,7 @@ class VisionAgent {
 
     try {
       const model = await this._getVisionModel();
-      
+
       const result = await this._request('/api/generate', 'POST', {
         model: model,
         prompt: question,
@@ -165,19 +165,19 @@ class VisionAgent {
   }
 
   async detectObjects(imagePath) {
-    return this.analyzeImage(imagePath, 
+    return this.analyzeImage(imagePath,
       '列出图中所有可识别的物体，用逗号分隔'
     );
   }
 
   async readText(imagePath) {
-    return this.analyzeImage(imagePath, 
+    return this.analyzeImage(imagePath,
       '如果图中有文字，请识别并输出所有文字内容'
     );
   }
 
   async analyzeGameScreen(imagePath) {
-    return this.analyzeImage(imagePath, 
+    return this.analyzeImage(imagePath,
       `这是一个游戏截图。请分析:
 1. 游戏类型
 2. 当前游戏状态
@@ -190,15 +190,15 @@ class VisionAgent {
   async _getVisionModel() {
     try {
       const models = await this._request('/api/tags', 'GET');
-      
+
       const visionModels = ['bakllava:latest', 'llava:latest', 'llava:7b', 'moondream:latest'];
-      
+
       for (const model of visionModels) {
-        if (models.models?.some(m => m.name === model || m.name === model.replace(':latest', ''))) {
+        if (models.models?.some((m) => m.name === model || m.name === model.replace(':latest', ''))) {
           return model;
         }
       }
-      
+
       return this.fallbackModel;
     } catch {
       return this.fallbackModel;
@@ -208,15 +208,15 @@ class VisionAgent {
   async _downloadAndEncode(url) {
     return new Promise((resolve, reject) => {
       const client = url.startsWith('https') ? https : http;
-      
+
       client.get(url, (res) => {
         if (res.statusCode !== 200) {
           reject(new Error(`HTTP ${res.statusCode}`));
           return;
         }
-        
+
         const chunks = [];
-        res.on('data', chunk => chunks.push(chunk));
+        res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           const buffer = Buffer.concat(chunks);
           const mime = res.headers['content-type'] || 'image/jpeg';
@@ -230,7 +230,7 @@ class VisionAgent {
   _request(endpoint, method = 'GET', body = null) {
     return new Promise((resolve, reject) => {
       const url = new URL(endpoint, this.ollamaHost);
-      
+
       const options = {
         hostname: url.hostname,
         port: url.port,
@@ -242,10 +242,10 @@ class VisionAgent {
       };
 
       const client = url.protocol === 'https:' ? https : http;
-      
+
       const req = client.request(options, (res) => {
         const chunks = [];
-        res.on('data', chunk => chunks.push(chunk));
+        res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           try {
             const data = JSON.parse(Buffer.concat(chunks).toString());

@@ -6,12 +6,12 @@
 const crypto = require('crypto');
 
 class AuditIntegrator {
-  constructor(options = {}) {
+  constructor(_options = {}) {
     this.integrations = new Map();
     this.auditJobs = new Map();
     this.certifications = new Map();
     this.evidencePackages = new Map();
-    
+
     this._initIntegrations();
   }
 
@@ -125,7 +125,7 @@ class AuditIntegrator {
 
   // Get available integrations
   getIntegrations() {
-    return Array.from(this.integrations.values()).map(i => ({
+    return Array.from(this.integrations.values()).map((i) => ({
       id: i.id,
       name: i.name,
       type: i.type,
@@ -196,7 +196,7 @@ class AuditIntegrator {
     try {
       // Simulate sync operation
       await this._simulateSync(integration, data);
-      
+
       syncJob.status = 'completed';
       syncJob.completedAt = Date.now();
       syncJob.recordsSynced = Math.floor(Math.random() * 1000) + 100;
@@ -219,14 +219,14 @@ class AuditIntegrator {
     }
   }
 
-  async _simulateSync(integration, data) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  async _simulateSync(_integration, _data) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   // Generate evidence package for audit
   generateEvidencePackage(certification) {
     const packageId = `evidence_${Date.now()}`;
-    
+
     const evidence = {
       id: packageId,
       certification,
@@ -325,28 +325,28 @@ class AuditIntegrator {
       ...certification,
       status: 'active',
       issuedAt: Date.now(),
-      expiresAt: certification.validFor 
-        ? Date.now() + certification.validFor * 24 * 60 * 60 * 1000 
+      expiresAt: certification.validFor
+        ? Date.now() + certification.validFor * 24 * 60 * 60 * 1000
         : Date.now() + 365 * 24 * 60 * 60 * 1000,
       auditTrail: []
     };
 
     this.certifications.set(cert.id, cert);
-    
+
     return cert;
   }
 
   // Get certifications
   getCertifications(filters = {}) {
     let certs = Array.from(this.certifications.values());
-    
+
     if (filters.status) {
-      certs = certs.filter(c => c.status === filters.status);
+      certs = certs.filter((c) => c.status === filters.status);
     }
     if (filters.type) {
-      certs = certs.filter(c => c.type === filters.type);
+      certs = certs.filter((c) => c.type === filters.type);
     }
-    
+
     return certs;
   }
 
@@ -378,7 +378,7 @@ class AuditIntegrator {
     const data = {
       exportedAt: Date.now(),
       organization: 'UltraWork AI',
-      certifications: certification 
+      certifications: certification
         ? [this.certifications.get(certification)]
         : Array.from(this.certifications.values()),
       evidencePackages: Array.from(this.evidencePackages.values()).slice(-10)
@@ -394,33 +394,33 @@ class AuditIntegrator {
   _exportToCSV(data) {
     const headers = ['Certification ID', 'Type', 'Status', 'Issued', 'Expires'];
     const rows = data.certifications
-      .filter(c => c)
-      .map(c => [
+      .filter((c) => c)
+      .map((c) => [
         c.id,
         c.type,
         c.status,
         new Date(c.issuedAt).toISOString(),
         new Date(c.expiresAt).toISOString()
       ]);
-    
-    return [headers, ...rows].map(r => r.join(',')).join('\n');
+
+    return [headers, ...rows].map((r) => r.join(',')).join('\n');
   }
 
   // Generate compliance summary for auditors
   generateAuditorSummary() {
     const certs = Array.from(this.certifications.values());
-    
+
     return {
       organization: 'UltraWork AI',
       generatedAt: Date.now(),
       summary: {
         totalCertifications: certs.length,
-        activeCertifications: certs.filter(c => c.status === 'active').length,
-        expiringIn90Days: certs.filter(c => 
-          c.status === 'active' && 
+        activeCertifications: certs.filter((c) => c.status === 'active').length,
+        expiringIn90Days: certs.filter((c) =>
+          c.status === 'active' &&
           c.expiresAt - Date.now() < 90 * 24 * 60 * 60 * 1000
         ).length,
-        complianceFrameworks: [...new Set(certs.map(c => c.type))]
+        complianceFrameworks: [...new Set(certs.map((c) => c.type))]
       },
       controls: {
         total: 150,
@@ -434,7 +434,7 @@ class AuditIntegrator {
         medium: 3,
         low: 5
       },
-      integrations: this.getIntegrations().map(i => ({
+      integrations: this.getIntegrations().map((i) => ({
         name: i.name,
         status: i.credentials ? 'configured' : 'not_configured'
       }))
@@ -457,14 +457,14 @@ class AuditIntegrator {
     };
 
     switch (payload.type) {
-      case 'assessment.completed':
-        return this._handleAssessmentCompleted(webhook);
-      case 'finding.created':
-        return this._handleFindingCreated(webhook);
-      case 'evidence.requested':
-        return this._handleEvidenceRequested(webhook);
-      default:
-        return { received: true, action: 'logged' };
+    case 'assessment.completed':
+      return this._handleAssessmentCompleted(webhook);
+    case 'finding.created':
+      return this._handleFindingCreated(webhook);
+    case 'evidence.requested':
+      return this._handleEvidenceRequested(webhook);
+    default:
+      return { received: true, action: 'logged' };
     }
   }
 

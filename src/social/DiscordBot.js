@@ -29,7 +29,7 @@ class DiscordBot {
   }
 
   sanitizeInput(text, maxLength = 1800) {
-    if (!text) return '';
+    if (!text) {return '';}
     return String(text).substring(0, maxLength).trim();
   }
 
@@ -67,21 +67,21 @@ class DiscordBot {
     });
 
     this.client.on('messageCreate', async (message) => {
-      if (message.author.bot) return;
-      
+      if (message.author.bot) {return;}
+
       const userId = message.author.id;
       const userRecord = this.typingUsers.get(userId);
       if (userRecord && Date.now() < userRecord.expiresAt) {
-        await message.channel.send({ 
-          embeds: [this.createEmbed('提示', '你已经有一个问题在处理中了哦~', 'warning')] 
-        }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 3000));
+        await message.channel.send({
+          embeds: [this.createEmbed('提示', '你已经有一个问题在处理中了哦~', 'warning')]
+        }).then((msg) => setTimeout(() => msg.delete().catch(() => {}), 3000));
         return;
       }
-      
-      if (!message.content.startsWith(this.prefix)) return;
+
+      if (!message.content.startsWith(this.prefix)) {return;}
 
       this.typingUsers.set(userId, { expiresAt: Date.now() + this.TYPING_TIMEOUT });
-      
+
       const rawContent = this.sanitizeInput(message.content, this.MAX_MESSAGE_LENGTH + this.prefix.length);
       const args = rawContent.slice(this.prefix.length).trim().split(/ +/);
       const commandName = args.shift().toLowerCase();
@@ -91,12 +91,12 @@ class DiscordBot {
     });
 
     this.client.on('messageReactionAdd', async (reaction, user) => {
-      if (user.bot) return;
+      if (user.bot) {return;}
       await this.handleReaction(reaction, user, 'add');
     });
 
     this.client.on('messageReactionRemove', async (reaction, user) => {
-      if (user.bot) return;
+      if (user.bot) {return;}
       await this.handleReaction(reaction, user, 'remove');
     });
 
@@ -105,7 +105,7 @@ class DiscordBot {
     });
 
     await this.client.login(this.token);
-    
+
     setInterval(() => {
       const now = Date.now();
       let cleaned = 0;
@@ -115,7 +115,7 @@ class DiscordBot {
           cleaned++;
         }
       }
-      if (cleaned > 0) console.log(`[DiscordBot] Cleaned up ${cleaned} typing records`);
+      if (cleaned > 0) {console.log(`[DiscordBot] Cleaned up ${cleaned} typing records`);}
     }, 60000);
   }
 
@@ -125,11 +125,11 @@ class DiscordBot {
       .setDescription(description)
       .setColor(this.embedColors[color] || this.embedColors.primary)
       .setTimestamp();
-    
+
     if (fields.length > 0) {
-      embed.addFields(fields.map(f => ({ name: f.name, value: f.value, inline: f.inline || false })));
+      embed.addFields(fields.map((f) => ({ name: f.name, value: f.value, inline: f.inline || false })));
     }
-    
+
     return embed;
   }
 
@@ -142,12 +142,12 @@ class DiscordBot {
       'link': ButtonStyle.Link
     };
     const buttonStyle = styleMap[style.toLowerCase()] || ButtonStyle.Primary;
-    
+
     const button = new ButtonBuilder()
       .setCustomId(String(id).substring(0, 100))
       .setLabel(String(label).substring(0, 80))
       .setStyle(buttonStyle);
-    if (emoji) button.setEmoji(emoji);
+    if (emoji) {button.setEmoji(emoji);}
     return button;
   }
 
@@ -340,10 +340,10 @@ class DiscordBot {
 
   async handleSlashCommand(interaction) {
     const { commandName } = interaction;
-    
+
     const ADMIN_COMMANDS = ['personality', 'memory', 'game'];
     const GAME_COMMANDS = ['game'];
-    
+
     if (ADMIN_COMMANDS.includes(commandName)) {
       const action = interaction.options.getString('action');
       if (GAME_COMMANDS.includes(commandName) && ['connect', 'disconnect'].includes(action)) {
@@ -368,70 +368,67 @@ class DiscordBot {
 
     try {
       switch (commandName) {
-        case 'help':
-          await this.cmdHelp(interaction);
-          break;
-        case 'ping':
-          await this.cmdPing(interaction);
-          break;
-        case 'status':
-          await this.cmdStatus(interaction);
-          break;
-        case 'chat':
-          await this.cmdChat(interaction);
-          break;
-        case 'personality':
-          await this.cmdPersonality(interaction);
-          break;
-        case 'memory':
-          await this.cmdMemory(interaction);
-          break;
-        case 'game':
-          await this.cmdGame(interaction);
-          break;
-        case 'roll':
-          await this.cmdRoll(interaction);
-          break;
-        case '8ball':
-          await this.cmd8Ball(interaction);
-          break;
-        case 'avatar':
-          await this.cmdAvatar(interaction);
-          break;
-        case 'userinfo':
-          await this.cmdUserInfo(interaction);
-          break;
-        case 'serverinfo':
-          await this.cmdServerInfo(interaction);
-          break;
-        case 'poll':
-          await this.cmdPoll(interaction);
-          break;
+      case 'help':
+        await this.cmdHelp(interaction);
+        break;
+      case 'ping':
+        await this.cmdPing(interaction);
+        break;
+      case 'status':
+        await this.cmdStatus(interaction);
+        break;
+      case 'chat':
+        await this.cmdChat(interaction);
+        break;
+      case 'personality':
+        await this.cmdPersonality(interaction);
+        break;
+      case 'memory':
+        await this.cmdMemory(interaction);
+        break;
+      case 'game':
+        await this.cmdGame(interaction);
+        break;
+      case 'roll':
+        await this.cmdRoll(interaction);
+        break;
+      case '8ball':
+        await this.cmd8Ball(interaction);
+        break;
+      case 'avatar':
+        await this.cmdAvatar(interaction);
+        break;
+      case 'userinfo':
+        await this.cmdUserInfo(interaction);
+        break;
+      case 'serverinfo':
+        await this.cmdServerInfo(interaction);
+        break;
+      case 'poll':
+        await this.cmdPoll(interaction);
+        break;
       }
     } catch (error) {
       console.error(`[DiscordBot] Command error: ${error.message}`);
-      await interaction.reply({ 
+      await interaction.reply({
         embeds: [this.createEmbed('错误', '执行命令时出错了', 'danger')],
-        ephemeral: true 
+        ephemeral: true
       });
     }
   }
 
-  isAdmin(interaction) {
-    const adminRoleIds = (process.env.DISCORD_ADMIN_ROLES || '').split(',').filter(r => r.trim());
-    if (adminRoleIds.length === 0) return true;
-    
-    const member = interaction.member;
-    if (!member) return false;
-    
-    if (member.permissions?.has('Administrator')) return true;
-    
-    return member.roles?.cache?.some(role => adminRoleIds.includes(role.id)) || false;
+  isAdmin(context) {
+    const member = context.member;
+    if (!member) {return false;}
+    if (member.permissions?.has('Administrator')) {return true;}
+    const adminRoleIds = (process.env.DISCORD_ADMIN_ROLES || '').split(',').filter((r) => r.trim());
+    if (adminRoleIds.length === 0) {return true;}
+    return member.roles?.cache?.some((role) => adminRoleIds.includes(role.id)) || false;
   }
 
   async cmdHelp(interaction) {
     const command = interaction.options.getString('command');
-    
+
     const helpData = {
       general: {
         title: '📚 通用命令',
@@ -477,7 +474,7 @@ class DiscordBot {
 
     if (command) {
       for (const category of Object.values(helpData)) {
-        const found = category.commands.find(c => c.includes(`/${command}`));
+        const found = category.commands.find((c) => c.includes(`/${command}`));
         if (found) {
           await interaction.reply({
             embeds: [this.createEmbed(`帮助: /${command}`, found, 'info')],
@@ -494,12 +491,12 @@ class DiscordBot {
     }
 
     const embed = this.createEmbed('🤖 UltraWork AI 帮助菜单', '选择一个分类查看命令');
-    
+
     for (const cat of Object.values(helpData)) {
-      embed.addFields({ 
-        name: cat.title, 
-        value: cat.commands.join('\n'), 
-        inline: true 
+      embed.addFields({
+        name: cat.title,
+        value: cat.commands.join('\n'),
+        inline: true
       });
     }
 
@@ -509,12 +506,12 @@ class DiscordBot {
   async cmdPing(interaction) {
     const ping = Date.now() - interaction.createdTimestamp;
     const apiPing = this.client.ws.ping;
-    
+
     const embed = this.createEmbed('🏓 Pong!', '', 'success', [
       { name: '延迟', value: `${ping}ms`, inline: true },
       { name: 'API延迟', value: `${apiPing}ms`, inline: true }
     ]);
-    
+
     await interaction.reply({ embeds: [embed] });
   }
 
@@ -522,25 +519,25 @@ class DiscordBot {
     const router = this.agents.router;
     const memory = this.agents.memory;
     const pm = this.agents.pm;
-    
+
     const fields = [
       { name: '状态', value: '🟢 在线', inline: true },
       { name: '服务器', value: `${this.client.guilds.cache.size} 个`, inline: true }
     ];
-    
+
     if (router) {
       fields.push({ name: 'AI引擎', value: 'Ollama', inline: true });
     }
-    
+
     if (pm) {
       fields.push({ name: '当前人格', value: pm.activeName || '未知', inline: true });
     }
-    
+
     if (memory && memory.getStats) {
       const stats = memory.getStats();
       fields.push({ name: '记忆条目', value: `${stats.count || 0}`, inline: true });
     }
-    
+
     await interaction.reply({
       embeds: [this.createEmbed('📊 系统状态', '', 'info', fields)]
     });
@@ -548,9 +545,9 @@ class DiscordBot {
 
   async cmdChat(interaction) {
     const message = this.sanitizeInput(interaction.options.getString('message'), this.MAX_CHAT_LENGTH);
-    
+
     await interaction.deferReply();
-    
+
     try {
       const router = this.agents.router;
       if (router) {
@@ -574,7 +571,7 @@ class DiscordBot {
     const action = interaction.options.getString('action');
     const name = interaction.options.getString('name');
     const pm = this.agents.pm;
-    
+
     if (!pm) {
       await interaction.reply({
         embeds: [this.createEmbed('错误', '人格系统未配置', 'danger')],
@@ -582,56 +579,56 @@ class DiscordBot {
       });
       return;
     }
-    
+
     switch (action) {
-      case 'list': {
-        const personalities = Object.keys(pm.personalities || {});
-        const list = personalities.map(p => {
-          const isActive = p === pm.activeName;
-          return `${isActive ? '🟢' : '⚪'} **${p}**`;
-        }).join('\n');
-        
+    case 'list': {
+      const personalities = Object.keys(pm.personalities || {});
+      const list = personalities.map((p) => {
+        const isActive = p === pm.activeName;
+        return `${isActive ? '🟢' : '⚪'} **${p}**`;
+      }).join('\n');
+
+      await interaction.reply({
+        embeds: [this.createEmbed('👥 人格列表', list, 'info')]
+      });
+      break;
+    }
+
+    case 'switch': {
+      if (!name) {
         await interaction.reply({
-          embeds: [this.createEmbed('👥 人格列表', list, 'info')]
+          embeds: [this.createEmbed('错误', '请指定人格名称', 'warning')],
+          ephemeral: true
         });
-        break;
+        return;
       }
-      
-      case 'switch': {
-        if (!name) {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', '请指定人格名称', 'warning')],
-            ephemeral: true
-          });
-          return;
-        }
-        
-        const success = pm.setActive(name);
-        if (success) {
-          await interaction.reply({
-            embeds: [this.createEmbed('✅ 已切换', `当前人格: **${name}**`, 'success')]
-          });
-        } else {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', `未找到人格: ${name}`, 'danger')],
-            ephemeral: true
-          });
-        }
-        break;
-      }
-      
-      case 'current': {
-        const current = pm.getCurrentPersonality?.() || pm.active;
-        const mood = pm.getMood?.() || 'unknown';
-        
+
+      const success = pm.setActive(name);
+      if (success) {
         await interaction.reply({
-          embeds: [this.createEmbed('👤 当前人格', 
-            `**名称**: ${pm.activeName}\n**心情**: ${mood}\n**描述**: ${current?.description || '无'}`, 
-            'info'
-          )]
+          embeds: [this.createEmbed('✅ 已切换', `当前人格: **${name}**`, 'success')]
         });
-        break;
+      } else {
+        await interaction.reply({
+          embeds: [this.createEmbed('错误', `未找到人格: ${name}`, 'danger')],
+          ephemeral: true
+        });
       }
+      break;
+    }
+
+    case 'current': {
+      const current = pm.getCurrentPersonality?.() || pm.active;
+      const mood = pm.getMood?.() || 'unknown';
+
+      await interaction.reply({
+        embeds: [this.createEmbed('👤 当前人格',
+          `**名称**: ${pm.activeName}\n**心情**: ${mood}\n**描述**: ${current?.description || '无'}`,
+          'info'
+        )]
+      });
+      break;
+    }
     }
   }
 
@@ -641,7 +638,7 @@ class DiscordBot {
     const key = this.sanitizeInput(interaction.options.getString('key'), this.MAX_MEMORY_KEY_LENGTH);
     const value = this.sanitizeInput(interaction.options.getString('value'), this.MAX_MEMORY_VALUE_LENGTH);
     const memory = this.agents.memory;
-    
+
     if (!memory) {
       await interaction.reply({
         embeds: [this.createEmbed('错误', '记忆系统未配置', 'danger')],
@@ -649,110 +646,110 @@ class DiscordBot {
       });
       return;
     }
-    
+
     switch (action) {
-      case 'remember': {
-        const keyName = key;
-        const keyValue = value;
-        if (!keyName) {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', '请提供记忆键名', 'warning')],
-            ephemeral: true
-          });
-          return;
-        }
-        memory.remember(`discord_${interaction.user.id}_${keyName}`, {
-          value: keyValue || '',
-          user: interaction.user.tag,
-          createdAt: new Date().toISOString()
-        });
+    case 'remember': {
+      const keyName = key;
+      const keyValue = value;
+      if (!keyName) {
         await interaction.reply({
-          embeds: [this.createEmbed('✅ 已记住', `**${keyName}**: ${keyValue || '(空)'}`, 'success')]
+          embeds: [this.createEmbed('错误', '请提供记忆键名', 'warning')],
+          ephemeral: true
         });
-        break;
+        return;
       }
-      
-      case 'recall': {
-        if (!key) {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', '请提供记忆键名', 'warning')],
-            ephemeral: true
-          });
-          return;
-        }
-        let result = memory.retrieve(`discord_${interaction.user.id}_${key}`);
-        if (!result && this.isAdmin(interaction)) {
-          result = memory.retrieve(`discord_all_${key}`) || memory.retrieve(key);
-        }
-        if (result) {
-          const displayValue = typeof result === 'object' ? result.value : result;
-          await interaction.reply({
-            embeds: [this.createEmbed('📝 回忆', `**${key}**: ${displayValue}`, 'info')]
-          });
-        } else {
-          await interaction.reply({
-            embeds: [this.createEmbed('❌ 未找到', `没有找到记忆: ${key}`, 'warning')],
-            ephemeral: true
-          });
-        }
-        break;
-      }
-      
-      case 'list': {
-        const all = memory.dump?.() || {};
-        const userKeys = Object.keys(all).filter(k => k.startsWith(`discord_${interaction.user.id}_`));
-        const displayKeys = userKeys.slice(0, 10).map(k => k.replace(`discord_${interaction.user.id}_`, '')).join(', ') || '无';
+      memory.remember(`discord_${interaction.user.id}_${keyName}`, {
+        value: keyValue || '',
+        user: interaction.user.tag,
+        createdAt: new Date().toISOString()
+      });
+      await interaction.reply({
+        embeds: [this.createEmbed('✅ 已记住', `**${keyName}**: ${keyValue || '(空)'}`, 'success')]
+      });
+      break;
+    }
+
+    case 'recall': {
+      if (!key) {
         await interaction.reply({
-          embeds: [this.createEmbed('📋 我的记忆', `共 ${userKeys.length} 条记忆\n${displayKeys}`, 'info')]
+          embeds: [this.createEmbed('错误', '请提供记忆键名', 'warning')],
+          ephemeral: true
         });
-        break;
+        return;
       }
-      
-      case 'search': {
-        if (!query) {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', '请提供搜索关键词', 'warning')],
-            ephemeral: true
-          });
-          return;
-        }
-        
-        const results = memory.list?.({ query, pageSize: 10 }) || { entries: [] };
-        if (results.entries.length === 0) {
-          await interaction.reply({
-            embeds: [this.createEmbed('搜索结果', '没有找到相关记忆', 'info')]
-          });
-        } else {
-          const list = results.entries.slice(0, 5).map(e => `• ${e[0]}`).join('\n');
-          await interaction.reply({
-            embeds: [this.createEmbed('🔍 搜索结果', list, 'info')]
-          });
-        }
-        break;
+      let result = memory.retrieve(`discord_${interaction.user.id}_${key}`);
+      if (!result && this.isAdmin(interaction)) {
+        result = memory.retrieve(`discord_all_${key}`) || memory.retrieve(key);
       }
-      
-      case 'stats': {
-        const stats = memory.getStats?.() || { count: 0 };
+      if (result) {
+        const displayValue = typeof result === 'object' ? result.value : result;
         await interaction.reply({
-          embeds: [this.createEmbed('📊 记忆统计', `**总条目**: ${stats.count || 0}`, 'info')]
+          embeds: [this.createEmbed('📝 回忆', `**${key}**: ${displayValue}`, 'info')]
         });
-        break;
-      }
-      
-      case 'clear': {
-        if (!this.isAdmin(interaction)) {
-          await interaction.reply({
-            embeds: [this.createEmbed('权限不足', '只有管理员才能清空记忆', 'danger')],
-            ephemeral: true
-          });
-          return;
-        }
-        memory.remember?.('__cleared__', Date.now());
+      } else {
         await interaction.reply({
-          embeds: [this.createEmbed('✅ 已清空', '记忆已清空', 'success')]
+          embeds: [this.createEmbed('❌ 未找到', `没有找到记忆: ${key}`, 'warning')],
+          ephemeral: true
         });
-        break;
       }
+      break;
+    }
+
+    case 'list': {
+      const all = memory.dump?.() || {};
+      const userKeys = Object.keys(all).filter((k) => k.startsWith(`discord_${interaction.user.id}_`));
+      const displayKeys = userKeys.slice(0, 10).map((k) => k.replace(`discord_${interaction.user.id}_`, '')).join(', ') || '无';
+      await interaction.reply({
+        embeds: [this.createEmbed('📋 我的记忆', `共 ${userKeys.length} 条记忆\n${displayKeys}`, 'info')]
+      });
+      break;
+    }
+
+    case 'search': {
+      if (!query) {
+        await interaction.reply({
+          embeds: [this.createEmbed('错误', '请提供搜索关键词', 'warning')],
+          ephemeral: true
+        });
+        return;
+      }
+
+      const results = memory.list?.({ query, pageSize: 10 }) || { entries: [] };
+      if (results.entries.length === 0) {
+        await interaction.reply({
+          embeds: [this.createEmbed('搜索结果', '没有找到相关记忆', 'info')]
+        });
+      } else {
+        const list = results.entries.slice(0, 5).map((e) => `• ${e[0]}`).join('\n');
+        await interaction.reply({
+          embeds: [this.createEmbed('🔍 搜索结果', list, 'info')]
+        });
+      }
+      break;
+    }
+
+    case 'stats': {
+      const stats = memory.getStats?.() || { count: 0 };
+      await interaction.reply({
+        embeds: [this.createEmbed('📊 记忆统计', `**总条目**: ${stats.count || 0}`, 'info')]
+      });
+      break;
+    }
+
+    case 'clear': {
+      if (!this.isAdmin(interaction)) {
+        await interaction.reply({
+          embeds: [this.createEmbed('权限不足', '只有管理员才能清空记忆', 'danger')],
+          ephemeral: true
+        });
+        return;
+      }
+      memory.remember?.('__cleared__', Date.now());
+      await interaction.reply({
+        embeds: [this.createEmbed('✅ 已清空', '记忆已清空', 'success')]
+      });
+      break;
+    }
     }
   }
 
@@ -760,54 +757,54 @@ class DiscordBot {
     const action = interaction.options.getString('action');
     const command = interaction.options.getString('command');
     const game = this.agents.game;
-    
+
     switch (action) {
-      case 'status': {
-        if (game && game.getStatus) {
-          const status = game.getStatus();
-          await interaction.reply({
-            embeds: [this.createEmbed('🎮 游戏状态', 
-              `**连接**: ${status.connected ? '🟢 已连接' : '🔴 未连接'}\n**血量**: ${status.health || 0}/20`,
-              'info'
-            )]
-          });
-        } else {
-          await interaction.reply({
-            embeds: [this.createEmbed('游戏', '游戏模块未启用', 'warning')]
-          });
-        }
-        break;
-      }
-      
-      case 'command': {
-        if (!command) {
-          await interaction.reply({
-            embeds: [this.createEmbed('错误', '请提供命令', 'warning')],
-            ephemeral: true
-          });
-          return;
-        }
-        
+    case 'status': {
+      if (game && game.getStatus) {
+        const status = game.getStatus();
         await interaction.reply({
-          embeds: [this.createEmbed('⏳ 执行中', `正在执行: ${command}`, 'info')]
-        });
-        break;
-      }
-      
-      default:
-        await interaction.reply({
-          embeds: [this.createEmbed('🎮 游戏控制', 
-            '`/game status` - 状态\n`/game connect` - 连接\n`/game disconnect` - 断开\n`/game command <cmd>` - 命令',
+          embeds: [this.createEmbed('🎮 游戏状态',
+            `**连接**: ${status.connected ? '🟢 已连接' : '🔴 未连接'}\n**血量**: ${status.health || 0}/20`,
             'info'
           )]
         });
+      } else {
+        await interaction.reply({
+          embeds: [this.createEmbed('游戏', '游戏模块未启用', 'warning')]
+        });
+      }
+      break;
+    }
+
+    case 'command': {
+      if (!command) {
+        await interaction.reply({
+          embeds: [this.createEmbed('错误', '请提供命令', 'warning')],
+          ephemeral: true
+        });
+        return;
+      }
+
+      await interaction.reply({
+        embeds: [this.createEmbed('⏳ 执行中', `正在执行: ${command}`, 'info')]
+      });
+      break;
+    }
+
+    default:
+      await interaction.reply({
+        embeds: [this.createEmbed('🎮 游戏控制',
+          '`/game status` - 状态\n`/game connect` - 连接\n`/game disconnect` - 断开\n`/game command <cmd>` - 命令',
+          'info'
+        )]
+      });
     }
   }
 
   async cmdRoll(interaction) {
     const diceStr = interaction.options.getString('dice') || '1d6';
     const match = diceStr.match(/^(\d+)d(\d+)$/);
-    
+
     if (!match) {
       const roll = Math.floor(Math.random() * 6) + 1;
       await interaction.reply({
@@ -815,20 +812,20 @@ class DiscordBot {
       });
       return;
     }
-    
+
     const count = Math.min(parseInt(match[1]), 100);
     const sides = Math.min(parseInt(match[2]), 1000);
-    
+
     const rolls = [];
     for (let i = 0; i < count; i++) {
       rolls.push(Math.floor(Math.random() * sides) + 1);
     }
-    
+
     const total = rolls.reduce((a, b) => a + b, 0);
     const rollList = count <= 10 ? rolls.join(', ') : `${rolls.slice(0, 5).join(', ')}... (+${count - 5}个)`;
-    
+
     await interaction.reply({
-      embeds: [this.createEmbed('🎲 掷骰子', 
+      embeds: [this.createEmbed('🎲 掷骰子',
         `**${diceStr}**\n\n结果: ${rollList}\n\n**总计: ${total}**`,
         'success'
       )]
@@ -842,11 +839,11 @@ class DiscordBot {
       '不太确定', '问得好，我选择沉默', '看起来是这样',
       '别指望了', '肯定的！', '绝对不会', '也许是？', '我的答案是肯定的'
     ];
-    
+
     const answer = answers[Math.floor(Math.random() * answers.length)];
-    
+
     await interaction.reply({
-      embeds: [this.createEmbed('🎱 Magic 8 Ball', 
+      embeds: [this.createEmbed('🎱 Magic 8 Ball',
         `**问题**: ${question}\n\n**回答**: ${answer}`,
         'info'
       )]
@@ -855,33 +852,33 @@ class DiscordBot {
 
   async cmdAvatar(interaction) {
     const user = interaction.options.getUser('user') || interaction.user;
-    
+
     const embed = this.createEmbed(`${user.username} 的头像`, '', 'info')
       .setImage(user.displayAvatarURL({ size: 512, dynamic: true }))
       .setThumbnail(user.displayAvatarURL({ size: 128, dynamic: true }));
-    
+
     await interaction.reply({ embeds: [embed] });
   }
 
   async cmdUserInfo(interaction) {
     const user = interaction.options.getUser('user') || interaction.user;
     const member = await interaction.guild?.members.fetch(user.id);
-    
+
     const fields = [
       { name: '用户名', value: user.username, inline: true },
       { name: 'ID', value: user.id, inline: true },
       { name: '加入Discord', value: new Date(user.createdTimestamp).toLocaleDateString('zh-CN'), inline: true }
     ];
-    
+
     if (member) {
       fields.push({ name: '加入服务器', value: new Date(member.joinedTimestamp).toLocaleDateString('zh-CN'), inline: true });
       fields.push({ name: '昵称', value: member.nickname || '无', inline: true });
-      fields.push({ name: '角色', value: member.roles.cache.map(r => r.name).filter(n => n !== '@everyone').join(', ') || '无', inline: false });
+      fields.push({ name: '角色', value: member.roles.cache.map((r) => r.name).filter((n) => n !== '@everyone').join(', ') || '无', inline: false });
     }
-    
+
     const embed = this.createEmbed(`${user.username} 的信息`, '', 'info', fields)
       .setThumbnail(user.displayAvatarURL({ size: 128, dynamic: true }));
-    
+
     await interaction.reply({ embeds: [embed] });
   }
 
@@ -894,7 +891,7 @@ class DiscordBot {
       });
       return;
     }
-    
+
     const fields = [
       { name: '服务器名', value: guild.name, inline: true },
       { name: '成员数', value: `${guild.memberCount}`, inline: true },
@@ -903,18 +900,18 @@ class DiscordBot {
       { name: '角色数', value: `${guild.roles.cache.size}`, inline: true },
       { name: 'Emoji数', value: `${guild.emojis.cache.size}`, inline: true }
     ];
-    
+
     const embed = this.createEmbed(`📊 ${guild.name}`, '', 'info', fields)
       .setThumbnail(guild.iconURL({ size: 128, dynamic: true }));
-    
+
     await interaction.reply({ embeds: [embed] });
   }
 
   async cmdPoll(interaction) {
     const question = interaction.options.getString('question');
     const optionsStr = interaction.options.getString('options');
-    const options = optionsStr.split(',').map(o => o.trim()).slice(0, 10);
-    
+    const options = optionsStr.split(',').map((o) => o.trim()).slice(0, 10);
+
     if (options.length < 2) {
       await interaction.reply({
         embeds: [this.createEmbed('错误', '至少需要2个选项', 'warning')],
@@ -922,26 +919,26 @@ class DiscordBot {
       });
       return;
     }
-    
+
     const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
     const pollText = options.map((opt, i) => `${emojis[i]} ${opt}`).join('\n');
-    
-    const embed = this.createEmbed('📊 投票', 
+
+    const embed = this.createEmbed('📊 投票',
       `**${question}**\n\n${pollText}\n\n*由 ${interaction.user} 创建*`,
       'info'
     );
-    
+
     const row = new ActionRowBuilder().addComponents(
       options.slice(0, 5).map((_, i) => this.createButton(`poll_${i}`, '', 'success', emojis[i])),
       options.slice(5, 10).map((_, i) => this.createButton(`poll_${i + 5}`, '', 'success', emojis[i + 5]))
     );
-    
+
     await interaction.reply({ embeds: [embed], components: [row] });
   }
 
   async handleButton(interaction) {
     const [type, ...args] = interaction.customId.split('_');
-    
+
     if (type === 'poll') {
       await interaction.reply({
         embeds: [this.createEmbed('✅ 已投票', `你选择了选项 ${parseInt(args[0]) + 1}`, 'success')],
@@ -957,14 +954,14 @@ class DiscordBot {
     });
   }
 
-  async handleReaction(reaction, user, action) {
+  async handleReaction(_reaction, _user, _action) {
     // 可以添加反应处理逻辑
   }
 
   async handleCommand(message, commandName, args) {
     const memory = this.agents.memory;
     const pm = this.agents.pm;
-    
+
     if (commandName === 'remember' || commandName === 'r') {
       if (!memory) {
         await message.reply('记忆系统未配置');
@@ -984,7 +981,7 @@ class DiscordBot {
       await message.reply(`✅ 已记住: ${key}`);
       return;
     }
-    
+
     if (commandName === 'recall' || commandName === 'rc') {
       if (!memory) {
         await message.reply('记忆系统未配置');
@@ -995,7 +992,7 @@ class DiscordBot {
         await message.reply('用法: !recall <key>');
         return;
       }
-      const result = memory.retrieve(`discord_${message.author.id}_${key}`) || 
+      const result = memory.retrieve(`discord_${message.author.id}_${key}`) ||
                      memory.retrieve(`discord_all_${key}`) ||
                      memory.retrieve(key);
       if (result) {
@@ -1006,7 +1003,7 @@ class DiscordBot {
       }
       return;
     }
-    
+
     if (commandName === 'forget') {
       if (!memory) {
         await message.reply('记忆系统未配置');
@@ -1023,7 +1020,7 @@ class DiscordBot {
       await message.reply(`🗑️ 已忘记: ${key}`);
       return;
     }
-    
+
     if (commandName === 'memories' || commandName === 'mlist') {
       if (!memory) {
         await message.reply('记忆系统未配置');
@@ -1031,11 +1028,11 @@ class DiscordBot {
       }
       const stats = memory.getStats?.() || { count: 0 };
       const all = memory.dump?.() || {};
-      const userKeys = Object.keys(all).filter(k => k.startsWith(`discord_${message.author.id}_`));
+      const userKeys = Object.keys(all).filter((k) => k.startsWith(`discord_${message.author.id}_`));
       await message.reply(`📊 记忆统计:\n- 总条目: ${stats.count || 0}\n- 你的记忆: ${userKeys.length}`);
       return;
     }
-    
+
     if (commandName === 'setglobal' && this.isAdmin(message)) {
       if (!memory || !args[0] || !args[1]) {
         await message.reply('用法: !setglobal <key> <value>');
@@ -1049,25 +1046,25 @@ class DiscordBot {
       await message.reply(`✅ 已设置全局记忆: ${args[0]}`);
       return;
     }
-    
+
     if (commandName === 'personality' || commandName === 'p') {
       if (!pm) {
         await message.reply('人格系统未配置');
         return;
       }
-      
+
       const sub = args[0]?.toLowerCase();
-      
+
       if (sub === 'list' || sub === 'ls') {
         const personalities = Object.keys(pm.personalities || {});
-        const list = personalities.map(p => {
+        const list = personalities.map((p) => {
           const isActive = p === pm.activeName;
           return `${isActive ? '🟢' : '⚪'} **${p}**`;
         }).join('\n');
         await message.reply({ embeds: [this.createEmbed('👥 人格列表', list, 'info')] });
         return;
       }
-      
+
       if (sub === 'switch' || sub === 'set') {
         const name = args[1];
         if (!name) {
@@ -1082,17 +1079,17 @@ class DiscordBot {
         }
         return;
       }
-      
+
       if (sub === 'current' || sub === 'now') {
         const mood = pm.getMood?.() || 'unknown';
         await message.reply(`当前人格: **${pm.activeName}** | 心情: ${mood}`);
         return;
       }
-      
+
       await message.reply('用法:\n!personality list - 查看列表\n!personality switch <name> - 切换\n!personality current - 当前人格');
       return;
     }
-    
+
     const command = this.commands.get(commandName);
     if (command) {
       try {
@@ -1104,13 +1101,6 @@ class DiscordBot {
     } else {
       await this.handleChat(message, args.join(' '));
     }
-  }
-  
-  isAdmin(message) {
-    if (!message.member) return false;
-    if (message.member.permissions?.has('Administrator')) return true;
-    const adminRoleIds = (process.env.DISCORD_ADMIN_ROLES || '').split(',').filter(r => r.trim());
-    return message.member.roles?.cache?.some(role => adminRoleIds.includes(role.id)) || false;
   }
 
   registerCommand(name, command) {
@@ -1132,7 +1122,7 @@ class DiscordBot {
     try {
       const router = this.agents.router;
       const memory = this.agents.memory;
-      
+
       if (memory) {
         const now = Date.now();
         const userRecord = this.userMemoryCounts.get(message.author.id) || { count: 0, windowStart: now };
@@ -1152,7 +1142,7 @@ class DiscordBot {
           this.userMemoryCounts.set(message.author.id, userRecord);
         }
       }
-      
+
       if (router) {
         const result = await router.routeMessage(sanitizedText);
         const reply = this.sanitizeInput(result.reply, this.MAX_MESSAGE_LENGTH);
@@ -1167,7 +1157,7 @@ class DiscordBot {
   }
 
   async sendDM(userId, content) {
-    if (!this.client) return;
+    if (!this.client) {return;}
     try {
       const user = await this.client.users.fetch(userId);
       if (user) {
@@ -1179,12 +1169,12 @@ class DiscordBot {
   }
 
   async broadcast(content, channelId = null) {
-    if (!this.client) return;
-    
+    if (!this.client) {return;}
+
     try {
       if (channelId) {
         const channel = await this.client.channels.fetch(channelId);
-        if (channel) await channel.send(content);
+        if (channel) {await channel.send(content);}
       } else {
         for (const guild of this.client.guilds.cache.values()) {
           if (guild.systemChannel) {
@@ -1198,7 +1188,7 @@ class DiscordBot {
   }
 
   async sendToChannel(channelId, embed) {
-    if (!this.client) return;
+    if (!this.client) {return;}
     try {
       const channel = await this.client.channels.fetch(channelId);
       if (channel) {
@@ -1215,56 +1205,56 @@ class DiscordBot {
 
   notifyGameEvent(eventType, data) {
     const gameChannelId = process.env.DISCORD_GAME_CHANNEL;
-    if (!gameChannelId) return;
-    
+    if (!gameChannelId) {return;}
+
     const eventMessages = {
       'hurt': `🎮 **游戏事件**: 机器人在游戏中受伤了！当前血量: ${data.health || 0}/20`,
-      'died': `💀 **游戏事件**: 呜呜...机器人在游戏中死掉了...`,
+      'died': '💀 **游戏事件**: 呜呜...机器人在游戏中死掉了...',
       'playerJoined': `👋 **游戏事件**: 玩家 ${data.player} 加入了服务器`,
       'playerLeft': `👋 **游戏事件**: 玩家 ${data.player} 离开了服务器`,
-      'connected': `🟢 **游戏事件**: 机器人已连接到游戏服务器`,
-      'disconnected': `🔴 **游戏事件**: 机器人已断开与游戏服务器的连接`,
+      'connected': '🟢 **游戏事件**: 机器人已连接到游戏服务器',
+      'disconnected': '🔴 **游戏事件**: 机器人已断开与游戏服务器的连接',
       'lowHealth': `⚠️ **警告**: 机器人血量过低 (${data.health}/20)！`,
-      'foundTreasure': `💎 **游戏事件**: 发现珍宝！`
+      'foundTreasure': '💎 **游戏事件**: 发现珍宝！'
     };
-    
+
     const message = eventMessages[eventType];
     if (message) {
-      const embed = this.createEmbed('🎮 游戏联动', message, 
-        eventType === 'died' || eventType === 'lowHealth' ? 'danger' : 
-        eventType === 'connected' ? 'success' : 'info'
+      const embed = this.createEmbed('🎮 游戏联动', message,
+        eventType === 'died' || eventType === 'lowHealth' ? 'danger' :
+          eventType === 'connected' ? 'success' : 'info'
       );
       this.sendToChannel(gameChannelId, embed);
     }
   }
 
   setupGameNotifications(gameAgent) {
-    if (!gameAgent) return;
-    
+    if (!gameAgent) {return;}
+
     gameAgent.on?.('hurt', (data) => {
       this.notifyGameEvent('hurt', data);
     });
-    
+
     gameAgent.on?.('died', (data) => {
       this.notifyGameEvent('died', data);
     });
-    
+
     gameAgent.on?.('playerJoined', (data) => {
       this.notifyGameEvent('playerJoined', data);
     });
-    
+
     gameAgent.on?.('playerLeft', (data) => {
       this.notifyGameEvent('playerLeft', data);
     });
-    
+
     gameAgent.on?.('connected', () => {
       this.notifyGameEvent('connected');
     });
-    
+
     gameAgent.on?.('disconnected', () => {
       this.notifyGameEvent('disconnected');
     });
-    
+
     console.log('[DiscordBot] Game notifications enabled');
   }
 

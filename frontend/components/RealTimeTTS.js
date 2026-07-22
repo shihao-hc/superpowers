@@ -1,6 +1,6 @@
 /**
  * RealTimeTTS - 实时语音合成系统
- * 
+ *
  * 功能:
  * - 浏览器原生SpeechSynthesis
  * - 多引擎支持(ElevenLabs/Azure/Google)
@@ -48,7 +48,7 @@ class RealTimeTTS {
     // 音频播放器
     this.audioPlayer = new Audio();
     this.audioPlayer.onended = () => this._onAudioEnd();
-    
+
     // 统计
     this.stats = {
       totalUtterances: 0,
@@ -66,10 +66,10 @@ class RealTimeTTS {
   async _init() {
     // 获取可用语音
     await this._loadVoices();
-    
+
     // 根据语言选择语音
     if (!this.options.voice && this.voices.length > 0) {
-      const voice = this.voices.find(v => v.lang.startsWith(this.options.language.split('-')[0]));
+      const voice = this.voices.find((v) => v.lang.startsWith(this.options.language.split('-')[0]));
       this.options.voice = voice || this.voices[0];
     }
   }
@@ -88,12 +88,12 @@ class RealTimeTTS {
       };
 
       loadVoices();
-      
+
       // Chrome需要等待voiceschanged事件
       if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = loadVoices;
       }
-      
+
       // 超时处理
       setTimeout(() => {
         if (this.voices.length === 0) {
@@ -108,7 +108,7 @@ class RealTimeTTS {
    * 说话
    */
   speak(text, options = {}) {
-    if (!text || typeof text !== 'string') return;
+    if (!text || typeof text !== 'string') {return;}
 
     const utterance = {
       text: text.trim(),
@@ -139,21 +139,21 @@ class RealTimeTTS {
 
     try {
       switch (this.options.engine) {
-        case 'browser':
-          await this._speakBrowser(utterance);
-          break;
-        case 'elevenlabs':
-          await this._speakElevenLabs(utterance);
-          break;
-        case 'edge':
-          await this._speakEdge(utterance);
-          break;
-        default:
-          await this._speakBrowser(utterance);
+      case 'browser':
+        await this._speakBrowser(utterance);
+        break;
+      case 'elevenlabs':
+        await this._speakElevenLabs(utterance);
+        break;
+      case 'edge':
+        await this._speakEdge(utterance);
+        break;
+      default:
+        await this._speakBrowser(utterance);
       }
     } catch (error) {
       console.error('[RealTimeTTS] Speak error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
     }
   }
 
@@ -161,11 +161,11 @@ class RealTimeTTS {
    * 处理队列
    */
   async _processQueue() {
-    if (this.isSpeaking || this.queue.length === 0) return;
+    if (this.isSpeaking || this.queue.length === 0) {return;}
 
     const utterance = this.queue.shift();
     this.stats.queueLength = this.queue.length;
-    
+
     await this._speakImmediate(utterance);
   }
 
@@ -186,18 +186,18 @@ class RealTimeTTS {
       ssml.rate = utterance.options.rate;
       ssml.pitch = utterance.options.pitch;
       ssml.volume = utterance.options.volume;
-      
+
       if (utterance.options.voice) {
         ssml.voice = utterance.options.voice;
       }
 
       ssml.onstart = () => {
-        if (this.options.onStart) this.options.onStart(utterance);
+        if (this.options.onStart) {this.options.onStart(utterance);}
       };
 
       ssml.onend = () => {
         this.isSpeaking = false;
-        if (this.options.onEnd) this.options.onEnd(utterance);
+        if (this.options.onEnd) {this.options.onEnd(utterance);}
         this._onUtteranceEnd();
         resolve();
       };
@@ -253,7 +253,7 @@ class RealTimeTTS {
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
-    
+
     return this._playAudio(audioUrl);
   }
 
@@ -287,7 +287,7 @@ class RealTimeTTS {
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
-    
+
     return this._playAudio(audioUrl);
   }
 
@@ -302,17 +302,17 @@ class RealTimeTTS {
 
       this.audioPlayer.onended = () => {
         this.isSpeaking = false;
-        if (this.options.onEnd) this.options.onEnd();
+        if (this.options.onEnd) {this.options.onEnd();}
         resolve();
       };
 
-      this.audioPlayer.onerror = (e) => {
+      this.audioPlayer.onerror = (_e) => {
         this.isSpeaking = false;
         reject(new Error('Audio playback error'));
       };
 
-      if (options.onStart) options.onStart();
-      if (this.options.onStart) this.options.onStart();
+      if (options.onStart) {options.onStart();}
+      if (this.options.onStart) {this.options.onStart();}
 
       this.audioPlayer.play().catch(reject);
     });
@@ -374,7 +374,7 @@ class RealTimeTTS {
       this.audioPlayer.pause();
       this.audioPlayer.currentTime = 0;
     }
-    
+
     this.queue = [];
     this.isSpeaking = false;
     this.isPaused = false;

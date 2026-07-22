@@ -14,7 +14,10 @@ const GameAgent = require(path.resolve(ROOT_DIR, 'src/agents/GameAgent'));
 const pm = new PersonalityManager(path.resolve(ROOT_DIR, 'data/personalities.json'));
 pm.loadSync();
 
-const chat = new ChatAgent(pm, { defaultModel: 'llama3.2' });
+let _discordBrain = null;
+try { _discordBrain = require(path.resolve(ROOT_DIR, 'src/core/BrainSystem')).BrainSystem; } catch (e) { /* 可选 */ }
+
+const chat = new ChatAgent(pm, { defaultModel: 'llama3.2', brainSystem: _discordBrain });
 const memory = new MemoryAgent();
 const media = new MediaAgent();
 const game = new GameAgent();

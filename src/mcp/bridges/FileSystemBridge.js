@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { splitLines } = require('../../utils/UltraWorkUtils');
 const { rootsManager } = require('../engines/RootsManager');
 const { dryRunEngine } = require('../engines/DryRunEngine');
 const { thinkingChain } = require('../engines/ThinkingChain');
@@ -127,9 +128,9 @@ class FileSystemBridge {
   async readTextFile(params, context) {
     const { path: filePath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
-    
+
     const content = fs.readFileSync(resolved.path, 'utf-8');
-    const lines = content.split('\n').length;
+    const lines = splitLines(content).length;
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `读取文件: ${filePath}`, {
       reasoning: `成功读取 ${lines} 行`,
@@ -142,7 +143,7 @@ class FileSystemBridge {
   /**
    * 批量读取文件
    */
-  async readMultipleFiles(params, context) {
+  async readMultipleFiles(params, _context) {
     const { paths } = params;
     const results = [];
 
@@ -156,18 +157,18 @@ class FileSystemBridge {
       }
     }
 
-    return { files: results, total: paths.length, successful: results.filter(r => r.success).length };
+    return { files: results, total: paths.length, successful: results.filter((r) => r.success).length };
   }
 
   /**
    * 列出目录
    */
-  async listDirectory(params, context) {
+  async listDirectory(params, _context) {
     const { path: dirPath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
     const entries = fs.readdirSync(resolved.path, { withFileTypes: true });
-    const items = entries.map(entry => ({
+    const items = entries.map((entry) => ({
       name: entry.name,
       type: entry.isDirectory() ? 'directory' : 'file',
       path: path.join(resolved.path, entry.name)
@@ -179,12 +180,12 @@ class FileSystemBridge {
   /**
    * 递归目录树
    */
-  async directoryTree(params, context) {
+  async directoryTree(params, _context) {
     const { path: dirPath, maxDepth = 10 } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
     const buildTree = (dir, depth = 0) => {
-      if (depth > maxDepth) return null;
+      if (depth > maxDepth) {return null;}
 
       const stats = fs.statSync(dir);
       if (!stats.isDirectory()) {
@@ -192,7 +193,7 @@ class FileSystemBridge {
       }
 
       const entries = fs.readdirSync(dir, { withFileTypes: true });
-      const children = entries.map(entry => {
+      const children = entries.map((entry) => {
         const childPath = path.join(dir, entry.name);
         return buildTree(childPath, depth + 1);
       }).filter(Boolean);
@@ -207,10 +208,11 @@ class FileSystemBridge {
   /**
    * 搜索文件
    */
-  async searchFiles(params, context) {
+  async searchFiles(params, _context) {
     const { path: searchPath, pattern } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], searchPath);
-    
+    const safePattern = typeof pattern === 'string' && pattern.length <= 100 && !/\([^)]*[+*][^)]*\)[+*?]/.test(pattern) ? pattern : '.*';
+
     const matches = [];
     const search = (dir, pattern) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -224,14 +226,14 @@ class FileSystemBridge {
       }
     };
 
-    search(resolved.path, pattern);
-    return { pattern, matches, count: matches.length };
+    search(resolved.path, safePattern);
+    return { pattern: safePattern, matches, count: matches.length };
   }
 
   /**
    * 获取文件信息
    */
-  async getFileInfo(params, context) {
+  async getFileInfo(params, _context) {
     const { path: filePath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
 
@@ -296,7 +298,7 @@ class FileSystemBridge {
   /**
    * 创建目录
    */
-  async createDirectory(params, context) {
+  async createDirectory(params, _context) {
     const { path: dirPath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
@@ -364,7 +366,7 @@ class FileSystemBridge {
   /**
    * 删除目录
    */
-  async deleteDirectory(params, context) {
+  async deleteDirectory(params, _context) {
     const { path: dirPath, recursive = false } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
@@ -388,7 +390,7 @@ class FileSystemBridge {
     const { files } = params;
 
     if (params.dry_run || params.dryRun) {
-      const previews = files.map(f => {
+      const previews = files.map((f) => {
         const resolved = rootsManager.safeResolve(this.allowedRoots[0], f.path);
         return dryRunEngine.previewWrite(resolved.path, f.content);
       });
@@ -403,7 +405,7 @@ class FileSystemBridge {
     }
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `批量写入 ${files.length} 个文件`, {
-      metadata: { files: files.map(f => f.path) }
+      metadata: { files: files.map((f) => f.path) }
     });
 
     return { results, total: files.length, successful: results.length };
@@ -416,7 +418,7 @@ class FileSystemBridge {
     const { paths } = params;
 
     if (params.dry_run || params.dryRun) {
-      const previews = paths.map(p => {
+      const previews = paths.map((p) => {
         const resolved = rootsManager.safeResolve(this.allowedRoots[0], p);
         return dryRunEngine.previewDelete(resolved.path);
       });
@@ -440,7 +442,7 @@ class FileSystemBridge {
   /**
    * 监视目录
    */
-  async watchDirectory(params, context) {
+  async watchDirectory(params, _context) {
     const { path: dirPath, recursive = false } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
@@ -460,7 +462,7 @@ class FileSystemBridge {
   /**
    * 取消监视
    */
-  async unwatchDirectory(params, context) {
+  async unwatchDirectory(params, _context) {
     const { path: dirPath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
@@ -476,15 +478,15 @@ class FileSystemBridge {
   /**
    * 列出允许的目录
    */
-  async listAllowedDirectories(params, context) {
+  async listAllowedDirectories(_params, _context) {
     return { roots: rootsManager.getRoots() };
   }
 }
 
 function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024) {return `${bytes} B`;}
+  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
+  if (bytes < 1024 * 1024 * 1024) {return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;}
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 

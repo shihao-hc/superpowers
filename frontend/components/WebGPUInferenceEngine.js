@@ -1,12 +1,12 @@
 /**
  * WebGPU AI推理引擎 - Browser-Inline AI Inference
- * 
+ *
  * 功能:
  * - 纯浏览器内AI推理
  * - 支持Transformer模型(文本分类、问答、嵌入)
  * - WebLLM大语言模型支持
  * - 渐进式增强(WebGPU → WebGL → WASM → CPU)
- * 
+ *
  * 基于 transformers.js 和 WebLLM 设计
  */
 
@@ -103,10 +103,10 @@ class WebGPUInferenceEngine {
     try {
       // 检测设备能力
       const caps = await this.detectCapabilities();
-      
+
       // 根据设备选择最佳后端
       this.device = this._selectBestDevice(caps);
-      
+
       if (this.options.useWorker) {
         await this._initWorker();
       } else {
@@ -114,7 +114,7 @@ class WebGPUInferenceEngine {
       }
 
       this.isReady = true;
-      
+
       if (this.options.onReady) {
         this.options.onReady({ device: this.device, capabilities: caps });
       }
@@ -138,8 +138,8 @@ class WebGPUInferenceEngine {
       return this.options.device;
     }
 
-    if (capabilities.webgpu) return 'webgpu';
-    if (capabilities.webgl) return 'webgl';
+    if (capabilities.webgpu) {return 'webgpu';}
+    if (capabilities.webgl) {return 'webgl';}
     return 'wasm';
   }
 
@@ -148,11 +148,11 @@ class WebGPUInferenceEngine {
    */
   async _initWorker() {
     this.worker = new Worker('/components/ai-inference-worker.js');
-    
+
     return new Promise((resolve, reject) => {
       this.worker.onmessage = (e) => {
         const { type, data, error } = e.data;
-        
+
         if (type === 'ready') {
           this.isReady = true;
           resolve();
@@ -183,12 +183,12 @@ class WebGPUInferenceEngine {
    */
   async _initDirect() {
     // 动态导入transformers.js
-    const { pipeline, env } = await import('@huggingface/transformers');
+    const { pipeline: _pipeline, env } = await import('@huggingface/transformers');
 
     // 配置环境
     env.allowLocalModels = true;
     env.useBrowserCache = true;
-    
+
     // 设置设备
     env.backends.onnx.wasm.numThreads = navigator.hardwareConcurrency || 4;
   }
@@ -200,7 +200,7 @@ class WebGPUInferenceEngine {
     if (this.worker) {
       return new Promise((resolve, reject) => {
         const id = Date.now();
-        
+
         const handler = (e) => {
           if (e.data.type === 'pipelineReady' && e.data.id === id) {
             this.worker.removeEventListener('message', handler);
@@ -257,7 +257,7 @@ class WebGPUInferenceEngine {
       }
 
       const latency = performance.now() - startTime;
-      
+
       this.stats.totalInferences++;
       this.stats.avgLatency = (this.stats.avgLatency * (this.stats.totalInferences - 1) + latency) / this.stats.totalInferences;
 
@@ -283,7 +283,7 @@ class WebGPUInferenceEngine {
   _inferWorker(input, options) {
     return new Promise((resolve, reject) => {
       const id = Date.now();
-      
+
       const handler = (e) => {
         if (e.data.type === 'inferenceResult' && e.data.id === id) {
           this.worker.removeEventListener('message', handler);
@@ -309,7 +309,7 @@ class WebGPUInferenceEngine {
    */
   async classifyText(text, candidateLabels) {
     await this.loadPipeline('zero-shot-classification', 'Xenova/distilbert-base-uncased-finetuned-mnli');
-    
+
     return this.infer(text, { candidate_labels: candidateLabels });
   }
 
@@ -318,7 +318,7 @@ class WebGPUInferenceEngine {
    */
   async questionAnswer(context, question) {
     await this.loadPipeline('question-answering', 'Xenova/distilbert-base-uncased-distilled-squad');
-    
+
     return this.infer({ context, question });
   }
 
@@ -329,7 +329,7 @@ class WebGPUInferenceEngine {
     await this.loadPipeline('text-generation', 'Xenova/gpt2', {
       dtype: 'fp32'
     });
-    
+
     return this.infer(prompt, {
       max_new_tokens: options.maxTokens || 100,
       temperature: options.temperature || 0.7,
@@ -343,13 +343,13 @@ class WebGPUInferenceEngine {
    */
   async getEmbedding(text) {
     await this.loadPipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    
+
     const result = await this.infer(text, { pooling: 'mean', normalize: true });
-    
+
     if (result.success && result.result.data) {
       return Array.from(result.result.data);
     }
-    
+
     return null;
   }
 
@@ -358,13 +358,13 @@ class WebGPUInferenceEngine {
    */
   async getEmbeddings(texts) {
     await this.loadPipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    
+
     const result = await this.infer(texts, { pooling: 'mean', normalize: true });
-    
+
     if (result.success && result.result.data) {
-      return result.result.data.map(arr => Array.from(arr));
+      return result.result.data.map((arr) => Array.from(arr));
     }
-    
+
     return null;
   }
 
@@ -373,7 +373,7 @@ class WebGPUInferenceEngine {
    */
   async sentimentAnalysis(text) {
     await this.loadPipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english');
-    
+
     return this.infer(text);
   }
 
@@ -382,7 +382,7 @@ class WebGPUInferenceEngine {
    */
   async summarize(text, maxLength = 150) {
     await this.loadPipeline('summarization', 'Xenova/distilbert-base-uncased-finetuned-cnn');
-    
+
     return this.infer(text, {
       max_length: maxLength,
       min_length: 50
@@ -394,7 +394,7 @@ class WebGPUInferenceEngine {
    */
   async translate(text, sourceLang = 'en', targetLang = 'zh') {
     await this.loadPipeline('translation', 'Xenova/mbart-large-50-many-to-many-mmt');
-    
+
     return this.infer(text, {
       task: 'translation',
       src_lang: sourceLang,
@@ -504,7 +504,7 @@ class WebLLMEngine {
       });
 
       this.isReady = true;
-      
+
       if (this.options.onReady) {
         this.options.onReady({
           model: this.options.model,
@@ -533,7 +533,7 @@ class WebLLMEngine {
     }
 
     const startTime = performance.now();
-    let totalTokens = 0;
+    let _totalTokens = 0;
 
     try {
       // 流式响应
@@ -552,7 +552,7 @@ class WebLLMEngine {
       });
 
       const response = completion.choices[0]?.message?.content || '';
-      totalTokens = completion.usage?.total_tokens || response.length / 4;
+      _totalTokens = completion.usage?.total_tokens || response.length / 4;
 
       return {
         success: true,
@@ -576,7 +576,7 @@ class WebLLMEngine {
   async _streamChat(messages, options, startTime) {
     const chunks = [];
     let fullContent = '';
-    let totalTokens = 0;
+    const _totalTokens = 0;
 
     try {
       const stream = await this.engine.chat.completions.create({
@@ -591,7 +591,7 @@ class WebLLMEngine {
         if (content) {
           chunks.push(content);
           fullContent += content;
-          
+
           if (this.options.onStream) {
             this.options.onStream({
               content,

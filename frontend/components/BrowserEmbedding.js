@@ -1,6 +1,6 @@
 /**
  * BrowserEmbedding - 浏览器端向量Embedding系统
- * 
+ *
  * 使用Transformers.js实现本地文本向量化
  * 减少对外部API的依赖
  */
@@ -13,11 +13,11 @@ class BrowserEmbedding {
     this.modelName = options.modelName || 'Xenova/all-MiniLM-L6-v2';
     this.maxTokens = options.maxTokens || 256;
     this.dimensions = options.dimensions || 384;
-    
+
     this.onProgress = options.onProgress || (() => {});
     this.onLoaded = options.onLoaded || (() => {});
     this.onerror = options.onerror || (() => {});
-    
+
     this.cache = new Map();
     this.maxCacheSize = options.maxCacheSize || 1000;
   }
@@ -35,14 +35,14 @@ class BrowserEmbedding {
     try {
       this.onProgress('Loading tokenizer...');
       this.tokenizer = await transformers.AutoTokenizer.from_pretrained(this.modelName);
-      
+
       this.onProgress('Loading model...');
       this.model = await transformers.AutoModel.from_pretrained(this.modelName);
-      
+
       this.isLoaded = true;
       this.onProgress('Model loaded');
       this.onLoaded();
-      
+
       console.log('[BrowserEmbedding] Model loaded successfully');
       return true;
     } catch (error) {
@@ -58,7 +58,7 @@ class BrowserEmbedding {
         resolve();
         return;
       }
-      
+
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
       script.integrity = 'sha384-lYpvlJSCh7r5IOlKsNJp1Nl7gJYMhN8nCj0NjF9XpJOKYqF8JQ6oFGfZ5I5l2H8';
@@ -98,9 +98,9 @@ class BrowserEmbedding {
 
       const output = await this.model(inputs);
       const embedding = this._meanPool(output.last_hidden_state, inputs.attention_mask);
-      
+
       const embeddingArray = Array.from(embedding.data);
-      
+
       if (this.cache.size >= this.maxCacheSize) {
         const firstKey = this.cache.keys().next().value;
         this.cache.delete(firstKey);
@@ -126,7 +126,7 @@ class BrowserEmbedding {
   _meanPool(lastHiddenState, attentionMask) {
     const [batchSize, seqLen, hiddenSize] = lastHiddenState.shape;
     const pooled = new Float32Array(hiddenSize);
-    
+
     for (let i = 0; i < batchSize; i++) {
       let sum = 0;
       for (let j = 0; j < seqLen; j++) {
@@ -144,34 +144,34 @@ class BrowserEmbedding {
         }
       }
     }
-    
+
     return { data: pooled, shape: [hiddenSize] };
   }
 
   cosineSimilarity(a, b) {
-    if (!a || !b || a.length !== b.length) return 0;
-    
+    if (!a || !b || a.length !== b.length) {return 0;}
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    
+
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    
+
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   euclideanDistance(a, b) {
-    if (!a || !b || a.length !== b.length) return Infinity;
-    
+    if (!a || !b || a.length !== b.length) {return Infinity;}
+
     let sum = 0;
     for (let i = 0; i < a.length; i++) {
       sum += Math.pow(a[i] - b[i], 2);
     }
-    
+
     return Math.sqrt(sum);
   }
 
@@ -223,7 +223,7 @@ class SemanticSearchWithEmbedding {
 
   async search(query, topK = 5) {
     const queryEmbedding = await this.embedder.embed(query);
-    if (!queryEmbedding) return [];
+    if (!queryEmbedding) {return [];}
 
     const results = [];
     for (const [id, data] of this.embeddings) {

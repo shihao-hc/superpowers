@@ -1,0 +1,36 @@
+# OpenCode Helm Chart
+# Kubernetes deployment configuration
+
+apiVersion: v2
+name: opencode
+description: OpenCode AI Agent Platform Helm Chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - ai
+  - agent
+  - opencode
+maintainers:
+  - name: OpenCode Team
+    email: team@opencode.ai
+
+dependencies:
+  - name: redis
+    version: "17.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: mongodb
+    version: "13.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: mongodb.enabled
+  - name: prometheus
+    version: "25.x"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: grafana
+    version: "8.x"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
+
+icon: https://opencode.ai/logo.png

@@ -10,7 +10,10 @@ tags:
   - token-optimization
   - memory
   - history
+trigger: "上下文管理 | token压缩"
+auto_trigger: true
 ---
+
 
 # 上下文管理策略 - 5层级联压缩
 
@@ -522,6 +525,42 @@ class TokenEstimator:
 | **并行压缩** | 多段摘要并行生成 |
 | **分级策略** | 轻量级任务用 L1-L2，重量级任务用 L3-L5 |
 | **记录统计** | 记录压缩次数、减少比例，用于优化 |
+
+## 维护说明
+
+> **重要**: 本 SKILL.md 是一个**主动维护的文档**，会定期更新以反映项目的最新状态，而非被动等待原始 README.md 更新。
+
+### 更新机制
+
+| 来源 | 说明 |
+|------|------|
+| GitHub Releases | 自动抓取最新 releases |
+| 项目追踪器 | `src/tracking/ProjectTracker.js` |
+| 更新脚本 | `scripts/update-tailor-skill.js` |
+
+### 手动检查更新
+
+```bash
+# 检查所有项目更新
+node scripts/update-tailor-skill.js --check-only
+
+# 检查并自动更新
+node scripts/update-tailor-skill.js --update
+
+# 查看追踪状态
+node scripts/update-tailor-skill.js --status
+```
+
+### 更新内容
+
+当检测到新版本时，会自动更新：
+
+- [ ] **版本号**: 更新到最新版本
+- [ ] **更新日志**: 追加新的版本和变更内容
+- [ ] **功能说明**: 根据 changelog 提取新增功能
+- [ ] **依赖库**: 同步 requirements.txt 的变更
+- [ ] **特别感谢**: 补充新的依赖项目
+
 
 ## 相关技能
 

@@ -1,7 +1,7 @@
 /**
  * 实时情感反馈循环
  * 参考: Neuro-sama 的 Sentiment Analysis Feedback Loops
- * 
+ *
  * 功能:
  * - 实时分析弹幕/评论情感
  * - 动态调整语音语调
@@ -98,8 +98,8 @@ class SentimentFeedbackLoop {
    */
   analyzeMessage(text) {
     let score = 0;
-    let hasPositive = false;
-    let hasNegative = false;
+    let _hasPositive = false;
+    let _hasNegative = false;
     let intensifier = 1;
     let isNegated = false;
 
@@ -107,7 +107,7 @@ class SentimentFeedbackLoop {
 
     for (let i = 0; i < words.length; i++) {
       const word = words[i];
-      const context = words.slice(Math.max(0, i - 2), i + 3).join('');
+      const _context = words.slice(Math.max(0, i - 2), i + 3).join('');
 
       // 检查否定
       if (this.sentimentLexicon.negators[word]) {
@@ -125,7 +125,7 @@ class SentimentFeedbackLoop {
       if (this.sentimentLexicon.positive[word]) {
         const wordScore = this.sentimentLexicon.positive[word] * intensifier;
         score += isNegated ? -wordScore : wordScore;
-        hasPositive = true;
+        _hasPositive = true;
         intensifier = 1;
         isNegated = false;
       }
@@ -134,7 +134,7 @@ class SentimentFeedbackLoop {
       if (this.sentimentLexicon.negative[word]) {
         const wordScore = this.sentimentLexicon.negative[word] * intensifier;
         score += isNegated ? -wordScore : wordScore;
-        hasNegative = true;
+        _hasNegative = true;
         intensifier = 1;
         isNegated = false;
       }
@@ -192,7 +192,7 @@ class SentimentFeedbackLoop {
    * 更新整体情感
    */
   _updateOverallSentiment() {
-    if (this.sentimentBuffer.length === 0) return;
+    if (this.sentimentBuffer.length === 0) {return;}
 
     // 计算加权平均分数
     const recentMessages = this.sentimentBuffer.slice(-20);
@@ -200,22 +200,21 @@ class SentimentFeedbackLoop {
     const avgScore = totalScore / recentMessages.length;
 
     // 计算积极比例
-    const positiveCount = recentMessages.filter(m => m.sentiment === 'positive').length;
+    const positiveCount = recentMessages.filter((m) => m.sentiment === 'positive').length;
     const positiveRatio = positiveCount / recentMessages.length;
 
     // 确定主导情感
-    let dominantEmotion = 'neutral';
     const emotionCounts = { happy: 0, sad: 0, excited: 0, calm: 0, curious: 0 };
 
     for (const msg of recentMessages) {
-      if (msg.score > 0.5) emotionCounts.happy++;
-      else if (msg.score > 0.3) emotionCounts.excited++;
-      else if (msg.score < -0.5) emotionCounts.sad++;
-      else if (msg.score < -0.2) emotionCounts.calm++;
-      else emotionCounts.curious++;
+      if (msg.score > 0.5) {emotionCounts.happy++;}
+      else if (msg.score > 0.3) {emotionCounts.excited++;}
+      else if (msg.score < -0.5) {emotionCounts.sad++;}
+      else if (msg.score < -0.3) {emotionCounts.calm++;}
+      else {emotionCounts.curious++;}
     }
 
-    dominantEmotion = Object.entries(emotionCounts)
+    const dominantEmotion = Object.entries(emotionCounts)
       .sort((a, b) => b[1] - a[1])[0][0];
 
     // 检测情感变化
@@ -298,8 +297,8 @@ class SentimentFeedbackLoop {
    */
   getTrend(windowSize = 50) {
     const window = this.sentimentBuffer.slice(-windowSize);
-    
-    if (window.length < 2) return { trend: 'stable', change: 0 };
+
+    if (window.length < 2) {return { trend: 'stable', change: 0 };}
 
     const firstHalf = window.slice(0, Math.floor(window.length / 2));
     const secondHalf = window.slice(Math.floor(window.length / 2));
@@ -337,13 +336,13 @@ class SentimentFeedbackLoop {
     let results = [...this.emotionMemory];
 
     if (startTime) {
-      results = results.filter(m => m.timestamp >= startTime);
+      results = results.filter((m) => m.timestamp >= startTime);
     }
     if (endTime) {
-      results = results.filter(m => m.timestamp <= endTime);
+      results = results.filter((m) => m.timestamp <= endTime);
     }
     if (emotion) {
-      results = results.filter(m => 
+      results = results.filter((m) =>
         m.overallSentiment.dominantEmotion === emotion
       );
     }
@@ -356,7 +355,7 @@ class SentimentFeedbackLoop {
    */
   getStats() {
     const total = this.emotionMemory.length;
-    if (total === 0) return null;
+    if (total === 0) {return null;}
 
     const emotionCounts = {};
     for (const entry of this.emotionMemory) {

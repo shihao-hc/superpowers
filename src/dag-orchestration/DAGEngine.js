@@ -4,11 +4,11 @@
 class DAGEngine {
   constructor(nodes = []) {
     this.nodes = new Map();
-    nodes.forEach(n => this.addNode(n));
+    nodes.forEach((n) => this.addNode(n));
   }
   addNode(node) {
-    if (!node || !node.id) return;
-    if (!node.deps) node.deps = [];
+    if (!node || !node.id) {return;}
+    if (!node.deps) {node.deps = [];}
     this.nodes.set(node.id, { ...node, done: false, running: false });
   }
   async run() {
@@ -21,7 +21,7 @@ class DAGEngine {
       adj.set(id, []);
     });
     this.nodes.forEach((n, id) => {
-      (n.deps || []).forEach(d => {
+      n.deps.forEach((d) => {
         if (this.nodes.has(d)) {
           inDeg.set(id, inDeg.get(id) + 1);
           adj.get(d).push(id);
@@ -30,7 +30,7 @@ class DAGEngine {
     });
     const queue = [];
     this.nodes.forEach((n, id) => {
-      if (inDeg.get(id) === 0) queue.push(id);
+      if (inDeg.get(id) === 0) {queue.push(id);}
     });
     const results = [];
     while (queue.length) {
@@ -41,13 +41,13 @@ class DAGEngine {
       }
       node.done = true;
       results.push(id);
-      (adj.get(id) || []).forEach(nextId => {
+      adj.get(id).forEach((nextId) => {
         inDeg.set(nextId, inDeg.get(nextId) - 1);
-        if (inDeg.get(nextId) === 0) queue.push(nextId);
+        if (inDeg.get(nextId) === 0) {queue.push(nextId);}
       });
     }
     // detect cycles
-    const incomplete = Array.from(this.nodes.values()).filter(n => !n.done);
+    const incomplete = Array.from(this.nodes.values()).filter((n) => !n.done);
     if (incomplete.length > 0) {
       throw new Error('Cycle detected in DAG or missing dependencies');
     }

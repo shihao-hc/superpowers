@@ -73,7 +73,7 @@ class PluginManager {
         } else {
           const Cls = require(modulePath);
           const inst = new Cls();
-          if (typeof inst.init === 'function') inst.init();
+          if (typeof inst.init === 'function') {inst.init();}
           this.instances.push({ name: p.name, instance: inst });
         }
       } catch (err) {
@@ -86,19 +86,19 @@ class PluginManager {
     for (const { instance } of this.instances) {
       if (typeof instance.onMessage === 'function') {
         const r = instance.onMessage(msg, context);
-        if (r && typeof r.message === 'string') msg = r.message;
+        if (r && typeof r.message === 'string') {msg = r.message;}
       }
     }
     return { message: msg };
   }
   onMemory(memory, context = {}) {
     for (const { instance } of this.instances) {
-      if (typeof instance.onMemory === 'function') instance.onMemory(memory, context);
+      if (typeof instance.onMemory === 'function') {instance.onMemory(memory, context);}
     }
   }
   onEvent(event, context = {}) {
     for (const { instance } of this.instances) {
-      if (typeof instance.onEvent === 'function') instance.onEvent(event, context);
+      if (typeof instance.onEvent === 'function') {instance.onEvent(event, context);}
     }
   }
 }

@@ -1,7 +1,7 @@
 /**
  * OpenClaw 模型服务适配器
  * 作为 UltraWork 的模型后端服务
- * 
+ *
  * 支持 OpenAI 兼容 API 格式
  */
 
@@ -11,15 +11,15 @@ const { OpenClawClient } = require('./OpenClawClient');
 class ModelServiceAdapter extends EventEmitter {
   constructor(options = {}) {
     super();
-    
+
     this.gatewayUrl = options.gatewayUrl || process.env.OPENCLAW_GATEWAY_URL || 'http://127.0.0.1:3002';
     this.apiKey = options.apiKey || 'ultrawork-local-key';
     this.timeout = options.timeout || 180000;
-    
+
     this.client = null;
     this.initialized = false;
     this.models = [];
-    
+
     this.stats = {
       requests: 0,
       tokens: 0,
@@ -27,19 +27,19 @@ class ModelServiceAdapter extends EventEmitter {
       lastRequest: null
     };
   }
-  
+
   /**
    * 初始化客户端
    */
   async initialize() {
-    if (this.initialized) return;
-    
+    if (this.initialized) {return;}
+
     this.client = new OpenClawClient({
       gatewayUrl: this.gatewayUrl,
       token: this.apiKey,
       timeout: this.timeout
     });
-    
+
     try {
       this.models = await this.client.listModels();
       this.initialized = true;
@@ -49,16 +49,16 @@ class ModelServiceAdapter extends EventEmitter {
       throw error;
     }
   }
-  
+
   /**
    * OpenAI 兼容的 /v1/models 端点
    */
   async listModels() {
     await this.initialize();
-    
+
     return {
       object: 'list',
-      data: this.models.map(m => ({
+      data: this.models.map((m) => ({
         id: m.id,
         object: 'model',
         created: m.created || Date.now(),
@@ -69,26 +69,26 @@ class ModelServiceAdapter extends EventEmitter {
       }))
     };
   }
-  
+
   /**
    * OpenAI 兼容的 /v1/chat/completions 端点
    */
   async chatCompletions(params, context = {}) {
     await this.initialize();
-    
-    const startTime = Date.now();
+
+    const _startTime = Date.now();
     this.stats.requests++;
     this.stats.lastRequest = new Date().toISOString();
-    
+
     try {
-      const { model, messages, temperature = 0.7, max_tokens, stream = false, ...extra } = params;
-      
+      const { model, messages, temperature = 0.7, max_tokens, stream = false, ..._extra } = params;
+
       // 验证模型
-      const validModel = this.models.find(m => m.id === model);
+      const validModel = this.models.find((m) => m.id === model);
       if (!validModel) {
         throw new Error(`Model not found: ${model}`);
       }
-      
+
       // 调用网关
       const response = await this.client.chatCompletion({
         model,
@@ -97,14 +97,14 @@ class ModelServiceAdapter extends EventEmitter {
         max_tokens,
         stream
       }, null);
-      
+
       this.stats.tokens += response.usage?.total_tokens || 0;
-      
+
       // 返回 OpenAI 兼容格式
       if (stream) {
         return this._createStreamResponse(response, model, context);
       }
-      
+
       return {
         id: `chatcmpl-${Date.now()}`,
         object: 'chat.completion',
@@ -130,20 +130,20 @@ class ModelServiceAdapter extends EventEmitter {
       throw error;
     }
   }
-  
+
   /**
    * OpenAI 兼容的 /v1/completions 端点
    */
   async completions(params) {
     await this.initialize();
-    
+
     const { prompt, model, max_tokens = 100, temperature = 0.7, stream = false } = params;
-    
+
     // 将文本 prompt 转换为消息格式
     const messages = [
       { role: 'user', content: Array.isArray(prompt) ? prompt.join('') : prompt }
     ];
-    
+
     const response = await this.chatCompletions({
       model,
       messages,
@@ -151,7 +151,7 @@ class ModelServiceAdapter extends EventEmitter {
       max_tokens,
       stream
     });
-    
+
     // 转换为 completions 格式
     return {
       id: `cmpl-${Date.now()}`,
@@ -167,13 +167,13 @@ class ModelServiceAdapter extends EventEmitter {
       usage: response.usage
     };
   }
-  
+
   /**
    * 创建流式响应
    */
-  _createStreamResponse(response, model, context) {
+  _createStreamResponse(response, model, _context) {
     const streamId = `chatcmpl-${Date.now()}`;
-    
+
     return {
       id: streamId,
       object: 'chat.completion.chunk',
@@ -189,7 +189,7 @@ class ModelServiceAdapter extends EventEmitter {
       }]
     };
   }
-  
+
   /**
    * 获取服务统计
    */
@@ -199,12 +199,12 @@ class ModelServiceAdapter extends EventEmitter {
       gatewayUrl: this.gatewayUrl,
       initialized: this.initialized,
       modelCount: this.models.length,
-      uptime: this.stats.lastRequest 
-        ? Date.now() - new Date(this.stats.lastRequest).getTime() 
+      uptime: this.stats.lastRequest
+        ? Date.now() - new Date(this.stats.lastRequest).getTime()
         : 0
     };
   }
-  
+
   /**
    * 健康检查
    */
@@ -225,7 +225,7 @@ class ModelServiceAdapter extends EventEmitter {
       };
     }
   }
-  
+
   /**
    * 重置统计
    */

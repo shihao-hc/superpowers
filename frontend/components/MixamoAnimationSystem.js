@@ -1,6 +1,6 @@
 /**
  * MixamoAnimationSystem - Mixamo动画集成系统
- * 
+ *
  * 功能:
  * - FBX动画加载和播放
  * - VRM骨骼重定向
@@ -16,13 +16,13 @@ class MixamoAnimationSystem {
     this.animationMixer = null;
     this.activeAction = null;
     this.actions = new Map();
-    
+
     this.fbxLoader = null;
     this.mixamoVRMRigMap = this._getMixamoVRMRigMap();
-    
+
     this.animationQueue = [];
     this.isTransitioning = false;
-    
+
     this.builtinAnimations = this._getBuiltinAnimations();
   }
 
@@ -166,7 +166,7 @@ class MixamoAnimationSystem {
     this.animationMixer = new THREE.AnimationMixer(
       this.vrmComponent.vrm?.scene || this.vrmComponent.scene
     );
-    
+
     console.log('[Mixamo] Animation system initialized');
     return true;
   }
@@ -176,7 +176,7 @@ class MixamoAnimationSystem {
       const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
       this.fbxLoader = new FBXLoader();
     }
-    
+
     return new Promise((resolve, reject) => {
       this.fbxLoader.load(
         url,
@@ -198,26 +198,26 @@ class MixamoAnimationSystem {
   }
 
   _retargetFBX(fbx, name) {
-    if (!this.vrmComponent.vrm) return null;
-    
+    if (!this.vrmComponent.vrm) {return null;}
+
     const vrm = this.vrmComponent.vrm;
     const humanoid = vrm.humanoid;
-    
+
     if (!humanoid) {
       console.warn('[Mixamo] VRM has no humanoid');
       return null;
     }
-    
+
     const tracks = [];
     const clip = fbx.animations[0];
-    
-    if (!clip) return null;
-    
-    clip.tracks.forEach(track => {
+
+    if (!clip) {return null;}
+
+    clip.tracks.forEach((track) => {
       const boneName = track.name.split('.')[0];
       const property = track.name.split('.').pop();
       const vrmBoneName = this.mixamoVRMRigMap[boneName];
-      
+
       if (vrmBoneName) {
         const bone = humanoid.getBoneNode(vrmBoneName);
         if (bone) {
@@ -227,7 +227,7 @@ class MixamoAnimationSystem {
         }
       }
     });
-    
+
     return new this.THREE.AnimationClip(
       name,
       clip.duration,
@@ -242,17 +242,17 @@ class MixamoAnimationSystem {
       timeScale = 1.0,
       loop = true
     } = options;
-    
+
     const action = this.actions.get(name);
     if (!action) {
       this._playBuiltinAnimation(name, options);
       return;
     }
-    
+
     if (this.activeAction && this.activeAction !== action) {
       this.activeAction.fadeOut(fadeDuration);
     }
-    
+
     action.reset();
     action.setEffectiveWeight(weight);
     action.setEffectiveTimeScale(timeScale);
@@ -260,132 +260,132 @@ class MixamoAnimationSystem {
     action.clampWhenFinished = !loop;
     action.fadeIn(fadeDuration);
     action.play();
-    
+
     this.activeAction = action;
     this.currentAnimation = name;
   }
 
   _playBuiltinAnimation(name, options = {}) {
     const animConfig = this.builtinAnimations[name];
-    if (!animConfig) return;
-    
+    if (!animConfig) {return;}
+
     switch (animConfig.type) {
-      case 'procedural':
-        this._playProceduralAnimation(name, options);
-        break;
-      case 'gesture':
-        this._playGestureAnimation(name, options);
-        break;
-      case 'pose':
-        this._playPoseAnimation(name, options);
-        break;
-      case 'motion':
-        this._playMotionAnimation(name, options);
-        break;
+    case 'procedural':
+      this._playProceduralAnimation(name, options);
+      break;
+    case 'gesture':
+      this._playGestureAnimation(name, options);
+      break;
+    case 'pose':
+      this._playPoseAnimation(name, options);
+      break;
+    case 'motion':
+      this._playMotionAnimation(name, options);
+      break;
     }
   }
 
-  _playProceduralAnimation(name, options) {
+  _playProceduralAnimation(name, _options) {
     const vrm = this.vrmComponent.vrm;
-    if (!vrm) return;
-    
+    if (!vrm) {return;}
+
     switch (name) {
-      case 'blink':
-        this._performBlink();
-        break;
-      case 'breathing':
-        this._startBreathing();
-        break;
-      case 'idle':
-        this._startIdleAnimation();
-        break;
+    case 'blink':
+      this._performBlink();
+      break;
+    case 'breathing':
+      this._startBreathing();
+      break;
+    case 'idle':
+      this._startIdleAnimation();
+      break;
     }
   }
 
   async _performBlink() {
-    if (!this.vrmComponent.expressionManager) return;
-    
+    if (!this.vrmComponent.expressionManager) {return;}
+
     const expr = this.vrmComponent.expressionManager;
     const blinkValue = { value: 0 };
-    
+
     await this._animateValue(blinkValue, 1, 100);
     expr.setValue('Blink', 1);
-    
+
     await this._delay(100);
-    
+
     await this._animateValue(blinkValue, 0, 100);
     expr.setValue('Blink', 0);
   }
 
   _startBreathing() {
-    if (!this.vrmComponent.vrm?.humanoid) return;
-    
+    if (!this.vrmComponent.vrm?.humanoid) {return;}
+
     const spine = this.vrmComponent.vrm.humanoid.getBoneNode('Spine');
-    if (!spine) return;
-    
+    if (!spine) {return;}
+
     const originalZ = spine.position.z;
     let time = 0;
-    
+
     const breathe = () => {
       time += 0.016;
       const breathOffset = Math.sin(time * 2) * 0.01;
       spine.position.z = originalZ + breathOffset;
-      
+
       if (this.currentAnimation === 'breathing') {
         requestAnimationFrame(breathe);
       }
     };
-    
+
     breathe();
   }
 
-  _playGestureAnimation(name, options) {
+  _playGestureAnimation(name, _options) {
     switch (name) {
-      case 'wave':
-        this._performWave();
-        break;
-      case 'nod':
-        this._performNod();
-        break;
-      case 'shake':
-        this._performHeadShake();
-        break;
+    case 'wave':
+      this._performWave();
+      break;
+    case 'nod':
+      this._performNod();
+      break;
+    case 'shake':
+      this._performHeadShake();
+      break;
     }
   }
 
   async _performWave() {
-    if (!this.vrmComponent.vrm?.humanoid) return;
-    
+    if (!this.vrmComponent.vrm?.humanoid) {return;}
+
     const rightArm = this.vrmComponent.vrm.humanoid.getBoneNode('UpperArm_R');
     const rightForeArm = this.vrmComponent.vrm.humanoid.getBoneNode('LowerArm_R');
-    
-    if (!rightArm || !rightForeArm) return;
-    
+
+    if (!rightArm || !rightForeArm) {return;}
+
     const originalArmRotation = rightArm.rotation.clone();
     const originalForeArmRotation = rightForeArm.rotation.clone();
-    
+
     rightArm.rotation.z = -Math.PI / 2;
     rightForeArm.rotation.x = -Math.PI / 4;
-    
+
     for (let i = 0; i < 6; i++) {
       await this._delay(150);
       rightForeArm.rotation.z = Math.PI / 6;
       await this._delay(150);
       rightForeArm.rotation.z = -Math.PI / 6;
     }
-    
+
     rightArm.rotation.copy(originalArmRotation);
     rightForeArm.rotation.copy(originalForeArmRotation);
   }
 
   async _performNod() {
-    if (!this.vrmComponent.vrm?.humanoid) return;
-    
+    if (!this.vrmComponent.vrm?.humanoid) {return;}
+
     const head = this.vrmComponent.vrm.humanoid.getBoneNode('Head');
-    if (!head) return;
-    
-    const originalRotation = head.rotation.clone();
-    
+    if (!head) {return;}
+
+    const _originalRotation = head.rotation.clone();
+
     await this._animateValue({ get: () => head.rotation.x, set: (v) => head.rotation.x = v }, 0.3, 200);
     await this._delay(100);
     await this._animateValue({ get: () => head.rotation.x, set: (v) => head.rotation.x = v }, -0.1, 100);
@@ -396,11 +396,11 @@ class MixamoAnimationSystem {
   }
 
   async _performHeadShake() {
-    if (!this.vrmComponent.vrm?.humanoid) return;
-    
+    if (!this.vrmComponent.vrm?.humanoid) {return;}
+
     const head = this.vrmComponent.vrm.humanoid.getBoneNode('Head');
-    if (!head) return;
-    
+    if (!head) {return;}
+
     for (let i = 0; i < 3; i++) {
       await this._animateValue({ get: () => head.rotation.y, set: (v) => head.rotation.y = v }, 0.2, 100);
       await this._animateValue({ get: () => head.rotation.y, set: (v) => head.rotation.y = v }, -0.2, 100);
@@ -408,24 +408,24 @@ class MixamoAnimationSystem {
     await this._animateValue({ get: () => head.rotation.y, set: (v) => head.rotation.y = v }, 0, 150);
   }
 
-  _playPoseAnimation(name, options) {
+  _playPoseAnimation(name, _options) {
     switch (name) {
-      case 'think':
-        this._performThinkPose();
-        break;
-      case 'sad':
-        this._performSadPose();
-        break;
+    case 'think':
+      this._performThinkPose();
+      break;
+    case 'sad':
+      this._performSadPose();
+      break;
     }
   }
 
   _performThinkPose() {
-    if (!this.vrmComponent.expressionManager) return;
-    
+    if (!this.vrmComponent.expressionManager) {return;}
+
     const expr = this.vrmComponent.expressionManager;
     expr.setValue('Fun', 0.3);
     expr.setValue('Surprised', 0.2);
-    
+
     if (this.vrmComponent.vrm?.humanoid) {
       const head = this.vrmComponent.vrm.humanoid.getBoneNode('Head');
       if (head) {
@@ -433,7 +433,7 @@ class MixamoAnimationSystem {
         head.rotation.x = -0.1;
       }
     }
-    
+
     setTimeout(() => {
       expr.setValue('Fun', 0);
       expr.setValue('Surprised', 0);
@@ -441,43 +441,43 @@ class MixamoAnimationSystem {
   }
 
   _performSadPose() {
-    if (!this.vrmComponent.expressionManager) return;
-    
+    if (!this.vrmComponent.expressionManager) {return;}
+
     const expr = this.vrmComponent.expressionManager;
     expr.setValue('Sorrow', 0.5);
     expr.setValue('Aaa', 0.2);
-    
+
     if (this.vrmComponent.vrm?.humanoid) {
       const head = this.vrmComponent.vrm.humanoid.getBoneNode('Head');
       const spine = this.vrmComponent.vrm.humanoid.getBoneNode('Spine');
-      
-      if (head) head.rotation.x = 0.2;
-      if (spine) spine.rotation.x = 0.1;
+
+      if (head) {head.rotation.x = 0.2;}
+      if (spine) {spine.rotation.x = 0.1;}
     }
-    
+
     setTimeout(() => {
       expr.setValue('Sorrow', 0);
       expr.setValue('Aaa', 0);
     }, 2000);
   }
 
-  _playMotionAnimation(name, options) {
+  _playMotionAnimation(name, _options) {
     switch (name) {
-      case 'happy':
-        this._performHappyMotion();
-        break;
-      case 'excited':
-        this._performExcitedMotion();
-        break;
+    case 'happy':
+      this._performHappyMotion();
+      break;
+    case 'excited':
+      this._performExcitedMotion();
+      break;
     }
   }
 
   async _performHappyMotion() {
-    if (!this.vrmComponent.expressionManager) return;
-    
+    if (!this.vrmComponent.expressionManager) {return;}
+
     const expr = this.vrmComponent.expressionManager;
     expr.setValue('Joy', 0.8);
-    
+
     await this._delay(500);
     expr.setValue('Joy', 0);
     await this._delay(200);
@@ -487,12 +487,12 @@ class MixamoAnimationSystem {
   }
 
   async _performExcitedMotion() {
-    if (!this.vrmComponent.expressionManager) return;
-    
+    if (!this.vrmComponent.expressionManager) {return;}
+
     const expr = this.vrmComponent.expressionManager;
     expr.setValue('Joy', 1);
     expr.setValue('Surprised', 0.5);
-    
+
     await this._delay(300);
     expr.setValue('Surprised', 0);
     await this._delay(200);
@@ -512,7 +512,7 @@ class MixamoAnimationSystem {
   }
 
   stopAll() {
-    this.actions.forEach(action => {
+    this.actions.forEach((action) => {
       action.fadeOut(0.3);
     });
     this.activeAction = null;
@@ -520,35 +520,35 @@ class MixamoAnimationSystem {
   }
 
   async _animateValue(target, endValue, duration) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const startValue = typeof target.get === 'function' ? target.get() : target.value;
       const startTime = performance.now();
-      
+
       const animate = () => {
         const elapsed = performance.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const eased = this._easeOutCubic(progress);
         const currentValue = startValue + (endValue - startValue) * eased;
-        
+
         if (typeof target.set === 'function') {
           target.set(currentValue);
         } else {
           target.value = currentValue;
         }
-        
+
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
           resolve();
         }
       };
-      
+
       animate();
     });
   }
 
   _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   _easeOutCubic(t) {
@@ -568,22 +568,22 @@ class MixamoAnimationSystem {
       sleepy: 'sad',
       neutral: 'idle'
     };
-    
+
     const animName = emotionMap[emotion] || 'idle';
     this.playAnimation(animName);
   }
 
   getAnimationList() {
     const list = [];
-    
+
     this.animations.forEach((clip, name) => {
       list.push({ name, type: 'fbx', duration: clip.duration });
     });
-    
-    Object.keys(this.builtinAnimations).forEach(name => {
+
+    Object.keys(this.builtinAnimations).forEach((name) => {
       list.push({ name, type: 'builtin', duration: this.builtinAnimations[name].duration });
     });
-    
+
     return list;
   }
 

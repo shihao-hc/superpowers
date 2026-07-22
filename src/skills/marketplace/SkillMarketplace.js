@@ -8,11 +8,11 @@ class SkillMarketplace {
     this.skillsFile = path.join(this.dataDir, 'skills.json');
     this.reviewsFile = path.join(this.dataDir, 'reviews.json');
     this.statsFile = path.join(this.dataDir, 'stats.json');
-    
+
     this.skills = new Map();
     this.reviews = new Map();
     this.stats = new Map();
-    
+
     this._ensureDataDir();
     this._loadData();
   }
@@ -29,12 +29,12 @@ class SkillMarketplace {
         const skillsData = JSON.parse(fs.readFileSync(this.skillsFile, 'utf8'));
         this.skills = new Map(Object.entries(skillsData));
       }
-      
+
       if (fs.existsSync(this.reviewsFile)) {
         const reviewsData = JSON.parse(fs.readFileSync(this.reviewsFile, 'utf8'));
         this.reviews = new Map(Object.entries(reviewsData));
       }
-      
+
       if (fs.existsSync(this.statsFile)) {
         const statsData = JSON.parse(fs.readFileSync(this.statsFile, 'utf8'));
         this.stats = new Map(Object.entries(statsData));
@@ -60,9 +60,9 @@ class SkillMarketplace {
    * @returns {Promise<Object>} Published skill data
    */
   async publishSkill(skillInfo) {
-    const { 
-      name, 
-      description, 
+    const {
+      name,
+      description,
       version = '1.0.0',
       author = 'Anonymous',
       category = 'General',
@@ -105,7 +105,7 @@ class SkillMarketplace {
     };
 
     this.skills.set(skillId, skill);
-    
+
     // Initialize stats
     this.stats.set(skillId, {
       downloads: 0,
@@ -121,7 +121,7 @@ class SkillMarketplace {
     this.reviews.set(skillId, []);
 
     this._saveData();
-    
+
     return skill;
   }
 
@@ -156,7 +156,7 @@ class SkillMarketplace {
 
     this.skills.set(skillId, updatedSkill);
     this._saveData();
-    
+
     return updatedSkill;
   }
 
@@ -175,9 +175,9 @@ class SkillMarketplace {
    * @returns {Array} List of skills
    */
   listSkills(options = {}) {
-    const { 
-      category, 
-      author, 
+    const {
+      category,
+      author,
       status = 'published',
       sortBy = 'updatedAt',
       sortOrder = 'desc',
@@ -190,26 +190,26 @@ class SkillMarketplace {
 
     // Filter by status
     if (status) {
-      skills = skills.filter(skill => skill.status === status);
+      skills = skills.filter((skill) => skill.status === status);
     }
 
     // Filter by category
     if (category) {
-      skills = skills.filter(skill => skill.category === category);
+      skills = skills.filter((skill) => skill.category === category);
     }
 
     // Filter by author
     if (author) {
-      skills = skills.filter(skill => skill.author === author);
+      skills = skills.filter((skill) => skill.author === author);
     }
 
     // Search filter
     if (search) {
       const searchLower = search.toLowerCase();
-      skills = skills.filter(skill => 
+      skills = skills.filter((skill) =>
         skill.name.toLowerCase().includes(searchLower) ||
         skill.description.toLowerCase().includes(searchLower) ||
-        skill.keywords.some(kw => kw.toLowerCase().includes(searchLower))
+        skill.keywords.some((kw) => kw.toLowerCase().includes(searchLower))
       );
     }
 
@@ -217,12 +217,12 @@ class SkillMarketplace {
     skills.sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
-      
+
       if (sortBy === 'downloads' || sortBy === 'rating' || sortBy === 'ratingCount') {
         aVal = aVal || 0;
         bVal = bVal || 0;
       }
-      
+
       if (sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;
       } else {
@@ -256,7 +256,7 @@ class SkillMarketplace {
     }
 
     const { rating, title, content, reviewer = 'Anonymous' } = review;
-    
+
     if (!rating || rating < 1 || rating > 5) {
       throw new Error('Rating must be between 1 and 5');
     }
@@ -285,7 +285,7 @@ class SkillMarketplace {
     // Update skill rating
     const totalRating = skillReviews.reduce((sum, r) => sum + r.rating, 0);
     const averageRating = totalRating / skillReviews.length;
-    
+
     skill.rating = Math.round(averageRating * 10) / 10;
     skill.ratingCount = skillReviews.length;
     skill.updatedAt = now;
@@ -298,7 +298,7 @@ class SkillMarketplace {
     this.stats.set(skillId, stats);
 
     this._saveData();
-    
+
     return newReview;
   }
 
@@ -310,9 +310,9 @@ class SkillMarketplace {
    */
   getReviews(skillId, options = {}) {
     const { limit = 20, offset = 0, sortBy = 'createdAt', sortOrder = 'desc' } = options;
-    
+
     const reviews = this.reviews.get(skillId) || [];
-    
+
     // Sort
     const sortedReviews = [...reviews].sort((a, b) => {
       const aVal = a[sortBy];
@@ -360,10 +360,10 @@ class SkillMarketplace {
       viewCount: 0,
       lastView: null
     };
-    
+
     stats.downloads = (stats.downloads || 0) + 1;
     stats.lastDownload = new Date().toISOString();
-    
+
     // Track unique downloaders
     if (!stats.downloaders) {
       stats.downloaders = new Set();
@@ -372,7 +372,7 @@ class SkillMarketplace {
       stats.downloaders.add(downloader);
       stats.uniqueDownloaders = stats.downloaders.size;
     }
-    
+
     this.stats.set(skillId, stats);
     this._saveData();
   }
@@ -392,10 +392,10 @@ class SkillMarketplace {
       viewCount: 0,
       lastView: null
     };
-    
+
     stats.viewCount = (stats.viewCount || 0) + 1;
     stats.lastView = new Date().toISOString();
-    
+
     this.stats.set(skillId, stats);
     this._saveData();
   }
@@ -408,7 +408,7 @@ class SkillMarketplace {
   getStats(skillId) {
     const stats = this.stats.get(skillId) || {};
     const skill = this.skills.get(skillId);
-    
+
     return {
       ...stats,
       skillId,
@@ -434,10 +434,10 @@ class SkillMarketplace {
    */
   getFeaturedSkills(limit = 10) {
     const featured = Array.from(this.skills.values())
-      .filter(skill => skill.featured && skill.status === 'published')
+      .filter((skill) => skill.featured && skill.status === 'published')
       .sort((a, b) => b.rating - a.rating)
       .slice(0, limit);
-    
+
     return featured;
   }
 
@@ -448,10 +448,10 @@ class SkillMarketplace {
    */
   getPopularSkills(limit = 10) {
     const popular = Array.from(this.skills.values())
-      .filter(skill => skill.status === 'published')
+      .filter((skill) => skill.status === 'published')
       .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
       .slice(0, limit);
-    
+
     return popular;
   }
 
@@ -461,13 +461,13 @@ class SkillMarketplace {
    */
   getCategories() {
     const categories = {};
-    
+
     for (const skill of this.skills.values()) {
       if (skill.status === 'published') {
         categories[skill.category] = (categories[skill.category] || 0) + 1;
       }
     }
-    
+
     return Object.entries(categories).map(([name, count]) => ({ name, count }));
   }
 
@@ -512,17 +512,17 @@ class SkillMarketplace {
    */
   getMarketplaceStats() {
     const skills = Array.from(this.skills.values());
-    const published = skills.filter(s => s.status === 'published');
-    
+    const published = skills.filter((s) => s.status === 'published');
+
     return {
       totalSkills: skills.length,
       publishedSkills: published.length,
       totalDownloads: published.reduce((sum, s) => sum + (s.downloads || 0), 0),
       totalReviews: Array.from(this.reviews.values()).reduce((sum, reviews) => sum + reviews.length, 0),
-      averageRating: published.length > 0 ? 
+      averageRating: published.length > 0 ?
         published.reduce((sum, s) => sum + (s.rating || 0), 0) / published.length : 0,
       categories: this.getCategories().length,
-      authors: [...new Set(published.map(s => s.author))].length
+      authors: [...new Set(published.map((s) => s.author))].length
     };
   }
 }

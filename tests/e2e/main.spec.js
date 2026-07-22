@@ -131,7 +131,7 @@ test.describe('Security Features', () => {
       requests.push(request.get('http://localhost:3000/api/personality'));
     }
     const results = await Promise.all(requests);
-    const rateLimited = results.filter(r => r.status() === 429);
+    const rateLimited = results.filter((r) => r.status() === 429);
     expect(rateLimited.length).toBeGreaterThan(0);
   });
 

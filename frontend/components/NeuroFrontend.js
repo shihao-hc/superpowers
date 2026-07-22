@@ -1,6 +1,6 @@
 /**
  * NeuroFrontend - 神经前端控制面板
- * 
+ *
  * 功能:
  * - 干净美观的UI
  * - 实时状态显示
@@ -21,7 +21,7 @@ class NeuroFrontend {
 
     // UI元素
     this.elements = {};
-    
+
     // 状态
     this.state = {
       isConnected: false,
@@ -33,7 +33,7 @@ class NeuroFrontend {
 
     // 消息历史
     this.messages = [];
-    
+
     // 初始化
     this._init();
   }
@@ -58,7 +58,7 @@ class NeuroFrontend {
 
     this.container = container;
     container.innerHTML = this._getHTML();
-    
+
     // 缓存元素引用
     this.elements = {
       chatMessages: container.querySelector('#chat-messages'),
@@ -230,7 +230,7 @@ class NeuroFrontend {
    * 创建样式
    */
   _createStyles() {
-    if (document.getElementById('neuro-styles')) return;
+    if (document.getElementById('neuro-styles')) {return;}
 
     const style = document.createElement('style');
     style.id = 'neuro-styles';
@@ -581,7 +581,7 @@ class NeuroFrontend {
       .chat-messages::-webkit-scrollbar-track { background: transparent; }
       .chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
     `;
-    
+
     document.head.appendChild(style);
   }
 
@@ -592,7 +592,7 @@ class NeuroFrontend {
     // 发送消息
     this.elements.sendBtn?.addEventListener('click', () => this._sendMessage());
     this.elements.chatInput?.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this._sendMessage();
+      if (e.key === 'Enter') {this._sendMessage();}
     });
 
     // 语音按钮
@@ -602,7 +602,7 @@ class NeuroFrontend {
     this.elements.moodSelector?.addEventListener('click', (e) => {
       const btn = e.target.closest('.mood-btn');
       if (btn) {
-        this.elements.moodSelector.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+        this.elements.moodSelector.querySelectorAll('.mood-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.setMood(btn.dataset.mood);
       }
@@ -612,14 +612,14 @@ class NeuroFrontend {
     this.elements.personalitySelector?.addEventListener('click', (e) => {
       const btn = e.target.closest('.personality-btn');
       if (btn) {
-        this.elements.personalitySelector.querySelectorAll('.personality-btn').forEach(b => b.classList.remove('active'));
+        this.elements.personalitySelector.querySelectorAll('.personality-btn').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.setPersonality(btn.dataset.personality);
       }
     });
 
     // 快捷回复
-    document.querySelectorAll('.quick-btn').forEach(btn => {
+    document.querySelectorAll('.quick-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.elements.chatInput.value = btn.textContent;
         this._sendMessage();
@@ -629,19 +629,19 @@ class NeuroFrontend {
     // 滑块控制
     document.getElementById('rate-slider')?.addEventListener('input', (e) => {
       document.getElementById('rate-value').textContent = e.target.value;
-      if (this.options.onRateChange) this.options.onRateChange(parseFloat(e.target.value));
+      if (this.options.onRateChange) {this.options.onRateChange(parseFloat(e.target.value));}
     });
 
     document.getElementById('pitch-slider')?.addEventListener('input', (e) => {
       document.getElementById('pitch-value').textContent = e.target.value;
-      if (this.options.onPitchChange) this.options.onPitchChange(parseFloat(e.target.value));
+      if (this.options.onPitchChange) {this.options.onPitchChange(parseFloat(e.target.value));}
     });
 
     // 设置面板
     document.getElementById('settings-btn')?.addEventListener('click', () => {
       document.getElementById('settings-panel').classList.remove('hidden');
     });
-    
+
     document.getElementById('close-settings')?.addEventListener('click', () => {
       document.getElementById('settings-panel').classList.add('hidden');
     });
@@ -654,12 +654,12 @@ class NeuroFrontend {
     // 底部控制按钮
     document.getElementById('voice-toggle')?.addEventListener('click', (e) => {
       e.currentTarget.classList.toggle('active');
-      if (this.options.onVoiceToggle) this.options.onVoiceToggle(e.currentTarget.classList.contains('active'));
+      if (this.options.onVoiceToggle) {this.options.onVoiceToggle(e.currentTarget.classList.contains('active'));}
     });
 
     document.getElementById('inference-toggle')?.addEventListener('click', (e) => {
       e.currentTarget.classList.toggle('active');
-      if (this.options.onInferenceToggle) this.options.onInferenceToggle(e.currentTarget.classList.contains('active'));
+      if (this.options.onInferenceToggle) {this.options.onInferenceToggle(e.currentTarget.classList.contains('active'));}
     });
   }
 
@@ -668,11 +668,11 @@ class NeuroFrontend {
    */
   _sendMessage() {
     const text = this.elements.chatInput?.value?.trim();
-    if (!text) return;
+    if (!text) {return;}
 
     this.addMessage('user', text);
     this.elements.chatInput.value = '';
-    
+
     if (this.options.onMessage) {
       this.options.onMessage(text);
     }
@@ -706,7 +706,7 @@ class NeuroFrontend {
     // 更新消息计数
     const msgCountEl = document.getElementById('msg-count');
     if (msgCountEl) {
-      msgCountEl.textContent = this.messages.filter(m => m.role === 'user').length;
+      msgCountEl.textContent = this.messages.filter((m) => m.role === 'user').length;
     }
   }
 
@@ -745,7 +745,7 @@ class NeuroFrontend {
   toggleVoice() {
     this.elements.micBtn?.classList.toggle('active');
     this.state.isListening = !this.state.isListening;
-    
+
     if (this.options.onVoiceToggle) {
       this.options.onVoiceToggle(this.state.isListening);
     }
@@ -784,9 +784,9 @@ class NeuroFrontend {
       ttsEngine: document.getElementById('tts-engine')?.value,
       vtubeEndpoint: document.getElementById('vtube-endpoint')?.value
     };
-    
+
     localStorage.setItem('neuro-settings', JSON.stringify(settings));
-    
+
     if (this.options.onSettingsSave) {
       this.options.onSettingsSave(settings);
     }
@@ -835,7 +835,7 @@ class NeuroFrontend {
       animation: fadeIn 0.3s ease;
       z-index: 1000;
     `;
-    
+
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
   }

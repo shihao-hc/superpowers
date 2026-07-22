@@ -43,7 +43,7 @@ class StructuredLogger {
     };
 
     delete entry.traceId;
-    if (data.traceId) entry.traceId = data.traceId;
+    if (data.traceId) {entry.traceId = data.traceId;}
 
     return entry;
   }
@@ -52,36 +52,36 @@ class StructuredLogger {
     const line = JSON.stringify(entry);
 
     switch (this.output) {
-      case 'console':
-        if (entry.level === 'error') {
-          console.error(line);
-        } else if (entry.level === 'warn') {
-          console.warn(line);
-        } else {
-          console.log(line);
-        }
-        break;
-
-      case 'buffer':
-        this.logs.push(entry);
-        if (this.logs.length > this.maxLogs) {
-          this.logs = this.logs.slice(-this.maxLogs / 2);
-        }
-        break;
-
-      default:
+    case 'console':
+      if (entry.level === 'error') {
+        console.error(line);
+      } else if (entry.level === 'warn') {
+        console.warn(line);
+      } else {
         console.log(line);
+      }
+      break;
+
+    case 'buffer':
+      this.logs.push(entry);
+      if (this.logs.length > this.maxLogs) {
+        this.logs = this.logs.slice(-this.maxLogs / 2);
+      }
+      break;
+
+    default:
+      console.log(line);
     }
   }
 
   _flush() {
-    if (this._buffer.length === 0) return;
+    if (this._buffer.length === 0) {return;}
     this._buffer = [];
   }
 
   error(message, data = {}) {
-    if (!this._shouldLog('error')) return;
-    
+    if (!this._shouldLog('error')) {return;}
+
     const safeData = { ...data };
     if (safeData.stack) {
       safeData.stack = safeData.stack
@@ -93,27 +93,27 @@ class StructuredLogger {
     delete safeData.token;
     delete safeData.secret;
     delete safeData.apiKey;
-    
+
     this._output(this._createEntry('error', message, safeData));
   }
 
   warn(message, data = {}) {
-    if (!this._shouldLog('warn')) return;
+    if (!this._shouldLog('warn')) {return;}
     this._output(this._createEntry('warn', message, data));
   }
 
   info(message, data = {}) {
-    if (!this._shouldLog('info')) return;
+    if (!this._shouldLog('info')) {return;}
     this._output(this._createEntry('info', message, data));
   }
 
   debug(message, data = {}) {
-    if (!this._shouldLog('debug')) return;
+    if (!this._shouldLog('debug')) {return;}
     this._output(this._createEntry('debug', message, data));
   }
 
   trace(message, data = {}) {
-    if (!this._shouldLog('trace')) return;
+    if (!this._shouldLog('trace')) {return;}
     this._output(this._createEntry('trace', message, data));
   }
 
@@ -155,13 +155,13 @@ class StructuredLogger {
     let logs = [...this.logs];
 
     if (options.level) {
-      logs = logs.filter(l => l.level === options.level);
+      logs = logs.filter((l) => l.level === options.level);
     }
     if (options.since) {
-      logs = logs.filter(l => new Date(l.timestamp) >= new Date(options.since));
+      logs = logs.filter((l) => new Date(l.timestamp) >= new Date(options.since));
     }
     if (options.service) {
-      logs = logs.filter(l => l.service === options.service);
+      logs = logs.filter((l) => l.service === options.service);
     }
 
     return logs.slice(-(options.limit || 100));

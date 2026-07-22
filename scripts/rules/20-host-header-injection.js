@@ -15,6 +15,7 @@ module.exports = {
       }
     }
   },
+  suggest: '避免在 URL 构建或重定向中直接使用 req.headers.host。应从可信来源（如 X-Forwarded-Host 经代理验证后）获取目标域名，使用 allowlist 验证 host，或使用 app.set("trust proxy") 后的 req.hostname。',
   references: ['CWE-644'],
   since: '2026-06-28',
 };

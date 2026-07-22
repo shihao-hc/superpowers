@@ -16,7 +16,7 @@ class WorkflowOptimizer {
     const episode = {
       id: execution.id,
       workflowId: execution.workflowId,
-      steps: execution.steps.map(s => ({
+      steps: execution.steps.map((s) => ({
         agent: s.agent,
         task: s.task,
         status: s.status,
@@ -66,7 +66,7 @@ class WorkflowOptimizer {
       reward -= 20;
     }
 
-    const successRate = episode.steps.filter(s => s.status === 'completed').length / episode.steps.length;
+    const successRate = episode.steps.filter((s) => s.status === 'completed').length / episode.steps.length;
     reward += successRate * 30;
 
     return reward;
@@ -118,7 +118,7 @@ class WorkflowOptimizer {
     const stateKey = this._getStateKey(workflowId, stepIndex);
     const stateQ = this.qTable.get(stateKey);
 
-    if (!stateQ || stateQ.size === 0) return 0;
+    if (!stateQ || stateQ.size === 0) {return 0;}
 
     return Math.max(...stateQ.values());
   }
@@ -144,7 +144,10 @@ class WorkflowOptimizer {
       }
     }
 
-    return bestAction || availableActions[0];
+    if (bestAction) {
+      return bestAction;
+    }
+    return availableActions[0];
   }
 
   optimizeWorkflow(workflowId, steps) {
@@ -183,13 +186,13 @@ class WorkflowOptimizer {
   }
 
   getWorkflowInsights(workflowId) {
-    const episodes = this.history.filter(e => e.workflowId === workflowId);
+    const episodes = this.history.filter((e) => e.workflowId === workflowId);
 
     if (episodes.length === 0) {
       return { workflowId, episodes: 0, insights: [] };
     }
 
-    const completed = episodes.filter(e => e.status === 'completed');
+    const completed = episodes.filter((e) => e.status === 'completed');
     const avgDuration = episodes.reduce((s, e) => s + e.totalDuration, 0) / episodes.length;
     const avgReward = episodes.reduce((s, e) => s + e.reward, 0) / episodes.length;
 
@@ -204,7 +207,7 @@ class WorkflowOptimizer {
         }
         stepStats[key].count++;
         stepStats[key].totalDuration += step.duration;
-        if (step.status === 'completed') stepStats[key].successes++;
+        if (step.status === 'completed') {stepStats[key].successes++;}
       }
     }
 
@@ -215,8 +218,8 @@ class WorkflowOptimizer {
       if (avgDur > 5000 || successRate < 0.8) {
         bottlenecks.push({
           step: key,
-          avgDuration: avgDur.toFixed(0) + 'ms',
-          successRate: (successRate * 100).toFixed(1) + '%'
+          avgDuration: `${avgDur.toFixed(0)}ms`,
+          successRate: `${(successRate * 100).toFixed(1)}%`
         });
       }
     }
@@ -225,10 +228,10 @@ class WorkflowOptimizer {
       workflowId,
       episodes: episodes.length,
       completed: completed.length,
-      successRate: (completed.length / episodes.length * 100).toFixed(1) + '%',
-      avgDuration: avgDuration.toFixed(0) + 'ms',
+      successRate: `${(completed.length / episodes.length * 100).toFixed(1)}%`,
+      avgDuration: `${avgDuration.toFixed(0)}ms`,
       avgReward: avgReward.toFixed(2),
-      explorationRate: (this.explorationRate * 100).toFixed(1) + '%',
+      explorationRate: `${(this.explorationRate * 100).toFixed(1)}%`,
       bottlenecks,
       qTableSize: this.qTable.size
     };
@@ -238,7 +241,7 @@ class WorkflowOptimizer {
     const insights = this.getWorkflowInsights(workflowId);
     const recommendations = [];
 
-    if (insights.bottlenecks.length > 0) {
+    if (insights.bottlenecks && insights.bottlenecks.length > 0) {
       for (const bottleneck of insights.bottlenecks) {
         recommendations.push({
           type: 'bottleneck',
@@ -248,19 +251,21 @@ class WorkflowOptimizer {
       }
     }
 
-    if (parseFloat(insights.successRate) < 90) {
+    if (insights.successRate && parseFloat(insights.successRate) < 90) {
       recommendations.push({
         type: 'reliability',
         suggestion: `成功率较低 (${insights.successRate})，建议增加重试机制或检查失败原因`
       });
     }
 
-    const optimalSteps = this.optimizeWorkflow(workflowId, []);
+    const latestEpisode = this.history.filter((e) => e.workflowId === workflowId).pop();
+    const steps = latestEpisode ? latestEpisode.steps : [];
+    const optimalSteps = this.optimizeWorkflow(workflowId, steps);
     if (optimalSteps.length > 0) {
       recommendations.push({
         type: 'optimization',
-        suggestion: '根据历史数据，以下Agent组合表现更好：' +
-          optimalSteps.map(s => `${s.agent}(${s.task})`).join(' → ')
+        suggestion: `根据历史数据，以下Agent组合表现更好：${
+          optimalSteps.map((s) => `${s.agent}(${s.task})`).join(' → ')}`
       });
     }
 

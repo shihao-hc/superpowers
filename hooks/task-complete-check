@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# TaskCompleted hook: 任务完成后自动触发复盘
+# 触发条件: 任何任务完成后
+
+set -euo pipefail
+
+# Determine plugin root directory - use CLAUDE_PLUGIN_ROOT if available
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
+LEARN_FLOW_DOC="${PLUGIN_ROOT}/docs/学习流程v4.md"
+LEARNINGS_FILE="${PLUGIN_ROOT}/shihao-web/python-backend/LEARNINGS.md"
+
+# 获取任务结果（如果有）
+TASK_RESULT="${CLAUDE_TOOL_INPUT:-}"
+
+# 检查是否需要复盘
+need_reflection() {
+    # 检查是否修改了代码文件
+    if [[ "$TASK_RESULT" =~ \"task\".*\"ToolUse\".*\"(Write|Edit|Bash)\" ]]; then
+        return 0
+    fi
+    # 检查是否有输出文件
+    if [[ "$TASK_RESULT" =~ \"output\".*\"\.(js|ts|py|md)\" ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# 生成复盘提醒
+generate_reflection() {
+    local reflections=""
+    
+    reflections="【任务完成 - 复盘检查】
+
+💉 血脉级自问:
+
+1. 边界意识
+   □ 这次任务的边界在哪里？
+   □ 有没有遗漏的边界情况？
+   □ 错误处理是否完整？
+
+2. 模式提炼 (血脉3)
+   □ 这次解决了什么问题？
+   □ 有哪些可以复用的模式？
+   □ 提炼出3个可复用模式了吗？
+
+3. 文档更新 (血脉4)
+   □ 需要更新 LEARNINGS.md 吗？
+   □ 需要更新技能文档吗？
+   □ 教训记录了吗？
+
+4. 流程改进 (血脉5)
+   □ 流程的哪个环节可以改进？
+   □ 学习流程文档需要更新吗？
+
+5. 学习收获 (血脉1)
+   □ 这次学习让我理解更深了吗？
+   □ 最大的收获是什么？
+   □ 下次如何做得更好？"
+    
+    echo "$reflections"
+}
+
+# 检查是否需要更新学习记录
+check_learnings_update() {
+    local updates=""
+    
+    # 敏感文件过滤模式
+    local sensitive_pattern="(\.env$|\.key$|\.pem$|\.secret$|credentials|passwd|shadow|\.log$)"
+    
+    # 检查今天的修改 (只显示文件名，过滤敏感文件)
+    local today=$(date +%Y-%m-%d)
+    local modified_files=$(git diff --name-only --since="12 hours" 2>/dev/null | \
+        grep -vE "$sensitive_pattern" | head -20 || echo "")
+    
+    if [ -n "$modified_files" ]; then
+        updates="${updates}
+        
+📝 最近修改的文件 (已过滤敏感文件):
+$(echo "$modified_files" | head -5)
+"
+    fi
+    
+    # 检查 LEARNINGS.md 最后更新时间
+    if [ -f "$LEARNINGS_FILE" ]; then
+        local last_update=$(stat -c %y "$LEARNINGS_FILE" 2>/dev/null || stat -f %Sm "$LEARNINGS_FILE" 2>/dev/null || echo "")
+        local last_date=$(echo "$last_update" | cut -d' ' -f1 2>/dev/null || echo "")
+        
+        if [ "$last_date" != "$today" ]; then
+            updates="${updates}
+
+⚠️ 血脉4: LEARNINGS.md 今天尚未更新"
+        fi
+    fi
+    
+    echo "$updates"
+}
+
+# 安全转义函数 - 移除危险字符
+sanitize_output() {
+    local text="$1"
+    # 移除不可见控制字符
+    echo "$text" | tr -d '\000-\011\013\014\016-\037'
+}
+
+# 检查学习流程状态
+check_learn_flow_status() {
+    local status=""
+    
+    # 检查学习流程文档版本
+    if [ -f "$LEARN_FLOW_DOC" ]; then
+        local version=$(grep -E "^#.*v[0-9]" "$LEARN_FLOW_DOC" 2>/dev/null | head -1 || echo "未知")
+        version=$(sanitize_output "$version")
+        status="${status}
+📚 学习流程版本: $version"
+    fi
+    
+    # 检查当前阶段 (只显示 phase 名称，不显示内容)
+    local phase_file="${PLUGIN_ROOT}/.opencode/skills/phase-final.json"
+    if [ -f "$phase_file" ]; then
+        local phase=$(grep -E '"phase"' "$phase_file" 2>/dev/null | head -1 || echo "")
+        if [ -n "$phase" ]; then
+            phase=$(sanitize_output "$phase")
+            status="${status}
+$phase"
+        fi
+    fi
+    
+    echo "$status"
+}
+
+# 输出复盘内容
+output_reflection() {
+    local content=$(generate_reflection)
+    content="${content}$(check_learnings_update)"
+    content="${content}$(check_learn_flow_status)"
+    
+    # JSON 转义
+    content="${content//\\/\\\\}"
+    content="${content//\"/\\\"}"
+    content="${content//$'\n'/\\n}"
+    content="${content//$'\r'/\\r}"
+    content="${content//$'\t'/\\t}"
+    
+    printf '{\n  "additionalContext": "%s"\n}\n' "$content"
+}
+
+# 主逻辑
+main() {
+    # 不阻塞任务完成，只是添加提醒
+    if need_reflection; then
+        output_reflection
+    else
+        # 简单的完成提醒
+        printf '{\n  "additionalContext": "【任务完成】\n💉 血脉提醒: 复盘了吗？提炼了3个模式吗？更新文档了吗？\n□ 边界情况处理了吗？\n□ 资源正确释放了吗？\n□ 需要更新技能库吗？"\n}\n'
+    fi
+}
+
+main

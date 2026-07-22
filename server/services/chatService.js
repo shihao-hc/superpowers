@@ -3,7 +3,7 @@
  */
 
 const { EventEmitter } = require('events');
-const config = require('../config');
+const _config = require('../config');
 
 // 集成 Claude Code 风格的上下文压缩服务
 const { ContextCompactService } = require('../../src/agent/ContextCompactService');
@@ -18,7 +18,7 @@ class ChatService extends EventEmitter {
       totalLatency: 0,
       errors: 0
     };
-    
+
     // 初始化上下文压缩服务
     this.contextCompact = new ContextCompactService({
       maxTokens: 100000,
@@ -67,7 +67,7 @@ class ChatService extends EventEmitter {
 
       // Claude Code 风格的上下文压缩
       this.contextCompact.addMessage(userMessage);
-      
+
       // 检查是否需要压缩
       if (this.contextCompact.shouldCompact()) {
         const compacted = this.contextCompact.compact();
@@ -133,7 +133,7 @@ class ChatService extends EventEmitter {
     // 目前使用简单的回复逻辑
 
     const personality = conversation.personality || 'default';
-    const context = conversation.context || {};
+    const _context = conversation.context || {};
 
     // 根据人格生成不同的回复风格
     const responses = {

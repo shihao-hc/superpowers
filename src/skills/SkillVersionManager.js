@@ -1,13 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 class SkillVersionManager {
   constructor(options = {}) {
     this.versionsDir = options.versionsDir || path.join(process.cwd(), 'uploads', 'skill-versions');
     this.currentVersions = new Map(); // skillName -> current version info
     this.versionHistory = new Map(); // skillName -> array of versions
-    
+
     this._ensureDirectories();
     this._loadVersionData();
   }
@@ -52,7 +53,7 @@ class SkillVersionManager {
    * @returns {Promise<Object>} Created version
    */
   async createVersion(skillName, versionInfo) {
-    const { 
+    const {
       version,
       description = '',
       changelog = '',
@@ -133,17 +134,17 @@ class SkillVersionManager {
    */
   getVersionHistory(skillName, options = {}) {
     const { limit = 50, offset = 0, status = null } = options;
-    
+
     let versions = this.versionHistory.get(skillName) || [];
-    
+
     // Filter by status
     if (status) {
-      versions = versions.filter(v => v.status === status);
+      versions = versions.filter((v) => v.status === status);
     }
-    
+
     // Sort by version (newest first)
     versions.sort((a, b) => this._compareVersions(b.version, a.version));
-    
+
     // Paginate
     const total = versions.length;
     const paginatedVersions = versions.slice(offset, offset + limit);
@@ -165,7 +166,7 @@ class SkillVersionManager {
    */
   getVersion(skillName, version) {
     const history = this.versionHistory.get(skillName) || [];
-    return history.find(v => v.version === version) || null;
+    return history.find((v) => v.version === version) || null;
   }
 
   /**
@@ -178,8 +179,8 @@ class SkillVersionManager {
    */
   async updateVersionStatus(skillName, version, status, reason = '') {
     const history = this.versionHistory.get(skillName) || [];
-    const versionIndex = history.findIndex(v => v.version === version);
-    
+    const versionIndex = history.findIndex((v) => v.version === version);
+
     if (versionIndex === -1) {
       throw new Error(`Version ${version} not found for skill ${skillName}`);
     }
@@ -187,7 +188,7 @@ class SkillVersionManager {
     const versionData = history[versionIndex];
     versionData.status = status;
     versionData.updatedAt = new Date().toISOString();
-    
+
     if (reason) {
       versionData.statusChangeReason = reason;
     }
@@ -197,7 +198,7 @@ class SkillVersionManager {
     if (current && current.version === version) {
       if (status !== 'active') {
         // Find the next active version
-        const activeVersions = history.filter(v => v.status === 'active' && v.version !== version);
+        const activeVersions = history.filter((v) => v.status === 'active' && v.version !== version);
         if (activeVersions.length > 0) {
           // Get the highest active version
           activeVersions.sort((a, b) => this._compareVersions(b.version, a.version));
@@ -274,15 +275,15 @@ class SkillVersionManager {
   _compareVersions(v1, v2) {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
-    
+
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const p1 = parts1[i] || 0;
       const p2 = parts2[i] || 0;
-      
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
+
+      if (p1 > p2) {return 1;}
+      if (p1 < p2) {return -1;}
     }
-    
+
     return 0;
   }
 
@@ -294,23 +295,23 @@ class SkillVersionManager {
    */
   _incrementVersion(version, type = 'patch') {
     const parts = version.split('.').map(Number);
-    
+
     switch (type) {
-      case 'major':
-        parts[0] += 1;
-        parts[1] = 0;
-        parts[2] = 0;
-        break;
-      case 'minor':
-        parts[1] += 1;
-        parts[2] = 0;
-        break;
-      case 'patch':
-      default:
-        parts[2] += 1;
-        break;
+    case 'major':
+      parts[0] += 1;
+      parts[1] = 0;
+      parts[2] = 0;
+      break;
+    case 'minor':
+      parts[1] += 1;
+      parts[2] = 0;
+      break;
+    case 'patch':
+    default:
+      parts[2] += 1;
+      break;
     }
-    
+
     return parts.join('.');
   }
 
@@ -372,25 +373,25 @@ class SkillVersionManager {
    */
   getAllVersions(options = {}) {
     const { skillName, status, sortBy = 'createdAt', sortOrder = 'desc', limit = 100 } = options;
-    
-    let allVersions = [];
-    
+
+    const allVersions = [];
+
     for (const [name, versions] of this.versionHistory.entries()) {
-      if (skillName && name !== skillName) continue;
-      
+      if (skillName && name !== skillName) {continue;}
+
       for (const version of versions) {
-        if (status && version.status !== status) continue;
+        if (status && version.status !== status) {continue;}
         allVersions.push({ ...version, skillName: name });
       }
     }
-    
+
     // Sort
     allVersions.sort((a, b) => {
       const aVal = a[sortBy];
       const bVal = b[sortBy];
       return sortOrder === 'desc' ? (aVal < bVal ? 1 : -1) : (aVal > bVal ? 1 : -1);
     });
-    
+
     // Limit
     return allVersions.slice(0, limit);
   }
@@ -403,12 +404,12 @@ class SkillVersionManager {
     const skills = Array.from(this.versionHistory.keys());
     let totalVersions = 0;
     let activeVersions = 0;
-    
+
     for (const versions of this.versionHistory.values()) {
       totalVersions += versions.length;
-      activeVersions += versions.filter(v => v.status === 'active').length;
+      activeVersions += versions.filter((v) => v.status === 'active').length;
     }
-    
+
     return {
       totalSkills: skills.length,
       totalVersions,
@@ -434,8 +435,8 @@ class SkillVersionManager {
    */
   getLatestVersion(skillName) {
     const history = this.versionHistory.get(skillName) || [];
-    if (history.length === 0) return null;
-    
+    if (history.length === 0) {return null;}
+
     // Sort by version (newest first)
     const sorted = [...history].sort((a, b) => this._compareVersions(b.version, a.version));
     return sorted[0];
@@ -449,28 +450,28 @@ class SkillVersionManager {
    */
   getCompatibleVersions(skillName, requirements = {}) {
     const history = this.versionHistory.get(skillName) || [];
-    
-    return history.filter(version => {
-      if (version.status !== 'active') return false;
-      
+
+    return history.filter((version) => {
+      if (version.status !== 'active') {return false;}
+
       // Check compatibility requirements
       if (requirements.minVersion && this._compareVersions(version.version, requirements.minVersion) < 0) {
         return false;
       }
-      
+
       if (requirements.maxVersion && this._compareVersions(version.version, requirements.maxVersion) > 0) {
         return false;
       }
-      
+
       // Check dependency compatibility
       if (requirements.dependencies) {
         const versionDeps = version.dependencies || [];
         for (const [dep, depVersion] of Object.entries(requirements.dependencies)) {
-          const hasDep = versionDeps.some(d => d.name === dep && d.version === depVersion);
-          if (!hasDep) return false;
+          const hasDep = versionDeps.some((d) => d.name === dep && d.version === depVersion);
+          if (!hasDep) {return false;}
         }
       }
-      
+
       return true;
     });
   }
@@ -483,7 +484,7 @@ class SkillVersionManager {
    * @returns {Promise<Object>} Created version
    */
   async createVersionFromPackage(skillName, packagePath, options = {}) {
-    const { 
+    const {
       version,
       description = '',
       changelog = '',
@@ -494,7 +495,7 @@ class SkillVersionManager {
     let skillData = {};
     const skillMdPath = path.join(packagePath, 'skill.md');
     const readmePath = path.join(packagePath, 'README.md');
-    
+
     if (fs.existsSync(skillMdPath)) {
       const content = fs.readFileSync(skillMdPath, 'utf8');
       skillData = this._parseSkillMd(content);
@@ -505,10 +506,10 @@ class SkillVersionManager {
 
     // Get version from skill data or use provided version
     const finalVersion = version || skillData.version || '1.0.0';
-    
+
     // List all files in package
     const files = this._listFilesRecursive(packagePath);
-    
+
     return this.createVersion(skillName, {
       version: finalVersion,
       description: description || skillData.description || '',
@@ -537,7 +538,7 @@ class SkillVersionManager {
 
     try {
       // Simple parsing
-      const lines = content.split('\n');
+      const lines = splitLines(content);
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (line.startsWith('# ') || line.startsWith('## ')) {
@@ -558,11 +559,11 @@ class SkillVersionManager {
   _listFilesRecursive(dirPath, basePath = '') {
     const files = [];
     const items = fs.readdirSync(dirPath);
-    
+
     for (const item of items) {
       const itemPath = path.join(dirPath, item);
       const relativePath = basePath ? `${basePath}/${item}` : item;
-      
+
       const stats = fs.statSync(itemPath);
       if (stats.isDirectory()) {
         if (!item.startsWith('.') && item !== 'node_modules') {
@@ -572,7 +573,7 @@ class SkillVersionManager {
         files.push(relativePath);
       }
     }
-    
+
     return files;
   }
 }

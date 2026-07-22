@@ -10,7 +10,7 @@ class ResponseCache {
     this.maxSize = options.maxSize || 500;
     this.defaultTTL = options.defaultTTL || 300000;
     this.enabled = options.enabled !== false;
-    
+
     this.cache = new Map();
     this.accessOrder = [];
     this.stats = {
@@ -19,7 +19,7 @@ class ResponseCache {
       evictions: 0,
       size: 0
     };
-    
+
     this._cleanupInterval = null;
     if (this.enabled) {
       this._startCleanup();
@@ -30,13 +30,14 @@ class ResponseCache {
     this._cleanupInterval = setInterval(() => {
       this._cleanup();
     }, Math.min(this.defaultTTL, 60000));
+    if (this._cleanupInterval.unref) { this._cleanupInterval.unref(); }
   }
 
   _generateKey(params) {
     const hash = crypto.createHash('sha256');
     const normalized = JSON.stringify({
       model: params.model,
-      messages: params.messages?.slice(0, 10).map(m => ({
+      messages: params.messages?.slice(0, 10).map((m) => ({
         role: m.role,
         content: m.content?.slice(0, 1000)
       })),
@@ -66,13 +67,14 @@ class ResponseCache {
   }
 
   _isExpired(entry) {
+    if (!entry || entry.ttl === undefined) {return true;}
     return Date.now() - entry.timestamp > entry.ttl;
   }
 
   _cleanup() {
     const now = Date.now();
     let evicted = 0;
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
@@ -83,22 +85,22 @@ class ResponseCache {
         evicted++;
       }
     }
-    
+
     this.stats.evictions += evicted;
     this.stats.size = this.cache.size;
   }
 
   get(params) {
-    if (!this.enabled) return null;
-    
+    if (!this.enabled) {return null;}
+
     const key = this._generateKey(params);
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       this.stats.misses++;
       return null;
     }
-    
+
     if (this._isExpired(entry)) {
       this.cache.delete(key);
       const index = this.accessOrder.indexOf(key);
@@ -109,17 +111,17 @@ class ResponseCache {
       this.stats.size = this.cache.size;
       return null;
     }
-    
+
     this._updateAccessOrder(key);
     this.stats.hits++;
     return entry.data;
   }
 
   set(params, data, ttl = this.defaultTTL) {
-    if (!this.enabled) return;
-    
+    if (!this.enabled) {return;}
+
     const key = this._generateKey(params);
-    
+
     if (this.cache.has(key)) {
       const entry = this.cache.get(key);
       entry.data = data;
@@ -128,26 +130,26 @@ class ResponseCache {
       this._updateAccessOrder(key);
       return;
     }
-    
+
     this._evictLRU();
-    
+
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: Math.min(ttl, 3600000),
+      ttl: ttl && ttl > 0 ? Math.min(ttl, 3600000) : Math.min(this.defaultTTL, 3600000),
       params: {
         model: params.model,
         messageCount: params.messages?.length || 0
       }
     });
-    
+
     this.accessOrder.push(key);
     this.stats.size = this.cache.size;
   }
 
   invalidate(model = null) {
     let count = 0;
-    
+
     if (model) {
       for (const [key, entry] of this.cache.entries()) {
         if (entry.params?.model === model) {
@@ -164,7 +166,7 @@ class ResponseCache {
       this.cache.clear();
       this.accessOrder = [];
     }
-    
+
     this.stats.size = this.cache.size;
     return count;
   }
@@ -172,7 +174,7 @@ class ResponseCache {
   getStats() {
     return {
       ...this.stats,
-      hitRate: this.stats.hits + this.stats.misses > 0 
+      hitRate: this.stats.hits + this.stats.misses > 0
         ? (this.stats.hits / (this.stats.hits + this.stats.misses)).toFixed(4)
         : 0,
       size: this.cache.size,

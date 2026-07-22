@@ -79,14 +79,14 @@ class MemoryService extends EventEmitter {
   }
 
   _calculateSimilarity(text1, text2) {
-    if (!text1 || !text2) return 0;
-    
+    if (!text1 || !text2) {return 0;}
+
     const words1 = new Set(text1.toLowerCase().split(/\s+/));
     const words2 = new Set(text2.toLowerCase().split(/\s+/));
-    
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
+
+    const intersection = new Set([...words1].filter((x) => words2.has(x)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
   }
 
@@ -94,10 +94,10 @@ class MemoryService extends EventEmitter {
     const words = this._normalizeText(doc.content)
       .toLowerCase()
       .split(/\s+/)
-      .filter(w => w.length > 1);
-    
+      .filter((w) => w.length > 1);
+
     for (const word of words) {
-      if (!doc.index) doc.index = new Map();
+      if (!doc.index) {doc.index = new Map();}
       const existing = doc.index.get(word) || [];
       existing.push(doc.id);
       doc.index.set(word, existing);
@@ -108,14 +108,14 @@ class MemoryService extends EventEmitter {
     const queryWords = this._normalizeText(query)
       .toLowerCase()
       .split(/\s+/)
-      .filter(w => w.length > 1);
+      .filter((w) => w.length > 1);
 
     const scores = new Map();
 
     for (const word of queryWords) {
       for (const doc of collection.documents) {
-        if (!doc.index) continue;
-        
+        if (!doc.index) {continue;}
+
         const matches = doc.index.get(word) || [];
         const currentScore = scores.get(doc.id) || 0;
         scores.set(doc.id, currentScore + matches.length);
@@ -186,11 +186,11 @@ class MemoryService extends EventEmitter {
       const results = [];
 
       for (const [docId, score] of scores) {
-        const doc = collection.documents.find(d => d.id === docId);
-        if (!doc) continue;
+        const doc = collection.documents.find((d) => d.id === docId);
+        if (!doc) {continue;}
 
         const similarity = this._calculateSimilarity(query, doc.content);
-        
+
         if (similarity >= threshold) {
           results.push({
             id: doc.id,
@@ -216,9 +216,9 @@ class MemoryService extends EventEmitter {
     const maxResults = options.maxResults || MAX_RESULTS;
     const allResults = [];
 
-    for (const [type, collection] of this.collections) {
+    for (const [type, _collection] of this.collections) {
       const results = this.search(type, query, { ...options, maxResults: 5 });
-      allResults.push(...results.map(r => ({ ...r, collection: type })));
+      allResults.push(...results.map((r) => ({ ...r, collection: type })));
     }
 
     allResults.sort((a, b) => b.similarity - a.similarity);
@@ -228,21 +228,21 @@ class MemoryService extends EventEmitter {
 
   getMemory(type, id) {
     const collection = this.collections.get(type);
-    if (!collection) return null;
+    if (!collection) {return null;}
 
-    return collection.documents.find(d => d.id === id) || null;
+    return collection.documents.find((d) => d.id === id) || null;
   }
 
   deleteMemory(type, id) {
     const collection = this.collections.get(type);
-    if (!collection) return false;
+    if (!collection) {return false;}
 
-    const index = collection.documents.findIndex(d => d.id === id);
-    if (index === -1) return false;
+    const index = collection.documents.findIndex((d) => d.id === id);
+    if (index === -1) {return false;}
 
     collection.documents.splice(index, 1);
     this.stats.totalMemories--;
-    
+
     this.emit('memory:deleted', { id, type });
     return true;
   }
@@ -280,16 +280,16 @@ class MemoryService extends EventEmitter {
 
   getConversationContext(userId, options = {}) {
     const collection = this.collections.get('conversations');
-    if (!collection) return '';
+    if (!collection) {return '';}
 
     const limit = options.limit || 20;
-    
+
     const userMessages = collection.documents
-      .filter(doc => doc.metadata.userId === userId)
+      .filter((doc) => doc.metadata.userId === userId)
       .sort((a, b) => (a.metadata.createdAt || 0) - (b.metadata.createdAt || 0))
       .slice(-limit);
 
-    return userMessages.map(m => m.content).join('\n');
+    return userMessages.map((m) => m.content).join('\n');
   }
 
   getPersonalityContext(userId) {
@@ -348,16 +348,16 @@ class MemoryService extends EventEmitter {
   }
 
   _generateSummary(conversations, facts) {
-    if (!conversations && (!facts || facts.length === 0)) return '';
+    if (!conversations && (!facts || facts.length === 0)) {return '';}
 
     const parts = [];
 
     if (conversations) {
       parts.push(`Recent conversations:\n${conversations.slice(-500)}`);
     }
-    
+
     if (facts && facts.length > 0) {
-      parts.push(`Known facts:\n${facts.map(f => f.content).join('\n')}`);
+      parts.push(`Known facts:\n${facts.map((f) => f.content).join('\n')}`);
     }
 
     return parts.join('\n\n');
@@ -375,8 +375,8 @@ class MemoryService extends EventEmitter {
       totalMemories: this.stats.totalMemories,
       searches: this.stats.searches,
       hits: this.stats.hits,
-      hitRate: this.stats.searches > 0 
-        ? (this.stats.hits / this.stats.searches * 100).toFixed(2) + '%' 
+      hitRate: this.stats.searches > 0
+        ? `${(this.stats.hits / this.stats.searches * 100).toFixed(2)}%`
         : '0%'
     };
   }
@@ -389,7 +389,7 @@ class MemoryService extends EventEmitter {
         this.emit('collection:cleared', { type });
       }
     } else {
-      for (const [name, collection] of this.collections) {
+      for (const [_name, collection] of this.collections) {
         collection.documents = [];
       }
       this.emit('all:cleared', {});
@@ -399,7 +399,7 @@ class MemoryService extends EventEmitter {
   export() {
     const data = {};
     for (const [type, collection] of this.collections) {
-      data[type] = collection.documents.map(d => ({
+      data[type] = collection.documents.map((d) => ({
         id: d.id,
         content: d.content,
         metadata: d.metadata
@@ -414,8 +414,8 @@ class MemoryService extends EventEmitter {
     }
 
     for (const [type, documents] of Object.entries(data)) {
-      if (!this.collections.has(type)) continue;
-      
+      if (!this.collections.has(type)) {continue;}
+
       if (Array.isArray(documents)) {
         for (const doc of documents) {
           if (doc.content && doc.metadata) {

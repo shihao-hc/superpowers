@@ -1,8 +1,8 @@
 /**
  * BaseLLMAdapter - LLM统一适配器
- * 
+ *
  * 参考 TradingAgents-CN 的 LLM 适配器架构
- * 
+ *
  * 核心思想:
  * 1. 统一接口抽象 (BaseChatModel)
  * 2. 多提供商支持 (OpenAI, DeepSeek, Google, DashScope)
@@ -24,29 +24,29 @@ class BaseLLMAdapter {
       baseUrl: config.baseUrl || 'https://api.openai.com/v1',
       ...config
     };
-    
+
     this.type = 'base';
   }
-  
-  async generate(messages, options = {}) {
+
+  async generate(messages, _options = {}) {
     throw new Error('generate() must be implemented by subclass');
   }
-  
+
   async chat(prompt, options = {}) {
     const messages = [
       { role: 'user', content: prompt }
     ];
     return this.generate(messages, options);
   }
-  
-  async stream(messages, onChunk, options = {}) {
+
+  async stream(messages, onChunk, _options = {}) {
     throw new Error('stream() must be implemented by subclass');
   }
-  
+
   getType() {
     return this.type;
   }
-  
+
   getConfig() {
     return { ...this.config };
   }
@@ -59,28 +59,28 @@ class OpenAIAdapter extends BaseLLMAdapter {
       baseUrl: config.baseUrl || 'https://api.openai.com/v1',
       ...config
     });
-    
+
     this.type = 'openai';
   }
-  
+
   async generate(messages, options = {}) {
     const { model, temperature, max_tokens, timeout } = this.config;
-    
+
     const body = {
       model,
       messages: this._formatMessages(messages),
       temperature: temperature ?? options.temperature ?? 0.7,
       max_tokens: options.max_tokens || max_tokens
     };
-    
+
     const response = await this._request('/chat/completions', body, timeout);
-    
+
     return this._parseResponse(response);
   }
-  
+
   async stream(messages, onChunk, options = {}) {
     const { model, temperature, max_tokens, timeout } = this.config;
-    
+
     const body = {
       model,
       messages: this._formatMessages(messages),
@@ -88,17 +88,17 @@ class OpenAIAdapter extends BaseLLMAdapter {
       max_tokens: options.max_tokens || max_tokens,
       stream: true
     };
-    
+
     await this._streamRequest('/chat/completions', body, timeout, onChunk);
   }
-  
+
   _formatMessages(messages) {
     if (typeof messages === 'string') {
       return [{ role: 'user', content: messages }];
     }
-    
+
     if (Array.isArray(messages)) {
-      return messages.map(m => {
+      return messages.map((m) => {
         if (typeof m === 'string') {
           return { role: 'user', content: m };
         }
@@ -108,15 +108,15 @@ class OpenAIAdapter extends BaseLLMAdapter {
         };
       });
     }
-    
+
     return [{ role: 'user', content: String(messages) }];
   }
-  
+
   async _request(endpoint, body, timeout) {
     const url = new URL(this.config.baseUrl + endpoint);
     const isHttps = url.protocol === 'https:';
     const transport = isHttps ? https : http;
-    
+
     return new Promise((resolve, reject) => {
       const req = transport.request({
         hostname: url.hostname,
@@ -130,7 +130,7 @@ class OpenAIAdapter extends BaseLLMAdapter {
         timeout
       }, (res) => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
           try {
             const json = JSON.parse(data);
@@ -144,23 +144,23 @@ class OpenAIAdapter extends BaseLLMAdapter {
           }
         });
       });
-      
+
       req.on('error', reject);
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('Request timeout'));
       });
-      
+
       req.write(JSON.stringify(body));
       req.end();
     });
   }
-  
+
   async _streamRequest(endpoint, body, timeout, onChunk) {
     const url = new URL(this.config.baseUrl + endpoint);
     const isHttps = url.protocol === 'https:';
     const transport = isHttps ? https : http;
-    
+
     return new Promise((resolve, reject) => {
       const req = transport.request({
         hostname: url.hostname,
@@ -174,12 +174,12 @@ class OpenAIAdapter extends BaseLLMAdapter {
         timeout
       }, (res) => {
         let buffer = '';
-        
-        res.on('data', chunk => {
+
+        res.on('data', (chunk) => {
           buffer += chunk.toString();
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
-          
+
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
@@ -190,32 +190,34 @@ class OpenAIAdapter extends BaseLLMAdapter {
               try {
                 const parsed = JSON.parse(data);
                 onChunk(parsed);
-              } catch {}
+              } catch (e) {
+                this.logger?.debug(`JSON parse skip: ${e.message}`);
+              }
             }
           }
         });
-        
+
         res.on('end', resolve);
         res.on('error', reject);
       });
-      
+
       req.on('error', reject);
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('Stream timeout'));
       });
-      
+
       req.write(JSON.stringify(body));
       req.end();
     });
   }
-  
+
   _parseResponse(response) {
     const choice = response.choices?.[0];
     if (!choice) {
       throw new Error('No response choices in LLM response');
     }
-    
+
     return {
       content: choice.message?.content || '',
       reasoning: choice.message?.reasoning || '',
@@ -233,7 +235,7 @@ class DeepSeekAdapter extends OpenAIAdapter {
       baseUrl: config.baseUrl || 'https://api.deepseek.com/v1',
       ...config
     });
-    
+
     this.type = 'deepseek';
   }
 }
@@ -245,26 +247,26 @@ class GoogleAdapter extends OpenAIAdapter {
       baseUrl: config.baseUrl || 'https://generativelanguage.googleapis.com/v1beta',
       ...config
     });
-    
+
     this.type = 'google';
   }
-  
+
   _formatMessages(messages) {
     const formatted = super._formatMessages(messages);
-    
-    return formatted.map(m => ({
+
+    return formatted.map((m) => ({
       role: m.role === 'assistant' ? 'model' : m.role,
       parts: [{ text: m.content }]
     }));
   }
-  
+
   async _request(endpoint, body, timeout) {
     const url = new URL(this.config.baseUrl + endpoint);
     url.searchParams.set('key', this.config.apiKey);
-    
+
     const isHttps = url.protocol === 'https:';
     const transport = isHttps ? https : http;
-    
+
     const formattedBody = {
       contents: body.messages,
       generationConfig: {
@@ -272,7 +274,7 @@ class GoogleAdapter extends OpenAIAdapter {
         maxOutputTokens: body.max_tokens
       }
     };
-    
+
     return new Promise((resolve, reject) => {
       const req = transport.request({
         hostname: url.hostname,
@@ -285,7 +287,7 @@ class GoogleAdapter extends OpenAIAdapter {
         timeout
       }, (res) => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
           try {
             const json = JSON.parse(data);
@@ -299,24 +301,24 @@ class GoogleAdapter extends OpenAIAdapter {
           }
         });
       });
-      
+
       req.on('error', reject);
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('Request timeout'));
       });
-      
+
       req.write(JSON.stringify(formattedBody));
       req.end();
     });
   }
-  
+
   _parseResponse(response) {
     const candidate = response.candidates?.[0];
     if (!candidate) {
       throw new Error('No response candidates in LLM response');
     }
-    
+
     return {
       content: candidate.content?.parts?.[0]?.text || '',
       reasoning: '',
@@ -334,14 +336,14 @@ class DashScopeAdapter extends OpenAIAdapter {
       baseUrl: config.baseUrl || 'https://dashscope.aliyuncs.com/api/v1',
       ...config
     });
-    
+
     this.type = 'dashscope';
   }
-  
+
   async _request(endpoint, body, timeout) {
-    const isHttps = true;
+    const _isHttps = true;
     const transport = https;
-    
+
     return new Promise((resolve, reject) => {
       const req = transport.request({
         hostname: 'dashscope.aliyuncs.com',
@@ -355,7 +357,7 @@ class DashScopeAdapter extends OpenAIAdapter {
         timeout
       }, (res) => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
           try {
             const json = JSON.parse(data);
@@ -369,13 +371,13 @@ class DashScopeAdapter extends OpenAIAdapter {
           }
         });
       });
-      
+
       req.on('error', reject);
       req.on('timeout', () => {
         req.destroy();
         reject(new Error('Request timeout'));
       });
-      
+
       req.write(JSON.stringify({
         model: body.model,
         input: { messages: body.messages },
@@ -388,13 +390,13 @@ class DashScopeAdapter extends OpenAIAdapter {
       req.end();
     });
   }
-  
+
   _parseResponse(response) {
     const output = response.output;
     if (!output) {
       throw new Error('No output in DashScope response');
     }
-    
+
     return {
       content: output.choices?.[0]?.message?.content || '',
       reasoning: '',
@@ -412,38 +414,38 @@ class OpenClawAdapter extends OpenAIAdapter {
       baseUrl: config.baseUrl || 'http://127.0.0.1:3002',
       ...config
     });
-    
+
     this.type = 'openclaw';
   }
 }
 
 function createLLMAdapter(provider, config = {}) {
   const providerLower = provider.toLowerCase();
-  
+
   switch (providerLower) {
-    case 'openai':
+  case 'openai':
+    return new OpenAIAdapter(config);
+
+  case 'deepseek':
+    return new DeepSeekAdapter(config);
+
+  case 'google':
+  case 'gemini':
+    return new GoogleAdapter(config);
+
+  case 'dashscope':
+  case 'qwen':
+  case 'alibaba':
+    return new DashScopeAdapter(config);
+
+  case 'openclaw':
+    return new OpenClawAdapter(config);
+
+  default:
+    if (config.baseUrl) {
       return new OpenAIAdapter(config);
-    
-    case 'deepseek':
-      return new DeepSeekAdapter(config);
-    
-    case 'google':
-    case 'gemini':
-      return new GoogleAdapter(config);
-    
-    case 'dashscope':
-    case 'qwen':
-    case 'alibaba':
-      return new DashScopeAdapter(config);
-    
-    case 'openclaw':
-      return new OpenClawAdapter(config);
-    
-    default:
-      if (config.baseUrl) {
-        return new OpenAIAdapter(config);
-      }
-      throw new Error(`Unknown LLM provider: ${provider}`);
+    }
+    throw new Error(`Unknown LLM provider: ${provider}`);
   }
 }
 

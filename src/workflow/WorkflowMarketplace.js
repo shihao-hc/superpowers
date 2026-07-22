@@ -74,7 +74,7 @@ class WorkflowMarketplace {
     this.versionHistory = new Map();
     this.maxWorkflows = options.maxWorkflows || 1000;
     this.mcpTemplates = new Map();
-    
+
     this._loadMCPTemplates();
   }
 
@@ -91,25 +91,25 @@ class WorkflowMarketplace {
   _compareVersions(v1, v2) {
     const a = this._parseVersion(v1);
     const b = this._parseVersion(v2);
-    
-    if (a.major !== b.major) return a.major - b.major;
-    if (a.minor !== b.minor) return a.minor - b.minor;
+
+    if (a.major !== b.major) {return a.major - b.major;}
+    if (a.minor !== b.minor) {return a.minor - b.minor;}
     return a.patch - b.patch;
   }
 
   _bumpVersion(version, type) {
     const v = this._parseVersion(version);
     switch (type) {
-      case 'major': v.major++; v.minor = 0; v.patch = 0; break;
-      case 'minor': v.minor++; v.patch = 0; break;
-      case 'patch': v.patch++; break;
+    case 'major': v.major++; v.minor = 0; v.patch = 0; break;
+    case 'minor': v.minor++; v.patch = 0; break;
+    case 'patch': v.patch++; break;
     }
     return `${v.major}.${v.minor}.${v.patch}`;
   }
 
   publishVersion(workflowId, config) {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    if (!workflow) {return { error: 'Workflow not found' };}
 
     const newVersion = config.version || this._bumpVersion(workflow.version, 'patch');
     const changelog = config.changelog || 'No changelog provided';
@@ -139,29 +139,29 @@ class WorkflowMarketplace {
       author: config.author || workflow.author
     });
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       workflowId,
       previousVersion: history[history.length - 1]?.version,
-      newVersion 
+      newVersion
     };
   }
 
   getVersionHistory(workflowId) {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    if (!workflow) {return { error: 'Workflow not found' };}
 
     const history = this.versionHistory.get(workflowId) || [];
     const versions = this.versions.get(workflowId) || [];
 
     return {
       currentVersion: workflow.version,
-      history: history.map((h, i) => ({
+      history: history.map((h, _i) => ({
         version: h.version,
         publishedAt: new Date(h.publishedAt).toISOString(),
         isCurrent: h.version === workflow.version
       })),
-      changelog: versions.map(v => ({
+      changelog: versions.map((v) => ({
         version: v.version,
         changelog: v.changelog,
         publishedAt: new Date(v.publishedAt).toISOString(),
@@ -172,13 +172,13 @@ class WorkflowMarketplace {
 
   getLatestVersion(workflowId) {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return null;
+    if (!workflow) {return null;}
     return workflow.version;
   }
 
   listVersions(workflowId) {
     const versions = this.versions.get(workflowId) || [];
-    return versions.map(v => ({
+    return versions.map((v) => ({
       version: v.version,
       publishedAt: new Date(v.publishedAt).toISOString(),
       changelog: v.changelog,
@@ -190,12 +190,12 @@ class WorkflowMarketplace {
   rollbackToVersion(workflowId, version) {
     const workflow = this.workflows.get(workflowId);
     const history = this.versionHistory.get(workflowId);
-    
+
     if (!workflow || !history) {
       return { error: 'Workflow or version history not found' };
     }
 
-    const targetEntry = history.find(h => h.version === version);
+    const targetEntry = history.find((h) => h.version === version);
     if (!targetEntry) {
       return { error: `Version ${version} not found in history` };
     }
@@ -212,8 +212,8 @@ class WorkflowMarketplace {
     workflow.connections = targetEntry.connections;
     workflow.updatedAt = Date.now();
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       workflowId,
       rolledBackTo: version,
       currentVersion: workflow.version
@@ -222,7 +222,7 @@ class WorkflowMarketplace {
 
   getOutdatedWorkflows(currentMarketplaceVersions) {
     const outdated = [];
-    
+
     for (const [id, workflow] of this.workflows) {
       if (currentMarketplaceVersions && currentMarketplaceVersions[id]) {
         const latest = currentMarketplaceVersions[id].version;
@@ -237,14 +237,14 @@ class WorkflowMarketplace {
         }
       }
     }
-    
+
     return outdated;
   }
 
   _loadMCPTemplates() {
     for (const template of MCP_WORKFLOW_TEMPLATES) {
       let workflowData = null;
-      
+
       if (template.file) {
         try {
           const filePath = path.resolve(process.cwd(), template.file);
@@ -255,7 +255,7 @@ class WorkflowMarketplace {
           console.warn(`[Marketplace] Failed to load MCP template: ${template.name}`);
         }
       }
-      
+
       this.mcpTemplates.set(template.name, {
         ...template,
         workflowData,
@@ -270,7 +270,7 @@ class WorkflowMarketplace {
     }
 
     const sanitize = (s) => typeof s === 'string'
-      ? s.replace(/[<>"'&]/g, c => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '&': '&amp;' }[c]))
+      ? s.replace(/[<>"'&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;', '&': '&amp;' }[c]))
       : s;
 
     const workflowId = `wf_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
@@ -280,7 +280,7 @@ class WorkflowMarketplace {
       name: sanitize(config.name).substring(0, 100),
       description: sanitize(config.description || '').substring(0, 500),
       category: sanitize(config.category || 'general').substring(0, 50),
-      tags: Array.isArray(config.tags) ? config.tags.slice(0, 10).map(t => sanitize(t).substring(0, 30)) : [],
+      tags: Array.isArray(config.tags) ? config.tags.slice(0, 10).map((t) => sanitize(t).substring(0, 30)) : [],
       author: sanitize(config.author || 'anonymous').substring(0, 50),
       version: config.version || '1.0.0',
       nodes: config.nodes || [],
@@ -314,12 +314,12 @@ class WorkflowMarketplace {
 
   updateWorkflow(workflowId, config) {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    if (!workflow) {return { error: 'Workflow not found' };}
 
-    if (config.name) workflow.name = config.name;
-    if (config.description) workflow.description = config.description;
-    if (config.nodes) workflow.nodes = config.nodes;
-    if (config.connections) workflow.connections = config.connections;
+    if (config.name) {workflow.name = config.name;}
+    if (config.description) {workflow.description = config.description;}
+    if (config.nodes) {workflow.nodes = config.nodes;}
+    if (config.connections) {workflow.connections = config.connections;}
     if (config.version) {
       workflow.version = config.version;
       workflow.updatedAt = Date.now();
@@ -334,7 +334,7 @@ class WorkflowMarketplace {
 
   downloadWorkflow(workflowId, userId) {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    if (!workflow) {return { error: 'Workflow not found' };}
 
     workflow.downloads++;
 
@@ -358,11 +358,11 @@ class WorkflowMarketplace {
 
   rateWorkflow(workflowId, userId, rating, review = '') {
     const workflow = this.workflows.get(workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    if (!workflow) {return { error: 'Workflow not found' };}
 
     rating = Math.max(1, Math.min(5, rating));
 
-    const existing = workflow.reviews.findIndex(r => r.userId === userId);
+    const existing = workflow.reviews.findIndex((r) => r.userId === userId);
     if (existing > -1) {
       workflow.reviews[existing] = { userId, rating, review, date: Date.now() };
     } else {
@@ -379,50 +379,50 @@ class WorkflowMarketplace {
     let results = Array.from(this.workflows.values());
 
     if (query.category) {
-      results = results.filter(w => w.category === query.category);
+      results = results.filter((w) => w.category === query.category);
     }
 
     if (query.tags && query.tags.length > 0) {
-      results = results.filter(w =>
-        query.tags.some(tag => w.tags.includes(tag))
+      results = results.filter((w) =>
+        query.tags.some((tag) => w.tags.includes(tag))
       );
     }
 
     if (query.keyword) {
       const kw = query.keyword.toLowerCase();
-      results = results.filter(w =>
+      results = results.filter((w) =>
         w.name.toLowerCase().includes(kw) ||
         w.description.toLowerCase().includes(kw) ||
-        w.tags.some(t => t.toLowerCase().includes(kw))
+        w.tags.some((t) => t.toLowerCase().includes(kw))
       );
     }
 
     if (query.minRating) {
-      results = results.filter(w => w.rating >= query.minRating);
+      results = results.filter((w) => w.rating >= query.minRating);
     }
 
     if (query.author) {
-      results = results.filter(w => w.author === query.author);
+      results = results.filter((w) => w.author === query.author);
     }
 
     switch (query.sortBy) {
-      case 'downloads':
-        results.sort((a, b) => b.downloads - a.downloads);
-        break;
-      case 'rating':
-        results.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'newest':
-        results.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'updated':
-        results.sort((a, b) => b.updatedAt - a.updatedAt);
-        break;
-      default:
-        results.sort((a, b) => b.downloads - a.downloads);
+    case 'downloads':
+      results.sort((a, b) => b.downloads - a.downloads);
+      break;
+    case 'rating':
+      results.sort((a, b) => b.rating - a.rating);
+      break;
+    case 'newest':
+      results.sort((a, b) => b.createdAt - a.createdAt);
+      break;
+    case 'updated':
+      results.sort((a, b) => b.updatedAt - a.updatedAt);
+      break;
+    default:
+      results.sort((a, b) => b.downloads - a.downloads);
     }
 
-    return results.map(w => ({
+    return results.map((w) => ({
       id: w.id,
       name: w.name,
       description: w.description,
@@ -459,7 +459,7 @@ class WorkflowMarketplace {
 
   installPlugin(pluginId) {
     const plugin = this.plugins.get(pluginId);
-    if (!plugin) return { error: 'Plugin not found' };
+    if (!plugin) {return { error: 'Plugin not found' };}
 
     plugin.downloads++;
     return { success: true, plugin: { ...plugin } };
@@ -470,7 +470,7 @@ class WorkflowMarketplace {
 
     if (query.keyword) {
       const kw = query.keyword.toLowerCase();
-      results = results.filter(p =>
+      results = results.filter((p) =>
         p.name.toLowerCase().includes(kw) ||
         p.description.toLowerCase().includes(kw)
       );
@@ -518,7 +518,7 @@ class WorkflowMarketplace {
     return {
       workflows: Array.from(this.workflows.values()),
       plugins: Array.from(this.plugins.values()),
-      mcpTemplates: Array.from(this.mcpTemplates.values()).map(t => ({
+      mcpTemplates: Array.from(this.mcpTemplates.values()).map((t) => ({
         name: t.name,
         description: t.description,
         category: t.category,
@@ -533,25 +533,25 @@ class WorkflowMarketplace {
 
   getMCPTemplates(options = {}) {
     let templates = Array.from(this.mcpTemplates.values());
-    
+
     if (options.category) {
-      templates = templates.filter(t => t.category === options.category);
+      templates = templates.filter((t) => t.category === options.category);
     }
-    
+
     if (options.tag) {
-      templates = templates.filter(t => t.tags.includes(options.tag));
+      templates = templates.filter((t) => t.tags.includes(options.tag));
     }
-    
+
     if (options.search) {
       const search = options.search.toLowerCase();
-      templates = templates.filter(t => 
+      templates = templates.filter((t) =>
         t.name.toLowerCase().includes(search) ||
         t.description.toLowerCase().includes(search) ||
-        t.tags.some(tag => tag.toLowerCase().includes(search))
+        t.tags.some((tag) => tag.toLowerCase().includes(search))
       );
     }
-    
-    return templates.map(t => ({
+
+    return templates.map((t) => ({
       name: t.name,
       description: t.description,
       category: t.category,
@@ -569,21 +569,21 @@ class WorkflowMarketplace {
     if (!template) {
       return { error: 'MCP template not found' };
     }
-    
+
     if (!template.workflowData) {
       return { error: 'Template file not available' };
     }
-    
+
     try {
       const outputPath = path.resolve(process.cwd(), targetPath, `${template.name.replace(/\s+/g, '_').toLowerCase()}.json`);
       const dir = path.dirname(outputPath);
-      
+
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       fs.writeFileSync(outputPath, JSON.stringify(template.workflowData, null, 2));
-      
+
       const workflowId = this.publishWorkflow({
         name: template.name,
         description: template.description,
@@ -594,9 +594,9 @@ class WorkflowMarketplace {
         nodes: template.workflowData.nodes,
         connections: template.workflowData.connections
       });
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         workflowId,
         outputPath,
         message: `Template installed to ${outputPath}`
@@ -608,16 +608,16 @@ class WorkflowMarketplace {
 
   installAllMCPTemplates(targetPath = 'workflows/') {
     const results = [];
-    
-    for (const [name, template] of this.mcpTemplates) {
+
+    for (const [name, _template] of this.mcpTemplates) {
       const result = this.installMCPTemplate(name, targetPath);
       results.push({ name, ...result });
     }
-    
+
     return {
       total: this.mcpTemplates.size,
-      succeeded: results.filter(r => r.success).length,
-      failed: results.filter(r => r.error).length,
+      succeeded: results.filter((r) => r.success).length,
+      failed: results.filter((r) => r.error).length,
       results
     };
   }

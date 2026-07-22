@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 class FederatedLearning {
   constructor(options = {}) {
@@ -81,7 +81,7 @@ class FederatedLearning {
 
     const roundId = `round_${++this.currentRound}`;
     const participatingNodes = Array.from(this.nodes.values())
-      .filter(n => n.status === 'idle');
+      .filter((n) => n.status === 'idle');
 
     if (participatingNodes.length < this.minNodes) {
       throw new Error(`Need at least ${this.minNodes} nodes, got ${participatingNodes.length}`);
@@ -90,7 +90,7 @@ class FederatedLearning {
     const round = {
       id: roundId,
       number: this.currentRound,
-      participants: participatingNodes.map(n => n.id),
+      participants: participatingNodes.map((n) => n.id),
       status: 'running',
       startedAt: Date.now(),
       localUpdates: {},
@@ -110,7 +110,7 @@ class FederatedLearning {
 
   async submitLocalUpdate(nodeId, update) {
     const node = this.nodes.get(nodeId);
-    if (!node) throw new Error('Node not found');
+    if (!node) {throw new Error('Node not found');}
 
     const currentRound = this.rounds[this.rounds.length - 1];
     if (!currentRound || currentRound.status !== 'running') {
@@ -130,7 +130,7 @@ class FederatedLearning {
     };
 
     const allSubmitted = currentRound.participants.every(
-      pid => currentRound.localUpdates[pid]
+      (pid) => currentRound.localUpdates[pid]
     );
 
     if (allSubmitted) {
@@ -174,6 +174,7 @@ class FederatedLearning {
     for (const key of weightKeys) {
       if (key.startsWith('W')) {
         const shape = this.globalModel.weights[key];
+        if (!shape || !shape.length || !shape[0]) {continue;}
         const rows = shape.length;
         const cols = shape[0].length;
 
@@ -249,7 +250,7 @@ class FederatedLearning {
   }
 
   getActiveNodes() {
-    return Array.from(this.nodes.values()).filter(n => n.status === 'idle');
+    return Array.from(this.nodes.values()).filter((n) => n.status === 'idle');
   }
 
   getGlobalModel() {
@@ -257,7 +258,7 @@ class FederatedLearning {
   }
 
   getRound(roundNumber) {
-    return this.rounds.find(r => r.number === roundNumber);
+    return this.rounds.find((r) => r.number === roundNumber);
   }
 
   getAllRounds() {
@@ -269,12 +270,12 @@ class FederatedLearning {
     return {
       nodes: {
         total: nodes.length,
-        active: nodes.filter(n => n.status === 'idle').length,
-        training: nodes.filter(n => n.status === 'training').length
+        active: nodes.filter((n) => n.status === 'idle').length,
+        training: nodes.filter((n) => n.status === 'training').length
       },
       rounds: {
         total: this.rounds.length,
-        completed: this.rounds.filter(r => r.status === 'completed').length,
+        completed: this.rounds.filter((r) => r.status === 'completed').length,
         current: this.currentRound
       },
       model: {

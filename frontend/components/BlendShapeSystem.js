@@ -14,7 +14,7 @@ class BlendShapeExpressionSystem {
   }
 
   _detectVersion() {
-    if (!this.vrm) return 'unknown';
+    if (!this.vrm) {return 'unknown';}
     if (this.vrm.expressionManager && typeof this.vrm.expressionManager.setValue === 'function') {
       return '1.0';
     }
@@ -74,7 +74,7 @@ class BlendShapeExpressionSystem {
   }
 
   setValue(expressionName, weight) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const safeName = expressionName;
     const safeWeight = Math.max(0, Math.min(1, weight));
@@ -98,7 +98,7 @@ class BlendShapeExpressionSystem {
   }
 
   setMultiple(expressions) {
-    if (!this.vrm || typeof expressions !== 'object') return;
+    if (!this.vrm || typeof expressions !== 'object') {return;}
 
     for (const [name, value] of Object.entries(expressions)) {
       if (typeof value === 'number') {
@@ -108,7 +108,7 @@ class BlendShapeExpressionSystem {
   }
 
   resetAll() {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const allExpressions = Object.keys(this.presets);
     for (const name of allExpressions) {
@@ -117,7 +117,7 @@ class BlendShapeExpressionSystem {
   }
 
   applyMood(mood, customBlends = null) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const moodBlends = customBlends || this._getMoodBlends(mood);
     this.resetAll();
@@ -167,14 +167,14 @@ class BlendShapeExpressionSystem {
   }
 
   setLipSync(value) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const clampedValue = Math.max(0, Math.min(1, value));
     this.setValue('aa', clampedValue);
   }
 
   setLipSyncPhoneme(phoneme, value) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const clampedValue = Math.max(0, Math.min(1, value));
     const phonemeMap = {
@@ -190,14 +190,14 @@ class BlendShapeExpressionSystem {
   }
 
   setBlink(left = 1.0, right = 1.0) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     this.setValue('blinkLeft', Math.max(0, Math.min(1, left)));
     this.setValue('blinkRight', Math.max(0, Math.min(1, right)));
   }
 
   setEyeLook(direction) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const directions = {
       'up': { lookUp: 1.0, lookDown: 0, lookLeft: 0, lookRight: 0 },
@@ -212,7 +212,7 @@ class BlendShapeExpressionSystem {
   }
 
   async transitionTo(mood, duration = 300) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     const targetBlends = this._getMoodBlends(mood);
     const startBlends = { ...this.currentExpressions };
@@ -346,7 +346,7 @@ class IdleAnimationController {
   }
 
   start() {
-    if (this._isRunning) return;
+    if (this._isRunning) {return;}
     this._isRunning = true;
 
     this._startBlink();
@@ -365,7 +365,7 @@ class IdleAnimationController {
 
   _startBlink() {
     const scheduleNext = () => {
-      if (!this._isRunning) return;
+      if (!this._isRunning) {return;}
 
       const variation = (Math.random() - 0.5) * this.options.blinkVariation;
       const interval = Math.max(1000, this.options.blinkInterval + variation);
@@ -380,7 +380,7 @@ class IdleAnimationController {
   }
 
   _doBlink() {
-    if (!this._isRunning) return;
+    if (!this._isRunning) {return;}
 
     this._clearPendingBlinkTimeouts();
 
@@ -391,10 +391,10 @@ class IdleAnimationController {
       if (leftFirst) {
         this.expressionSystem.setValue('blinkLeft', 1.0);
         this._blinkTimeout1 = setTimeout(() => {
-          if (!this._isRunning) return;
+          if (!this._isRunning) {return;}
           this.expressionSystem.setValue('blinkRight', 1.0);
           this._blinkTimeout2 = setTimeout(() => {
-            if (!this._isRunning) return;
+            if (!this._isRunning) {return;}
             this.expressionSystem.setValue('blinkLeft', 0);
             this.expressionSystem.setValue('blinkRight', 0);
             this._blinkTimeout2 = null;
@@ -404,10 +404,10 @@ class IdleAnimationController {
       } else {
         this.expressionSystem.setValue('blinkRight', 1.0);
         this._blinkTimeout1 = setTimeout(() => {
-          if (!this._isRunning) return;
+          if (!this._isRunning) {return;}
           this.expressionSystem.setValue('blinkLeft', 1.0);
           this._blinkTimeout2 = setTimeout(() => {
-            if (!this._isRunning) return;
+            if (!this._isRunning) {return;}
             this.expressionSystem.setValue('blinkLeft', 0);
             this.expressionSystem.setValue('blinkRight', 0);
             this._blinkTimeout2 = null;
@@ -418,7 +418,7 @@ class IdleAnimationController {
     } else {
       this.expressionSystem.setValue('blink', 1.0);
       this._blinkTimeout = setTimeout(() => {
-        if (!this._isRunning) return;
+        if (!this._isRunning) {return;}
         this.expressionSystem.setValue('blink', 0);
         this._blinkTimeout = null;
       }, this.options.blinkDuration);
@@ -443,10 +443,10 @@ class IdleAnimationController {
   }
 
   _startBreath() {
-    if (!this.expressionSystem.vrm || !this.expressionSystem.vrm.humanoid) return;
+    if (!this.expressionSystem.vrm || !this.expressionSystem.vrm.humanoid) {return;}
 
     const animate = () => {
-      if (!this._isRunning) return;
+      if (!this._isRunning) {return;}
 
       this._breathPhase += this.options.breathSpeed;
       const breathValue = Math.sin(this._breathPhase) * this.options.breathAmplitude;
@@ -483,10 +483,10 @@ class IdleAnimationController {
   }
 
   _startMicroMovement() {
-    if (!this.expressionSystem.vrm) return;
+    if (!this.expressionSystem.vrm) {return;}
 
     const animate = () => {
-      if (!this._isRunning) return;
+      if (!this._isRunning) {return;}
 
       this._microPhase += 0.0005;
       const x = Math.sin(this._microPhase) * this.options.microMovementAmplitude;

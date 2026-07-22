@@ -12,7 +12,7 @@ class GitHubBridge {
     this.baseUrl = config.baseUrl || 'https://api.github.com';
     this.defaultOwner = config.defaultOwner;
     this.defaultRepo = config.defaultRepo;
-    
+
     this.requestId = 0;
   }
 
@@ -28,7 +28,7 @@ class GitHubBridge {
    */
   async _request(method, endpoint, data = null) {
     const requestId = this._getRequestId();
-    
+
     const options = {
       method,
       headers: {
@@ -90,7 +90,7 @@ class GitHubBridge {
       this._tool('merge_pr', '合并PR', { owner: { type: 'string' }, repo: { type: 'string' }, pr_number: { type: 'number' }, merge_method: { type: 'string' } }),
       this._tool('close_pr', '关闭PR', { owner: { type: 'string' }, repo: { type: 'string' }, pr_number: { type: 'number' } }),
       this._tool('request_review', '请求审查', { owner: { type: 'string' }, repo: { type: 'string' }, pr_number: { type: 'number' }, reviewers: { type: 'array' } }),
-      this._tool('review_pr', 'PR审查', { owner: { type: 'string' }, repo: { type: 'string' }, pr_number: { type: 'number' }, body: { type: 'string' }, event: { type: 'string' }, chain_id: { type: 'string' } }),
+      this._tool('review_pr', 'PR审查', { owner: { type: 'string' }, repo: { type: 'string' }, pr_number: { type: 'number' }, body: { type: 'string' }, event: { type: 'string' }, chain_id: { type: 'string' } })
     ];
   }
 
@@ -116,7 +116,7 @@ class GitHubBridge {
       merge_pr: this.mergePR.bind(this),
       close_pr: this.closePR.bind(this),
       request_review: this.requestReview.bind(this),
-      review_pr: this.reviewPR.bind(this),
+      review_pr: this.reviewPR.bind(this)
     };
     return handlers[name];
   }
@@ -124,7 +124,7 @@ class GitHubBridge {
   /**
    * 创建Issue - 支持思维链联动
    */
-  async createIssue(params, context = {}) {
+  async createIssue(params, _context = {}) {
     const { owner, repo, title, body, labels, assignees, milestone, chain_id } = params;
 
     if (params.dry_run || params.dryRun) {
@@ -148,7 +148,7 @@ class GitHubBridge {
     // 记录到思维链
     if (thinkingContext) {
       thinkingChain.addThought(thinkingContext, `创建Issue #${result.number}: ${title}`, {
-        reasoning: `GitHub Issue创建成功`,
+        reasoning: 'GitHub Issue创建成功',
         metadata: { type: 'github_issue', number: result.number, url: result.html_url }
       });
     }
@@ -159,7 +159,7 @@ class GitHubBridge {
   /**
    * 创建PR - 支持思维链联动
    */
-  async createPR(params, context = {}) {
+  async createPR(params, _context = {}) {
     const { owner, repo, title, body, head, base, draft, chain_id } = params;
 
     if (params.dry_run || params.dryRun) {
@@ -174,13 +174,13 @@ class GitHubBridge {
     const thinkingContext = chain_id || thinkingChain.getCurrentChain()?.id;
 
     const data = { title, body, head, base };
-    if (draft !== undefined) data.draft = draft;
+    if (draft !== undefined) {data.draft = draft;}
 
     const result = await this._request('POST', `/repos/${owner}/${repo}/pulls`, data);
 
     if (thinkingContext) {
       thinkingChain.addThought(thinkingContext, `创建PR #${result.number}: ${title}`, {
-        reasoning: `GitHub PR创建成功`,
+        reasoning: 'GitHub PR创建成功',
         metadata: { type: 'github_pr', number: result.number, url: result.html_url }
       });
     }
@@ -191,7 +191,7 @@ class GitHubBridge {
   /**
    * PR审查 - 思维链联动
    */
-  async reviewPR(params, context = {}) {
+  async reviewPR(params, _context = {}) {
     const { owner, repo, pr_number, body, event, chain_id } = params;
 
     if (params.dry_run || params.dryRun) {
@@ -235,7 +235,7 @@ class GitHubBridge {
   /**
    * 合并PR - 危险操作
    */
-  async mergePR(params, context = {}) {
+  async mergePR(params, _context = {}) {
     const { owner, repo, pr_number, merge_method } = params;
 
     if (params.dry_run || params.dryRun) {
@@ -245,7 +245,7 @@ class GitHubBridge {
     const thinkingContext = thinkingChain.getCurrentChain()?.id;
 
     const data = {};
-    if (merge_method) data.merge_method = merge_method;
+    if (merge_method) {data.merge_method = merge_method;}
 
     const result = await this._request('PUT', `/repos/${owner}/${repo}/pulls/${pr_number}/merge`, data);
 

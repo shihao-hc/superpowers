@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 启动 OpenClaw 路由服务
- * 
+ *
  * 用法:
  *   node launch-router.js                    # 使用默认配置
  *   node launch-router.js --port 3003        # 指定端口
@@ -15,7 +15,7 @@ const args = process.argv.slice(2);
 const options = {
   port: 3003,
   gatewayUrl: 'http://127.0.0.1:3002',
-  apiKey: 'ultrawork-local-key'
+  apiKey: process.env.OPENCLAW_API_KEY || 'ultrawork-local-key'
 };
 
 for (let i = 0; i < args.length; i++) {
@@ -64,28 +64,28 @@ async function main() {
   console.log('  OpenClaw 路由服务');
   console.log('='.repeat(60));
   console.log();
-  
+
   const router = createOpenClawRouter(options);
-  
+
   // 初始化模型服务
   const modelService = createModelService({
     gatewayUrl: options.gatewayUrl,
     apiKey: options.apiKey
   });
-  
+
   console.log('配置:');
   console.log(`  路由端口: ${options.port}`);
   console.log(`  Gateway:   ${options.gatewayUrl}`);
   console.log(`  API Key:   ${options.apiKey}`);
   console.log();
-  
+
   try {
     console.log('正在连接 OpenClaw Gateway...');
     await modelService.initialize();
     console.log('✅ Gateway 连接成功');
     console.log(`   可用模型: ${modelService.models.length}`);
     console.log();
-    
+
     console.log('启动路由服务...');
     await router.start();
     console.log();
@@ -100,7 +100,7 @@ async function main() {
     console.log();
     console.log('停止服务: Ctrl+C');
     console.log();
-    
+
   } catch (error) {
     console.error('❌ 启动失败:', error.message);
     console.error();
@@ -111,7 +111,7 @@ async function main() {
     console.error('详细错误:', error.stack);
     process.exit(1);
   }
-  
+
   // 处理关闭信号
   process.on('SIGINT', () => {
     console.log();
@@ -119,7 +119,7 @@ async function main() {
     router.stop();
     process.exit(0);
   });
-  
+
   process.on('SIGTERM', () => {
     console.log();
     console.log('正在停止服务...');

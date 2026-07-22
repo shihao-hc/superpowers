@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { safeSpawn } = require('../../utils/SafeExec');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -30,7 +30,7 @@ class DockerPythonExecutor {
       skillName,
       scriptPath,
       inputs = {},
-      requirements = [],
+      _requirements = [],
       timeout = this.containerTimeout,
       env = {}
     } = options;
@@ -43,24 +43,19 @@ class DockerPythonExecutor {
     this.metrics.totalExecutions++;
 
     try {
-      // Prepare script directory
       const scriptDir = path.dirname(scriptPath);
       const scriptName = path.basename(scriptPath);
-      
-      // Create a temporary directory for container execution
+
       const executionId = crypto.randomBytes(8).toString('hex');
       const containerWorkDir = `/tmp/skill-execution-${executionId}`;
-      
-      // Build container run command
+
       const containerName = `skill-${skillName}-${executionId}`;
-      
-      // Prepare volume mounts
+
       const volumeMounts = [
         `-v "${scriptDir}:${containerWorkDir}/script:ro"`,
         `-v "${this.baseVolumePath}/${skillName}:/home/skilluser/output"`
       ];
-      
-      // Prepare environment variables
+
       const envArgs = [];
       for (const [key, value] of Object.entries(env)) {
         envArgs.push(`-e "${key}=${value}"`);
@@ -68,8 +63,7 @@ class DockerPythonExecutor {
       envArgs.push(`-e "SKILL_NAME=${skillName}"`);
       envArgs.push(`-e "EXECUTION_ID=${executionId}"`);
       envArgs.push(`-e "INPUT_DATA=${JSON.stringify(inputs)}"`);
-      
-      // Prepare command
+
       const command = [
         'docker', 'run',
         '--rm',
@@ -78,21 +72,19 @@ class DockerPythonExecutor {
         ...envArgs,
         '--memory=256m',
         '--cpus=0.5',
-        '--network=none', // Disable network for security
+        '--network=none',
         this.dockerImage,
         'python', `/home/skilluser/app/script/${scriptName}`
       ];
-      
-      // Execute in container
+
       const result = await this._executeInContainer(command, containerName, timeout);
-      
-      // Update metrics
+
       const executionTime = Date.now() - startTime;
       this.metrics.successfulExecutions++;
-      this.metrics.averageExecutionTime = 
-        (this.metrics.averageExecutionTime * (this.metrics.successfulExecutions - 1) + executionTime) / 
+      this.metrics.averageExecutionTime =
+        (this.metrics.averageExecutionTime * (this.metrics.successfulExecutions - 1) + executionTime) /
         this.metrics.successfulExecutions;
-      
+
       return {
         success: true,
         skillName,
@@ -104,7 +96,7 @@ class DockerPythonExecutor {
         executionTime,
         timestamp: new Date().toISOString()
       };
-      
+
     } catch (error) {
       this.metrics.failedExecutions++;
       return {
@@ -142,7 +134,7 @@ class DockerPythonExecutor {
     try {
       // Create a custom Docker image with dependencies
       const imageTag = `skill-${skillName}-${crypto.randomBytes(4).toString('hex')}`;
-      
+
       // Build Dockerfile with dependencies
       const dockerfileContent = `
 FROM ${this.dockerImage}
@@ -153,18 +145,18 @@ USER skilluser
 
 WORKDIR /home/skilluser/app
 `;
-      
+
       const tempDir = path.join(this.baseVolumePath, skillName, '.docker');
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
       }
-      
+
       const dockerfilePath = path.join(tempDir, 'Dockerfile');
       fs.writeFileSync(dockerfilePath, dockerfileContent);
-      
+
       // Build the image
       await this._buildDockerImage(dockerfilePath, imageTag);
-      
+
       // Execute with the custom image
       const result = await this.execute({
         skillName,
@@ -174,12 +166,12 @@ WORKDIR /home/skilluser/app
         timeout,
         env
       });
-      
+
       // Clean up the image
       this._removeDockerImage(imageTag).catch(() => {});
-      
+
       return result;
-      
+
     } catch (error) {
       this.metrics.failedExecutions++;
       return {
@@ -202,7 +194,7 @@ WORKDIR /home/skilluser/app
       skillName,
       scriptPath,
       inputs = {},
-      imageTag = this.dockerImage,
+      imageTag: _imageTag = this.dockerImage,
       timeout = this.containerTimeout,
       env = {}
     } = options;
@@ -226,24 +218,24 @@ WORKDIR /home/skilluser/app
     return new Promise((resolve, reject) => {
       const buildDir = path.dirname(dockerfilePath);
       const command = ['docker', 'build', '-t', tag, '-f', dockerfilePath, buildDir];
-      
-      const child = spawn(command[0], command.slice(1), {
+
+      const child = safeSpawn(command[0], command.slice(1), {
         stdio: ['pipe', 'pipe', 'pipe']
       });
-      
+
       let stdout = '';
       let stderr = '';
-      
+
       child.stdout.on('data', (data) => {
         stdout += data.toString();
       });
-      
+
       child.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       child.on('error', reject);
-      
+
       child.on('close', (code) => {
         if (code === 0) {
           resolve();
@@ -262,10 +254,10 @@ WORKDIR /home/skilluser/app
   async _removeDockerImage(tag) {
     return new Promise((resolve) => {
       const command = ['docker', 'rmi', '-f', tag];
-      const child = spawn(command[0], command.slice(1), {
+      const child = safeSpawn(command[0], command.slice(1), {
         stdio: 'ignore'
       });
-      
+
       child.on('close', () => resolve());
       child.on('error', () => resolve()); // Ignore errors on cleanup
     });
@@ -280,28 +272,28 @@ WORKDIR /home/skilluser/app
    */
   async _executeInContainer(command, containerName, timeout) {
     return new Promise((resolve, reject) => {
-      const child = spawn(command[0], command.slice(1), {
+      const child = safeSpawn(command[0], command.slice(1), {
         stdio: ['pipe', 'pipe', 'pipe']
       });
-      
+
       let stdout = '';
       let stderr = '';
       let killed = false;
-      
+
       child.stdout.on('data', (data) => {
         stdout += data.toString();
       });
-      
+
       child.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       child.on('error', (error) => {
         if (!killed) {
           reject(error);
         }
       });
-      
+
       child.on('close', (code) => {
         if (!killed) {
           if (code === 0) {
@@ -315,20 +307,20 @@ WORKDIR /home/skilluser/app
           }
         }
       });
-      
+
       // Set timeout
       const timeoutId = setTimeout(() => {
         killed = true;
         child.kill();
-        
+
         // Force remove container
-        spawn('docker', ['rm', '-f', containerName], {
+        safeSpawn('docker', ['rm', '-f', containerName], {
           stdio: 'ignore'
         });
-        
+
         reject(new Error(`Container execution timeout after ${timeout}ms`));
       }, timeout);
-      
+
       child.on('close', () => {
         clearTimeout(timeoutId);
       });
@@ -356,7 +348,7 @@ WORKDIR /home/skilluser/app
       child.kill();
       await this._removeContainer(containerName);
     }
-    
+
     this.activeContainers.clear();
     this.containerPool = [];
   }
@@ -369,10 +361,10 @@ WORKDIR /home/skilluser/app
   async _removeContainer(containerName) {
     return new Promise((resolve) => {
       const command = ['docker', 'rm', '-f', containerName];
-      const child = spawn(command[0], command.slice(1), {
+      const child = safeSpawn(command[0], command.slice(1), {
         stdio: 'ignore'
       });
-      
+
       child.on('close', () => resolve());
       child.on('error', () => resolve()); // Ignore errors on cleanup
     });
@@ -384,14 +376,14 @@ WORKDIR /home/skilluser/app
    */
   static async checkDockerAvailable() {
     return new Promise((resolve) => {
-      const child = spawn('docker', ['--version'], {
+      const child = safeSpawn('docker', ['--version'], {
         stdio: 'ignore'
       });
-      
+
       child.on('close', (code) => {
         resolve(code === 0);
       });
-      
+
       child.on('error', () => {
         resolve(false);
       });
@@ -404,12 +396,12 @@ WORKDIR /home/skilluser/app
    */
   async buildBaseImage() {
     const dockerfilePath = path.join(__dirname, '..', '..', '..', 'docker', 'skill-python', 'Dockerfile');
-    
+
     if (!fs.existsSync(dockerfilePath)) {
       console.warn('Base Dockerfile not found:', dockerfilePath);
       return false;
     }
-    
+
     try {
       await this._buildDockerImage(dockerfilePath, this.dockerImage);
       console.log(`Base image ${this.dockerImage} built successfully`);

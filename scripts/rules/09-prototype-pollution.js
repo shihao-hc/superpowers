@@ -14,6 +14,7 @@ module.exports = {
       }
     }
   },
+  suggest: '使用 Object.create(null) 创建无原型对象，或使用 Object.freeze 冻结对象。合并操作前对 __proto__/constructor/prototype 键名做过滤。',
   references: ['CWE-1321'],
   since: '2026-06-28',
 };

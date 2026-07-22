@@ -30,24 +30,24 @@ class PlatformBridge {
 
   async connect(platformId) {
     const platform = this.platforms.get(platformId);
-    if (!platform) throw new Error('Platform not found');
+    if (!platform) {throw new Error('Platform not found');}
 
     try {
       switch (platform.type) {
-        case 'slack':
-          await this._connectSlack(platform);
-          break;
-        case 'discord':
-          await this._connectDiscord(platform);
-          break;
-        case 'wechat_work':
-          await this._connectWechatWork(platform);
-          break;
-        case 'telegram':
-          await this._connectTelegram(platform);
-          break;
-        default:
-          throw new Error(`Unsupported platform: ${platform.type}`);
+      case 'slack':
+        await this._connectSlack(platform);
+        break;
+      case 'discord':
+        await this._connectDiscord(platform);
+        break;
+      case 'wechat_work':
+        await this._connectWechatWork(platform);
+        break;
+      case 'telegram':
+        await this._connectTelegram(platform);
+        break;
+      default:
+        throw new Error(`Unsupported platform: ${platform.type}`);
       }
 
       platform.status = 'connected';
@@ -64,7 +64,7 @@ class PlatformBridge {
 
   async disconnect(platformId) {
     const platform = this.platforms.get(platformId);
-    if (!platform) return false;
+    if (!platform) {return false;}
 
     platform.status = 'disconnected';
     platform.connectedAt = null;
@@ -97,13 +97,13 @@ class PlatformBridge {
     if (!platform.config.token) {
       throw new Error('Telegram token required');
     }
-    console.log(`[PlatformBridge] Telegram connected`);
+    console.log('[PlatformBridge] Telegram connected');
   }
 
   async send(platformId, message) {
     const platform = this.platforms.get(platformId);
-    if (!platform) throw new Error('Platform not found');
-    if (platform.status !== 'connected') throw new Error('Platform not connected');
+    if (!platform) {throw new Error('Platform not found');}
+    if (platform.status !== 'connected') {throw new Error('Platform not connected');}
 
     const envelope = {
       id: `msg_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`,
@@ -119,20 +119,20 @@ class PlatformBridge {
       let result;
 
       switch (platform.type) {
-        case 'slack':
-          result = await this._sendSlack(platform, envelope);
-          break;
-        case 'discord':
-          result = await this._sendDiscord(platform, envelope);
-          break;
-        case 'wechat_work':
-          result = await this._sendWechatWork(platform, envelope);
-          break;
-        case 'telegram':
-          result = await this._sendTelegram(platform, envelope);
-          break;
-        default:
-          throw new Error(`Unsupported platform: ${platform.type}`);
+      case 'slack':
+        result = await this._sendSlack(platform, envelope);
+        break;
+      case 'discord':
+        result = await this._sendDiscord(platform, envelope);
+        break;
+      case 'wechat_work':
+        result = await this._sendWechatWork(platform, envelope);
+        break;
+      case 'telegram':
+        result = await this._sendTelegram(platform, envelope);
+        break;
+      default:
+        throw new Error(`Unsupported platform: ${platform.type}`);
       }
 
       platform.stats.messagesSent++;
@@ -173,7 +173,7 @@ class PlatformBridge {
     };
   }
 
-  async _sendTelegram(platform, envelope) {
+  async _sendTelegram(_platform, _envelope) {
     return {
       platform: 'telegram',
       message_id: Date.now()
@@ -184,8 +184,8 @@ class PlatformBridge {
     const results = [];
 
     for (const [platformId, platform] of this.platforms) {
-      if (platform.status !== 'connected') continue;
-      if (excludePlatforms.includes(platformId)) continue;
+      if (platform.status !== 'connected') {continue;}
+      if (excludePlatforms.includes(platformId)) {continue;}
 
       const result = await this.send(platformId, message);
       results.push({ platformId, ...result });
@@ -196,7 +196,7 @@ class PlatformBridge {
 
   handleIncoming(platformId, rawMessage) {
     const platform = this.platforms.get(platformId);
-    if (!platform) return null;
+    if (!platform) {return null;}
 
     platform.stats.messagesReceived++;
 
@@ -220,32 +220,32 @@ class PlatformBridge {
     };
 
     switch (platformType) {
-      case 'slack':
-        return {
-          ...base,
-          type: rawMessage.subtype || 'message',
-          threadTs: rawMessage.thread_ts
-        };
-      case 'discord':
-        return {
-          ...base,
-          type: rawMessage.type || 'DEFAULT',
-          guild: rawMessage.guild_id
-        };
-      case 'wechat_work':
-        return {
-          ...base,
-          type: rawMessage.MsgType || 'text',
-          toUser: rawMessage.ToUserName
-        };
-      case 'telegram':
-        return {
-          ...base,
-          type: rawMessage.chat?.type || 'private',
-          chatId: rawMessage.chat?.id
-        };
-      default:
-        return base;
+    case 'slack':
+      return {
+        ...base,
+        type: rawMessage.subtype || 'message',
+        threadTs: rawMessage.thread_ts
+      };
+    case 'discord':
+      return {
+        ...base,
+        type: rawMessage.type || 'DEFAULT',
+        guild: rawMessage.guild_id
+      };
+    case 'wechat_work':
+      return {
+        ...base,
+        type: rawMessage.MsgType || 'text',
+        toUser: rawMessage.ToUserName
+      };
+    case 'telegram':
+      return {
+        ...base,
+        type: rawMessage.chat?.type || 'private',
+        chatId: rawMessage.chat?.id
+      };
+    default:
+      return base;
     }
   }
 
@@ -258,7 +258,7 @@ class PlatformBridge {
   }
 
   getConnectedPlatforms() {
-    return Array.from(this.platforms.values()).filter(p => p.status === 'connected');
+    return Array.from(this.platforms.values()).filter((p) => p.status === 'connected');
   }
 
   getMessageHistory(limit = 100) {
@@ -271,9 +271,9 @@ class PlatformBridge {
     return {
       platforms: {
         total: platforms.length,
-        connected: platforms.filter(p => p.status === 'connected').length,
-        disconnected: platforms.filter(p => p.status === 'disconnected').length,
-        error: platforms.filter(p => p.status === 'error').length
+        connected: platforms.filter((p) => p.status === 'connected').length,
+        disconnected: platforms.filter((p) => p.status === 'disconnected').length,
+        error: platforms.filter((p) => p.status === 'error').length
       },
       messages: {
         total: platforms.reduce((sum, p) => sum + p.stats.messagesSent + p.stats.messagesReceived, 0),

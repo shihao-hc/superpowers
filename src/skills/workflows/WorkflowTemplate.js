@@ -11,9 +11,9 @@ class WorkflowTemplate {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'workflows');
     this.templatesFile = path.join(this.dataDir, 'templates.json');
-    
+
     this.templates = new Map();
-    
+
     this._ensureDataDir();
     this._loadData();
     this._initDefaultTemplates();
@@ -52,7 +52,7 @@ class WorkflowTemplate {
    * 初始化默认工作流模板
    */
   _initDefaultTemplates() {
-    if (this.templates.size > 0) return;
+    if (this.templates.size > 0) {return;}
 
     const defaultTemplates = [
       {
@@ -447,57 +447,57 @@ class WorkflowTemplate {
    */
   listTemplates(options = {}) {
     const { category, difficulty, author, search, skills, limit = 50, offset = 0 } = options;
-    
+
     let templates = Array.from(this.templates.values());
-    
+
     // 只显示公开的模板
-    templates = templates.filter(t => t.isPublic);
-    
+    templates = templates.filter((t) => t.isPublic);
+
     // 分类过滤
     if (category) {
-      templates = templates.filter(t => t.category === category);
+      templates = templates.filter((t) => t.category === category);
     }
-    
+
     // 难度过滤
     if (difficulty) {
-      templates = templates.filter(t => t.difficulty === difficulty);
+      templates = templates.filter((t) => t.difficulty === difficulty);
     }
-    
+
     // 作者过滤
     if (author) {
-      templates = templates.filter(t => t.author === author);
+      templates = templates.filter((t) => t.author === author);
     }
-    
+
     // 搜索过滤
     if (search) {
       const searchLower = search.toLowerCase();
-      templates = templates.filter(t => 
+      templates = templates.filter((t) =>
         t.name.toLowerCase().includes(searchLower) ||
         t.description.toLowerCase().includes(searchLower) ||
-        t.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        t.tags.some((tag) => tag.toLowerCase().includes(searchLower))
       );
     }
-    
+
     // 技能过滤
     if (skills && skills.length > 0) {
-      templates = templates.filter(t => 
-        skills.some(skillId => 
-          t.skills.some(s => s.skillId === skillId)
+      templates = templates.filter((t) =>
+        skills.some((skillId) =>
+          t.skills.some((s) => s.skillId === skillId)
         )
       );
     }
-    
+
     // 排序（按评分和下载量）
     templates.sort((a, b) => {
       const scoreA = (a.rating || 0) * 20 + (a.downloads || 0) * 0.1;
       const scoreB = (b.rating || 0) * 20 + (b.downloads || 0) * 0.1;
       return scoreB - scoreA;
     });
-    
+
     // 分页
     const total = templates.length;
     const paginatedTemplates = templates.slice(offset, offset + limit);
-    
+
     return {
       templates: paginatedTemplates,
       total,
@@ -517,7 +517,7 @@ class WorkflowTemplate {
 
     template.downloads = (template.downloads || 0) + 1;
     template.updatedAt = new Date().toISOString();
-    
+
     this.templates.set(templateId, template);
     this._saveData();
 
@@ -527,7 +527,7 @@ class WorkflowTemplate {
   /**
    * 添加评分
    */
-  addRating(templateId, rating, reviewer = 'anonymous') {
+  addRating(templateId, rating, _reviewer = 'anonymous') {
     const template = this.templates.get(templateId);
     if (!template) {
       throw new Error(`Template not found: ${templateId}`);
@@ -545,13 +545,13 @@ class WorkflowTemplate {
     template.rating = Math.round(newRating * 10) / 10;
     template.ratingCount = newCount;
     template.updatedAt = new Date().toISOString();
-    
+
     this.templates.set(templateId, template);
     this._saveData();
 
-    return { 
-      rating: template.rating, 
-      ratingCount: template.ratingCount 
+    return {
+      rating: template.rating,
+      ratingCount: template.ratingCount
     };
   }
 
@@ -579,13 +579,13 @@ class WorkflowTemplate {
    */
   importTemplate(templateData, options = {}) {
     const { overwrite = false, author = 'imported' } = options;
-    
+
     if (templateData.format !== 'ultrawork-workflow') {
       throw new Error('Invalid template format');
     }
 
     const template = templateData.template;
-    
+
     // 检查是否已存在
     if (this.templates.has(template.id) && !overwrite) {
       throw new Error(`Template already exists: ${template.id}`);
@@ -610,17 +610,17 @@ class WorkflowTemplate {
    */
   getCategories() {
     const categories = new Map();
-    
+
     for (const template of this.templates.values()) {
-      if (!template.isPublic) continue;
-      
+      if (!template.isPublic) {continue;}
+
       const cat = template.category || 'general';
       if (!categories.has(cat)) {
         categories.set(cat, { id: cat, name: cat, count: 0 });
       }
       categories.get(cat).count++;
     }
-    
+
     return Array.from(categories.values());
   }
 
@@ -629,7 +629,7 @@ class WorkflowTemplate {
    */
   getRecommendedTemplates(limit = 5) {
     return Array.from(this.templates.values())
-      .filter(t => t.isPublic)
+      .filter((t) => t.isPublic)
       .sort((a, b) => {
         const scoreA = (a.rating || 0) * 20 + (a.downloads || 0) * 0.1;
         const scoreB = (b.rating || 0) * 20 + (b.downloads || 0) * 0.1;
@@ -643,8 +643,8 @@ class WorkflowTemplate {
    */
   getStats() {
     const templates = Array.from(this.templates.values());
-    const publicTemplates = templates.filter(t => t.isPublic);
-    
+    const publicTemplates = templates.filter((t) => t.isPublic);
+
     const totalDownloads = publicTemplates.reduce((sum, t) => sum + (t.downloads || 0), 0);
     const avgRating = publicTemplates.length > 0
       ? publicTemplates.reduce((sum, t) => sum + (t.rating || 0), 0) / publicTemplates.length
@@ -675,7 +675,7 @@ class WorkflowTemplate {
 
     return {
       nodes,
-      edges: template.connections.map(conn => ({
+      edges: template.connections.map((conn) => ({
         id: `${conn.from}-${conn.to}`,
         source: conn.from,
         target: conn.to,
@@ -688,11 +688,11 @@ class WorkflowTemplate {
   /**
    * 计算节点位置（简单的自动布局）
    */
-  _calculateNodePosition(index, total) {
+  _calculateNodePosition(index, _total) {
     const nodeWidth = 200;
-    const nodeHeight = 100;
+    const _nodeHeight = 100;
     const gap = 50;
-    
+
     // 水平排列
     return {
       x: index * (nodeWidth + gap),

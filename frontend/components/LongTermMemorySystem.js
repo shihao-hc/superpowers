@@ -1,6 +1,6 @@
 /**
  * LongTermMemorySystem - 长期记忆系统
- * 
+ *
  * 功能:
  * - 对话历史存储和检索
  * - 用户偏好学习
@@ -198,7 +198,7 @@ class ConversationMemory {
       'userId',
       userId
     );
-    
+
     return allMessages
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, count)
@@ -208,17 +208,17 @@ class ConversationMemory {
   async searchMessages(keyword, limit = 10) {
     const allMessages = await this.storage.getAll(this.storage.stores.conversations);
     const keywordLower = keyword.toLowerCase();
-    
+
     return allMessages
-      .filter(msg => msg.content.toLowerCase().includes(keywordLower))
+      .filter((msg) => msg.content.toLowerCase().includes(keywordLower))
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
   }
 
   async summarizeOldConversations() {
     const allMessages = await this.storage.getAll(this.storage.stores.conversations);
-    
-    if (allMessages.length <= this.maxHistory) return;
+
+    if (allMessages.length <= this.maxHistory) {return;}
 
     const toSummarize = allMessages
       .sort((a, b) => a.timestamp - b.timestamp)
@@ -255,8 +255,8 @@ class ConversationMemory {
       userId
     );
 
-    const userMessages = messages.filter(m => m.role === 'user');
-    const assistantMessages = messages.filter(m => m.role === 'assistant');
+    const userMessages = messages.filter((m) => m.role === 'user');
+    const assistantMessages = messages.filter((m) => m.role === 'assistant');
 
     return {
       total: messages.length,
@@ -302,17 +302,17 @@ class PreferenceMemory {
 
   async learnPreference(key, value, context = {}) {
     const existing = await this.storage.get(this.storage.stores.preferences, key);
-    
+
     if (existing) {
       // Update confidence based on consistency
       const isConsistent = existing.value === value;
-      existing.confidence = isConsistent 
+      existing.confidence = isConsistent
         ? Math.min(1, existing.confidence + 0.1)
         : Math.max(0.1, existing.confidence - 0.2);
       existing.value = isConsistent ? existing.value : value;
       existing.lastConfirmed = Date.now();
       existing.context = { ...existing.context, ...context };
-      
+
       await this.storage.put(this.storage.stores.preferences, existing);
     } else {
       await this.setPreference(key, value, context.category);
@@ -321,10 +321,10 @@ class PreferenceMemory {
 
   async inferPreferencesFromConversation(messages) {
     const preferences = {};
-    
+
     for (const msg of messages) {
-      if (msg.role !== 'user') continue;
-      
+      if (msg.role !== 'user') {continue;}
+
       // Detect game preferences
       const gameKeywords = ['minecraft', 'pokemon', 'genshin', '我的世界', '原神'];
       for (const game of gameKeywords) {
@@ -332,26 +332,26 @@ class PreferenceMemory {
           preferences['favorite_game'] = game;
         }
       }
-      
+
       // Detect personality preference
       const personalityKeywords = {
         'cute': ['可爱', '萌', '可爱'],
         'professional': ['专业', '正式', '认真'],
         'funny': ['搞笑', '好玩', '哈哈']
       };
-      
+
       for (const [pref, keywords] of Object.entries(personalityKeywords)) {
-        if (keywords.some(kw => msg.content.includes(kw))) {
+        if (keywords.some((kw) => msg.content.includes(kw))) {
           preferences[`preferred_${pref}`] = true;
         }
       }
     }
-    
+
     // Learn all detected preferences
     for (const [key, value] of Object.entries(preferences)) {
       await this.learnPreference(key, value, { source: 'conversation_analysis' });
     }
-    
+
     return preferences;
   }
 }
@@ -377,9 +377,9 @@ class EventMemory {
 
   async getImportantEvents(minImportance = 7, limit = 20) {
     const events = await this.storage.getAll(this.storage.stores.events);
-    
+
     return events
-      .filter(e => e.importance >= minImportance)
+      .filter((e) => e.importance >= minImportance)
       .sort((a, b) => b.importance - a.importance)
       .slice(0, limit);
   }
@@ -390,7 +390,7 @@ class EventMemory {
       'type',
       type
     );
-    
+
     return events
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
@@ -399,9 +399,9 @@ class EventMemory {
   async getRecentEvents(days = 7, limit = 50) {
     const events = await this.storage.getAll(this.storage.stores.events);
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    
+
     return events
-      .filter(e => e.timestamp >= cutoff)
+      .filter((e) => e.timestamp >= cutoff)
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
   }
@@ -409,12 +409,12 @@ class EventMemory {
   async searchEvents(keyword, limit = 10) {
     const events = await this.storage.getAll(this.storage.stores.events);
     const keywordLower = keyword.toLowerCase();
-    
+
     return events
-      .filter(e => 
+      .filter((e) =>
         e.title?.toLowerCase().includes(keywordLower) ||
         e.description?.toLowerCase().includes(keywordLower) ||
-        e.tags?.some(t => t.toLowerCase().includes(keywordLower))
+        e.tags?.some((t) => t.toLowerCase().includes(keywordLower))
       )
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
@@ -459,7 +459,7 @@ class FactMemory {
 
   async getHighConfidenceFacts(threshold = 0.7) {
     const facts = await this.storage.getAll(this.storage.stores.facts);
-    return facts.filter(f => f.confidence >= threshold);
+    return facts.filter((f) => f.confidence >= threshold);
   }
 }
 
@@ -510,10 +510,10 @@ class AssociationMemory {
   async getRelatedEntities(entity, limit = 10) {
     const fromAssocs = await this.getAssociationsFrom(entity);
     const toAssocs = await this.getAssociationsTo(entity);
-    
+
     const allAssocs = [...fromAssocs, ...toAssocs];
     const uniqueEntities = new Map();
-    
+
     for (const assoc of allAssocs) {
       const related = assoc.from === entity ? assoc.to : assoc.from;
       if (!uniqueEntities.has(related)) {
@@ -527,7 +527,7 @@ class AssociationMemory {
         existing.strength = Math.max(existing.strength, assoc.strength);
       }
     }
-    
+
     return Array.from(uniqueEntities.values())
       .sort((a, b) => b.strength - a.strength)
       .slice(0, limit);
@@ -548,13 +548,13 @@ class LongTermMemorySystem {
   async init() {
     try {
       await this.storage.init();
-      
+
       this.conversation = new ConversationMemory(this.storage);
       this.preferences = new PreferenceMemory(this.storage);
       this.events = new EventMemory(this.storage);
       this.facts = new FactMemory(this.storage);
       this.associations = new AssociationMemory(this.storage);
-      
+
       this.isInitialized = true;
       console.log('Long-term memory system initialized');
       return true;
@@ -565,8 +565,8 @@ class LongTermMemorySystem {
   }
 
   async rememberConversation(role, content, metadata = {}) {
-    if (!this.isInitialized) return;
-    
+    if (!this.isInitialized) {return;}
+
     await this.conversation.addMessage({
       role,
       content,
@@ -575,62 +575,62 @@ class LongTermMemorySystem {
   }
 
   async recallRecent(count = 10) {
-    if (!this.isInitialized) return [];
+    if (!this.isInitialized) {return [];}
     return await this.conversation.getRecentMessages(count);
   }
 
   async searchMemory(keyword) {
-    if (!this.isInitialized) return [];
-    
+    if (!this.isInitialized) {return [];}
+
     const messages = await this.conversation.searchMessages(keyword);
     const events = await this.events.searchEvents(keyword);
-    
+
     return { messages, events };
   }
 
   async learnPreference(key, value) {
-    if (!this.isInitialized) return;
+    if (!this.isInitialized) {return;}
     await this.preferences.learnPreference(key, value);
   }
 
   async getPreference(key, defaultValue = null) {
-    if (!this.isInitialized) return defaultValue;
+    if (!this.isInitialized) {return defaultValue;}
     return await this.preferences.getPreference(key, defaultValue);
   }
 
   async recordEvent(event) {
-    if (!this.isInitialized) return;
+    if (!this.isInitialized) {return;}
     return await this.events.recordEvent(event);
   }
 
   async getRecentEvents(days = 7) {
-    if (!this.isInitialized) return [];
+    if (!this.isInitialized) {return [];}
     return await this.events.getRecentEvents(days);
   }
 
   async addFact(subject, predicate, object) {
-    if (!this.isInitialized) return;
+    if (!this.isInitialized) {return;}
     return await this.facts.addFact({ subject, predicate, object });
   }
 
   async getFactsAbout(subject) {
-    if (!this.isInitialized) return [];
+    if (!this.isInitialized) {return [];}
     return await this.facts.getFactsAbout(subject);
   }
 
   async createAssociation(from, to, relationship) {
-    if (!this.isInitialized) return;
+    if (!this.isInitialized) {return;}
     return await this.associations.createAssociation(from, to, relationship);
   }
 
   async getRelated(entity) {
-    if (!this.isInitialized) return [];
+    if (!this.isInitialized) {return [];}
     return await this.associations.getRelatedEntities(entity);
   }
 
   async getStats() {
-    if (!this.isInitialized) return {};
-    
+    if (!this.isInitialized) {return {};}
+
     return {
       conversations: await this.storage.count(this.storage.stores.conversations),
       preferences: await this.storage.count(this.storage.stores.preferences),

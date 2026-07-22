@@ -1,8 +1,8 @@
 /**
  * EnhancedAvatarSystem - 增强的虚拟角色系统
- * 
+ *
  * 参考 moeru-ai/airi 项目和 Neuro-sama 实现
- * 
+ *
  * 功能:
  * - VRM/Live2D 模型控制
  * - 自动眨眼、视线跟踪、待机动画
@@ -18,7 +18,7 @@ class AvatarAnimationController {
     this.currentAnimation = null;
     this.animationQueue = [];
     this.blendDuration = 0.3;
-    
+
     // 默认动画预设
     this.presets = {
       idle: { duration: 0, loop: true, priority: 0 },
@@ -52,7 +52,7 @@ class AvatarAnimationController {
 
     this.currentAnimation = animation;
     this.isAnimating = true;
-    
+
     if (!animation.loop && animation.duration > 0) {
       setTimeout(() => {
         this.currentAnimation = null;
@@ -85,7 +85,7 @@ class EyeController {
     this.lookAtTarget = { x: 0, y: 0 };
     this.blinkTimer = null;
     this.isBlinking = false;
-    
+
     this.idleEyeMovement = {
       enabled: true,
       speed: 0.5,
@@ -176,7 +176,7 @@ class MouthController {
       // 模拟说话时的嘴型变化
       this.targetMouthOpen = 0.2 + Math.random() * 0.6;
     }
-    
+
     // 平滑过渡
     this.mouthOpen += (this.targetMouthOpen - this.mouthOpen) * this.smoothSpeed;
     return this.mouthOpen;
@@ -195,14 +195,14 @@ class BodyController {
 
   update(deltaTime) {
     this.time += deltaTime;
-    
+
     // 呼吸效果
     const breathing = Math.sin(this.time * this.breathingSpeed * 1000) * this.breathingAmplitude;
-    
+
     // 待机摇摆
     const swayX = Math.sin(this.time * this.idleSway.speed) * this.idleSway.amount;
     const swayY = Math.cos(this.time * this.idleSway.speed * 0.7) * this.idleSway.amount * 0.5;
-    
+
     return {
       position: { ...this.position, y: this.position.y + breathing },
       rotation: { x: swayX, y: swayY, z: this.rotation.z }
@@ -218,12 +218,12 @@ class BodyController {
       surprised: { jump: 0.12, tilt: 0 },
       shy: { shrink: 0.05, tilt: -0.1 }
     };
-    
+
     const reaction = reactions[emotion] || {};
-    Object.keys(reaction).forEach(key => {
+    Object.keys(reaction).forEach((key) => {
       reaction[key] *= intensity;
     });
-    
+
     return reaction;
   }
 }
@@ -234,11 +234,11 @@ class EnhancedAvatarSystem {
     this.eyes = new EyeController(options.eyes);
     this.mouth = new MouthController();
     this.body = new BodyController();
-    
+
     this.currentEmotion = 'neutral';
     this.emotionIntensity = 0.5;
     this.lastUpdateTime = Date.now();
-    
+
     // 表情映射到BlendShape
     this.emotionBlendShapes = {
       happy: {
@@ -278,7 +278,7 @@ class EnhancedAvatarSystem {
         'MouthForm': 0, 'MouthOpenY': 0
       }
     };
-    
+
     // 语音情感增强
     this.speechEmotionBoost = {
       happy: { rate: 1.15, pitch: 1.1 },
@@ -289,7 +289,7 @@ class EnhancedAvatarSystem {
       curious: { rate: 1.0, pitch: 1.05 },
       neutral: { rate: 1.0, pitch: 1.0 }
     };
-    
+
     this.init();
   }
 
@@ -304,10 +304,10 @@ class EnhancedAvatarSystem {
       const now = Date.now();
       const deltaTime = (now - this.lastUpdateTime) / 1000;
       this.lastUpdateTime = now;
-      
+
       this.mouth.update();
-      const bodyState = this.body.update(deltaTime);
-      
+      const _bodyState = this.body.update(deltaTime);
+
       requestAnimationFrame(update);
     };
     update();
@@ -316,18 +316,18 @@ class EnhancedAvatarSystem {
   setEmotion(emotion, intensity = 0.5) {
     this.currentEmotion = emotion;
     this.emotionIntensity = intensity;
-    
+
     const blendShapes = this.emotionBlendShapes[emotion] || this.emotionBlendShapes.neutral;
-    
+
     // 应用强度
     const adjustedShapes = {};
-    Object.keys(blendShapes).forEach(key => {
+    Object.keys(blendShapes).forEach((key) => {
       adjustedShapes[key] = blendShapes[key] * intensity;
     });
-    
+
     // 触发身体反应
     const bodyReaction = this.body.reactToEmotion(emotion, intensity);
-    
+
     // 根据情绪选择动画
     if (emotion === 'happy' || emotion === 'excited') {
       this.animation.play('excited');
@@ -338,7 +338,7 @@ class EnhancedAvatarSystem {
     } else if (emotion === 'surprised') {
       this.animation.play('surprised');
     }
-    
+
     return { blendShapes: adjustedShapes, bodyReaction };
   }
 

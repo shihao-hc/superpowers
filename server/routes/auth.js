@@ -7,6 +7,8 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const { authLimiter, generateToken, generateRefreshToken, authMiddleware } = require('../middleware');
 const dataMaskService = require('../services/dataMaskService');
+const { authService } = require('../../src/security/EnhancedAuthService');
+const { errorLog } = require('../utils/logger');
 
 // 内存存储（生产环境应使用数据库）
 const users = new Map();
@@ -93,7 +95,7 @@ router.post('/register', authLimiter, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Register error:', error);
+    errorLog('Register error', { error: error.message });
     res.status(500).json({
       error: '注册失败',
       code: 'REGISTER_ERROR'
@@ -117,10 +119,22 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
+    // 检查账号是否被锁定（基于邮箱+IP组合）
+    const lockIdentifier = `${email}:${req.ip}`;
+    const lockStatus = authService.checkLoginLock(lockIdentifier);
+    if (lockStatus.locked) {
+      return res.status(429).json({
+        error: '账号已被临时锁定，请15分钟后再试',
+        code: 'ACCOUNT_LOCKED',
+        remaining: lockStatus.remaining
+      });
+    }
+
     // 查找用户
     const user = users.get(email);
 
     if (!user) {
+      authService.trackLoginAttempt(lockIdentifier);
       return res.status(401).json({
         error: '邮箱或密码错误',
         code: 'INVALID_CREDENTIALS'
@@ -131,11 +145,16 @@ router.post('/login', authLimiter, async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
+      const attemptInfo = authService.trackLoginAttempt(lockIdentifier);
       return res.status(401).json({
         error: '邮箱或密码错误',
-        code: 'INVALID_CREDENTIALS'
+        code: 'INVALID_CREDENTIALS',
+        remaining: attemptInfo.remaining
       });
     }
+
+    // 登录成功，清除失败记录
+    authService.clearLoginAttempts(lockIdentifier);
 
     // 生成令牌
     const token = generateToken({
@@ -172,7 +191,7 @@ router.post('/login', authLimiter, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    errorLog('Login error', { error: error.message });
     res.status(500).json({
       error: '登录失败',
       code: 'LOGIN_ERROR'
@@ -184,7 +203,7 @@ router.post('/login', authLimiter, async (req, res) => {
  * POST /api/auth/refresh
  * 刷新令牌
  */
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', authLimiter, async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
@@ -212,7 +231,7 @@ router.post('/refresh', async (req, res) => {
 
       // 查找用户
       let user = null;
-      for (const [email, u] of users) {
+      for (const [_email, u] of users) {
         if (u.id === decoded.id) {
           user = u;
           break;
@@ -254,7 +273,7 @@ router.post('/refresh', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Refresh error:', error);
+    errorLog('Refresh error', { error: error.message });
     res.status(500).json({
       error: '令牌刷新失败',
       code: 'REFRESH_ERROR'
@@ -278,7 +297,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
       message: '登出成功'
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    errorLog('Logout error', { error: error.message });
     res.status(500).json({
       error: '登出失败',
       code: 'LOGOUT_ERROR'
@@ -296,7 +315,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     // 查找用户
     let user = null;
-    for (const [email, u] of users) {
+    for (const [_email, u] of users) {
       if (u.id === userId) {
         user = u;
         break;
@@ -329,7 +348,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       data: maskedUser
     });
   } catch (error) {
-    console.error('Get user error:', error);
+    errorLog('Get user error', { error: error.message });
     res.status(500).json({
       error: '获取用户信息失败',
       code: 'GET_USER_ERROR'

@@ -37,7 +37,7 @@ class PluginManager {
 
   async load(pluginId) {
     const plugin = this.plugins.get(pluginId);
-    if (!plugin) throw new Error('Plugin not found');
+    if (!plugin) {throw new Error('Plugin not found');}
 
     try {
       if (plugin.hooks.onLoad) {
@@ -57,7 +57,7 @@ class PluginManager {
 
   async unload(pluginId) {
     const plugin = this.loadedPlugins.get(pluginId);
-    if (!plugin) return { success: false, error: 'Plugin not loaded' };
+    if (!plugin) {return { success: false, error: 'Plugin not loaded' };}
 
     try {
       if (plugin.hooks.onUnload) {

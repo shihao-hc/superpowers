@@ -11,9 +11,9 @@ class SkillBundle {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'bundles');
     this.bundlesFile = path.join(this.dataDir, 'bundles.json');
-    
+
     this.bundles = new Map();
-    
+
     this._ensureDataDir();
     this._loadData();
     this._initDefaultBundles();
@@ -52,7 +52,7 @@ class SkillBundle {
    * 初始化默认技能组合
    */
   _initDefaultBundles() {
-    if (this.bundles.size > 0) return;
+    if (this.bundles.size > 0) {return;}
 
     const defaultBundles = [
       {
@@ -183,7 +183,7 @@ class SkillBundle {
       description,
       category,
       icon,
-      skills: skills.map(s => ({
+      skills: skills.map((s) => ({
         skillId: s.skillId,
         version: s.version || '*',
         required: s.required !== false
@@ -253,46 +253,46 @@ class SkillBundle {
    */
   listBundles(options = {}) {
     const { category, author, search, tags, limit = 50, offset = 0 } = options;
-    
+
     let bundles = Array.from(this.bundles.values());
-    
+
     // 只显示公开的组合
-    bundles = bundles.filter(b => b.isPublic);
-    
+    bundles = bundles.filter((b) => b.isPublic);
+
     // 分类过滤
     if (category) {
-      bundles = bundles.filter(b => b.category === category);
+      bundles = bundles.filter((b) => b.category === category);
     }
-    
+
     // 作者过滤
     if (author) {
-      bundles = bundles.filter(b => b.author === author);
+      bundles = bundles.filter((b) => b.author === author);
     }
-    
+
     // 搜索过滤
     if (search) {
       const searchLower = search.toLowerCase();
-      bundles = bundles.filter(b => 
+      bundles = bundles.filter((b) =>
         b.name.toLowerCase().includes(searchLower) ||
         b.description.toLowerCase().includes(searchLower) ||
-        b.tags.some(t => t.toLowerCase().includes(searchLower))
+        b.tags.some((t) => t.toLowerCase().includes(searchLower))
       );
     }
-    
+
     // 标签过滤
     if (tags && tags.length > 0) {
-      bundles = bundles.filter(b => 
-        tags.some(tag => b.tags.includes(tag))
+      bundles = bundles.filter((b) =>
+        tags.some((tag) => b.tags.includes(tag))
       );
     }
-    
+
     // 排序（按下载量）
     bundles.sort((a, b) => b.downloads - a.downloads);
-    
+
     // 分页
     const total = bundles.length;
     const paginatedBundles = bundles.slice(offset, offset + limit);
-    
+
     return {
       bundles: paginatedBundles,
       total,
@@ -312,7 +312,7 @@ class SkillBundle {
 
     bundle.downloads = (bundle.downloads || 0) + 1;
     bundle.updatedAt = new Date().toISOString();
-    
+
     this.bundles.set(bundleId, bundle);
     this._saveData();
 
@@ -322,7 +322,7 @@ class SkillBundle {
   /**
    * 添加评分
    */
-  addRating(bundleId, rating, reviewer = 'anonymous') {
+  addRating(bundleId, rating, _reviewer = 'anonymous') {
     const bundle = this.bundles.get(bundleId);
     if (!bundle) {
       throw new Error(`Bundle not found: ${bundleId}`);
@@ -341,13 +341,13 @@ class SkillBundle {
     bundle.rating = Math.round(newRating * 10) / 10;
     bundle.ratingCount = newCount;
     bundle.updatedAt = new Date().toISOString();
-    
+
     this.bundles.set(bundleId, bundle);
     this._saveData();
 
-    return { 
-      rating: bundle.rating, 
-      ratingCount: bundle.ratingCount 
+    return {
+      rating: bundle.rating,
+      ratingCount: bundle.ratingCount
     };
   }
 
@@ -364,9 +364,9 @@ class SkillBundle {
     };
 
     for (const skillRef of skills) {
-      const skill = skillManager.getSkillInfo ? 
+      const skill = skillManager.getSkillInfo ?
         skillManager.getSkillInfo(skillRef.skillId) : null;
-      
+
       if (!skill) {
         results.missingSkills.push(skillRef.skillId);
         results.errors.push(`Skill not found: ${skillRef.skillId}`);
@@ -394,14 +394,14 @@ class SkillBundle {
       bundle,
       skills: [],
       totalSkills: bundle.skills.length,
-      requiredSkills: bundle.skills.filter(s => s.required).length,
-      optionalSkills: bundle.skills.filter(s => !s.required).length
+      requiredSkills: bundle.skills.filter((s) => s.required).length,
+      optionalSkills: bundle.skills.filter((s) => !s.required).length
     };
 
     for (const skillRef of bundle.skills) {
-      const skill = skillManager.getSkillInfo ? 
+      const skill = skillManager.getSkillInfo ?
         skillManager.getSkillInfo(skillRef.skillId) : null;
-      
+
       installInfo.skills.push({
         skillId: skillRef.skillId,
         version: skillRef.version,
@@ -419,17 +419,17 @@ class SkillBundle {
    */
   getCategories() {
     const categories = new Map();
-    
+
     for (const bundle of this.bundles.values()) {
-      if (!bundle.isPublic) continue;
-      
+      if (!bundle.isPublic) {continue;}
+
       const cat = bundle.category || 'general';
       if (!categories.has(cat)) {
         categories.set(cat, { id: cat, name: cat, count: 0 });
       }
       categories.get(cat).count++;
     }
-    
+
     return Array.from(categories.values());
   }
 
@@ -438,7 +438,7 @@ class SkillBundle {
    */
   getRecommendedBundles(limit = 5) {
     return Array.from(this.bundles.values())
-      .filter(b => b.isPublic)
+      .filter((b) => b.isPublic)
       .sort((a, b) => {
         // 综合评分：下载量 * 0.4 + 评分 * 0.6
         const scoreA = (a.downloads || 0) * 0.4 + (a.rating || 0) * 20 * 0.6;
@@ -453,8 +453,8 @@ class SkillBundle {
    */
   getStats() {
     const bundles = Array.from(this.bundles.values());
-    const publicBundles = bundles.filter(b => b.isPublic);
-    
+    const publicBundles = bundles.filter((b) => b.isPublic);
+
     const totalDownloads = publicBundles.reduce((sum, b) => sum + (b.downloads || 0), 0);
     const avgRating = publicBundles.length > 0
       ? publicBundles.reduce((sum, b) => sum + (b.rating || 0), 0) / publicBundles.length

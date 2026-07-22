@@ -1,6 +1,6 @@
 /**
  * GameInteractionSystem - 游戏互动/解说系统
- * 
+ *
  * 功能:
  * - 屏幕捕获和分析
  * - 游戏事件检测
@@ -63,7 +63,7 @@ class ScreenCapture {
   }
 
   startCaptureLoop() {
-    if (!this.isCapturing) return;
+    if (!this.isCapturing) {return;}
 
     this.captureInterval = setInterval(() => {
       if (this.video && this.video.readyState === 4) {
@@ -73,7 +73,7 @@ class ScreenCapture {
   }
 
   captureFrame() {
-    if (!this.ctx || !this.video) return null;
+    if (!this.ctx || !this.video) {return null;}
 
     this.ctx.drawImage(
       this.video,
@@ -106,7 +106,7 @@ class ScreenCapture {
     }
 
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
 
@@ -119,7 +119,7 @@ class ScreenCapture {
   }
 
   getFrameBase64() {
-    if (!this.canvas) return null;
+    if (!this.canvas) {return null;}
     return this.canvas.toDataURL('image/jpeg', 0.8);
   }
 
@@ -178,7 +178,7 @@ class GameEventDetector {
 
     // Color analysis for basic detection
     const colors = this.analyzeColors(frameData.imageData);
-    
+
     // Detect battle scenes (red/orange dominant)
     if (colors.red > 0.3 && colors.dominant === 'red') {
       events.push({
@@ -207,7 +207,7 @@ class GameEventDetector {
     }
 
     // Emit events
-    events.forEach(event => {
+    events.forEach((event) => {
       if (event.confidence > 0.3) {
         this.eventHistory.push(event);
         this.onEvent(event);
@@ -237,10 +237,10 @@ class GameEventDetector {
 
     // Determine dominant color
     let dominant = 'neutral';
-    if (r > g && r > b) dominant = 'red';
-    else if (g > r && g > b) dominant = 'green';
-    else if (b > r && b > g) dominant = 'blue';
-    else if (r > 0.4 && g > 0.4) dominant = 'yellow';
+    if (r > g && r > b) {dominant = 'red';}
+    else if (g > r && g > b) {dominant = 'green';}
+    else if (b > r && b > g) {dominant = 'blue';}
+    else if (r > 0.4 && g > 0.4) {dominant = 'yellow';}
 
     return {
       red: r,
@@ -254,7 +254,7 @@ class GameEventDetector {
 
   analyzeText(text) {
     const events = [];
-    const textLower = text.toLowerCase();
+    const _textLower = text.toLowerCase();
 
     for (const [game, patterns] of Object.entries(this.gamePatterns)) {
       for (const [eventType, pattern] of Object.entries(patterns)) {
@@ -372,10 +372,10 @@ class CommentaryGenerator {
 
   generateCommentary(eventType, context = {}) {
     const templates = this.commentaryTemplates[eventType];
-    if (!templates) return this.generateGenericComment(eventType);
+    if (!templates) {return this.generateGenericComment(eventType);}
 
     const personalityTemplates = templates[this.personality] || templates['狐九'];
-    if (!personalityTemplates) return '加油！';
+    if (!personalityTemplates) {return '加油！';}
 
     // Random selection
     const index = Math.floor(Math.random() * personalityTemplates.length);
@@ -410,7 +410,7 @@ class GameInteractionSystem {
     this.character = character;
     this.emotionSystem = options.emotionSystem;
     this.tts = options.tts;
-    
+
     this.screenCapture = new ScreenCapture({
       captureRate: options.captureRate || 2000,
       onFrame: (frame) => this.handleFrame(frame),
@@ -430,7 +430,7 @@ class GameInteractionSystem {
     this.commentaryQueue = [];
     this.commentaryInterval = null;
     this.commentaryRate = options.commentaryRate || 8000; // ms
-    
+
     this.stats = {
       eventsDetected: 0,
       commentariesGenerated: 0,
@@ -447,10 +447,10 @@ class GameInteractionSystem {
       this.isCommentating = true;
       this.stats.sessionStartTime = Date.now();
       this.startCommentaryLoop();
-      
+
       // Initial greeting
       this.addCommentary('开始观看游戏！让我来解说吧~');
-      
+
       return true;
     }
     return false;
@@ -459,7 +459,7 @@ class GameInteractionSystem {
   stop() {
     this.isCommentating = false;
     this.screenCapture.stop();
-    
+
     if (this.commentaryInterval) {
       clearInterval(this.commentaryInterval);
       this.commentaryInterval = null;
@@ -470,23 +470,23 @@ class GameInteractionSystem {
   }
 
   handleFrame(frameData) {
-    if (!this.isCommentating) return;
-    
+    if (!this.isCommentating) {return;}
+
     const events = this.eventDetector.analyzeFrame(frameData);
     this.stats.eventsDetected += events.length;
   }
 
   handleGameEvent(event) {
-    if (!this.isCommentating) return;
+    if (!this.isCommentating) {return;}
 
     // Update stats
     this.stats.gameEvents[event.type] = (this.stats.gameEvents[event.type] || 0) + 1;
-    
+
     // Generate commentary
     const comment = this.commentary.generateCommentary(event.type, {
       confidence: event.confidence
     });
-    
+
     this.addCommentary(comment);
 
     // Update character emotion
@@ -509,11 +509,11 @@ class GameInteractionSystem {
 
   startCommentaryLoop() {
     this.commentaryInterval = setInterval(() => {
-      if (!this.isCommentating) return;
-      
+      if (!this.isCommentating) {return;}
+
       // Generate periodic commentary
       const recentEvents = this.eventDetector.getRecentEvents(3);
-      
+
       if (recentEvents.length === 0) {
         // No recent events, generate general commentary
         const generalComments = [
@@ -531,7 +531,7 @@ class GameInteractionSystem {
 
   addCommentary(text) {
     this.stats.commentariesGenerated++;
-    
+
     this.commentaryQueue.push({
       text,
       timestamp: Date.now()
@@ -569,8 +569,8 @@ class GameInteractionSystem {
   }
 
   getStats() {
-    const duration = this.stats.sessionStartTime 
-      ? (Date.now() - this.stats.sessionStartTime) / 1000 
+    const duration = this.stats.sessionStartTime
+      ? (Date.now() - this.stats.sessionStartTime) / 1000
       : 0;
 
     return {
@@ -583,7 +583,7 @@ class GameInteractionSystem {
   generateSessionSummary() {
     const stats = this.getStats();
     const summary = `游戏解说结束！本次共检测到 ${stats.eventsDetected} 个事件，生成了 ${stats.commentariesGenerated} 条解说。`;
-    
+
     this.addCommentary(summary);
     console.log('Session Summary:', stats);
   }

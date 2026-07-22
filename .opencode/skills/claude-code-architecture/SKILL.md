@@ -1,6 +1,8 @@
 ---
 name: claude-code-architecture
 description: Learn from Claude Code's leaked source code - advanced agent architecture, streaming tool execution, context management, and security patterns
+trigger: "Claude架构 | Claude Code架构"
+auto_trigger: true
 category: ai-agent-architecture
 source: Claude Code v2.1.88 source code analysis (March 2026)
 version: 1.0
@@ -12,6 +14,7 @@ tags:
   - tool-execution
   - security
 ---
+
 
 # Claude Code 架构学习 - 从源码中提取的最佳实践
 
@@ -217,6 +220,8 @@ class ToolSchema(BaseModel):
     """Zod-like 工具模式定义"""
     name: str
     description: str
+trigger: "Claude架构 | Claude Code架构"
+auto_trigger: true
     parameters: dict
     permission: ToolPermission = ToolPermission.ASK
     
@@ -392,6 +397,8 @@ class MemorySystem:
 ---
 name: code-review
 description: Systematic code review workflow
+trigger: "Claude架构 | Claude Code架构"
+auto_trigger: true
 tools: [Read, Grep, Glob, Edit]
 ---
 
@@ -567,6 +574,42 @@ const buddyModule = feature('BUDDY')
 3. **记忆系统** - 三层记忆架构
 
 ---
+
+## 维护说明
+
+> **重要**: 本 SKILL.md 是一个**主动维护的文档**，会定期更新以反映项目的最新状态，而非被动等待原始 README.md 更新。
+
+### 更新机制
+
+| 来源 | 说明 |
+|------|------|
+| GitHub Releases | 自动抓取最新 releases |
+| 项目追踪器 | `src/tracking/ProjectTracker.js` |
+| 更新脚本 | `scripts/update-tailor-skill.js` |
+
+### 手动检查更新
+
+```bash
+# 检查所有项目更新
+node scripts/update-tailor-skill.js --check-only
+
+# 检查并自动更新
+node scripts/update-tailor-skill.js --update
+
+# 查看追踪状态
+node scripts/update-tailor-skill.js --status
+```
+
+### 更新内容
+
+当检测到新版本时，会自动更新：
+
+- [ ] **版本号**: 更新到最新版本
+- [ ] **更新日志**: 追加新的版本和变更内容
+- [ ] **功能说明**: 根据 changelog 提取新增功能
+- [ ] **依赖库**: 同步 requirements.txt 的变更
+- [ ] **特别感谢**: 补充新的依赖项目
+
 
 ## 📚 参考资源
 

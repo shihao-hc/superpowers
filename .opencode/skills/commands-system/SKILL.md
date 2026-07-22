@@ -1,6 +1,8 @@
 ---
 name: commands-system
 description: AI Agent 斜杠命令系统 - 命令注册、执行、权限、快捷操作
+trigger: "斜杠命令 | 命令系统"
+auto_trigger: true
 category: ai-agent-infrastructure
 source: Claude Code 85+ commands analysis
 version: 1.0
@@ -11,6 +13,7 @@ tags:
   - execution
   - cli
 ---
+
 
 # 斜杠命令系统 - 85+ 命令框架
 
@@ -80,6 +83,8 @@ class CommandArg:
     name: str
     type: str  # string, number, boolean, flag
     description: str
+trigger: "斜杠命令 | 命令系统"
+auto_trigger: true
     required: bool = False
     default: Optional[str] = None
     short: Optional[str] = None  # 短选项，如 -m
@@ -99,6 +104,8 @@ class BaseCommand(ABC):
     
     name: str = ""
     description: str = ""
+trigger: "斜杠命令 | 命令系统"
+auto_trigger: true
     category: CommandCategory = CommandCategory.UTILITIES
     aliases: list[str] = []
     args: list[CommandArg] = []
@@ -718,6 +725,42 @@ print(handler.get_help())
 | **分类管理** | 8 个命令分类 |
 | **别名支持** | 快捷命令 |
 | **LLM 集成** | 智能命令（如自动生成提交信息） |
+
+## 维护说明
+
+> **重要**: 本 SKILL.md 是一个**主动维护的文档**，会定期更新以反映项目的最新状态，而非被动等待原始 README.md 更新。
+
+### 更新机制
+
+| 来源 | 说明 |
+|------|------|
+| GitHub Releases | 自动抓取最新 releases |
+| 项目追踪器 | `src/tracking/ProjectTracker.js` |
+| 更新脚本 | `scripts/update-tailor-skill.js` |
+
+### 手动检查更新
+
+```bash
+# 检查所有项目更新
+node scripts/update-tailor-skill.js --check-only
+
+# 检查并自动更新
+node scripts/update-tailor-skill.js --update
+
+# 查看追踪状态
+node scripts/update-tailor-skill.js --status
+```
+
+### 更新内容
+
+当检测到新版本时，会自动更新：
+
+- [ ] **版本号**: 更新到最新版本
+- [ ] **更新日志**: 追加新的版本和变更内容
+- [ ] **功能说明**: 根据 changelog 提取新增功能
+- [ ] **依赖库**: 同步 requirements.txt 的变更
+- [ ] **特别感谢**: 补充新的依赖项目
+
 
 ## 相关技能
 

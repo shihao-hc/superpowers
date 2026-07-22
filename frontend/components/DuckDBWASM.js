@@ -1,12 +1,12 @@
 /**
  * DuckDB WASM 本地数据库 - Browser-Inline Database
- * 
+ *
  * 功能:
  * - 纯浏览器内SQL数据库
  * - 支持Parquet/CSV/Arrow数据导入
  * - OPFS持久化存储
  * - 向量化查询执行
- * 
+ *
  * 基于 duckdb/duckdb-wasm 设计
  */
 
@@ -52,7 +52,7 @@ class DuckDBWASM {
     try {
       // 动态导入DuckDB WASM
       const duckdb = await import('@duckdb/duckdb-wasm');
-      
+
       // 获取WASM bundles
       const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
       const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
@@ -69,7 +69,7 @@ class DuckDBWASM {
 
       // 初始化
       await this.db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-      
+
       // 如果支持OPFS，设置持久化
       if (this.options.enablePersistence && await this._supportsOPFS()) {
         await this._initOPFS();
@@ -111,10 +111,10 @@ class DuckDBWASM {
   async _initOPFS() {
     try {
       const opfsRoot = await navigator.storage.getDirectory();
-      
+
       // 创建数据目录
-      const dataDir = await opfsRoot.getDirectoryHandle(this.options.dataDir, { create: true });
-      
+      const _dataDir = await opfsRoot.getDirectoryHandle(this.options.dataDir, { create: true });
+
       // 打开数据库
       await this.db.open({
         path: `${this.options.dataDir}/duckdb.db`,
@@ -122,8 +122,8 @@ class DuckDBWASM {
       });
 
       // 设置WAL自动检查点
-      await this.conn.query(`SET wal_autocheckpoint = '0KB'`);
-      
+      await this.conn.query('SET wal_autocheckpoint = \'0KB\'');
+
       this._emit('persistence:enabled', { path: this.options.dataDir });
     } catch (error) {
       console.warn('[DuckDBWASM] OPFS not available, using memory-only mode');
@@ -181,9 +181,9 @@ class DuckDBWASM {
     `);
 
     // 创建索引
-    await this.conn.query(`CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)`);
-    await this.conn.query(`CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC)`);
-    await this.conn.query(`CREATE INDEX IF NOT EXISTS idx_conversation_timestamp ON conversation_history(timestamp DESC)`);
+    await this.conn.query('CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)');
+    await this.conn.query('CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance DESC)');
+    await this.conn.query('CREATE INDEX IF NOT EXISTS idx_conversation_timestamp ON conversation_history(timestamp DESC)');
   }
 
   /**
@@ -195,10 +195,10 @@ class DuckDBWASM {
     }
 
     const startTime = performance.now();
-    
+
     try {
       let result;
-      
+
       if (params.length > 0) {
         // 参数化查询
         const stmt = await this.conn.prepare(sql);
@@ -208,8 +208,8 @@ class DuckDBWASM {
       }
 
       const queryTime = performance.now() - startTime;
-      const rows = result.toArray().map(row => ({ ...row }));
-      
+      const rows = result.toArray().map((row) => ({ ...row }));
+
       // 更新统计
       this.stats.totalQueries++;
       this.stats.avgQueryTime = (this.stats.avgQueryTime * (this.stats.totalQueries - 1) + queryTime) / this.stats.totalQueries;
@@ -228,7 +228,7 @@ class DuckDBWASM {
         metadata: {
           queryTime,
           rowCount: rows.length,
-          columns: result.schema.fields.map(f => f.name)
+          columns: result.schema.fields.map((f) => f.name)
         }
       };
 
@@ -250,14 +250,14 @@ class DuckDBWASM {
       throw new Error('Database not initialized');
     }
 
-    const startTime = performance.now();
+    const _startTime = performance.now();
     let offset = 0;
     let hasMore = true;
 
     while (hasMore) {
       const paginatedSQL = `${sql} LIMIT ${batchSize} OFFSET ${offset}`;
       const result = await this.conn.query(paginatedSQL);
-      const rows = result.toArray().map(row => ({ ...row }));
+      const rows = result.toArray().map((row) => ({ ...row }));
 
       if (rows.length === 0) {
         hasMore = false;
@@ -288,7 +288,7 @@ class DuckDBWASM {
     try {
       // 注册文件
       await this.conn.registerFile(file.name, file);
-      
+
       // 创建表
       await this.conn.query(`
         CREATE TABLE IF NOT EXISTS ${tableName} AS
@@ -316,7 +316,7 @@ class DuckDBWASM {
       `);
 
       const result = await this.query(`SELECT count(*) as count FROM ${tableName}`);
-      
+
       return {
         success: true,
         tableName,
@@ -343,7 +343,7 @@ class DuckDBWASM {
    * 导出数据为JSON
    */
   async exportJSON(tableName, whereClause = '') {
-    const sql = `SELECT * FROM ${tableName}${whereClause ? ' WHERE ' + whereClause : ''}`;
+    const sql = `SELECT * FROM ${tableName}${whereClause ? ` WHERE ${whereClause}` : ''}`;
     const result = await this.query(sql);
     return result.success ? JSON.stringify(result.data, null, 2) : null;
   }
@@ -352,16 +352,16 @@ class DuckDBWASM {
    * 导出数据为CSV
    */
   async exportCSV(tableName, whereClause = '') {
-    const sql = `SELECT * FROM ${tableName}${whereClause ? ' WHERE ' + whereClause : ''}`;
+    const sql = `SELECT * FROM ${tableName}${whereClause ? ` WHERE ${whereClause}` : ''}`;
     const result = await this.query(sql);
-    
-    if (!result.success) return null;
+
+    if (!result.success) {return null;}
 
     const headers = result.metadata.columns;
-    const rows = result.data.map(row => 
-      headers.map(h => JSON.stringify(row[h] ?? '')).join(',')
+    const rows = result.data.map((row) =>
+      headers.map((h) => JSON.stringify(row[h] ?? '')).join(',')
     );
-    
+
     return [headers.join(','), ...rows].join('\n');
   }
 
@@ -399,8 +399,8 @@ class DuckDBWASM {
   async semanticSearchMemories(query, limit = 5) {
     // 简单的关键词匹配 + 重要性排序
     const keywords = query.toLowerCase().split(/\s+/);
-    const keywordConditions = keywords.map(k => `content LIKE '%${k}%'`).join(' OR ');
-    
+    const keywordConditions = keywords.map((k) => `content LIKE '%${k}%'`).join(' OR ');
+
     const result = await this.query(`
       SELECT *,
         (${keywords.length} + importance * 2) as relevance_score
@@ -409,12 +409,12 @@ class DuckDBWASM {
       ORDER BY relevance_score DESC, accessed_at DESC
       LIMIT ${limit}
     `);
-    
+
     // 更新访问时间
     for (const row of result.data) {
       await this.query(`UPDATE memories SET accessed_at = CURRENT_TIMESTAMP, access_count = access_count + 1 WHERE id = ${row.id}`);
     }
-    
+
     return result.data;
   }
 
@@ -435,7 +435,7 @@ class DuckDBWASM {
    * 添加对话历史
    */
   async addConversation(role, content, metadata = {}) {
-    const metaJson = JSON.stringify(metadata).replace(/'/g, "''");
+    const metaJson = JSON.stringify(metadata).replace(/'/g, '\'\'');
     const result = await this.query(`
       INSERT INTO conversation_history (role, content, metadata)
       VALUES ('${role}', '${this._escapeString(content)}', '${metaJson}')
@@ -491,7 +491,7 @@ class DuckDBWASM {
    * 转义SQL字符串
    */
   _escapeString(str) {
-    return String(str).replace(/'/g, "''").replace(/\n/g, '\\n');
+    return String(str).replace(/'/g, '\'\'').replace(/\n/g, '\\n');
   }
 
   /**
@@ -514,7 +514,7 @@ class DuckDBWASM {
    * 发送事件
    */
   _emit(event, data) {
-    if (this.options.onReady && event === 'ready') return; // 已在init中处理
+    if (this.options.onReady && event === 'ready') {return;} // 已在init中处理
     console.log(`[DuckDBWASM] ${event}:`, data);
   }
 
@@ -574,21 +574,21 @@ class DuckDBWASM {
       backup = JSON.parse(jsonData);
     } catch (error) {
       console.error('[DuckDB] JSON解析失败:', error.message);
-      throw new Error('无效的JSON数据');
+      throw new Error('无效的JSON数据', { cause: error });
     }
 
     for (const [table, rows] of Object.entries(backup)) {
       await this.query(`DELETE FROM ${table}`);
-      
+
       for (const row of rows) {
-        const columns = Object.keys(row).filter(k => k !== 'id');
-        const values = columns.map(c => {
+        const columns = Object.keys(row).filter((k) => k !== 'id');
+        const values = columns.map((c) => {
           const val = row[c];
-          if (val === null || val === undefined) return 'NULL';
-          if (typeof val === 'string') return `'${this._escapeString(val)}'`;
+          if (val === null || val === undefined) {return 'NULL';}
+          if (typeof val === 'string') {return `'${this._escapeString(val)}'`;}
           return JSON.stringify(val);
         });
-        
+
         await this.query(`INSERT INTO ${table} (${columns.join(',')}) VALUES (${values.join(',')})`);
       }
     }

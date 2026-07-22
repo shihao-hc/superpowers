@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+claude-code-leak/
 .env*
 credentials.json
 *.pem
@@ -40,6 +41,11 @@ downloads/*.wav
 downloads/*.mp3
 shihao-web/python-backend/data/chroma_db/
 uploads/venvs/
+
+# Debug output files
+err.txt
+test_output.txt
+*.out
 
 # Guardrail
 .guardrail-config.json

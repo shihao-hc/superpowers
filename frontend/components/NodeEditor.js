@@ -21,7 +21,7 @@ class NodeEditor {
 
   _init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.canvas = document.createElement('canvas');
     this.canvas.style.width = '100%';
@@ -173,7 +173,7 @@ class NodeEditor {
   }
 
   _render() {
-    if (!this.ctx) return;
+    if (!this.ctx) {return;}
 
     const ctx = this.ctx;
     const w = this.canvas.width;
@@ -277,15 +277,15 @@ class NodeEditor {
   }
 
   _drawConnection(ctx, conn) {
-    const sourceNode = this.nodes.find(n => n.id === conn.source.nodeId);
-    const targetNode = this.nodes.find(n => n.id === conn.target.nodeId);
+    const sourceNode = this.nodes.find((n) => n.id === conn.source.nodeId);
+    const targetNode = this.nodes.find((n) => n.id === conn.target.nodeId);
 
-    if (!sourceNode || !targetNode) return;
+    if (!sourceNode || !targetNode) {return;}
 
-    const outputIndex = (sourceNode.outputs || []).findIndex(o => o.name === conn.source.output);
-    const inputIndex = (targetNode.inputs || []).findIndex(i => i.name === conn.target.input);
+    const outputIndex = (sourceNode.outputs || []).findIndex((o) => o.name === conn.source.output);
+    const inputIndex = (targetNode.inputs || []).findIndex((i) => i.name === conn.target.input);
 
-    if (outputIndex === -1 || inputIndex === -1) return;
+    if (outputIndex === -1 || inputIndex === -1) {return;}
 
     const x1 = sourceNode.x + this.nodeWidth;
     const y1 = sourceNode.y + 40 + outputIndex * 25;
@@ -304,7 +304,7 @@ class NodeEditor {
   }
 
   _drawTempConnection(from, to) {
-    if (!this.ctx) return;
+    if (!this.ctx) {return;}
 
     const ctx = this.ctx;
     const x1 = from.node.x + this.nodeWidth;
@@ -342,9 +342,9 @@ class NodeEditor {
   }
 
   removeNode(nodeId) {
-    this.nodes = this.nodes.filter(n => n.id !== nodeId);
+    this.nodes = this.nodes.filter((n) => n.id !== nodeId);
     this.connections = this.connections.filter(
-      c => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
+      (c) => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
     );
     this.onChange(this.toJSON());
     this._render();
@@ -352,7 +352,7 @@ class NodeEditor {
 
   toJSON() {
     return {
-      nodes: this.nodes.map(n => ({
+      nodes: this.nodes.map((n) => ({
         id: n.id,
         type: n.type,
         name: n.name,
@@ -368,7 +368,7 @@ class NodeEditor {
   }
 
   fromJSON(data) {
-    this.nodes = (data.nodes || []).map(n => ({
+    this.nodes = (data.nodes || []).map((n) => ({
       ...n,
       status: 'idle'
     }));

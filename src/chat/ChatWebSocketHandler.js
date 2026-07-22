@@ -14,10 +14,10 @@ const { RLSkillRecommender } = require('../skills/recommendation/RLSkillRecommen
 class ChatWebSocketHandler extends EventEmitter {
   constructor(options = {}) {
     super();
-    
+
     this.sessions = new Map();
     this.maxSessions = options.maxSessions || 1000;
-    
+
     // Initialize skill components
     this.skillManager = options.skillManager || new SkillManager();
     this.skillDiscovery = new SkillDiscovery({ skillManager: this.skillManager });
@@ -29,15 +29,15 @@ class ChatWebSocketHandler extends EventEmitter {
       discountFactor: 0.9,
       explorationRate: 0.15
     });
-    
+
     // Proactive suggestion settings
     this.proactiveEnabled = options.proactiveEnabled !== false;
     this.suggestionThreshold = options.suggestionThreshold || 0.7;
     this.minMessagesForSuggestion = 3;
-    
+
     // LLM adapter (should be injected)
     this.llmAdapter = options.llmAdapter || null;
-    
+
     // Setup executor event listeners
     this._setupExecutorListeners();
   }
@@ -97,7 +97,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   _handleJoinSession(socket, data) {
     const { sessionId } = data;
-    
+
     if (!sessionId) {
       socket.emit('error', { message: 'Session ID required' });
       return;
@@ -115,9 +115,9 @@ class ChatWebSocketHandler extends EventEmitter {
     });
 
     socket.join(sessionId);
-    
+
     console.log(`[ChatWS] Socket ${socket.id} joined session ${sessionId}`);
-    
+
     socket.emit('session_joined', {
       sessionId,
       historyLength: session.history.length
@@ -129,7 +129,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   async _handleChatMessage(socket, data) {
     const { sessionId, conversationId, message, model, attachments } = data;
-    
+
     if (!sessionId || !message) {
       socket.emit('error', { message: 'Invalid message data' });
       return;
@@ -142,7 +142,7 @@ class ChatWebSocketHandler extends EventEmitter {
     }
 
     const session = sessionData.session;
-    
+
     try {
       // Add user message to history
       this.sessionManager.addToHistory(sessionId, {
@@ -153,10 +153,10 @@ class ChatWebSocketHandler extends EventEmitter {
 
       // Analyze for skill usage
       const analysis = this.skillDiscovery.analyzeInput(message, session.history.slice(-10));
-      
+
       let shouldUseSkill = false;
       let skillToUse = null;
-      
+
       if (analysis.hasMatch && analysis.confidence >= 0.6) {
         shouldUseSkill = true;
         skillToUse = analysis.matchedSkills[0];
@@ -187,7 +187,7 @@ class ChatWebSocketHandler extends EventEmitter {
       }
 
       socket.emit('message_end', { conversationId });
-      
+
       // Proactive skill suggestion
       if (this.proactiveEnabled && session.history.length >= this.minMessagesForSuggestion) {
         this._maybeSendProactiveSuggestion(socket, {
@@ -200,22 +200,22 @@ class ChatWebSocketHandler extends EventEmitter {
 
     } catch (error) {
       console.error('[ChatWS] Error handling message:', error);
-      socket.emit('error', { 
+      socket.emit('error', {
         message: '处理消息时出错',
-        error: error.message 
+        error: error.message
       });
     }
   }
-  
+
   /**
    * Maybe send proactive skill suggestion
    */
   _maybeSendProactiveSuggestion(socket, options) {
     const { sessionId, conversationId, lastMessage, history } = options;
-    
+
     // Get available skills for suggestion context
     const allSkills = this.skillManager.getAllSkills ? this.skillManager.getAllSkills() : [];
-    
+
     // Use RL recommender to get suggestions
     const suggestions = this.rlRecommender.recommendSkills(
       lastMessage,
@@ -224,10 +224,10 @@ class ChatWebSocketHandler extends EventEmitter {
       history,
       1
     );
-    
+
     if (suggestions.length > 0 && suggestions[0].confidence >= this.suggestionThreshold) {
       const skill = suggestions[0];
-      
+
       // Generate suggestion message
       const suggestionMessages = [
         `💡 根据您的操作，我建议使用"${skill.name}"技能。是否需要我帮您调用？`,
@@ -235,9 +235,9 @@ class ChatWebSocketHandler extends EventEmitter {
         `✨ 您可能需要"${skill.name}"，要我现在调用吗？`,
         `📋 建议：使用"${skill.name}"可以提高效率，是否继续？`
       ];
-      
+
       const message = suggestionMessages[Math.floor(Math.random() * suggestionMessages.length)];
-      
+
       socket.emit('proactive_suggestion', {
         conversationId,
         skill: {
@@ -256,8 +256,8 @@ class ChatWebSocketHandler extends EventEmitter {
    * Execute skill with streaming updates
    */
   async _executeSkillWithStreaming(socket, options) {
-    const { sessionId, conversationId, skillName, parameters, userMessage } = options;
-    
+    const { sessionId, conversationId, skillName, parameters, userMessage: _userMessage } = options;
+
     // Notify skill start
     socket.emit('skill_start', {
       conversationId,
@@ -325,7 +325,7 @@ class ChatWebSocketHandler extends EventEmitter {
 
     } catch (error) {
       console.error('[ChatWS] Skill execution error:', error);
-      
+
       socket.emit('skill_error', {
         conversationId,
         skillName,
@@ -350,11 +350,11 @@ class ChatWebSocketHandler extends EventEmitter {
    * Format skill result
    */
   _formatSkillResult(skillName, result, presentation) {
-    let text = '';
-    
+    let text;
+
     if (result.success !== false) {
       text = `✅ **${skillName}** 技能执行完成！\n\n`;
-      
+
       if (presentation.metadata?.isImage) {
         text += '已生成图片，请查看附件。';
       } else if (presentation.metadata?.isPDF) {
@@ -368,14 +368,14 @@ class ChatWebSocketHandler extends EventEmitter {
       } else {
         text += '任务已完成。';
       }
-      
+
       if (result.duration) {
         text += `\n\n⏱️ 执行时间：${(result.duration / 1000).toFixed(1)}秒`;
       }
     } else {
       text = `❌ **${skillName}** 技能执行失败：${result.error || '未知错误'}`;
     }
-    
+
     return text;
   }
 
@@ -383,8 +383,8 @@ class ChatWebSocketHandler extends EventEmitter {
    * Generate text response using LLM
    */
   async _generateTextResponse(socket, options) {
-    const { sessionId, conversationId, message, model, attachments, history } = options;
-    
+    const { sessionId, conversationId, message, model, attachments: _attachments, history } = options;
+
     if (!this.llmAdapter) {
       // Fallback response if no LLM
       const fallbackResponse = this._generateFallbackResponse(message);
@@ -395,7 +395,7 @@ class ChatWebSocketHandler extends EventEmitter {
     try {
       // Build conversation context
       const context = this._buildConversationContext(history, message);
-      
+
       // Generate response
       const response = await this.llmAdapter.generate(context, {
         model: model || 'llama3.2',
@@ -415,7 +415,7 @@ class ChatWebSocketHandler extends EventEmitter {
 
     } catch (error) {
       console.error('[ChatWS] LLM error:', error);
-      
+
       // Use fallback
       const fallbackResponse = this._generateFallbackResponse(message);
       await this._streamText(socket, conversationId, fallbackResponse);
@@ -427,7 +427,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   _buildConversationContext(history, currentMessage) {
     let context = '';
-    
+
     // Add recent history
     const recentHistory = history.slice(-10);
     for (const entry of recentHistory) {
@@ -437,10 +437,10 @@ class ChatWebSocketHandler extends EventEmitter {
         context += `Assistant: ${entry.content}\n`;
       }
     }
-    
+
     // Add current message
     context += `User: ${currentMessage}\nAssistant:`;
-    
+
     return context;
   }
 
@@ -449,24 +449,24 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   _generateFallbackResponse(message) {
     const lowerMessage = message.toLowerCase();
-    
+
     // Simple pattern matching for common queries
     if (lowerMessage.includes('你好') || lowerMessage.includes('hello')) {
       return '你好！我是 UltraWork AI 助手。有什么我可以帮你的吗？';
     }
-    
+
     if (lowerMessage.includes('文档') || lowerMessage.includes('document')) {
       return '我可以帮你创建各种文档！请告诉我你需要什么类型的文档（Word、PDF、PPT、Excel），以及文档的内容和格式要求。';
     }
-    
+
     if (lowerMessage.includes('图表') || lowerMessage.includes('chart')) {
       return '我可以帮你创建各种图表！请告诉我你想可视化什么数据，以及你想要的图表类型（柱状图、折线图、饼图等）。';
     }
-    
+
     if (lowerMessage.includes('分析') || lowerMessage.includes('analyze')) {
       return '我可以帮你分析数据！请提供你需要分析的数据或文件，我会为你生成详细的分析报告。';
     }
-    
+
     return `收到你的消息："${message}"。\n\n我是一个AI助手，可以帮你完成各种任务。请告诉我更多细节，或者尝试以下功能：\n\n• 生成文档（Word、PDF、PPT、Excel）\n• 创建图表和数据可视化\n• 分析和处理数据\n• 搜索和抓取网页内容`;
   }
 
@@ -476,21 +476,21 @@ class ChatWebSocketHandler extends EventEmitter {
   async _streamText(socket, conversationId, text) {
     const chunkSize = 10;
     const chunks = [];
-    
+
     // Split into chunks
     for (let i = 0; i < text.length; i += chunkSize) {
       chunks.push(text.substring(i, i + chunkSize));
     }
-    
+
     // Stream chunks
     for (const chunk of chunks) {
       socket.emit('message_chunk', {
         conversationId,
         content: chunk
       });
-      
+
       // Small delay for streaming effect
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -499,7 +499,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   _extractSkillParameters(message, skill) {
     const params = {};
-    
+
     // Basic extraction - in production, this would use NLP
     if (skill.inputs) {
       for (const input of skill.inputs) {
@@ -511,13 +511,13 @@ class ChatWebSocketHandler extends EventEmitter {
         }
       }
     }
-    
+
     // Default to passing message as content
     if (Object.keys(params).length === 0) {
       params.content = message;
       params.text = message;
     }
-    
+
     return params;
   }
 
@@ -526,7 +526,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   async _handleSkillExecution(socket, data) {
     const { sessionId, skillName, parameters } = data;
-    
+
     if (!sessionId || !skillName) {
       socket.emit('error', { message: 'Invalid skill execution request' });
       return;
@@ -563,7 +563,7 @@ class ChatWebSocketHandler extends EventEmitter {
    */
   _handleDisconnect(socket) {
     const sessionData = this.sessions.get(socket.id);
-    
+
     if (sessionData) {
       console.log(`[ChatWS] Socket ${socket.id} disconnected, session ${sessionData.sessionId}`);
       this.sessions.delete(socket.id);
@@ -586,7 +586,7 @@ class ChatWebSocketHandler extends EventEmitter {
   cleanup() {
     const now = Date.now();
     const timeout = 3600000; // 1 hour
-    
+
     for (const [socketId, data] of this.sessions) {
       if (now - data.session.lastAccessed > timeout) {
         data.socket.disconnect(true);

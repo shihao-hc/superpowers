@@ -3,7 +3,7 @@
  * 成本与性能优化系统
  */
 
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 class CostOptimizer {
   constructor() {
@@ -12,7 +12,7 @@ class CostOptimizer {
     this.usageRecords = new Map();
     this.alerts = new Map();
     this.budgets = new Map();
-    
+
     this._initDefaults();
   }
 
@@ -86,26 +86,28 @@ class CostOptimizer {
 
   _calculateCost(record) {
     switch (record.category) {
-      case 'model-inference':
-        const modelPrice = this.pricing.api.modelCall[record.model] || 0.001;
-        return modelPrice * (record.tokens || 1000) / 1000;
-      
-      case 'storage':
-        const storagePrice = this.pricing.storage[record.storageType] || this.pricing.storage.standard;
-        return storagePrice * record.sizeGB * record.durationHours;
-      
-      case 'compute':
-        return (record.cpuSeconds * this.pricing.compute.cpu) +
+    case 'model-inference': {
+      const modelPrice = this.pricing.api.modelCall[record.model] || 0.001;
+      return modelPrice * (record.tokens || 1000) / 1000;
+    }
+
+    case 'storage': {
+      const storagePrice = this.pricing.storage[record.storageType] || this.pricing.storage.standard;
+      return storagePrice * record.sizeGB * record.durationHours;
+    }
+
+    case 'compute':
+      return (record.cpuSeconds * this.pricing.compute.cpu) +
                (record.memoryGB * this.pricing.compute.memory);
-      
-      case 'network':
-        return record.dataGB * this.pricing.network.outbound;
-      
-      case 'skill-execution':
-        return this.pricing.api.skillExecution * (record.executions || 1);
-      
-      default:
-        return record.cost || 0;
+
+    case 'network':
+      return record.dataGB * this.pricing.network.outbound;
+
+    case 'skill-execution':
+      return this.pricing.api.skillExecution * (record.executions || 1);
+
+    default:
+      return record.cost || 0;
     }
   }
 
@@ -125,7 +127,7 @@ class CostOptimizer {
 
   _checkBudget(tenantId, usage) {
     const budget = this.budgets.get(tenantId);
-    if (!budget) return;
+    if (!budget) {return;}
 
     const totalCost = Object.values(usage.costs).reduce((a, b) => a + b, 0);
     const percentage = (totalCost / budget.monthly) * 100;
@@ -134,7 +136,7 @@ class CostOptimizer {
       if (percentage >= threshold) {
         const alertKey = `${tenantId}:${threshold}`;
         const existing = this.alerts.get(alertKey);
-        
+
         if (!existing || existing.sentAt < Date.now() - 24 * 60 * 60 * 1000) {
           this._sendBudgetAlert(tenantId, percentage, threshold);
           this.alerts.set(alertKey, { sentAt: Date.now() });
@@ -155,8 +157,8 @@ class CostOptimizer {
     const endDate = options.endDate || Date.now();
 
     const allRecords = Array.from(this.usageRecords.values())
-      .filter(r => r.tenantId === tenantId)
-      .filter(r => {
+      .filter((r) => r.tenantId === tenantId)
+      .filter((r) => {
         const recordPeriod = this._parsePeriod(r.period);
         return recordPeriod >= startDate && recordPeriod <= endDate;
       });
@@ -188,15 +190,16 @@ class CostOptimizer {
   _getPeriodStart(period) {
     const now = new Date();
     switch (period) {
-      case 'daily':
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      case 'weekly':
-        const dayOfWeek = now.getDay();
-        return new Date(now.getTime() - dayOfWeek * 24 * 60 * 60 * 1000).getTime();
-      case 'monthly':
-        return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-      default:
-        return now.getTime() - 30 * 24 * 60 * 60 * 1000;
+    case 'daily':
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    case 'weekly': {
+      const dayOfWeek = now.getDay();
+      return new Date(now.getTime() - dayOfWeek * 24 * 60 * 60 * 1000).getTime();
+    }
+    case 'monthly':
+      return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    default:
+      return now.getTime() - 30 * 24 * 60 * 60 * 1000;
     }
   }
 
@@ -206,7 +209,7 @@ class CostOptimizer {
 
   _getCostByDay(records) {
     const byDay = new Map();
-    
+
     for (const record of records) {
       for (const detail of record.records) {
         const day = new Date(detail.timestamp).toISOString().split('T')[0];
@@ -240,7 +243,7 @@ class CostOptimizer {
   _forecastCost(currentCost, period) {
     const daysElapsed = this._getDaysElapsed(period);
     const daysInPeriod = this._getDaysInPeriod(period);
-    
+
     const dailyRate = currentCost / daysElapsed;
     const projectedTotal = dailyRate * daysInPeriod;
 
@@ -259,10 +262,10 @@ class CostOptimizer {
 
   _getDaysInPeriod(period) {
     switch (period) {
-      case 'daily': return 1;
-      case 'weekly': return 7;
-      case 'monthly': return 30;
-      default: return 30;
+    case 'daily': return 1;
+    case 'weekly': return 7;
+    case 'monthly': return 30;
+    default: return 30;
     }
   }
 
@@ -346,8 +349,8 @@ class PerformanceOptimizer {
 
   getCache(key) {
     const item = this.cache.get(key);
-    if (!item) return null;
-    
+    if (!item) {return null;}
+
     if (item.expiresAt < Date.now()) {
       this.cache.delete(key);
       return null;
@@ -360,13 +363,13 @@ class PerformanceOptimizer {
   // 批量操作优化
   async batchOptimize(items, options = {}) {
     const { concurrency = 10, batchSize = 100 } = options;
-    
+
     const results = [];
     const batches = this._chunkArray(items, batchSize);
-    
+
     for (const batch of batches) {
       const batchResults = await Promise.all(
-        batch.slice(0, concurrency).map(item => this._optimizeItem(item))
+        batch.slice(0, concurrency).map((item) => this._optimizeItem(item))
       );
       results.push(...batchResults);
     }
@@ -421,7 +424,7 @@ class PerformanceOptimizer {
     const p50Idx = Math.floor(existing.values.length * 0.5);
     const p95Idx = Math.floor(existing.values.length * 0.95);
     const p99Idx = Math.floor(existing.values.length * 0.99);
-    
+
     existing.stats.p50 = existing.values[p50Idx] || 0;
     existing.stats.p95 = existing.values[p95Idx] || 0;
     existing.stats.p99 = existing.values[p99Idx] || 0;
@@ -485,7 +488,7 @@ class AutoScaler {
 
   evaluateScaling(serviceId) {
     const rule = this.rules.get(serviceId);
-    if (!rule) return null;
+    if (!rule) {return null;}
 
     const metrics = this._getServiceMetrics(serviceId);
     const action = this._determineAction(rule, metrics);
@@ -497,7 +500,7 @@ class AutoScaler {
     return action;
   }
 
-  _getServiceMetrics(serviceId) {
+  _getServiceMetrics(_serviceId) {
     // 简化实现
     return {
       cpu: 50,
@@ -509,30 +512,30 @@ class AutoScaler {
 
   _determineAction(rule, metrics) {
     const { conditions, action } = rule;
-    
+
     for (const condition of conditions) {
       const metricValue = metrics[condition.metric];
-      
+
       switch (condition.operator) {
-        case 'gt':
-          if (metricValue <= condition.value) return null;
-          break;
-        case 'lt':
-          if (metricValue >= condition.value) return null;
-          break;
-        case 'eq':
-          if (metricValue !== condition.value) return null;
-          break;
+      case 'gt':
+        if (metricValue <= condition.value) {return null;}
+        break;
+      case 'lt':
+        if (metricValue >= condition.value) {return null;}
+        break;
+      case 'eq':
+        if (metricValue !== condition.value) {return null;}
+        break;
       }
     }
 
     // 判断扩容还是缩容
     if (action.type === 'scale') {
       const currentInstances = this.instances.get(rule.serviceId) || 1;
-      const newCount = action.direction === 'up' 
+      const newCount = action.direction === 'up'
         ? Math.min(currentInstances + action.count, action.maxInstances || 10)
         : Math.max(currentInstances - action.count, action.minInstances || 1);
-      
+
       if (newCount !== currentInstances) {
         return {
           type: 'scale',

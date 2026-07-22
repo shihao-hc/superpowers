@@ -14,10 +14,10 @@ class OptimizationDashboard {
     this.trustScore = options.trustScore;
     this.rewardSystem = options.rewardSystem;
     this.reviewWorkflow = options.reviewWorkflow;
-    
+
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'dashboard');
     this.reportsFile = path.join(this.dataDir, 'reports.json');
-    
+
     this._ensureDataDir();
   }
 
@@ -43,13 +43,13 @@ class OptimizationDashboard {
       try {
         const perfStats = this.monitor.getPerformanceStats({ timeRange: '1h' });
         const errorStats = this.monitor.getErrorStats({ timeRange: '1h' });
-        
+
         health.components.monitoring = {
           status: 'operational',
           dataPoints: perfStats.dataPoints,
           errorRate: errorStats.total
         };
-        
+
         if (errorStats.total > 100) {
           health.issues.push({
             component: 'monitoring',
@@ -67,13 +67,13 @@ class OptimizationDashboard {
     if (this.optimizer) {
       try {
         const optimizerStats = this.optimizer.getStats();
-        
+
         health.components.optimizer = {
           status: 'operational',
           totalOptimizations: optimizerStats.totalOptimizations,
           lastOptimization: optimizerStats.lastOptimization
         };
-        
+
         // 检查是否长时间未优化
         if (optimizerStats.lastOptimization) {
           const daysSinceLastOptimization = (Date.now() - new Date(optimizerStats.lastOptimization).getTime()) / (1000 * 60 * 60 * 24);
@@ -94,13 +94,13 @@ class OptimizationDashboard {
     if (this.trustScore) {
       try {
         const trustStats = this.trustScore.getStats();
-        
+
         health.components.trustScore = {
           status: 'operational',
           totalSkills: trustStats.totalSkills,
           averageScore: trustStats.averageScore
         };
-        
+
         if (trustStats.averageScore < 60) {
           health.issues.push({
             component: 'trustScore',
@@ -118,13 +118,13 @@ class OptimizationDashboard {
     if (this.reviewWorkflow) {
       try {
         const reviewStats = this.reviewWorkflow.getStats();
-        
+
         health.components.reviewWorkflow = {
           status: 'operational',
           pendingReviews: reviewStats.pending,
           approvalRate: reviewStats.approved / (reviewStats.approved + reviewStats.rejected || 1)
         };
-        
+
         if (reviewStats.pending > 50) {
           health.issues.push({
             component: 'reviewWorkflow',
@@ -138,9 +138,9 @@ class OptimizationDashboard {
     }
 
     // 更新总体状态
-    const hasHighSeverityIssues = health.issues.some(i => i.severity === 'high');
-    const hasMediumSeverityIssues = health.issues.some(i => i.severity === 'medium');
-    
+    const hasHighSeverityIssues = health.issues.some((i) => i.severity === 'high');
+    const hasMediumSeverityIssues = health.issues.some((i) => i.severity === 'medium');
+
     if (hasHighSeverityIssues) {
       health.status = 'critical';
     } else if (hasMediumSeverityIssues) {
@@ -225,7 +225,7 @@ class OptimizationDashboard {
   _countSecurityPatterns() {
     const languages = ['JavaScript', 'Python', 'Shell', 'Java', 'Go', 'Rust', 'C++'];
     const count = {};
-    
+
     // 这里可以根据StaticAnalyzer的实际模式数量来计算
     for (const lang of languages) {
       count[lang] = {
@@ -234,7 +234,7 @@ class OptimizationDashboard {
         info: 'multiple'
       };
     }
-    
+
     return {
       byLanguage: count,
       totalLanguages: languages.length
@@ -284,7 +284,7 @@ class OptimizationDashboard {
     // 模拟趋势数据（实际应从历史数据中获取）
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
-    
+
     for (let i = days; i >= 0; i--) {
       const date = new Date(now - i * dayMs);
       trends.data.push({
@@ -298,11 +298,11 @@ class OptimizationDashboard {
       const firstValue = trends.data[0].value;
       const lastValue = trends.data[trends.data.length - 1].value;
       const change = ((lastValue - firstValue) / firstValue) * 100;
-      
+
       trends.summary = {
         startValue: firstValue,
         endValue: lastValue,
-        change: change.toFixed(2) + '%',
+        change: `${change.toFixed(2)}%`,
         trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable'
       };
     }
@@ -315,13 +315,13 @@ class OptimizationDashboard {
    */
   async runOptimizationAndReport() {
     let optimizationResult = null;
-    
+
     if (this.optimizer) {
       optimizationResult = await this.optimizer.runOptimizationCycle();
     }
-    
+
     const report = await this.generateOptimizationReport();
-    
+
     // 保存报告
     const reportId = `report-${Date.now()}`;
     const savedReport = {
@@ -330,7 +330,7 @@ class OptimizationDashboard {
       optimizationResult,
       generatedAt: new Date().toISOString()
     };
-    
+
     // 读取现有报告
     let reports = [];
     if (fs.existsSync(this.reportsFile)) {
@@ -340,15 +340,15 @@ class OptimizationDashboard {
         reports = [];
       }
     }
-    
+
     // 添加新报告（保留最近50份）
     reports.push(savedReport);
     if (reports.length > 50) {
       reports = reports.slice(-50);
     }
-    
+
     fs.writeFileSync(this.reportsFile, JSON.stringify({ reports, lastUpdated: new Date().toISOString() }, null, 2));
-    
+
     return savedReport;
   }
 
@@ -359,7 +359,7 @@ class OptimizationDashboard {
     if (!fs.existsSync(this.reportsFile)) {
       return [];
     }
-    
+
     try {
       const data = JSON.parse(fs.readFileSync(this.reportsFile, 'utf8'));
       return (data.reports || []).slice(-limit).reverse();
@@ -373,10 +373,10 @@ class OptimizationDashboard {
    */
   getConfigurationSuggestions() {
     const suggestions = [];
-    
+
     if (this.optimizer) {
       const config = this.optimizer.getCurrentConfig();
-      
+
       // 检查审核阈值
       for (const [criterion, value] of Object.entries(config.reviewThresholds)) {
         if (value < 60) {
@@ -389,7 +389,7 @@ class OptimizationDashboard {
           });
         }
       }
-      
+
       // 检查奖励倍率
       for (const [rule, value] of Object.entries(config.rewardMultipliers)) {
         if (value > 1.5) {
@@ -403,7 +403,7 @@ class OptimizationDashboard {
         }
       }
     }
-    
+
     return suggestions;
   }
 

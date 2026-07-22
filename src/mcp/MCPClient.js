@@ -1,18 +1,16 @@
-const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
+const { safeSpawn } = require('../utils/SafeExec');
 
-const ALLOWED_COMMANDS = new Set(['npx', 'node', 'npm', 'deno', 'bun']);
+const ALLOWED_COMMANDS = new Set(['npx', 'node', 'npm', 'python', 'python3', 'deno', 'bun', 'tsx', 'uvx']);
 
 function isSafeCommand(command) {
-  if (ALLOWED_COMMANDS.has(command)) return true;
-  if (/^[a-zA-Z0-9_.-]+$/.test(command)) return true;
-  return false;
+  return ALLOWED_COMMANDS.has(command);
 }
 
 function sanitizeArg(arg) {
-  if (typeof arg !== 'string') return String(arg);
-  if (arg.includes('\x00')) return arg.replace(/\x00/g, '');
-  if (arg.length > 10000) return arg.substring(0, 10000);
+  if (typeof arg !== 'string') {return String(arg);}
+  if (arg.includes('\x00')) {return arg.replace(/\x00/g, '');} // eslint-disable-line no-control-regex
+  if (arg.length > 10000) {return arg.substring(0, 10000);}
   return arg;
 }
 
@@ -20,7 +18,7 @@ class MCPClient extends EventEmitter {
   constructor(name, command, args = [], env = {}, options = {}) {
     super();
     this.name = name;
-    
+
     if (!isSafeCommand(command)) {
       throw new Error(`Unsafe command: ${command}`);
     }
@@ -51,25 +49,14 @@ class MCPClient extends EventEmitter {
   _processEnv(env) {
     const processed = {};
     const allowedEnvVars = new Set([
-      'PATH', 'HOME', 'USER', 'NODE_ENV', 
+      'PATH', 'HOME', 'USER', 'NODE_ENV',
       'GITHUB_TOKEN', 'BRAVE_API_KEY', 'OPENAI_API_KEY',
       'ANTHROPIC_API_KEY', 'GITHUB_PERSONAL_ACCESS_TOKEN'
     ]);
 
     for (const key of Object.keys(env)) {
-      if (key.startsWith('_') || allowedEnvVars.has(key)) {
+      if (allowedEnvVars.has(key)) {
         processed[key] = process.env[key] || '';
-      }
-    }
-
-    for (const [key, value] of Object.entries(env)) {
-      if (typeof value === 'string' && value.includes('${') && value.includes('}')) {
-        const envVar = value.match(/\$\{([^}]+)\}/)?.[1];
-        if (envVar && process.env[envVar]) {
-          processed[envVar] = process.env[envVar];
-        }
-      } else if (typeof value === 'string') {
-        processed[key] = value;
       }
     }
     return processed;
@@ -86,7 +73,7 @@ class MCPClient extends EventEmitter {
       }, this.options.timeout);
 
       try {
-        this.process = spawn(this.command, this.args, {
+        this.process = safeSpawn(this.command, this.args, {
           env: this.env,
           stdio: ['pipe', 'pipe', 'pipe'],
           detached: false,
@@ -97,30 +84,30 @@ class MCPClient extends EventEmitter {
         this.process.stderr.on('data', (data) => this._handleStderr(data));
         this.process.on('error', (error) => this._handleError(error));
         this.process.on('exit', (code, signal) => this._handleExit(code, signal));
-        
+
         this.process.on('spawn', () => {
           console.log(`[MCPClient:${this.name}] Process spawned successfully`);
         });
 
         let initDone = false;
-        
+
         const initResponseHandler = (message) => {
           console.log(`[MCPClient:${this.name}] Received message:`, JSON.stringify(message));
           if (message.id === initId && !initDone) {
             initDone = true;
             this.removeListener('message', initResponseHandler);
-            
+
             if (message.error) {
               clearTimeout(timeout);
               reject(new Error(`Initialize failed: ${message.error.message}`));
               return;
             }
-            
+
             this.send({
               jsonrpc: '2.0',
               method: 'notifications/initialized'
             });
-            
+
             clearTimeout(timeout);
             this.ready = true;
             this.connected = true;
@@ -129,7 +116,7 @@ class MCPClient extends EventEmitter {
             resolve();
           }
         };
-        
+
         this.on('message', initResponseHandler);
 
         this.once('error', (err) => {
@@ -139,7 +126,7 @@ class MCPClient extends EventEmitter {
 
         const initId = this._nextId();
         console.log(`[MCPClient:${this.name}] Sending initialize with id: ${initId}`);
-        
+
         setTimeout(() => {
           this.send({
             jsonrpc: '2.0',
@@ -170,7 +157,7 @@ class MCPClient extends EventEmitter {
     if (this.process) {
       this.process.stdin.end();
       this.process.kill('SIGTERM');
-      
+
       await new Promise((resolve) => {
         setTimeout(() => {
           if (this.process && !this.process.killed) {
@@ -227,14 +214,17 @@ class MCPClient extends EventEmitter {
 
   _handleExit(code, signal) {
     this.emit('exit', { code, signal });
-    
+
     if (!this.closing) {
       this._handleReconnect();
     }
   }
 
   async _handleReconnect() {
-    if (this.closing || this.reconnectAttempts >= this.maxReconnectAttempts) {
+    if (this.closing) {
+      return;
+    }
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.emit('error', new Error(`MCP client ${this.name} failed to reconnect after ${this.maxReconnectAttempts} attempts`));
       return;
     }
@@ -246,7 +236,7 @@ class MCPClient extends EventEmitter {
     const delay = this.options.retryDelay * Math.pow(2, this.reconnectAttempts - 1);
     this.emit('reconnecting', { attempt: this.reconnectAttempts, delay });
 
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     try {
       this.process = null;
@@ -293,7 +283,7 @@ class MCPClient extends EventEmitter {
 
   send(message) {
     if (this.process && this.process.stdin && !this.process.stdin.destroyed) {
-      const json = JSON.stringify(message) + '\n';
+      const json = `${JSON.stringify(message)}\n`;
       this.process.stdin.write(Buffer.from(json, 'utf8'));
     }
   }
@@ -325,7 +315,7 @@ class MCPClient extends EventEmitter {
     }).catch(async (error) => {
       if (retryCount < this.options.maxRetries && this._isRetryableError(error)) {
         const delay = this.options.retryDelay * Math.pow(2, retryCount);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
         return this.call(method, params, retryCount + 1);
       }
       throw error;
@@ -340,7 +330,7 @@ class MCPClient extends EventEmitter {
       /etimedout/i,
       /network/i
     ];
-    return retryablePatterns.some(pattern => pattern.test(error.message));
+    return retryablePatterns.some((pattern) => pattern.test(error.message));
   }
 
   async listTools() {

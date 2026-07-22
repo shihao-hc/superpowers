@@ -1,6 +1,6 @@
 /**
  * ResilientWebSocket - 带断线重连的WebSocket管理器
- * 
+ *
  * 功能:
  * - 自动重连 (指数退避)
  * - 心跳检测
@@ -14,22 +14,22 @@ class ResilientWebSocket {
     this.url = this._validateUrl(options.url || '');
     this.protocols = options.protocols || [];
     this.allowedOrigins = options.allowedOrigins || [window.location.origin];
-    
+
     this.ws = null;
     this.state = 'disconnected';
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = options.maxReconnectAttempts || 10;
     this.baseReconnectDelay = options.reconnectDelay || 1000;
     this.maxReconnectDelay = options.maxReconnectDelay || 30000;
-    
+
     this.heartbeatInterval = options.heartbeatInterval || 25000;
     this.heartbeatTimeout = options.heartbeatTimeout || 10000;
     this.heartbeatTimer = null;
     this.lastHeartbeat = 0;
-    
+
     this.messageQueue = [];
     this.maxQueueSize = options.maxQueueSize || 100;
-    
+
     this.handlers = {
       onOpen: options.onOpen || (() => {}),
       onClose: options.onClose || (() => {}),
@@ -38,7 +38,7 @@ class ResilientWebSocket {
       onReconnect: options.onReconnect || (() => {}),
       onStateChange: options.onStateChange || (() => {})
     };
-    
+
     this._setupOnlineListener();
   }
 
@@ -54,8 +54,8 @@ class ResilientWebSocket {
   }
 
   _validateUrl(url) {
-    if (!url) return '';
-    
+    if (!url) {return '';}
+
     try {
       const parsed = new URL(url);
       if (!['ws:', 'wss:'].includes(parsed.protocol)) {
@@ -82,7 +82,7 @@ class ResilientWebSocket {
 
     try {
       this.ws = new WebSocket(this.url, this.protocols);
-      
+
       this.ws.onopen = (event) => {
         console.log('[WS] Connected');
         this.reconnectAttempts = 0;
@@ -91,25 +91,25 @@ class ResilientWebSocket {
         this._startHeartbeat();
         this.handlers.onOpen(event);
       };
-      
+
       this.ws.onclose = (event) => {
         console.log('[WS] Disconnected:', event.code, event.reason);
         this._stopHeartbeat();
         this._setState('disconnected');
         this.handlers.onClose(event);
-        
+
         if (!event.wasClean && event.code !== 1000) {
           this._scheduleReconnect();
         }
       };
-      
+
       this.ws.onmessage = (event) => {
         this.lastHeartbeat = Date.now();
-        
+
         if (event.data === 'PONG') {
           return;
         }
-        
+
         try {
           const data = JSON.parse(event.data);
           this.handlers.onMessage(data, event);
@@ -117,7 +117,7 @@ class ResilientWebSocket {
           this.handlers.onMessage(event.data, event);
         }
       };
-      
+
       this.ws.onerror = (error) => {
         console.error('[WS] Error:', error);
         this.handlers.onError(error);
@@ -145,7 +145,7 @@ class ResilientWebSocket {
     const reconnectDelay = delay + jitter;
 
     console.log(`[WS] Reconnecting in ${Math.round(reconnectDelay)}ms (attempt ${this.reconnectAttempts + 1})`);
-    
+
     this._setState('reconnecting');
     this.reconnectAttempts++;
 
@@ -157,7 +157,7 @@ class ResilientWebSocket {
 
   _startHeartbeat() {
     this._stopHeartbeat();
-    
+
     this.heartbeatTimer = setInterval(() => {
       if (this.state === 'connected') {
         if (Date.now() - this.lastHeartbeat > this.heartbeatTimeout) {
@@ -165,7 +165,7 @@ class ResilientWebSocket {
           this.ws.close(4000, 'Heartbeat timeout');
           return;
         }
-        
+
         this.send('PING');
       }
     }, this.heartbeatInterval);
@@ -180,7 +180,7 @@ class ResilientWebSocket {
 
   send(data) {
     const message = typeof data === 'object' ? JSON.stringify(data) : data;
-    
+
     if (this.state === 'connected' && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(message);
       return true;
@@ -203,7 +203,7 @@ class ResilientWebSocket {
 
       const id = Math.random().toString(36).substr(2, 9);
       const message = { id, data };
-      
+
       const timeoutId = setTimeout(() => {
         reject(new Error('Send timeout'));
       }, timeout);
@@ -239,11 +239,11 @@ class ResilientWebSocket {
   disconnect(code = 1000, reason = 'Normal closure') {
     this._stopHeartbeat();
     this.reconnectAttempts = this.maxReconnectAttempts;
-    
+
     if (this.ws) {
       this.ws.close(code, reason);
     }
-    
+
     this._setState('disconnected');
   }
 
@@ -283,7 +283,7 @@ class SocketIOManager {
       onMessage: (data) => this._onMessage(data),
       ...options
     });
-    
+
     this.handlers = new Map();
     this.authToken = null;
   }
@@ -325,7 +325,7 @@ class SocketIOManager {
   _emit(event, data) {
     const handlers = this.handlers.get(event);
     if (handlers) {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         try {
           handler(data);
         } catch (e) {

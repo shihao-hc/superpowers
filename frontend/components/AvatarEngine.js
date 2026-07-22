@@ -1,6 +1,6 @@
 /**
  * AI虚拟人物核心引擎 - AI Virtual Character Engine
- * 
+ *
  * 架构设计:
  * ┌─────────────────────────────────────────────────────────────┐
  * │                    AvatarEngine                             │
@@ -67,11 +67,11 @@ class EventBus {
    */
   off(event, listenerId) {
     if (this.listeners.has(event)) {
-      const listeners = this.listeners.get(event).filter(l => l.id !== listenerId);
+      const listeners = this.listeners.get(event).filter((l) => l.id !== listenerId);
       this.listeners.set(event, listeners);
     }
     if (this.onceListeners.has(event)) {
-      const listeners = this.onceListeners.get(event).filter(l => l.id !== listenerId);
+      const listeners = this.onceListeners.get(event).filter((l) => l.id !== listenerId);
       this.onceListeners.set(event, listeners);
     }
   }
@@ -138,7 +138,7 @@ class EventBus {
    */
   getHistory(eventType = null) {
     if (eventType) {
-      return this.eventHistory.filter(e => e.type === eventType);
+      return this.eventHistory.filter((e) => e.type === eventType);
     }
     return [...this.eventHistory];
   }
@@ -170,16 +170,16 @@ class StateManager {
    * 获取状态
    */
   get(path = null) {
-    if (!path) return { ...this.state };
-    
+    if (!path) {return { ...this.state };}
+
     const keys = path.split('.');
     let value = this.state;
-    
+
     for (const key of keys) {
-      if (value === null || value === undefined) return undefined;
+      if (value === null || value === undefined) {return undefined;}
       value = value[key];
     }
-    
+
     return value;
   }
 
@@ -195,7 +195,7 @@ class StateManager {
     const oldValue = this.get(path);
     const keys = path.split('.');
     const lastKey = keys.pop();
-    
+
     let obj = this.state;
     for (const key of keys) {
       if (typeof obj[key] !== 'object' || obj[key] === null) {
@@ -203,11 +203,11 @@ class StateManager {
       }
       obj = obj[key];
     }
-    
+
     obj[lastKey] = value;
-    
+
     this._emitChange(path, oldValue, value);
-    
+
     this.history.push({ path, oldValue, newValue: value, timestamp: Date.now() });
     if (this.history.length > this.maxHistorySize) {
       this.history.shift();
@@ -221,7 +221,7 @@ class StateManager {
     this.isBatching = true;
     updateFn();
     this.isBatching = false;
-    
+
     for (const update of this.pendingUpdates) {
       this.set(update.path, update.value);
     }
@@ -245,7 +245,7 @@ class StateManager {
    */
   unsubscribe(path, listenerId) {
     if (this.listeners.has(path)) {
-      const listeners = this.listeners.get(path).filter(l => l.id !== listenerId);
+      const listeners = this.listeners.get(path).filter((l) => l.id !== listenerId);
       this.listeners.set(path, listeners);
     }
   }
@@ -280,7 +280,7 @@ class StateManager {
         console.error(`[StateManager] Error in subscriber for ${path}:`, e);
       }
     }
-    
+
     const wildcardListeners = this.listeners.get('*') || [];
     for (const listener of wildcardListeners) {
       listener.callback(path, newValue, oldValue);
@@ -420,7 +420,7 @@ class PersonalitySystem {
   /**
    * 更新情绪强度
    */
-  updateEmotion(delta) {
+  updateEmotion(_delta) {
     const elapsed = Date.now() - this.emotionState.startTime;
     if (elapsed > this.emotionState.duration && this.emotionState.duration > 0) {
       this.emotionState.primary = 'neutral';
@@ -443,17 +443,17 @@ class PersonalitySystem {
   generateResponseStyle(text) {
     const config = this.getCurrentConfig();
     const patterns = config.speechPatterns;
-    
+
     let styledText = text;
-    
+
     if (Math.random() < patterns.exclamationChance && !styledText.endsWith('!')) {
       styledText += '!';
     }
-    
+
     if (Math.random() < patterns.questionFrequency && !styledText.includes('?')) {
       styledText += '?';
     }
-    
+
     return styledText;
   }
 }
@@ -506,7 +506,7 @@ class AvatarEngine {
     this.gestureSystem = null;
     this.memorySystem = null;
     this.llmRouter = null;
-    
+
     // 新增: 本地数据库和AI推理
     this.localDatabase = null;
     this.inferenceEngine = null;
@@ -518,24 +518,24 @@ class AvatarEngine {
 
   async _init() {
     this.state.set('system.isLoading', true);
-    
+
     try {
       await this._initRenderSystem();
       await this._initVoiceSystem();
       await this._initGestureSystem();
       await this._initMemorySystem();
-      
+
       // 新增: 初始化本地数据库
       await this._initLocalDatabase();
-      
+
       // 新增: 初始化本地AI推理
       await this._initLocalInference();
-      
+
       this._setupEventHandlers();
-      
+
       this.state.set('system.isReady', true);
       this.state.set('system.isLoading', false);
-      
+
       this.eventBus.emit('engine:ready');
     } catch (error) {
       this.state.set('system.error', error.message);
@@ -555,42 +555,42 @@ class AvatarEngine {
       const { VirtualCharacter } = await import('./VirtualCharacter.js');
       this.renderSystem = new VirtualCharacter(this.options.containerId);
     }
-    
+
     await this.renderSystem.init();
     this.eventBus.emit('render:ready');
   }
 
   async _initVoiceSystem() {
-    if (!this.options.enableVoice) return;
-    
+    if (!this.options.enableVoice) {return;}
+
     const { VoiceAvatar } = await import('./VoiceAvatar.js');
     this.voiceSystem = new VoiceAvatar(this.renderSystem, {
       moodLipSync: true
     });
-    
+
     this.voiceSystem.enable();
     this.eventBus.emit('voice:ready');
   }
 
   async _initGestureSystem() {
-    if (!this.options.enableGesture) return;
-    
+    if (!this.options.enableGesture) {return;}
+
     const { GestureRecognitionSystem } = await import('./GestureRecognitionSystem.js');
     this.gestureSystem = new GestureRecognitionSystem({
       onGesture: (gesture) => {
         this.eventBus.emit('gesture:detected', gesture);
       }
     });
-    
+
     this.eventBus.emit('gesture:ready');
   }
 
   async _initMemorySystem() {
-    if (!this.options.enableMemory) return;
-    
+    if (!this.options.enableMemory) {return;}
+
     const { LongTermMemorySystem } = await import('./LongTermMemorySystem.js');
     this.memorySystem = new LongTermMemorySystem();
-    
+
     await this.memorySystem.init();
     this.eventBus.emit('memory:ready');
   }
@@ -633,13 +633,13 @@ class AvatarEngine {
         }
       });
       await this.inferenceEngine.init();
-      
+
       // 加载情感分析模型
       await this.inferenceEngine.loadPipeline(
         'sentiment-analysis',
         'Xenova/distilbert-base-uncased-finetuned-sst-2-english'
       );
-      
+
       // 可选: 加载嵌入模型
       this._embeddingPipeline = null;
     } catch (error) {
@@ -647,35 +647,14 @@ class AvatarEngine {
     }
   }
 
-  /**
-   * 初始化本地大语言模型 (WebLLM)
-   */
-  async _initLocalLLM(modelName = 'Llama-3.2-1B-Instruct-q4f16_1-MLC') {
-    try {
-      const { WebLLMEngine } = await import('./WebGPUInferenceEngine.js');
-      this.llmEngine = new WebLLMEngine({
-        model: modelName,
-        onReady: () => {
-          this.eventBus.emit('llm:ready');
-        },
-        onProgress: (progress) => {
-          this.eventBus.emit('llm:progress', progress);
-        }
-      });
-      await this.llmEngine.init();
-    } catch (error) {
-      console.warn('[AvatarEngine] Local LLM not available:', error);
-    }
-  }
-
   _setupEventHandlers() {
     this.eventBus.on('text:input', async (data) => {
       const { text } = data;
       this.state.set('avatar.currentAction', 'thinking');
-      
+
       const context = this.memorySystem ? await this.memorySystem.getContext() : [];
       const response = await this._processText(text, context);
-      
+
       this.eventBus.emit('text:response', { text: response });
       this.speak(response);
     });
@@ -699,13 +678,13 @@ class AvatarEngine {
   async _processText(text, context) {
     const personality = this.personality.getCurrentConfig();
     const emotion = this.personality.getEmotion();
-    
+
     const prompt = this._buildPrompt(text, personality, emotion, context);
-    
+
     if (this.llmRouter) {
       return await this.llmRouter.generate(prompt);
     }
-    
+
     return `[${personality.name}] ${text}`;
   }
 
@@ -717,11 +696,11 @@ User said: ${text}`;
   }
 
   speak(text) {
-    if (!this.voiceSystem) return;
-    
-    const config = this.personality.getTTSConfig();
+    if (!this.voiceSystem) {return;}
+
+    const _config = this.personality.getTTSConfig();
     this.state.set('avatar.isSpeaking', true);
-    
+
     this.voiceSystem.speak(text, {
       mood: this.personality.getEmotion().primary,
       rateVariants: { happy: 1.1, calm: 0.9, excited: 1.2 },
@@ -744,7 +723,7 @@ User said: ${text}`;
   }
 
   async addMemory(content, type = 'shortTerm') {
-    if (!this.memorySystem) return;
+    if (!this.memorySystem) {return;}
     await this.memorySystem.add(content, type);
   }
 
@@ -752,8 +731,8 @@ User said: ${text}`;
    * 使用本地数据库存储记忆
    */
   async saveToLocalDatabase(table, data) {
-    if (!this.localDatabase) return null;
-    
+    if (!this.localDatabase) {return null;}
+
     try {
       if (table === 'conversation') {
         return await this.localDatabase.addConversation(data.role, data.content, data.metadata);
@@ -772,8 +751,8 @@ User said: ${text}`;
    * 从本地数据库查询记忆
    */
   async queryFromLocalDatabase(table, query, limit = 10) {
-    if (!this.localDatabase) return [];
-    
+    if (!this.localDatabase) {return [];}
+
     try {
       if (table === 'conversation') {
         return await this.localDatabase.getConversationHistory(limit);
@@ -792,8 +771,8 @@ User said: ${text}`;
    * 本地情感分析
    */
   async analyzeSentiment(text) {
-    if (!this.inferenceEngine) return null;
-    
+    if (!this.inferenceEngine) {return null;}
+
     try {
       const result = await this.inferenceEngine.infer(text);
       if (result.success) {
@@ -809,8 +788,8 @@ User said: ${text}`;
    * 本地生成嵌入
    */
   async generateEmbedding(text) {
-    if (!this.inferenceEngine) return null;
-    
+    if (!this.inferenceEngine) {return null;}
+
     try {
       return await this.inferenceEngine.getEmbedding(text);
     } catch (error) {
@@ -823,8 +802,8 @@ User said: ${text}`;
    * 使用本地LLM生成回复
    */
   async generateWithLocalLLM(messages) {
-    if (!this.llmEngine) return null;
-    
+    if (!this.llmEngine) {return null;}
+
     try {
       const result = await this.llmEngine.chat(messages, { stream: false });
       return result;
@@ -838,7 +817,7 @@ User said: ${text}`;
    * 获取设备能力
    */
   async getDeviceCapabilities() {
-    if (!this.inferenceEngine) return null;
+    if (!this.inferenceEngine) {return null;}
     return this.inferenceEngine.getCapabilities();
   }
 
@@ -846,7 +825,7 @@ User said: ${text}`;
    * 获取数据库统计
    */
   getDatabaseStats() {
-    if (!this.localDatabase) return null;
+    if (!this.localDatabase) {return null;}
     return this.localDatabase.getStats();
   }
 
@@ -863,13 +842,13 @@ User said: ${text}`;
   }
 
   destroy() {
-    if (this.renderSystem) this.renderSystem.destroy();
-    if (this.gestureSystem) this.gestureSystem.stop();
-    if (this.voiceSystem) this.voiceSystem.disable();
-    if (this.memorySystem) this.memorySystem.destroy();
-    if (this.localDatabase) this.localDatabase.close();
-    if (this.inferenceEngine) this.inferenceEngine.terminate();
-    if (this.llmEngine) this.llmEngine.terminate();
+    if (this.renderSystem) {this.renderSystem.destroy();}
+    if (this.gestureSystem) {this.gestureSystem.stop();}
+    if (this.voiceSystem) {this.voiceSystem.disable();}
+    if (this.memorySystem) {this.memorySystem.destroy();}
+    if (this.localDatabase) {this.localDatabase.close();}
+    if (this.inferenceEngine) {this.inferenceEngine.terminate();}
+    if (this.llmEngine) {this.llmEngine.terminate();}
     this.eventBus.clear();
   }
 }

@@ -45,7 +45,7 @@ class MultiModalVision {
 
     try {
       const base64Image = await this._imageToBase64(imageData);
-      
+
       const response = await fetch(this.options.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ class MultiModalVision {
       }
 
       const result = await response.json();
-      
+
       return {
         success: true,
         description: result.description || result.response,
@@ -90,7 +90,7 @@ class MultiModalVision {
 
     try {
       const base64Image = await this._imageToBase64(imageData);
-      
+
       const response = await fetch(`${this.options.ollamaEndpoint}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,7 +107,7 @@ class MultiModalVision {
       }
 
       const result = await response.json();
-      
+
       return {
         success: true,
         description: result.response,
@@ -193,7 +193,7 @@ class MultiModalVision {
 
   stopCamera() {
     if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
+      this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
 
@@ -226,8 +226,8 @@ class MultiModalVision {
       await this.videoElement.play();
 
       const frame = this.captureFrame();
-      
-      stream.getTracks().forEach(track => track.stop());
+
+      stream.getTracks().forEach((track) => track.stop());
       this.videoElement.srcObject = null;
 
       return frame;
@@ -279,7 +279,7 @@ class MultiModalVision {
           throw new Error('Cross-origin image fetch not allowed');
         }
         const response = await fetch(url.href);
-        if (!response.ok) throw new Error('Failed to fetch image');
+        if (!response.ok) {throw new Error('Failed to fetch image');}
         const blob = await response.blob();
         if (blob.size > 10 * 1024 * 1024) {
           throw new Error('Image too large (max 10MB)');

@@ -2,6 +2,7 @@
  * Unit Tests for DataMaskingEngine
  */
 
+const crypto = require('crypto');
 const { DataMaskingEngine, MASKING_TEMPLATES } = require('../../src/security/zerotrust/DataMaskingEngine');
 
 describe('DataMaskingEngine', () => {
@@ -44,7 +45,7 @@ describe('DataMaskingEngine', () => {
         phone: '13812345678',
         name: 'John Doe'
       };
-      
+
       const result = masker.mask(data);
       expect(result.masked.email).toContain('***@');
       expect(result.masked.phone).toContain('*');
@@ -57,7 +58,7 @@ describe('DataMaskingEngine', () => {
         status: 'active',
         email: 'test@test.com'
       };
-      
+
       const result = masker.mask(data);
       expect(result.masked.id).toBe('12345');
       expect(result.masked.status).toBe('active');
@@ -113,6 +114,167 @@ describe('DataMaskingEngine', () => {
     it('should have financial template', () => {
       expect(MASKING_TEMPLATES.financial).toBeDefined();
       expect(MASKING_TEMPLATES.financial.rules).toContain('pii-credit-card');
+    });
+
+    it('should have minimal template', () => {
+      expect(MASKING_TEMPLATES.minimal).toBeDefined();
+      expect(MASKING_TEMPLATES.minimal.rules).toContain('pii-email');
+      expect(MASKING_TEMPLATES.minimal.rules).toContain('pii-phone');
+    });
+  });
+
+  describe('mask - additional types', () => {
+    it('should mask id-card', () => {
+      const result = masker.mask('ID: 110101199001011234');
+      expect(result.masked).not.toContain('110101199001011234');
+      expect(result.masked).toContain('********');
+    });
+
+    it('should mask SSN', () => {
+      const result = masker.mask('SSN: 123-45-6789');
+      expect(result.masked).not.toContain('123-45-6789');
+      expect(result.masked).toContain('6789');
+    });
+
+    it('should have IP address pattern defined', () => {
+      expect(masker.patterns.has('ip-address')).toBe(true);
+    });
+
+    it('should mask API key', () => {
+      const result = masker.mask('api_key=abcdefghijklmnopqrstuvwxyz');
+      expect(result.masked).toContain('[API_KEY_REDACTED]');
+    });
+
+    it('should pass through non-string non-object', () => {
+      expect(masker.mask(42)).toBe(42);
+      expect(masker.mask(null)).toBeNull();
+      expect(masker.mask(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('mask with specific rules', () => {
+    it('should apply only specified rules', () => {
+      const result = masker.mask('Email: a@b.com Phone: 13812345678', { rules: ['pii-email'] });
+      expect(result.masked).not.toContain('a@b.com');
+      expect(result.masked).toContain('13812345678');
+    });
+
+    it('should preserve original when requested', () => {
+      const result = masker.mask('Email: a@b.com', { preserveOriginal: true });
+      expect(result.masks[0].original).toBe('a@b.com');
+    });
+  });
+
+  describe('maskWithContext - advanced', () => {
+    it('should apply medical data source rules', () => {
+      const result = masker.maskWithContext('ID: 110101199001011234', {
+        userRole: 'analyst', dataSource: 'medical'
+      });
+      expect(result.masked).not.toContain('110101199001011234');
+    });
+
+    it('should apply HIPAA regulation rules', () => {
+      const result = masker.maskWithContext('SSN: 123-45-6789', {
+        userRole: 'analyst', regulation: ['HIPAA']
+      });
+      expect(result.masks.length).toBeGreaterThan(0);
+    });
+
+    it('should apply GDPR regulation rules', () => {
+      const result = masker.maskWithContext('Email: user@example.com', {
+        userRole: 'analyst', regulation: ['GDPR']
+      });
+      expect(result.masked).not.toContain('user@example.com');
+    });
+
+    it('should apply default role rules when no role matches', () => {
+      const result = masker.maskWithContext('Email: user@example.com', {
+        userRole: 'viewer'
+      });
+      expect(result.masked).not.toContain('user@example.com');
+    });
+  });
+
+  describe('validateMasking', () => {
+    it('should compute score', () => {
+      const result = masker.validateMasking('test@test.com', 'original');
+      expect(result.score).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('encrypt/decrypt', () => {
+    it('should encrypt and decrypt data', () => {
+      const key = crypto.randomBytes(32).toString('hex');
+      const data = 'sensitive data';
+      const encrypted = masker.encrypt(data, key);
+      expect(encrypted.encrypted).toBeTruthy();
+      expect(encrypted.iv).toBeTruthy();
+      expect(encrypted.authTag).toBeTruthy();
+
+      const decrypted = masker.decrypt(encrypted, key);
+      expect(decrypted).toBe(data);
+    });
+
+    it('should produce different ciphertexts for same input', () => {
+      const key = crypto.randomBytes(32).toString('hex');
+      const data = 'same data';
+      const enc1 = masker.encrypt(data, key);
+      const enc2 = masker.encrypt(data, key);
+      expect(enc1.encrypted).not.toBe(enc2.encrypted);
+    });
+  });
+
+  describe('addRule', () => {
+    it('should add custom rule', () => {
+      masker.addRule({
+        id: 'custom-test',
+        name: 'Custom test',
+        pattern: 'email',
+        type: 'partial',
+        replacement: () => '[CUSTOM]'
+      });
+      expect(masker.rules.has('custom-test')).toBe(true);
+    });
+
+    it('should apply custom rule', () => {
+      masker.addRule({
+        id: 'custom-censor',
+        name: 'Custom censor',
+        pattern: 'email',
+        type: 'full',
+        replacement: () => '[CENSORED]'
+      });
+      const result = masker.mask('Email: a@b.com', { rules: ['custom-censor'] });
+      expect(result.masked).toContain('[CENSORED]');
+    });
+  });
+
+  describe('generateReport', () => {
+    it('should generate report with masks', () => {
+      const report = masker.generateReport('Email: a@b.com Phone: 13812345678');
+      expect(report.totalMasks).toBeGreaterThan(0);
+      expect(report.byRule.length).toBeGreaterThan(0);
+      expect(report.validation).toBeDefined();
+    });
+
+    it('should include samples when requested', () => {
+      const report = masker.generateReport('a@b.com', { includeSamples: true });
+      expect(report.totalMasks).toBeGreaterThan(0);
+    });
+  });
+
+  describe('nested object masking', () => {
+    it('should mask nested values', () => {
+      const data = { user: { email: 'test@test.com', profile: { phone: '13812345678' } } };
+      const result = masker.mask(data);
+      expect(result.masked.user.email).toContain('***@');
+      expect(result.masked.user.profile.phone).toContain('*');
+    });
+
+    it('should include field info in masks', () => {
+      const data = { contact: 'user@example.com' };
+      const result = masker.mask(data);
+      expect(result.masks[0].field).toBe('contact');
     });
   });
 });

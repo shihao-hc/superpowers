@@ -1,14 +1,14 @@
-const { NodeWorkflowEngine } = require('../workflow/NodeWorkflowEngine');
-const { MCPBridge } = require('../mcp/MCPBridge');
-const { execFile } = require('child_process');
+const { NodeWorkflowEngine: _NodeWorkflowEngine } = require('../workflow/NodeWorkflowEngine');
+const { MCPBridge: _MCPBridge } = require('../mcp/MCPBridge');
+const { safeExecFile } = require('../utils/SafeExec');
 const { promisify } = require('util');
 const fs = require('fs');
 const { PythonEnvManager } = require('../performance/PythonEnvManager');
 const path = require('path');
 const { SkillNodeDefinitions } = require('./SkillNodeDefinitions');
 
-const execFileAsync = promisify(execFile);
-const { SkillSandbox } = require('./Sandbox/SkillSandbox');
+const execFileAsync = promisify(safeExecFile);
+
 
 class SkillToNode {
   static _pyEnv = new PythonEnvManager({ cacheEnabled: true, dockerEnabled: true });
@@ -42,17 +42,17 @@ class SkillToNode {
   async createNodeFromScript(skill, script) {
     // Get enhanced node definition if available
     const nodeDefinition = SkillNodeDefinitions.getNodeDefinition(skill.name);
-    
+
     if (nodeDefinition && nodeDefinition.actions && nodeDefinition.actions.length > 0) {
       // Create nodes for each action defined in the node definition
       for (const actionDef of nodeDefinition.actions) {
         const nodeTypeName = `skill.${skill.name}.${actionDef.name}`;
         const nodeKey = `${skill.name}:${actionDef.name}`;
-        
+
         if (this.convertedNodes.has(nodeKey)) {
           continue;
         }
-        
+
         // Create enhanced node type
         const nodeType = {
           name: actionDef.label || `Skill: ${skill.name} - ${actionDef.name}`,
@@ -70,18 +70,18 @@ class SkillToNode {
             return await this.executeSkillScript(skill, script, skillInputs);
           }
         };
-        
+
         this.workflowEngine.registerNodeType(nodeTypeName, nodeType);
         this.convertedNodes.set(nodeKey, nodeTypeName);
       }
-      
+
       // Return the first node type name for backward compatibility
       const firstAction = nodeDefinition.actions[0];
       return `skill.${skill.name}.${firstAction.name}`;
     }
-    
+
     // Fallback to original logic for skills without enhanced definitions
-    const action = skill.inputs.find(i => i.name === 'action')?.enum?.[0] || 'execute';
+    const action = skill.inputs.find((i) => i.name === 'action')?.enum?.[0] || 'execute';
     const nodeTypeName = `skill.${skill.name}.${action}`;
 
     // Check if we've already converted this
@@ -125,8 +125,8 @@ class SkillToNode {
       outputs: this.mapSkillOutputsToNodeOutputs(skill.outputs || [{ name: 'result', type: 'object' }]),
       execute: async (node, inputs) => {
         // For generic skills, we might just return the inputs or a success message
-        return { 
-          message: `Executed skill ${skill.name}`, 
+        return {
+          message: `Executed skill ${skill.name}`,
           inputs: inputs,
           skillDescription: skill.description
         };
@@ -155,8 +155,8 @@ class SkillToNode {
   // Map enhanced inputs to node inputs
   mapEnhancedInputsToNodeInputs(inputsDefinition) {
     const nodeInputs = {};
-    if (!inputsDefinition) return nodeInputs;
-    
+    if (!inputsDefinition) {return nodeInputs;}
+
     for (const [name, definition] of Object.entries(inputsDefinition)) {
       nodeInputs[name] = {
         type: this.mapEnhancedTypeToNodeType(definition.type),
@@ -172,8 +172,8 @@ class SkillToNode {
   // Map enhanced outputs to node outputs
   mapEnhancedOutputsToNodeOutputs(outputsDefinition) {
     const nodeOutputs = [];
-    if (!outputsDefinition) return nodeOutputs;
-    
+    if (!outputsDefinition) {return nodeOutputs;}
+
     for (const [name, definition] of Object.entries(outputsDefinition)) {
       nodeOutputs.push({
         name: name,
@@ -186,8 +186,8 @@ class SkillToNode {
 
   // Map enhanced types to node types
   mapEnhancedTypeToNodeType(type) {
-    if (!type) return 'any';
-    
+    if (!type) {return 'any';}
+
     const typeMap = {
       'string': 'string',
       'number': 'number',
@@ -204,7 +204,7 @@ class SkillToNode {
       'boolean|string': 'boolean',
       'object|array': 'object'
     };
-    
+
     return typeMap[type] || 'any';
   }
 
@@ -241,9 +241,9 @@ class SkillToNode {
       if (script && script.language === 'python') {
         const scriptPath = path.join(skill.skillPath, script.entry || 'main.py');
         const pyResult = await SkillToNode._pyEnv.runPythonScript(
-          skill.name, 
-          scriptPath, 
-          inputs, 
+          skill.name,
+          scriptPath,
+          inputs,
           {
             requirements: skill.dependencies || [],
             isPure: skill.pure === true,
@@ -257,7 +257,7 @@ class SkillToNode {
       // fallthrough to existing path if Python execution fails
       console.warn('[PythonExec] Failed to run Python skill:', e.message);
     }
-    
+
     // Phase 2: ensure Python env for dependencies if present (for local execution)
     try {
       if (skill && skill.dependencies && skill.dependencies.length > 0) {
@@ -267,7 +267,7 @@ class SkillToNode {
       // Non-fatal; continue with execution
       console.warn('[PythonEnvManager] env setup warning:', e.message);
     }
-    
+
     // 1) Try per-skill executor module if available
     const explicitPath = path.join(__dirname, 'executors', `${skill.name}Executor.js`);
     if (fs.existsSync(explicitPath)) {
@@ -293,18 +293,7 @@ class SkillToNode {
       }
     }
 
-    // 2) Optional sandboxed JS execution path
-    if (skill.sandboxCode) {
-      try {
-        const sandbox = new SkillSandbox({ timeout: 1000 });
-        return await sandbox.executeCode(skill.sandboxCode, inputs);
-      } catch (e) {
-        // ignore sandbox errors and proceed to normal execution
-        console.warn('[SkillSandbox] execution failed:', e.message);
-      }
-    }
-
-    // 3) Global executors for common skills
+    // 2) Global executors for common skills
     if (skill.name === 'docx' && typeof require('./executors/DocxExecutor').DocxExecutor === 'function') {
       // fall back to default docx executor if available
       const DocxExec = require('./executors/DocxExecutor');
@@ -344,25 +333,25 @@ class SkillToNode {
       let command, args = [];
 
       switch (script.language) {
-        case 'python':
-          command = 'python';
-          args = [path.join(skill.skillPath, script.entry || 'main.py')];
-          break;
-        case 'node':
-        case 'javascript':
-          command = 'node';
-          args = [path.join(skill.skillPath, script.entry || 'index.js')];
-          break;
-        case 'bash':
-        case 'shell':
-          command = 'bash';
-          args = [path.join(skill.skillPath, script.entry || 'script.sh')];
-          break;
-        default:
-          // Default to node for unknown languages
-          command = 'node';
-          args = [path.join(skill.skillPath, script.entry || 'index.js')];
-          break;
+      case 'python':
+        command = 'python';
+        args = [path.join(skill.skillPath, script.entry || 'main.py')];
+        break;
+      case 'node':
+      case 'javascript':
+        command = 'node';
+        args = [path.join(skill.skillPath, script.entry || 'index.js')];
+        break;
+      case 'bash':
+      case 'shell':
+        command = 'bash';
+        args = [path.join(skill.skillPath, script.entry || 'script.sh')];
+        break;
+      default:
+        // Default to node for unknown languages
+        command = 'node';
+        args = [path.join(skill.skillPath, script.entry || 'index.js')];
+        break;
       }
 
       // Prepare input data as JSON
@@ -407,7 +396,7 @@ class SkillToNode {
 
       return result;
     } catch (error) {
-      throw new Error(`Failed to execute skill ${skill.name}: ${error.message}`);
+      throw new Error(`Failed to execute skill ${skill.name}: ${error.message}`, { cause: error });
     }
   }
 

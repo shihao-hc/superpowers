@@ -57,13 +57,13 @@ class CostDashboard {
       currency: 'USD',
       previousPeriod: data.previousPeriod,
       change: data.totalCost - data.previousPeriod,
-      changePercent: data.previousPeriod > 0 
+      changePercent: data.previousPeriod > 0
         ? ((data.totalCost - data.previousPeriod) / data.previousPeriod * 100).toFixed(1)
         : 0,
       projection: data.totalCost * (this._getDaysInPeriod(period) / this._getDaysElapsed(period)),
       budgetUsed: data.budgetUsed || 0,
       budgetTotal: data.budgetTotal || 0,
-      budgetPercent: data.budgetTotal > 0 
+      budgetPercent: data.budgetTotal > 0
         ? (data.budgetUsed / data.budgetTotal * 100).toFixed(1)
         : 0
     };
@@ -75,7 +75,7 @@ class CostDashboard {
 
     return {
       granularity,
-      dataPoints: data.map(d => ({
+      dataPoints: data.map((d) => ({
         date: d.date,
         cost: d.cost,
         requests: d.requests,
@@ -90,14 +90,14 @@ class CostDashboard {
     const data = source ? await source.getBreakdown(tenantId, period) : this._mockBreakdown();
 
     return {
-      byCategory: data.byCategory.map(c => ({
+      byCategory: data.byCategory.map((c) => ({
         category: c.category,
         cost: c.cost,
         percent: c.percent,
         trend: c.trend,
         color: this._getCategoryColor(c.category)
       })),
-      byService: data.byService.map(s => ({
+      byService: data.byService.map((s) => ({
         service: s.service,
         cost: s.cost,
         percent: s.percent,
@@ -138,7 +138,7 @@ class CostDashboard {
     };
   }
 
-  async _getAlerts(tenantId) {
+  async _getAlerts(_tenantId) {
     return {
       budgetAlerts: [
         { level: 'warning', message: '本周成本已达预算的 75%', threshold: 75, current: 72 },
@@ -156,12 +156,12 @@ class CostDashboard {
 
   async _getForecast(tenantId, period) {
     const overview = await this._getOverview(tenantId, period);
-    
+
     const dailyRate = overview.totalCost / this._getDaysElapsed(period);
     const daysRemaining = this._getDaysInPeriod(period) - this._getDaysElapsed(period);
-    
+
     const projectedCost = overview.totalCost + (dailyRate * daysRemaining);
-    const budgetOverage = overview.budgetTotal > 0 
+    const budgetOverage = overview.budgetTotal > 0
       ? Math.max(0, projectedCost - overview.budgetTotal)
       : 0;
 
@@ -180,15 +180,15 @@ class CostDashboard {
 
   // 生成迷你图
   _generateSparklines(data) {
-    if (data.length < 2) return null;
+    if (data.length < 2) {return null;}
 
-    const maxCost = Math.max(...data.map(d => d.cost));
-    const minCost = Math.min(...data.map(d => d.cost));
+    const maxCost = Math.max(...data.map((d) => d.cost));
+    const minCost = Math.min(...data.map((d) => d.cost));
     const range = maxCost - minCost || 1;
 
     return {
-      cost: data.map(d => Math.round((d.cost - minCost) / range * 100)),
-      requests: data.map(d => Math.round(d.requests / Math.max(...data.map(x => x.requests)) * 100)),
+      cost: data.map((d) => Math.round((d.cost - minCost) / range * 100)),
+      requests: data.map((d) => Math.round(d.requests / Math.max(...data.map((x) => x.requests)) * 100)),
       trend: data[data.length - 1].cost > data[0].cost ? 'up' : 'down'
     };
   }
@@ -236,22 +236,22 @@ class CostDashboard {
   // 辅助方法
   _getDaysInPeriod(period) {
     switch (period) {
-      case 'daily': return 1;
-      case 'weekly': return 7;
-      case 'monthly': return 30;
-      case 'quarterly': return 90;
-      default: return 30;
+    case 'daily': return 1;
+    case 'weekly': return 7;
+    case 'monthly': return 30;
+    case 'quarterly': return 90;
+    default: return 30;
     }
   }
 
   _getDaysElapsed(period) {
     const now = new Date();
     switch (period) {
-      case 'daily': return now.getHours();
-      case 'weekly': return now.getDay();
-      case 'monthly': return now.getDate();
-      case 'quarterly': return Math.floor((now.getMonth() % 3) * 30 + now.getDate());
-      default: return 15;
+    case 'daily': return now.getHours();
+    case 'weekly': return now.getDay();
+    case 'monthly': return now.getDate();
+    case 'quarterly': return Math.floor((now.getMonth() % 3) * 30 + now.getDate());
+    default: return 15;
     }
   }
 
@@ -267,7 +267,7 @@ class CostDashboard {
   }
 
   // Mock数据
-  _mockOverview(period) {
+  _mockOverview(_period) {
     return {
       totalCost: 15420.50,
       previousPeriod: 12800,
@@ -279,7 +279,7 @@ class CostDashboard {
   _mockTrends(period, granularity) {
     const days = granularity === 'daily' ? 30 : 4;
     const data = [];
-    
+
     for (let i = 0; i < days; i++) {
       data.push({
         date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -288,7 +288,7 @@ class CostDashboard {
         users: 50 + Math.floor(Math.random() * 20)
       });
     }
-    
+
     return data;
   }
 

@@ -23,11 +23,11 @@ class Plugin {
     console.log(`[Plugin] ${this.name} disabled`);
   }
 
-  async onMessage(message, context) {
+  async onMessage(_message, _context) {
     return null;
   }
 
-  async onEvent(event, data) {
+  async onEvent(_event, _data) {
     return null;
   }
 

@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { warn: warnLog } = require('../../../server/utils/logger');
 
 class DryRunHistory {
   constructor(config = {}) {
@@ -13,16 +14,20 @@ class DryRunHistory {
     this.historyFile = path.join(this.historyDir, 'dryrun_history.json');
     this.maxHistory = config.maxHistory || 1000;
     this.autoPersist = config.autoPersist !== false;
-    
+
     this._ensureHistoryDir();
   }
 
   _ensureHistoryDir() {
-    if (!fs.existsSync(this.historyDir)) {
-      fs.mkdirSync(this.historyDir, { recursive: true });
-    }
-    if (!fs.existsSync(this.historyFile)) {
-      fs.writeFileSync(this.historyFile, JSON.stringify({ entries: [], version: 1 }, null, 2));
+    try {
+      if (!fs.existsSync(this.historyDir)) {
+        fs.mkdirSync(this.historyDir, { recursive: true });
+      }
+      if (!fs.existsSync(this.historyFile)) {
+        fs.writeFileSync(this.historyFile, JSON.stringify({ entries: [], version: 1 }, null, 2));
+      }
+    } catch (err) {
+      warnLog(`DryRunHistory._ensureHistoryDir failed: ${err.message}`, { historyDir: this.historyDir });
     }
   }
 
@@ -31,7 +36,7 @@ class DryRunHistory {
    */
   add(entry) {
     const history = this._loadHistory();
-    
+
     const record = {
       id: `dryrun_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
@@ -44,7 +49,7 @@ class DryRunHistory {
     };
 
     history.entries.unshift(record);
-    
+
     if (history.entries.length > this.maxHistory) {
       history.entries = history.entries.slice(0, this.maxHistory);
     }
@@ -61,8 +66,8 @@ class DryRunHistory {
    */
   markExecuted(id, result = null) {
     const history = this._loadHistory();
-    const entry = history.entries.find(e => e.id === id);
-    
+    const entry = history.entries.find((e) => e.id === id);
+
     if (entry) {
       entry.executed = true;
       entry.executedAt = new Date().toISOString();
@@ -81,16 +86,16 @@ class DryRunHistory {
     let entries = [...history.entries];
 
     if (options.tool) {
-      entries = entries.filter(e => e.tool === options.tool);
+      entries = entries.filter((e) => e.tool === options.tool);
     }
     if (options.executed !== undefined) {
-      entries = entries.filter(e => e.executed === options.executed);
+      entries = entries.filter((e) => e.executed === options.executed);
     }
     if (options.startDate) {
-      entries = entries.filter(e => new Date(e.timestamp) >= new Date(options.startDate));
+      entries = entries.filter((e) => new Date(e.timestamp) >= new Date(options.startDate));
     }
     if (options.endDate) {
-      entries = entries.filter(e => new Date(e.timestamp) <= new Date(options.endDate));
+      entries = entries.filter((e) => new Date(e.timestamp) <= new Date(options.endDate));
     }
     if (options.limit) {
       entries = entries.slice(0, options.limit);
@@ -105,7 +110,7 @@ class DryRunHistory {
   getStats() {
     const history = this._loadHistory();
     const total = history.entries.length;
-    const executed = history.entries.filter(e => e.executed).length;
+    const executed = history.entries.filter((e) => e.executed).length;
     const previewOnly = total - executed;
 
     const byTool = {};
@@ -117,7 +122,7 @@ class DryRunHistory {
       total,
       executed,
       previewOnly,
-      executedRate: total > 0 ? (executed / total * 100).toFixed(1) + '%' : '0%',
+      executedRate: total > 0 ? `${(executed / total * 100).toFixed(1)}%` : '0%',
       byTool,
       lastEntry: history.entries[0] || null
     };
@@ -149,15 +154,15 @@ class DryRunHistory {
    */
   export(format = 'json') {
     const history = this._loadHistory();
-    
+
     if (format === 'json') {
       return JSON.stringify(history, null, 2);
     }
-    
+
     if (format === 'csv') {
       const headers = ['id', 'timestamp', 'tool', 'executed', 'executedAt'];
-      const rows = history.entries.map(e => 
-        headers.map(h => e[h] || '').join(',')
+      const rows = history.entries.map((e) =>
+        headers.map((h) => e[h] || '').join(',')
       );
       return [headers.join(','), ...rows].join('\n');
     }
@@ -184,7 +189,7 @@ const { DryRunEngine } = require('./DryRunEngine');
 const originalCheckDryRun = DryRunEngine.prototype.checkDryRun;
 DryRunEngine.prototype.checkDryRun = function(params, toolName) {
   const isDryRun = originalCheckDryRun.call(this, params, toolName);
-  
+
   if (isDryRun) {
     const history = new DryRunHistory();
     history.add({
@@ -193,21 +198,21 @@ DryRunEngine.prototype.checkDryRun = function(params, toolName) {
       preview: true
     });
   }
-  
+
   return isDryRun;
 };
 
 const originalPreview = DryRunEngine.prototype.previewEdit;
 DryRunEngine.prototype.previewEdit = function(filePath, edits, currentContent) {
   const result = originalPreview.call(this, filePath, edits, currentContent);
-  
+
   const history = new DryRunHistory();
   const record = history.add({
     tool: 'edit_file',
     params: { filePath, edits },
     preview: result
   });
-  
+
   result._meta.recordId = record.id;
   return result;
 };

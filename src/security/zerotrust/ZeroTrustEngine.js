@@ -11,7 +11,7 @@ class ZeroTrustEngine {
     this.trustScores = new Map();
     this.accessLogs = new Map();
     this.riskSignals = new Map();
-    
+
     this._initDefaultPolicies();
   }
 
@@ -52,10 +52,10 @@ class ZeroTrustEngine {
   // 评估访问请求
   async evaluateAccess(request) {
     const {
-      userId,
-      resource,
-      action,
-      context = {}
+      userId: _userId,
+      resource: _resource,
+      action: _action,
+      context: _context = {}
     } = request;
 
     // 1. 收集信任信号
@@ -97,18 +97,18 @@ class ZeroTrustEngine {
       mfaEnabled: request.context.mfaEnabled || false,
       deviceRegistered: request.context.deviceRegistered || false,
       sessionAge: request.context.sessionAge || 0,
-      
+
       // 行为信号
       location: request.context.location || 'unknown',
       ipReputation: await this._checkIPReputation(request.context.ip),
       userAgentTrust: this._evaluateUserAgent(request.context.userAgent),
       unusualTime: this._isUnusualTime(new Date()),
-      
+
       // 历史信号
       failedAttempts: await this._getFailedAttempts(request.userId),
       lastActivity: await this._getLastActivity(request.userId),
       activityPattern: await this._analyzeActivityPattern(request.userId),
-      
+
       // 资源信号
       resourceSensitivity: request.resource?.sensitivity || 'low',
       dataClassification: request.resource?.classification || 'public'
@@ -121,23 +121,23 @@ class ZeroTrustEngine {
     let score = 50; // 基础分数
 
     // 身份验证加分
-    if (signals.identityVerified) score += 15;
-    if (signals.mfaEnabled) score += 20;
-    if (signals.deviceRegistered) score += 10;
+    if (signals.identityVerified) {score += 15;}
+    if (signals.mfaEnabled) {score += 20;}
+    if (signals.deviceRegistered) {score += 10;}
 
     // 行为风险减分
-    if (signals.failedAttempts > 3) score -= 30;
-    if (signals.failedAttempts > 0) score -= signals.failedAttempts * 5;
-    if (signals.ipReputation < 0.5) score -= 25;
-    if (signals.unusualTime) score -= 10;
+    if (signals.failedAttempts > 3) {score -= 30;}
+    if (signals.failedAttempts > 0) {score -= signals.failedAttempts * 5;}
+    if (signals.ipReputation < 0.5) {score -= 25;}
+    if (signals.unusualTime) {score -= 10;}
 
     // 活跃度加分
-    if (signals.activityPattern === 'normal') score += 10;
-    if (signals.sessionAge > 3600) score += 5;
+    if (signals.activityPattern === 'normal') {score += 10;}
+    if (signals.sessionAge > 3600) {score += 5;}
 
     // 资源敏感度调整
-    if (signals.resourceSensitivity === 'high') score -= 15;
-    if (signals.resourceSensitivity === 'critical') score -= 25;
+    if (signals.resourceSensitivity === 'high') {score -= 15;}
+    if (signals.resourceSensitivity === 'critical') {score -= 25;}
 
     return Math.max(0, Math.min(100, score));
   }
@@ -165,12 +165,12 @@ class ZeroTrustEngine {
       risks.push({ type: 'sensitive_data', score: 20 });
     }
 
-    const maxRiskScore = risks.length > 0 
-      ? Math.max(...risks.map(r => r.score))
+    const maxRiskScore = risks.length > 0
+      ? Math.max(...risks.map((r) => r.score))
       : 0;
 
-    if (maxRiskScore >= 60) return 'high';
-    if (maxRiskScore >= 30) return 'medium';
+    if (maxRiskScore >= 60) {return 'high';}
+    if (maxRiskScore >= 30) {return 'medium';}
     return 'low';
   }
 
@@ -199,13 +199,13 @@ class ZeroTrustEngine {
     return {
       action: decision.action || 'allow',
       challengeType: decision.challengeType,
-      factors: applicablePolicies.map(p => p.policy),
+      factors: applicablePolicies.map((p) => p.policy),
       policy: applicablePolicies[0]?.policy
     };
   }
 
-  _evaluateCondition(condition, request, trustScore, riskLevel) {
-    if (condition === 'always') return true;
+  _evaluateCondition(condition, request, trustScore, _riskLevel) {
+    if (condition === 'always') {return true;}
 
     // 解析条件表达式
     if (condition.includes('trustScore')) {
@@ -214,11 +214,11 @@ class ZeroTrustEngine {
         const op = match[1];
         const value = parseInt(match[2]);
         switch (op) {
-          case '<': return trustScore < value;
-          case '>': return trustScore > value;
-          case '<=': return trustScore <= value;
-          case '>=': return trustScore >= value;
-          case '==': return trustScore === value;
+        case '<': return trustScore < value;
+        case '>': return trustScore > value;
+        case '<=': return trustScore <= value;
+        case '>=': return trustScore >= value;
+        case '==': return trustScore === value;
         }
       }
     }
@@ -226,8 +226,8 @@ class ZeroTrustEngine {
     if (condition.includes('action')) {
       const match = condition.match(/action\s*(?:in)?\s*\[\s*"([^"]+)"\s*\]/);
       if (match) {
-        const actions = match[1].split(',').map(a => a.trim());
-        return actions.some(a => request.action.includes(a));
+        const actions = match[1].split(',').map((a) => a.trim());
+        return actions.some((a) => request.action.includes(a));
       }
     }
 
@@ -237,18 +237,18 @@ class ZeroTrustEngine {
   async _checkIPReputation(ip) {
     // 简化实现
     const knownMalicious = ['192.0.2.0', '198.51.100.0'];
-    if (knownMalicious.includes(ip)) return 0;
-    
+    if (knownMalicious.includes(ip)) {return 0;}
+
     // 检查是否是VPN/代理
-    const vpnRanges = ['10.0.0.0/8', '172.16.0.0/12'];
+    const _vpnRanges = ['10.0.0.0/8', '172.16.0.0/12'];
     // 简化判断
     return ip.startsWith('10.') ? 0.7 : 0.9;
   }
 
   _evaluateUserAgent(ua) {
-    if (!ua) return 0.5;
+    if (!ua) {return 0.5;}
     const knownBots = ['bot', 'crawler', 'spider'];
-    if (knownBots.some(b => ua.toLowerCase().includes(b))) return 0.3;
+    if (knownBots.some((b) => ua.toLowerCase().includes(b))) {return 0.3;}
     return 0.8;
   }
 
@@ -259,8 +259,8 @@ class ZeroTrustEngine {
 
   async _getFailedAttempts(userId) {
     const logs = this.accessLogs.get(userId) || [];
-    const recentFailures = logs.filter(l => 
-      l.decision.action === 'block' && 
+    const recentFailures = logs.filter((l) =>
+      l.decision.action === 'block' &&
       l.timestamp > Date.now() - 15 * 60 * 1000
     );
     return recentFailures.length;
@@ -271,7 +271,7 @@ class ZeroTrustEngine {
     return logs.length > 0 ? logs[logs.length - 1].timestamp : null;
   }
 
-  async _analyzeActivityPattern(userId) {
+  async _analyzeActivityPattern(_userId) {
     // 简化实现
     return 'normal';
   }
@@ -279,12 +279,12 @@ class ZeroTrustEngine {
   _logAccess(access) {
     const userLogs = this.accessLogs.get(access.userId) || [];
     userLogs.push(access);
-    
+
     // 保持最近1000条记录
     if (userLogs.length > 1000) {
       userLogs.splice(0, userLogs.length - 1000);
     }
-    
+
     this.accessLogs.set(access.userId, userLogs);
   }
 
@@ -299,16 +299,16 @@ class ZeroTrustEngine {
   // 获取访问历史
   getAccessHistory(userId, options = {}) {
     const logs = this.accessLogs.get(userId) || [];
-    
+
     let filtered = logs;
     if (options.since) {
-      filtered = filtered.filter(l => l.timestamp >= options.since);
+      filtered = filtered.filter((l) => l.timestamp >= options.since);
     }
     if (options.until) {
-      filtered = filtered.filter(l => l.timestamp <= options.until);
+      filtered = filtered.filter((l) => l.timestamp <= options.until);
     }
     if (options.riskLevel) {
-      filtered = filtered.filter(l => l.riskLevel === options.riskLevel);
+      filtered = filtered.filter((l) => l.riskLevel === options.riskLevel);
     }
 
     return filtered.slice(-100);
@@ -321,7 +321,7 @@ class ComplianceEngine {
     this.controls = new Map();
     this.assessments = new Map();
     this.findings = new Map();
-    
+
     this._initFrameworks();
   }
 
@@ -469,8 +469,8 @@ class ComplianceEngine {
   }
 
   _generateSummary(controls) {
-    const compliant = controls.filter(c => c.status === 'compliant').length;
-    const nonCompliant = controls.filter(c => c.status === 'non_compliant').length;
+    const compliant = controls.filter((c) => c.status === 'compliant').length;
+    const nonCompliant = controls.filter((c) => c.status === 'non_compliant').length;
     const total = controls.length;
 
     return {
@@ -478,10 +478,10 @@ class ComplianceEngine {
       compliant,
       nonCompliant,
       complianceRate: total > 0 ? Math.round(compliant / total * 100) : 0,
-      criticalFindings: controls.reduce((sum, c) => 
-        sum + c.findings.filter(f => f.severity === 'critical').length, 0),
-      highFindings: controls.reduce((sum, c) => 
-        sum + c.findings.filter(f => f.severity === 'high').length, 0)
+      criticalFindings: controls.reduce((sum, c) =>
+        sum + c.findings.filter((f) => f.severity === 'critical').length, 0),
+      highFindings: controls.reduce((sum, c) =>
+        sum + c.findings.filter((f) => f.severity === 'high').length, 0)
     };
   }
 
@@ -509,10 +509,10 @@ class ComplianceEngine {
   // 获取待整改项
   getRemediationItems(frameworkId) {
     const items = [];
-    
+
     for (const assessment of this.assessments.values()) {
-      if (assessment.framework !== frameworkId) continue;
-      
+      if (assessment.framework !== frameworkId) {continue;}
+
       for (const control of assessment.controls) {
         for (const finding of control.findings) {
           items.push({
@@ -538,7 +538,7 @@ class ThreatDetector {
     this.threats = new Map();
     this.iocs = new Map();
     this.detectionRules = new Map();
-    
+
     this._initDetectionRules();
   }
 
@@ -610,7 +610,7 @@ class ThreatDetector {
   analyzeEvent(event) {
     const alerts = [];
 
-    for (const [ruleId, rule] of this.detectionRules.entries()) {
+    for (const [_ruleId, rule] of this.detectionRules.entries()) {
       if (this._matchRule(event, rule)) {
         const alert = this._createAlert(rule, event);
         alerts.push(alert);
@@ -624,19 +624,19 @@ class ThreatDetector {
   _matchRule(event, rule) {
     for (const condition of rule.conditions) {
       const eventValue = this._getFieldValue(event, condition.field);
-      
-      if (eventValue === undefined) continue;
+
+      if (eventValue === undefined) {continue;}
 
       switch (condition.operator) {
-        case 'equals':
-          if (eventValue !== condition.value) return false;
-          break;
-        case 'greater_than':
-          if (typeof eventValue !== 'number' || eventValue <= condition.value) return false;
-          break;
-        case 'in':
-          if (!condition.value.includes(eventValue)) return false;
-          break;
+      case 'equals':
+        if (eventValue !== condition.value) {return false;}
+        break;
+      case 'greater_than':
+        if (typeof eventValue !== 'number' || eventValue <= condition.value) {return false;}
+        break;
+      case 'in':
+        if (!condition.value.includes(eventValue)) {return false;}
+        break;
       }
     }
 
@@ -646,11 +646,11 @@ class ThreatDetector {
   _getFieldValue(event, field) {
     const parts = field.split('.');
     let value = event;
-    
+
     for (const part of parts) {
       value = value?.[part];
     }
-    
+
     return value;
   }
 
@@ -669,20 +669,20 @@ class ThreatDetector {
 
   _takeAction(alert) {
     const rule = this.detectionRules.get(alert.ruleId);
-    
+
     switch (rule.action) {
-      case 'block':
-        alert.action = 'blocked';
-        break;
-      case 'alert':
-        alert.action = 'alerted';
-        break;
-      case 'challenge':
-        alert.action = 'challenged';
-        break;
-      case 'throttle':
-        alert.action = 'throttled';
-        break;
+    case 'block':
+      alert.action = 'blocked';
+      break;
+    case 'alert':
+      alert.action = 'alerted';
+      break;
+    case 'challenge':
+      alert.action = 'challenged';
+      break;
+    case 'throttle':
+      alert.action = 'throttled';
+      break;
     }
 
     this.threats.set(alert.id, alert);
@@ -692,15 +692,15 @@ class ThreatDetector {
   getThreatIntel() {
     const iocs = Array.from(this.iocs.values());
     const recentThreats = Array.from(this.threats.values())
-      .filter(t => t.createdAt > Date.now() - 24 * 60 * 60 * 1000);
+      .filter((t) => t.createdAt > Date.now() - 24 * 60 * 60 * 1000);
 
     return {
       iocCount: iocs.length,
       recentThreats: recentThreats.length,
       bySeverity: {
-        critical: recentThreats.filter(t => t.severity === 'critical').length,
-        high: recentThreats.filter(t => t.severity === 'high').length,
-        medium: recentThreats.filter(t => t.severity === 'medium').length
+        critical: recentThreats.filter((t) => t.severity === 'critical').length,
+        high: recentThreats.filter((t) => t.severity === 'high').length,
+        medium: recentThreats.filter((t) => t.severity === 'medium').length
       },
       byType: this._countByType(recentThreats)
     };

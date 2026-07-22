@@ -26,6 +26,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将 exec/execSync 替换为 execFile/execFileSync（不启动 shell，参数独立传递）。如果必须用 exec，确保 shell: false 且参数经过白名单验证。',
   references: ['CWE-78'],
   since: '2026-06-28',
 };

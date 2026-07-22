@@ -51,9 +51,9 @@ class PersonalityManager {
   }
 
   _startMoodDrift() {
-    if (this.driftTimer) clearInterval(this.driftTimer);
+    if (this.driftTimer) {clearInterval(this.driftTimer);}
     const moodConfig = this.active?.mood;
-    if (!moodConfig?.enabled) return;
+    if (!moodConfig?.enabled) {return;}
     const interval = moodConfig.intervals || 300000;
     this.driftTimer = setInterval(() => {
       if (Math.random() < (moodConfig.drift || 0.2)) {
@@ -71,7 +71,7 @@ class PersonalityManager {
   }
 
   setActive(name) {
-    if (!name) return false;
+    if (!name) {return false;}
     if (this.personalities[name]) {
       this.stopMoodDrift();
       this.activeName = name;
@@ -88,7 +88,7 @@ class PersonalityManager {
   }
 
   getTTSConfig() {
-    if (!this.active?.tts?.enabled) return null;
+    if (!this.active?.tts?.enabled) {return null;}
     const mood = this.getMood();
     return {
       lang: this.active.tts.lang || 'zh-CN',
@@ -103,12 +103,12 @@ class PersonalityManager {
 
   getResponse(type) {
     const responses = this.active?.responses?.[type];
-    if (!responses || !responses.length) return null;
+    if (!responses || !responses.length) {return null;}
     return responses[Math.floor(Math.random() * responses.length)];
   }
 
   getSystemPrompt() {
-    if (!this.active) return '';
+    if (!this.active) {return '';}
     const traits = this.active.traits || {};
     const promptTemplate = this.active.systemPromptTemplate || '你是{name}，性格特点：{traits}，当前心情：{mood}';
     const traitsStr = Object.entries(traits).map(([k, v]) => `${k}:${v}`).join(', ');
@@ -132,10 +132,10 @@ class PersonalityManager {
   }
 
   saveActive() {
-    if (!this.activeName) return;
+    if (!this.activeName) {return;}
     try {
       const dir = path.dirname(this.activeStorePath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
       fs.writeFileSync(this.activeStorePath, this.activeName, 'utf8');
     } catch (e) {
       // ignore persist errors
@@ -153,7 +153,7 @@ class PersonalityManager {
 
     const SAFE_TRAIT_KEYS = ['emoji', 'style', 'rate', 'playfulness', 'formality'];
     const safeTraits = {};
-    
+
     if (config.traits && typeof config.traits === 'object') {
       for (const key of SAFE_TRAIT_KEYS) {
         if (key in config.traits) {
@@ -170,9 +170,9 @@ class PersonalityManager {
         }
       }
     }
-    
-    if (!('emoji' in safeTraits)) safeTraits.emoji = config.traits?.emoji !== false;
-    if (!('style' in safeTraits)) safeTraits.style = config.style || 'emoji';
+
+    if (!('emoji' in safeTraits)) {safeTraits.emoji = config.traits?.emoji !== false;}
+    if (!('style' in safeTraits)) {safeTraits.style = config.style || 'emoji';}
 
     this.personalities[name] = {
       name: String(config.name || name).substring(0, 50),
@@ -219,7 +219,7 @@ class PersonalityManager {
     }
 
     if (this.activeName === name) {
-      const others = Object.keys(this.personalities).filter(k => k !== name);
+      const others = Object.keys(this.personalities).filter((k) => k !== name);
       if (others.length > 0) {
         this.setActive(others[0]);
       }

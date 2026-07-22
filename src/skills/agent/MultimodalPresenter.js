@@ -12,7 +12,7 @@ class MultimodalPresenter {
     this.enableCaching = options.enableCaching !== false;
     this.cache = new Map();
     this.cacheTTL = options.cacheTTL || 300000; // 5 minutes
-    
+
     this._registerDefaultFormats();
   }
 
@@ -110,11 +110,11 @@ class MultimodalPresenter {
   async present(result, options = {}) {
     const presentationId = `pres_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const startTime = Date.now();
-    
+
     try {
       // Determine format
       const format = this._determineFormat(result, options);
-      
+
       // Check cache if enabled
       if (this.enableCaching) {
         const cacheKey = this._generateCacheKey(result, format, options);
@@ -130,7 +130,7 @@ class MultimodalPresenter {
 
       // Render result
       const rendered = await format.renderer(result, options);
-      
+
       // Validate size
       if (this._getContentSize(rendered) > this.maxContentSize) {
         throw new Error(`Content size exceeds limit of ${this.maxContentSize} bytes`);
@@ -194,9 +194,9 @@ class MultimodalPresenter {
 
     // Auto-detect based on content type
     const contentType = result.contentType || result.type || '';
-    for (const [name, format] of this.formats) {
-      if (format.supports.some(support => 
-        contentType.includes(support) || 
+    for (const [_name, format] of this.formats) {
+      if (format.supports.some((support) =>
+        contentType.includes(support) ||
         (result.content && typeof result.content === 'string' && result.content.includes(support))
       )) {
         return format;
@@ -205,7 +205,7 @@ class MultimodalPresenter {
 
     // Auto-detect based on mime type
     if (result.mimeType) {
-      for (const [name, format] of this.formats) {
+      for (const [_name, format] of this.formats) {
         if (format.mimeTypes.includes(result.mimeType)) {
           return format;
         }
@@ -242,8 +242,8 @@ class MultimodalPresenter {
    * Text renderer
    */
   async _renderText(result, options) {
-    let content = '';
-    
+    let content;
+
     if (result.text) {
       content = result.text;
     } else if (result.message) {
@@ -281,8 +281,8 @@ class MultimodalPresenter {
    */
   async _renderHTML(result, options) {
     const textResult = await this._renderText(result, options);
-    
-    let html = '';
+
+    let html;
     if (result.html) {
       html = result.html;
     } else {
@@ -293,7 +293,7 @@ class MultimodalPresenter {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-      
+
       html = `<div class="skill-result">
         <pre>${escaped}</pre>
       </div>`;
@@ -331,7 +331,7 @@ class MultimodalPresenter {
   async _renderJSON(result, options) {
     const indent = options.indent || 2;
     let content;
-    
+
     try {
       content = JSON.stringify(result, null, indent);
     } catch (error) {
@@ -642,7 +642,7 @@ class MultimodalPresenter {
       /_.*?_/ // Italic
     ];
 
-    return markdownPatterns.some(pattern => pattern.test(text));
+    return markdownPatterns.some((pattern) => pattern.test(text));
   }
 
   /**

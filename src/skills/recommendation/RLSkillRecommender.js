@@ -11,11 +11,11 @@ class RLSkillRecommender {
     this.explorationRate = options.explorationRate || 0.1;
     this.explorationDecay = options.explorationDecay || 0.99;
     this.minExploration = options.minExploration || 0.01;
-    
+
     this.userModels = new Map();
     this.interactionHistory = new Map();
     this.rewardHistory = [];
-    
+
     this.contextKeywords = new Map();
     this._initContextPatterns();
   }
@@ -39,11 +39,11 @@ class RLSkillRecommender {
   }
 
   _classifyContext(text) {
-    if (!text) return 'general';
+    if (!text) {return 'general';}
     const lowerText = text.toLowerCase();
-    
+
     for (const [category, keywords] of this.contextKeywords) {
-      if (keywords.some(kw => lowerText.includes(kw))) {
+      if (keywords.some((kw) => lowerText.includes(kw))) {
         return category;
       }
     }
@@ -52,17 +52,17 @@ class RLSkillRecommender {
 
   _getUserLevel(userId) {
     const model = this.userModels.get(userId);
-    if (!model) return 'beginner';
-    
+    if (!model) {return 'beginner';}
+
     const avgSuccess = model.successCount / Math.max(model.totalCalls, 1);
-    if (avgSuccess > 0.9 && model.totalCalls > 50) return 'expert';
-    if (avgSuccess > 0.7 && model.totalCalls > 20) return 'intermediate';
+    if (avgSuccess > 0.9 && model.totalCalls > 50) {return 'expert';}
+    if (avgSuccess > 0.7 && model.totalCalls > 20) {return 'intermediate';}
     return 'beginner';
   }
 
   _getRecentSkills(history) {
-    if (!history || !history.length) return [];
-    return history.slice(-10).map(h => h.skill).filter(Boolean);
+    if (!history || !history.length) {return [];}
+    return history.slice(-10).map((h) => h.skill).filter(Boolean);
   }
 
   getQValue(state, action) {
@@ -77,27 +77,27 @@ class RLSkillRecommender {
 
   recommendSkills(context, userId, availableSkills, conversationHistory = [], topK = 3) {
     const state = this.getStateKey(context, userId, conversationHistory);
-    
+
     // Exploration vs Exploitation
     if (Math.random() < this.explorationRate) {
       return this._randomRecommend(availableSkills, topK);
     }
-    
+
     // Q-Learning based recommendation
-    const scores = availableSkills.map(skill => ({
+    const scores = availableSkills.map((skill) => ({
       skill,
       qValue: this.getQValue(state, skill.name),
       contextualScore: this._calculateContextScore(skill, context),
       collaborativeScore: this._calculateCollaborativeScore(skill, userId)
     }));
-    
+
     // Combine scores
-    scores.forEach(s => {
+    scores.forEach((s) => {
       s.totalScore = s.qValue * 0.4 + s.contextualScore * 0.4 + s.collaborativeScore * 0.2;
     });
-    
+
     scores.sort((a, b) => b.totalScore - a.totalScore);
-    return scores.slice(0, topK).map(s => ({
+    return scores.slice(0, topK).map((s) => ({
       ...s.skill,
       confidence: s.totalScore,
       reason: this._explainRecommendation(s, state)
@@ -106,7 +106,7 @@ class RLSkillRecommender {
 
   _randomRecommend(skills, topK) {
     const shuffled = [...skills].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, topK).map(skill => ({
+    return shuffled.slice(0, topK).map((skill) => ({
       ...skill,
       confidence: 0.5,
       reason: '探索推荐'
@@ -114,10 +114,10 @@ class RLSkillRecommender {
   }
 
   _calculateContextScore(skill, context) {
-    if (!context) return 0.5;
+    if (!context) {return 0.5;}
     const contextType = this._classifyContext(context);
-    const skillTags = (skill.tags || []).map(t => t.toLowerCase());
-    
+    const skillTags = (skill.tags || []).map((t) => t.toLowerCase());
+
     const categoryMatch = {
       'document': ['pdf', '报告', '文档', '生成'],
       'analysis': ['分析', '统计', '图表'],
@@ -128,46 +128,46 @@ class RLSkillRecommender {
       'education': ['教学', '学习', '学生'],
       'retail': ['销售', '客户', '推荐']
     };
-    
+
     const relevantKeywords = categoryMatch[contextType] || [];
-    const matchCount = skillTags.filter(tag => 
-      relevantKeywords.some(kw => tag.includes(kw) || kw.includes(tag))
+    const matchCount = skillTags.filter((tag) =>
+      relevantKeywords.some((kw) => tag.includes(kw) || kw.includes(tag))
     ).length;
-    
+
     return Math.min(1, matchCount / 2);
   }
 
   _calculateCollaborativeScore(skill, userId) {
     const model = this.userModels.get(userId);
-    if (!model || !model.skillSuccessRates) return 0.5;
-    
+    if (!model || !model.skillSuccessRates) {return 0.5;}
+
     const successRate = model.skillSuccessRates.get(skill.name);
     return successRate !== undefined ? successRate : 0.5;
   }
 
-  _explainRecommendation(item, state) {
+  _explainRecommendation(item, _state) {
     const reasons = [];
-    
-    if (item.qValue > 0.7) reasons.push('根据您的使用历史');
-    if (item.contextualScore > 0.6) reasons.push('与当前任务高度相关');
-    if (item.collaborativeScore > 0.7) reasons.push('相似用户好评率高');
-    
+
+    if (item.qValue > 0.7) {reasons.push('根据您的使用历史');}
+    if (item.contextualScore > 0.6) {reasons.push('与当前任务高度相关');}
+    if (item.collaborativeScore > 0.7) {reasons.push('相似用户好评率高');}
+
     return reasons.join('、') || '综合推荐';
   }
 
   updateQValue(state, action, reward, nextState, maxNextQ = null) {
     const currentQ = this.getQValue(state, action);
-    
+
     if (maxNextQ === null) {
       const allNextQ = Array.from(this.qTable.entries())
         .filter(([key]) => key.startsWith(`${nextState}:`))
         .map(([, value]) => value);
       maxNextQ = Math.max(0, ...allNextQ);
     }
-    
+
     const newQ = currentQ + this.learningRate * (reward + this.discountFactor * maxNextQ - currentQ);
     this.setQValue(state, action, newQ);
-    
+
     return newQ;
   }
 
@@ -182,15 +182,15 @@ class RLSkillRecommender {
         lastInteraction: Date.now()
       });
     }
-    
+
     const model = this.userModels.get(userId);
     model.totalCalls++;
-    if (success) model.successCount++;
+    if (success) {model.successCount++;}
     model.lastInteraction = Date.now();
-    
+
     const currentRate = model.skillSuccessRates.get(skillName) || 0.5;
     model.skillSuccessRates.set(skillName, currentRate * 0.9 + (success ? 0.1 : 0));
-    
+
     // Record interaction history
     if (!this.interactionHistory.has(userId)) {
       this.interactionHistory.set(userId, []);
@@ -203,49 +203,49 @@ class RLSkillRecommender {
       rating,
       feedback
     });
-    
+
     // Calculate reward
     const reward = this._calculateReward(success, rating, feedback);
     this.rewardHistory.push({ userId, skillName, reward, timestamp: Date.now() });
-    
+
     // Update Q-value
     const state = this.getStateKey(context, userId, this.interactionHistory.get(userId));
-    const nextState = state; // Simplified
-    
+    const _nextState = state; // Simplified
+
     // Decay exploration rate
     this.explorationRate = Math.max(
       this.minExploration,
       this.explorationRate * this.explorationDecay
     );
-    
+
     return { reward, newExplorationRate: this.explorationRate };
   }
 
   _calculateReward(success, rating, feedback) {
     let reward = 0;
-    
-    if (success) reward += 1;
-    if (rating >= 4) reward += 0.5;
-    if (rating === 5) reward += 0.5;
-    if (feedback === 'helpful') reward += 1;
-    if (feedback === 'not_helpful') reward -= 1;
-    
+
+    if (success) {reward += 1;}
+    if (rating >= 4) {reward += 0.5;}
+    if (rating === 5) {reward += 0.5;}
+    if (feedback === 'helpful') {reward += 1;}
+    if (feedback === 'not_helpful') {reward -= 1;}
+
     return reward;
   }
 
   getProactiveSuggestion(context, userId, conversationHistory) {
     const suggestions = this.recommendSkills(context, userId, [], conversationHistory, 1);
-    
-    if (suggestions.length === 0) return null;
-    
+
+    if (suggestions.length === 0) {return null;}
+
     const skill = suggestions[0];
-    
+
     const suggestionTemplates = [
       `您可能需要生成${skill.name}，要我帮您调用吗？`,
       `根据您的操作，我建议使用${skill.name}，是否继续？`,
       `发现一个技能"${skill.name}"可能对您有帮助，需要我执行吗？`
     ];
-    
+
     return {
       skill,
       message: suggestionTemplates[Math.floor(Math.random() * suggestionTemplates.length)],
@@ -273,7 +273,7 @@ class RLSkillRecommender {
     if (!data || typeof data !== 'object') {
       throw new Error('Invalid model data: must be an object');
     }
-    
+
     if (data.qTable && Array.isArray(data.qTable)) {
       for (const [key, value] of data.qTable) {
         if (typeof key === 'string' && typeof value === 'number' && isFinite(value)) {
@@ -281,7 +281,7 @@ class RLSkillRecommender {
         }
       }
     }
-    
+
     if (data.userModels && Array.isArray(data.userModels)) {
       const validatedUserModels = new Map();
       for (const [userId, model] of data.userModels) {
@@ -296,7 +296,7 @@ class RLSkillRecommender {
             ),
             preferences: new Map(
               Array.isArray(model.preferences)
-                ? model.preferences.filter(([k, v]) => typeof k === 'string')
+                ? model.preferences.filter(([k, _v]) => typeof k === 'string')
                 : []
             ),
             lastInteraction: model.lastInteraction || Date.now()
@@ -305,7 +305,7 @@ class RLSkillRecommender {
       }
       this.userModels = validatedUserModels;
     }
-    
+
     if (typeof data.explorationRate === 'number' && data.explorationRate >= 0 && data.explorationRate <= 1) {
       this.explorationRate = data.explorationRate;
     }

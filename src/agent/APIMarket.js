@@ -96,7 +96,7 @@ class APIMarket {
 
   validateRateLimit(apiKey) {
     const keyData = this.apiKeys.get(apiKey);
-    if (!keyData) return false;
+    if (!keyData) {return false;}
 
     const limit = keyData.permissions.rateLimit;
     const now = Date.now();
@@ -124,7 +124,7 @@ class APIMarket {
 
   canAccessService(apiKey, serviceId) {
     const keyData = this.apiKeys.get(apiKey);
-    if (!keyData) return false;
+    if (!keyData) {return false;}
 
     const allowedServices = keyData.permissions.services;
 
@@ -137,7 +137,7 @@ class APIMarket {
 
   deductCredits(apiKey, amount) {
     const keyData = this.apiKeys.get(apiKey);
-    if (!keyData) return false;
+    if (!keyData) {return false;}
 
     if (keyData.credits < amount) {
       return false;
@@ -155,7 +155,7 @@ class APIMarket {
 
   recordUsage(apiKey, serviceId, success) {
     const stats = this.usageStats.get(apiKey);
-    if (!stats) return;
+    if (!stats) {return;}
 
     stats.totalRequests++;
     if (success) {
@@ -227,7 +227,7 @@ class APIMarket {
   }
 
   getServices() {
-    return Array.from(this.services.values()).map(s => ({
+    return Array.from(this.services.values()).map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,
@@ -247,7 +247,7 @@ class APIMarket {
 
   getAPIKeyInfo(apiKey) {
     const keyData = this.apiKeys.get(apiKey);
-    if (!keyData) return null;
+    if (!keyData) {return null;}
 
     return {
       id: keyData.id,
@@ -265,7 +265,7 @@ class APIMarket {
 
   addCredits(apiKey, amount) {
     const keyData = this.apiKeys.get(apiKey);
-    if (!keyData) return false;
+    if (!keyData) {return false;}
 
     keyData.credits += amount;
     return true;
@@ -287,12 +287,12 @@ class APIMarket {
     return {
       services: {
         total: services.length,
-        active: services.filter(s => s.status === 'active').length,
+        active: services.filter((s) => s.status === 'active').length,
         totalUsage: services.reduce((sum, s) => sum + s.usageCount, 0)
       },
       apiKeys: {
         total: keys.length,
-        active: keys.filter(k => k.status === 'active').length
+        active: keys.filter((k) => k.status === 'active').length
       },
       credits: {
         total: keys.reduce((sum, k) => sum + k.credits, 0),

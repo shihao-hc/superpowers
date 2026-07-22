@@ -11,7 +11,7 @@ class TaskResultViewer {
 
   async init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     await this.loadTemplates();
     this.render();
@@ -41,7 +41,7 @@ class TaskResultViewer {
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.container.innerHTML = `
       <div class="task-viewer">
@@ -64,11 +64,11 @@ class TaskResultViewer {
 
   renderTemplates() {
     const container = document.getElementById('task-templates');
-    if (!container) return;
+    if (!container) {return;}
 
     container.innerHTML = '';
 
-    this.templates.forEach(template => {
+    this.templates.forEach((template) => {
       const btn = document.createElement('button');
       btn.className = 'template-btn';
       btn.innerHTML = `
@@ -83,7 +83,7 @@ class TaskResultViewer {
 
   renderTasks() {
     const container = document.getElementById('task-list-content');
-    if (!container) return;
+    if (!container) {return;}
 
     container.innerHTML = '';
 
@@ -92,7 +92,7 @@ class TaskResultViewer {
       return;
     }
 
-    this.tasks.slice().reverse().forEach(task => {
+    this.tasks.slice().reverse().forEach((task) => {
       const card = this.createTaskCard(task);
       container.appendChild(card);
     });
@@ -149,7 +149,7 @@ class TaskResultViewer {
           <div class="task-data">
             <div class="data-header">提取数据 (${task.extractedData.length}项)</div>
             <div class="data-content">
-              ${task.extractedData.slice(0, 3).map(d => `
+              ${task.extractedData.slice(0, 3).map((d) => `
                 <div class="data-item">${this.escapeHtml(String(d.data).substring(0, 100))}</div>
               `).join('')}
               ${task.extractedData.length > 3 ? `<div class="data-more">...还有 ${task.extractedData.length - 3} 项</div>` : ''}
@@ -163,7 +163,7 @@ class TaskResultViewer {
       </div>
     `;
 
-    card.querySelectorAll('.task-action').forEach(btn => {
+    card.querySelectorAll('.task-action').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const action = e.target.dataset.action;
         const id = e.target.dataset.id;
@@ -176,18 +176,18 @@ class TaskResultViewer {
 
   async handleAction(action, taskId) {
     switch (action) {
-      case 'details':
-        this.showTaskDetails(taskId);
-        break;
-      case 'cancel':
-        await this.cancelTask(taskId);
-        break;
+    case 'details':
+      this.showTaskDetails(taskId);
+      break;
+    case 'cancel':
+      await this.cancelTask(taskId);
+      break;
     }
   }
 
   showTaskDetails(taskId) {
-    const task = this.tasks.find(t => t.id === taskId);
-    if (!task) return;
+    const task = this.tasks.find((t) => t.id === taskId);
+    if (!task) {return;}
 
     this.onTaskSelect(task);
   }
@@ -204,16 +204,16 @@ class TaskResultViewer {
 
   updateStats() {
     const total = this.tasks.length;
-    const completed = this.tasks.filter(t => t.status === 'completed').length;
-    const failed = this.tasks.filter(t => t.status === 'failed').length;
+    const completed = this.tasks.filter((t) => t.status === 'completed').length;
+    const failed = this.tasks.filter((t) => t.status === 'failed').length;
 
     const totalEl = document.getElementById('task-stat-total');
     const completedEl = document.getElementById('task-stat-completed');
     const failedEl = document.getElementById('task-stat-failed');
 
-    if (totalEl) totalEl.textContent = `总计: ${total}`;
-    if (completedEl) completedEl.textContent = `完成: ${completed}`;
-    if (failedEl) failedEl.textContent = `失败: ${failed}`;
+    if (totalEl) {totalEl.textContent = `总计: ${total}`;}
+    if (completedEl) {completedEl.textContent = `完成: ${completed}`;}
+    if (failedEl) {failedEl.textContent = `失败: ${failed}`;}
   }
 
   onTemplateSelect(template) {
@@ -221,7 +221,7 @@ class TaskResultViewer {
     const commandInput = document.getElementById('task-command');
 
     if (commandInput) {
-      const paramStr = template.params.map(p => `[${p}]`).join(' ');
+      const paramStr = template.params.map((p) => `[${p}]`).join(' ');
       commandInput.value = `${template.name}: ${paramStr}`;
       commandInput.placeholder = template.description;
     }

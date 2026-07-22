@@ -91,14 +91,42 @@ def register_default_scrapers():
     """Register all default scrapers."""
     from .scrapling_adapter import ScraplingAdapter
     from .browser_use_adapter import BrowserUseAdapter
+    from .stdlib_adapter import StdlibAdapter
+    from .node_playwright_adapter import NodePlaywrightAdapter
 
+    # Zero-dependency scrapers (fallback)
+    ScraperRegistry.register(CrawlerStrategy.STDIO)(StdlibAdapter)
+
+    # Common scrapers
     ScraperRegistry.register(CrawlerStrategy.SCRAPLING)(ScraplingAdapter)
     ScraperRegistry.register(CrawlerStrategy.BROWSER_USE)(BrowserUseAdapter)
+
+    # Node.js Playwright (if Python crawl4ai unavailable)
+    try:
+        from .crawl4ai_adapter import Crawl4AIAdapter
+
+        ScraperRegistry.register(CrawlerStrategy.CRAWL4AI)(Crawl4AIAdapter)
+    except ImportError:
+        ScraperRegistry.register(CrawlerStrategy.CRAWL4AI)(NodePlaywrightAdapter)
 
     try:
         from .firecrawl_adapter import FirecrawlAdapter
 
         ScraperRegistry.register(CrawlerStrategy.FIRECRAWL)(FirecrawlAdapter)
+    except ImportError:
+        pass
+
+    try:
+        from .pydoll_adapter import PydollScraper
+
+        ScraperRegistry.register(CrawlerStrategy.PYDOLL)(PydollScraper)
+    except ImportError:
+        pass
+
+    try:
+        from .seleniumbase_adapter import SeleniumBaseScraper
+
+        ScraperRegistry.register(CrawlerStrategy.SELENIUM_BASE)(SeleniumBaseScraper)
     except ImportError:
         pass
 

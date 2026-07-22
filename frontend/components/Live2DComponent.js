@@ -11,7 +11,7 @@ class Live2DComponent {
     this.idleAnimation = null;
     this.idleTimer = null;
     this.blinkTimer = null;
-    
+
     this.options = {
       enableLipSync: true,
       enableMouseTracking: true,
@@ -109,7 +109,7 @@ class Live2DComponent {
   }
 
   shouldUseFallback() {
-    if (!this.options.mobileFallback) return false;
+    if (!this.options.mobileFallback) {return false;}
     return Live2DComponent.isLowPerformance();
   }
 
@@ -193,7 +193,7 @@ class Live2DComponent {
   }
 
   startIdleAnimation() {
-    if (!this.idleAnimation) return;
+    if (!this.idleAnimation) {return;}
 
     this.blinkTimer = setInterval(() => {
       this.blink();
@@ -218,7 +218,7 @@ class Live2DComponent {
   }
 
   blink() {
-    if (!this.oml2d || this.isSpeaking) return;
+    if (!this.oml2d || this.isSpeaking) {return;}
 
     try {
       if (typeof this.oml2d.setParameter === 'function') {
@@ -243,7 +243,7 @@ class Live2DComponent {
   }
 
   startBreathAnimation() {
-    if (!this.oml2d || !this.idleAnimation) return;
+    if (!this.oml2d || !this.idleAnimation) {return;}
 
     let phase = 0;
     const amplitude = this.idleAnimation.breathAmplitude || 0.02;
@@ -276,7 +276,7 @@ class Live2DComponent {
     console.log('Loading Live2D fallback mode (SVG avatars)');
     this.isInitialized = true;
     this.useFallback = true;
-    
+
     this.container.innerHTML = `
       <div class="live2d-fallback">
         <div class="fallback-avatar" id="live2d-fallback-avatar">
@@ -308,16 +308,16 @@ class Live2DComponent {
 
   setMood(mood) {
     this.currentMood = mood;
-    
+
     if (this.useFallback) {
       this.updateFallbackGlow(mood);
       return;
     }
 
-    if (!this.oml2d) return;
+    if (!this.oml2d) {return;}
 
     const expressions = this.moodExpressionMap[mood] || ['Neutral'];
-    
+
     try {
       if (this.oml2d.setExpression && typeof this.oml2d.setExpression === 'function') {
         this.oml2d.setExpression(expressions[0]);
@@ -334,7 +334,7 @@ class Live2DComponent {
   }
 
   applyModelParams(params) {
-    if (!this.oml2d || typeof this.oml2d.setParameter !== 'function') return;
+    if (!this.oml2d || typeof this.oml2d.setParameter !== 'function') {return;}
 
     const safeParams = [
       'ParamMouthForm', 'ParamMouthOpenY',
@@ -354,7 +354,7 @@ class Live2DComponent {
   }
 
   resetModelParams() {
-    if (!this.oml2d || typeof this.oml2d.setParameter !== 'function') return;
+    if (!this.oml2d || typeof this.oml2d.setParameter !== 'function') {return;}
 
     for (const [paramName, value] of Object.entries(this.defaultParams)) {
       try {
@@ -365,9 +365,9 @@ class Live2DComponent {
     }
   }
 
-  async speak(text) {
+  async speak(_text) {
     this.isSpeaking = true;
-    
+
     if (this.useFallback) {
       this.startFallbackSpeakingAnimation();
       return;
@@ -380,8 +380,8 @@ class Live2DComponent {
 
     try {
       if (this.oml2d.startMotion) {
-        const motionType = this.currentMood === 'happy' || this.currentMood === 'excited' 
-          ? 'Tap' 
+        const motionType = this.currentMood === 'happy' || this.currentMood === 'excited'
+          ? 'Tap'
           : 'Idle';
         await this.oml2d.startMotion(motionType);
       }
@@ -400,7 +400,7 @@ class Live2DComponent {
 
   stopSpeaking() {
     this.isSpeaking = false;
-    
+
     if (this.useFallback) {
       this.stopFallbackSpeakingAnimation();
     }
@@ -415,8 +415,8 @@ class Live2DComponent {
   }
 
   updateGlowEffect(mood) {
-    if (!this.container) return;
-    
+    if (!this.container) {return;}
+
     const canvas = this.container.querySelector('canvas');
     if (canvas) {
       const color = this.moodColors[mood] || this.moodColors.neutral;
@@ -447,13 +447,13 @@ class Live2DComponent {
   }
 
   setupTapInteraction() {
-    if (!this.container) return;
-    
+    if (!this.container) {return;}
+
     this._tapHandler = async (event) => {
       const rect = this.container.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      
+
       if (this.oml2d && this.oml2d.tap) {
         try {
           await this.oml2d.tap(x, y);
@@ -466,15 +466,15 @@ class Live2DComponent {
         this.onTap({ x, y });
       }
     };
-    
+
     this.container.addEventListener('click', this._tapHandler);
   }
 
   setupMouseTracking() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     const canvas = this.container.querySelector('canvas');
-    if (!canvas) return;
+    if (!canvas) {return;}
 
     this._lastX = 0;
     this._lastY = 0;
@@ -487,7 +487,7 @@ class Live2DComponent {
       if (Math.abs(x - this._lastX) > 0.01 || Math.abs(y - this._lastY) > 0.01) {
         this._lastX = x;
         this._lastY = y;
-        
+
         if (this.oml2d && this.oml2d.setAngle) {
           try {
             this.oml2d.setAngle('AngleX', x * 30);
@@ -517,22 +517,22 @@ class Live2DComponent {
 
   destroy() {
     this.stopIdleAnimation();
-    
+
     if (this._tapHandler && this.container) {
       this.container.removeEventListener('click', this._tapHandler);
       this._tapHandler = null;
     }
-    
+
     if (this._mouseMoveHandler && this._canvas) {
       this._canvas.removeEventListener('mousemove', this._mouseMoveHandler);
       this._mouseMoveHandler = null;
     }
-    
+
     if (this._mouseLeaveHandler && this._canvas) {
       this._canvas.removeEventListener('mouseleave', this._mouseLeaveHandler);
       this._mouseLeaveHandler = null;
     }
-    
+
     if (this.oml2d && this.oml2d.destroy) {
       try {
         this.oml2d.destroy();
@@ -540,11 +540,11 @@ class Live2DComponent {
         console.warn('Failed to destroy Live2D:', error.message);
       }
     }
-    
+
     if (this.container) {
       this.container.innerHTML = '';
     }
-    
+
     this.isInitialized = false;
     this.oml2d = null;
     this._canvas = null;

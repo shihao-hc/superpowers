@@ -37,7 +37,7 @@ class DistributedCoordinator {
     const task = this.tasks.get(taskId);
     if (task) {
       task.votes.push({ nodeId, vote, timestamp: new Date().toISOString() });
-      const votesFor = task.votes.filter(v => v.vote === 'approve').length;
+      const votesFor = task.votes.filter((v) => v.vote === 'approve').length;
       const totalVotes = task.votes.length;
       const threshold = Math.ceil(this.nodes.size * this.consensusThreshold);
       if (votesFor >= threshold) {
@@ -53,7 +53,7 @@ class DistributedCoordinator {
   }
 
   getActiveNodes() {
-    return Array.from(this.nodes.values()).filter(n => n.status === 'active');
+    return Array.from(this.nodes.values()).filter((n) => n.status === 'active');
   }
 }
 

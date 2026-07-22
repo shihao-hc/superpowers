@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 
 function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (typeof a !== 'string' || typeof b !== 'string') {return false;}
   if (a.length !== b.length) {
     crypto.randomBytes(1);
     return false;
@@ -21,7 +21,7 @@ class GameWebSocket {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.apiKey = process.env.API_KEY || null;
-    const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(o => o);
+    const origins = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter((o) => o);
     this.allowedOrigins = origins.length > 0 ? origins : ['http://localhost:3000'];
     this.maxMessageSize = 10240;
     this.setup();
@@ -35,12 +35,12 @@ class GameWebSocket {
       }
       return true;
     }
-    
-    const authHeader = request.headers['x-api-key'] || 
+
+    const authHeader = request.headers['x-api-key'] ||
                        request.headers['authorization']?.replace('Bearer ', '') ||
                        request.url?.split('?')[1]?.match(/api_key=([^&]+)/)?.[1];
-    
-    if (!authHeader) return false;
+
+    if (!authHeader) {return false;}
     return timingSafeEqual(authHeader, this.apiKey);
   }
 
@@ -49,15 +49,15 @@ class GameWebSocket {
     const referer = request.headers['referer'];
     return (
       (origin && this.allowedOrigins.includes(origin)) ||
-      (referer && this.allowedOrigins.some(o => referer.startsWith(o)))
+      (referer && this.allowedOrigins.some((o) => referer.startsWith(o)))
     );
   }
 
   validateMessage(msg) {
-    if (!msg || typeof msg !== 'object') return false;
-    if (msg.type && typeof msg.type !== 'string') return false;
-    if (msg.command && typeof msg.command !== 'string') return false;
-    if (msg.command && msg.command.length > 500) return false;
+    if (!msg || typeof msg !== 'object') {return false;}
+    if (msg.type && typeof msg.type !== 'string') {return false;}
+    if (msg.command && typeof msg.command !== 'string') {return false;}
+    if (msg.command && msg.command.length > 500) {return false;}
     return true;
   }
 
@@ -84,7 +84,7 @@ class GameWebSocket {
     if (this.broadcastInterval) {
       clearInterval(this.broadcastInterval);
     }
-    
+
     this.broadcastInterval = setInterval(() => {
       if (this.clients.size > 0) {
         this.broadcastStatus();
@@ -99,16 +99,16 @@ class GameWebSocket {
     }
   }
 
-  handleConnection(request, socket, head) {
+  handleConnection(request, socket, _head) {
     socket.write('HTTP/1.1 101 Switching Protocols\r\n\r\n');
-    
+
     const client = {
       id: Date.now(),
       socket,
       lastPing: Date.now(),
       send: (data) => {
         if (socket.writable) {
-          socket.write(JSON.stringify(data) + '\n');
+          socket.write(`${JSON.stringify(data)}\n`);
         }
       }
     };
@@ -161,31 +161,31 @@ class GameWebSocket {
     }
 
     switch (msg.type) {
-      case 'ping':
-        this.sendToClient(client, { type: 'pong', timestamp: Date.now() });
-        break;
+    case 'ping':
+      this.sendToClient(client, { type: 'pong', timestamp: Date.now() });
+      break;
 
-      case 'game_status':
-        this.sendToClient(client, { type: 'game_status', data: this.getGameStatus() });
-        break;
+    case 'game_status':
+      this.sendToClient(client, { type: 'game_status', data: this.getGameStatus() });
+      break;
 
-      case 'mood':
-        this.sendToClient(client, { type: 'mood', data: this.pm?.getMood() || 'neutral' });
-        break;
+    case 'mood':
+      this.sendToClient(client, { type: 'mood', data: this.pm?.getMood() || 'neutral' });
+      break;
 
-      case 'events':
-        this.sendToClient(client, { 
-          type: 'events', 
-          data: this.game?.eventHandler?.getEventHistory().slice(-20) || [] 
-        });
-        break;
+    case 'events':
+      this.sendToClient(client, {
+        type: 'events',
+        data: this.game?.eventHandler?.getEventHistory().slice(-20) || []
+      });
+      break;
 
-      case 'game_command':
-        this.handleGameCommand(client, msg.command);
-        break;
+    case 'game_command':
+      this.handleGameCommand(client, msg.command);
+      break;
 
-      default:
-        console.log('[WS] Unknown message type:', msg.type);
+    default:
+      console.log('[WS] Unknown message type:', msg.type);
     }
   }
 
@@ -193,10 +193,10 @@ class GameWebSocket {
     if (!this.game) {
       return { enabled: false, connected: false };
     }
-    
+
     const gameStatus = this.game.getStatus?.() || {};
     const botStatus = this.game.game?.getStatus?.() || {};
-    
+
     return {
       enabled: true,
       connected: gameStatus.connected || false,
@@ -223,13 +223,13 @@ class GameWebSocket {
     try {
       const result = await this.game.handleMessage(command);
       this.sendToClient(client, { type: 'command_progress', message: '命令执行中...', progress: 50 });
-      
+
       this.sendToClient(client, { type: 'command_result', command, result });
-      
+
       if (result && result.ok) {
         this.sendToClient(client, { type: 'command_progress', message: '命令完成', progress: 100 });
       }
-      
+
       this.broadcastStatus();
     } catch (err) {
       this.sendToClient(client, { type: 'error', message: err.message });
@@ -253,7 +253,7 @@ class GameWebSocket {
         disconnected.push(client);
       }
     }
-    
+
     for (const client of disconnected) {
       this.clients.delete(client);
     }

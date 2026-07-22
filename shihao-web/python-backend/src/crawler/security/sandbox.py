@@ -6,6 +6,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -57,6 +58,7 @@ class CommandSandbox:
     - Execution timeout
     - Resource limits
     - Audit logging
+    - Cross-platform support (Unix/Windows)
     """
 
     ALLOWED_COMMANDS = {
@@ -75,21 +77,54 @@ class CommandSandbox:
         "wget": CommandRule(r"^wget\s+", CommandCategory.NETWORK_INFO),
     }
 
-    COMMAND_PATHS = {
-        "ls": "/bin/ls",
-        "cat": "/bin/cat",
-        "head": "/usr/bin/head",
-        "tail": "/usr/bin/tail",
-        "find": "/usr/bin/find",
-        "grep": "/bin/grep",
-        "pwd": "/bin/pwd",
-        "echo": "/bin/echo",
-        "date": "/bin/date",
-        "whoami": "/usr/bin/whoami",
-        "uname": "/bin/uname",
-        "curl": "/usr/bin/curl",
-        "wget": "/usr/bin/wget",
+    WINDOWS_ALLOWED_COMMANDS = {
+        "dir": CommandRule(r"^dir\s+([-\w\\]+)?$", CommandCategory.FILE_LIST),
+        "type": CommandRule(r"^type\s+([-\w\\.]+)$", CommandCategory.FILE_READ),
+        "findstr": CommandRule(r"^findstr\s+", CommandCategory.FILE_READ),
+        "where": CommandRule(r"^where\s+", CommandCategory.FILE_LIST),
+        "echo": CommandRule(r"^echo\s+", CommandCategory.SYSTEM_INFO),
+        "set": CommandRule(r"^set\s*", CommandCategory.SYSTEM_INFO),
+        "hostname": CommandRule(r"^hostname$", CommandCategory.SYSTEM_INFO),
+        "ver": CommandRule(r"^ver$", CommandCategory.SYSTEM_INFO),
     }
+
+    COMMAND_PATHS = {
+        "ls": None,
+        "cat": None,
+        "head": None,
+        "tail": None,
+        "find": None,
+        "grep": None,
+        "pwd": None,
+        "echo": None,
+        "date": None,
+        "whoami": None,
+        "uname": None,
+        "curl": None,
+        "wget": None,
+    }
+
+    @staticmethod
+    def _get_command_path(cmd_name: str) -> Optional[str]:
+        """Get system-appropriate command path."""
+        if sys.platform == "win32":
+            return cmd_name
+        unix_paths = {
+            "ls": "/bin/ls",
+            "cat": "/bin/cat",
+            "head": "/usr/bin/head",
+            "tail": "/usr/bin/tail",
+            "find": "/usr/bin/find",
+            "grep": "/bin/grep",
+            "pwd": "/bin/pwd",
+            "echo": "/bin/echo",
+            "date": "/bin/date",
+            "whoami": "/usr/bin/whoami",
+            "uname": "/bin/uname",
+            "curl": "/usr/bin/curl",
+            "wget": "/usr/bin/wget",
+        }
+        return unix_paths.get(cmd_name, cmd_name)
 
     DANGEROUS_PATTERNS = [
         r"\$\(",  # Command substitution $(...)
@@ -164,14 +199,22 @@ class CommandSandbox:
             return False, "Empty command"
 
         cmd_name = parts[0]
-        if cmd_name not in self.ALLOWED_COMMANDS:
+
+        allowed_commands = self.ALLOWED_COMMANDS
+        if sys.platform == "win32":
+            allowed_commands = {
+                **self.ALLOWED_COMMANDS,
+                **self.WINDOWS_ALLOWED_COMMANDS,
+            }
+
+        if cmd_name not in allowed_commands:
             return False, f"Command not allowed: {cmd_name}"
 
-        rule = self.ALLOWED_COMMANDS[cmd_name]
+        rule = allowed_commands[cmd_name]
         if not rule.allowed:
             return False, f"Command disabled: {cmd_name}"
 
-        if cmd_name in ("cat", "head", "tail"):
+        if cmd_name in ("cat", "head", "tail", "type"):
             if not self._validate_file_path(command):
                 return False, "Invalid file path"
 
@@ -184,6 +227,8 @@ class CommandSandbox:
             return True
         path = parts[-1]
         normalized = path.replace("../", "").replace("..", "")
+        if sys.platform == "win32":
+            return "\\" not in normalized or normalized.count("\\") <= 1
         return "/" not in normalized or normalized.count("/") <= 1
 
     def _sanitize_command(self, command: str) -> str:
@@ -243,12 +288,14 @@ class CommandSandbox:
                 raise SandBoxError("Empty command")
 
             cmd_name = parts[0]
-            cmd_path = self.COMMAND_PATHS.get(cmd_name)
-
-            if not cmd_path or not os.path.exists(cmd_path):
-                cmd_path = cmd_name
+            cmd_path = self._get_command_path(cmd_name)
 
             cmd_args = [cmd_path] + parts[1:]
+
+            env = os.environ.copy()
+            if sys.platform != "win32":
+                env["PATH"] = "/usr/bin:/bin:/usr/local/bin"
+            env["HOME"] = self.working_dir
 
             result = subprocess.run(
                 cmd_args,
@@ -257,10 +304,7 @@ class CommandSandbox:
                 text=True,
                 timeout=self.timeout,
                 cwd=self.working_dir,
-                env={
-                    "PATH": "/usr/bin:/bin:/usr/local/bin",
-                    "HOME": self.working_dir,
-                },
+                env=env,
             )
 
             if result.stderr:

@@ -21,9 +21,9 @@ const ALLOWED_LICENSES = [
   LICENSE_TYPES.CC_BY_SA
 ];
 
-const VRM_ALLOWED_PERMISSIONS = [
+const _VRM_ALLOWED_PERMISSIONS = [
   'allow',
-  'Allow',
+  'Allow'
 ];
 
 const LICENSE_KEYWORDS = {
@@ -39,34 +39,34 @@ const LICENSE_KEYWORDS = {
 function parseVRMMeta(vrmBuffer) {
   try {
     const text = vrmBuffer.toString('utf8', 0, Math.min(vrmBuffer.length, 100000));
-    
+
     const metaMatch = text.match(/"meta"\s*:\s*\{([^}]+)\}/);
-    if (!metaMatch) return null;
-    
+    if (!metaMatch) {return null;}
+
     const metaText = metaMatch[0];
     const meta = {};
-    
+
     const titleMatch = metaText.match(/"title"\s*:\s*"([^"]+)"/);
-    if (titleMatch) meta.title = titleMatch[1];
-    
+    if (titleMatch) {meta.title = titleMatch[1];}
+
     const authorMatch = metaText.match(/"author"\s*:\s*"([^"]+)"/);
-    if (authorMatch) meta.author = authorMatch[1];
-    
+    if (authorMatch) {meta.author = authorMatch[1];}
+
     const contactMatch = metaText.match(/"contactInformation"\s*:\s*"([^"]+)"/);
-    if (contactMatch) meta.contactInformation = contactMatch[1];
-    
+    if (contactMatch) {meta.contactInformation = contactMatch[1];}
+
     const allowedUserMatch = metaText.match(/"allowedUserName"\s*:\s*"([^"]+)"/);
-    if (allowedUserMatch) meta.allowedUserName = allowedUserMatch[1];
-    
+    if (allowedUserMatch) {meta.allowedUserName = allowedUserMatch[1];}
+
     const allowCommercialMatch = metaText.match(/"allowCommercial"\s*:\s*"([^"]+)"/);
-    if (allowCommercialMatch) meta.allowCommercial = allowCommercialMatch[1];
-    
+    if (allowCommercialMatch) {meta.allowCommercial = allowCommercialMatch[1];}
+
     const licenseMatch = metaText.match(/"license"\s*:\s*"([^"]+)"/);
-    if (licenseMatch) meta.license = licenseMatch[1];
-    
+    if (licenseMatch) {meta.license = licenseMatch[1];}
+
     const versionMatch = metaText.match(/"version"\s*:\s*"([^"]+)"/);
-    if (versionMatch) meta.version = versionMatch[1];
-    
+    if (versionMatch) {meta.version = versionMatch[1];}
+
     return meta;
   } catch (error) {
     console.error('[LicenseChecker] 解析 VRM 元数据失败:', error.message);
@@ -75,30 +75,36 @@ function parseVRMMeta(vrmBuffer) {
 }
 
 function detectLicenseType(meta) {
-  if (!meta) return LICENSE_TYPES.UNKNOWN;
-  
+  if (!meta) {return LICENSE_TYPES.UNKNOWN;}
+
   const textToCheck = [
     meta.license,
     meta.allowedUserName,
     meta.allowCommercial
   ].filter(Boolean).join(' ').toLowerCase();
-  
+
+  const allKeywords = [];
   for (const [type, keywords] of Object.entries(LICENSE_KEYWORDS)) {
     for (const keyword of keywords) {
-      if (textToCheck.includes(keyword.toLowerCase())) {
-        return type;
-      }
+      allKeywords.push({ type, keyword: keyword.toLowerCase() });
     }
   }
-  
+  allKeywords.sort((a, b) => b.keyword.length - a.keyword.length);
+
+  for (const { type, keyword } of allKeywords) {
+    if (textToCheck.includes(keyword)) {
+      return type;
+    }
+  }
+
   if (meta.allowCommercial === 'allow') {
     return LICENSE_TYPES.COMMERCIAL;
   }
-  
+
   if (meta.allowedUserName === 'onlyAuthor') {
     return LICENSE_TYPES.PERSONAL;
   }
-  
+
   return LICENSE_TYPES.UNKNOWN;
 }
 
@@ -198,9 +204,9 @@ function generateLicenseReport(modelDir) {
       const result = validateModel(filePath);
       report.models.push(result);
 
-      if (result.valid) report.validModels++;
-      if (result.commercialAllowed) report.commercialModels++;
-      if (result.licenseType === LICENSE_TYPES.UNKNOWN) report.unknownLicense++;
+      if (result.valid) {report.validModels++;}
+      if (result.commercialAllowed) {report.commercialModels++;}
+      if (result.licenseType === LICENSE_TYPES.UNKNOWN) {report.unknownLicense++;}
     }
   }
 
@@ -209,7 +215,7 @@ function generateLicenseReport(modelDir) {
 
 function checkModelsDirectory(modelDir) {
   const report = generateLicenseReport(modelDir);
-  
+
   console.log('[LicenseChecker] 模型许可证报告:');
   console.log(`  总计: ${report.totalModels} 个模型`);
   console.log(`  有效: ${report.validModels} 个`);

@@ -2,27 +2,27 @@
 export default class DriftDetector {
   constructor() {
     this.history = [];
-    this._callbacks = []
-    this.lastDriftStatus = 'stable'
+    this._callbacks = [];
+    this.lastDriftStatus = 'stable';
   }
 
   register_drift_callback(cb) {
-    if (typeof cb === 'function') this._callbacks.push(cb)
+    if (typeof cb === 'function') {this._callbacks.push(cb);}
   }
 
   log(ic) {
     // ic: information coefficient (simulation value)
-    this.history.push(ic)
-    if (this.history.length > 100) this.history.shift()
+    this.history.push(ic);
+    if (this.history.length > 100) {this.history.shift();}
     // Evaluate drift after each update and notify if status changed to drifted
-    const info = this.check()
+    const info = this.check();
     if (info.drift && this.lastDriftStatus !== 'drifted') {
-      this.lastDriftStatus = 'drifted'
-      this._callbacks.forEach(cb => {
-        try { cb({ drift_status: 'drifted', mean: info.mean, length: info.length }) } catch {}
-      })
+      this.lastDriftStatus = 'drifted';
+      this._callbacks.forEach((cb) => {
+        try { cb({ drift_status: 'drifted', mean: info.mean, length: info.length }); } catch {}
+      });
     } else if (!info.drift && this.lastDriftStatus !== 'stable') {
-      this.lastDriftStatus = 'stable'
+      this.lastDriftStatus = 'stable';
     }
   }
 

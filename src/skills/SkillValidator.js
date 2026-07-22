@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 class SkillValidator {
   constructor(options = {}) {
@@ -8,7 +9,7 @@ class SkillValidator {
     this.allowedExtensions = options.allowedExtensions || ['.js', '.py', '.sh', '.md', '.json', '.txt', '.yaml', '.yml'];
     this.maxDependencyCount = options.maxDependencyCount || 20;
     this.requiredMetadataFields = ['name', 'description', 'version', 'author', 'riskLevel'];
-    
+
     this.securityRules = {
       blockedPatterns: [
         // System call patterns
@@ -34,16 +35,16 @@ class SkillValidator {
         { pattern: /request\s*\(/i, severity: 'medium', message: 'HTTP request detected' },
         { pattern: /urllib/i, severity: 'medium', message: 'URL library usage detected' },
         { pattern: /requests\s*\./i, severity: 'medium', message: 'Python requests library detected' },
-        
+
         // Execution patterns
         { pattern: /execFile/i, severity: 'medium', message: 'File execution detected' },
         { pattern: /spawn/i, severity: 'medium', message: 'Process spawning detected' },
         { pattern: /fork\s*\(/i, severity: 'medium', message: 'Process forking detected' },
-        
+
         // File system patterns
         { pattern: /fs\s*\.\s*(readFileSync|readFile)\s*\(/i, severity: 'low', message: 'File system read operation detected' },
         { pattern: /open\s*\(/i, severity: 'low', message: 'File open operation detected' },
-        
+
         // Dangerous operations
         { pattern: /process\s*\.\s*(kill|exit|abort)/i, severity: 'high', message: 'Process control detected' },
         { pattern: /kill\s+-[SIG]*TERM/i, severity: 'high', message: 'Process termination detected' }
@@ -54,13 +55,13 @@ class SkillValidator {
         { pattern: /atob\s*\(/i, severity: 'medium', message: 'Base64 decoding detected' },
         { pattern: /btoa\s*\(/i, severity: 'low', message: 'Base64 encoding detected' },
         { pattern: /String\.fromCharCode/i, severity: 'low', message: 'Character code conversion detected' },
-        
+
         // Environment access
         { pattern: /process\.env/i, severity: 'low', message: 'Environment variable access detected' },
         { pattern: /os\.environ/i, severity: 'low', message: 'Python environment access detected' }
       ]
     };
-    
+
     // Track security findings
     this.findings = [];
   }
@@ -91,23 +92,23 @@ class SkillValidator {
       // Extract and analyze ZIP contents
       const unzip = require('unzipper');
       const extractPath = path.join(process.cwd(), 'uploads', 'temp', `skill-${Date.now()}`);
-      
+
       // Ensure temp directory exists
       if (!fs.existsSync(extractPath)) {
         fs.mkdirSync(extractPath, { recursive: true });
       }
 
       // Extract ZIP
-      await unzip.Open.buffer(zipBuffer).then(d => d.extract({ path: extractPath, concurrency: 5 }));
-      
+      await unzip.Open.buffer(zipBuffer).then((d) => d.extract({ path: extractPath, concurrency: 5 }));
+
       // Validate extracted contents
       const validationResult = await this.validateSkillDirectory(extractPath, skillName);
-      
+
       // Clean up temp directory
       this._cleanupTempDir(extractPath);
-      
+
       return validationResult;
-      
+
     } catch (error) {
       result.errors.push(`Failed to process ZIP: ${error.message}`);
       return result;
@@ -153,14 +154,14 @@ class SkillValidator {
       const skillMdPath = requiredFiles.skillMd;
       const skillContent = fs.readFileSync(skillMdPath, 'utf8');
       const skillData = this._parseSkillMd(skillContent, expectedName);
-      
+
       // Validate required metadata fields
       const metadataValidation = this._validateMetadata(skillData);
       if (!metadataValidation.valid) {
         result.errors.push(...metadataValidation.errors);
         result.warnings.push(...metadataValidation.warnings);
       }
-      
+
       if (!skillData.name) {
         result.errors.push('Skill name not found in skill.md');
         return result;
@@ -170,7 +171,7 @@ class SkillValidator {
       if (expectedName && skillData.name !== expectedName) {
         result.warnings.push(`Skill name mismatch: expected "${expectedName}", got "${skillData.name}"`);
       }
-      
+
       // Validate version format (SemVer)
       if (skillData.version && !this._isValidSemVer(skillData.version)) {
         result.warnings.push(`Invalid version format: "${skillData.version}". Use Semantic Versioning (e.g., 1.0.0)`);
@@ -178,7 +179,7 @@ class SkillValidator {
       }
 
       // Check for script files
-      const scriptFiles = files.filter(f => 
+      const scriptFiles = files.filter((f) =>
         f.endsWith('.js') || f.endsWith('.py') || f.endsWith('.sh')
       );
 
@@ -187,7 +188,7 @@ class SkillValidator {
       }
 
       // Validate file extensions
-      const invalidFiles = files.filter(f => {
+      const invalidFiles = files.filter((f) => {
         const ext = path.extname(f).toLowerCase();
         return ext && !this.allowedExtensions.includes(ext);
       });
@@ -225,9 +226,9 @@ class SkillValidator {
 
       // Determine if valid
       result.valid = result.errors.length === 0;
-      
+
       return result;
-      
+
     } catch (error) {
       result.errors.push(`Validation failed: ${error.message}`);
       return result;
@@ -271,7 +272,7 @@ class SkillValidator {
       };
 
       return result;
-      
+
     } catch (error) {
       result.errors.push(`Git validation failed: ${error.message}`);
       return result;
@@ -301,10 +302,10 @@ class SkillValidator {
       for (const file of files) {
         const filePath = path.join(dirPath, file);
         const content = fs.readFileSync(filePath, 'utf8');
-        const lines = content.split('\n');
-        
+        const _lines = splitLines(content);
+
         result.summary.filesScanned++;
-        
+
         // Check for blocked patterns (immediate security violations)
         for (const rule of this.securityRules.blockedPatterns) {
           const matches = this._findPatternMatches(content, rule.pattern);
@@ -318,25 +319,25 @@ class SkillValidator {
                 message: rule.message,
                 snippet: match.snippet
               });
-              
+
               // Apply scoring based on severity
               switch (rule.severity) {
-                case 'high':
-                  result.score -= 25;
-                  result.summary.highRiskCount++;
-                  break;
-                case 'medium':
-                  result.score -= 15;
-                  result.summary.mediumRiskCount++;
-                  break;
-                default:
-                  result.score -= 5;
-                  result.summary.lowRiskCount++;
+              case 'high':
+                result.score -= 25;
+                result.summary.highRiskCount++;
+                break;
+              case 'medium':
+                result.score -= 15;
+                result.summary.mediumRiskCount++;
+                break;
+              default:
+                result.score -= 5;
+                result.summary.lowRiskCount++;
               }
             }
           }
         }
-        
+
         // Check for high-risk patterns
         for (const rule of this.securityRules.highRiskPatterns) {
           const matches = this._findPatternMatches(content, rule.pattern);
@@ -350,24 +351,24 @@ class SkillValidator {
                 message: rule.message,
                 snippet: match.snippet
               });
-              
+
               switch (rule.severity) {
-                case 'high':
-                  result.score -= 15;
-                  result.summary.highRiskCount++;
-                  break;
-                case 'medium':
-                  result.score -= 8;
-                  result.summary.mediumRiskCount++;
-                  break;
-                default:
-                  result.score -= 3;
-                  result.summary.lowRiskCount++;
+              case 'high':
+                result.score -= 15;
+                result.summary.highRiskCount++;
+                break;
+              case 'medium':
+                result.score -= 8;
+                result.summary.mediumRiskCount++;
+                break;
+              default:
+                result.score -= 3;
+                result.summary.lowRiskCount++;
               }
             }
           }
         }
-        
+
         // Check for suspicious patterns
         for (const rule of this.securityRules.suspiciousPatterns) {
           const matches = this._findPatternMatches(content, rule.pattern);
@@ -380,16 +381,16 @@ class SkillValidator {
                 message: rule.message,
                 snippet: match.snippet
               });
-              
+
               switch (rule.severity) {
-                case 'high':
-                  result.score -= 10;
-                  break;
-                case 'medium':
-                  result.score -= 5;
-                  break;
-                default:
-                  result.score -= 2;
+              case 'high':
+                result.score -= 10;
+                break;
+              case 'medium':
+                result.score -= 5;
+                break;
+              default:
+                result.score -= 2;
               }
             }
           }
@@ -406,7 +407,7 @@ class SkillValidator {
               if (!file.endsWith('.js') && !file.endsWith('.py') && !file.endsWith('.sh')) {
                 result.warnings.push({
                   file,
-                  message: `Executable bit set on non-script file`,
+                  message: 'Executable bit set on non-script file',
                   severity: 'medium'
                 });
                 result.score -= 5;
@@ -427,11 +428,11 @@ class SkillValidator {
         { pattern: /aws[_-]?access[_-]?key[_-]?id/i, message: 'AWS credentials detected' },
         { pattern: /BEGIN\s+(RSA|DSA|EC|OPENSSH)\s+PRIVATE\s+KEY/i, message: 'Private key detected' }
       ];
-      
+
       for (const file of files) {
         const filePath = path.join(dirPath, file);
         const content = fs.readFileSync(filePath, 'utf8');
-        
+
         for (const secret of secretPatterns) {
           if (secret.pattern.test(content)) {
             result.findings.push({
@@ -448,7 +449,7 @@ class SkillValidator {
 
       // Normalize score
       result.score = Math.max(0, Math.min(100, result.score));
-      
+
       // Update risk level based on score and findings
       if (result.score < 50 || result.summary.highRiskCount > 3) {
         result.riskLevel = 'high';
@@ -457,12 +458,12 @@ class SkillValidator {
       } else {
         result.riskLevel = 'low';
       }
-      
+
       // Generate summary message
       result.summary.message = this._generateSecuritySummary(result);
 
       return result;
-      
+
     } catch (error) {
       result.warnings.push({
         message: `Security analysis failed: ${error.message}`,
@@ -479,8 +480,8 @@ class SkillValidator {
    */
   _findPatternMatches(content, pattern) {
     const matches = [];
-    const lines = content.split('\n');
-    
+    const lines = splitLines(content);
+
     lines.forEach((line, index) => {
       const lineMatches = line.match(pattern);
       if (lineMatches) {
@@ -491,7 +492,7 @@ class SkillValidator {
         });
       }
     });
-    
+
     return matches;
   }
 
@@ -499,8 +500,8 @@ class SkillValidator {
    * Generate security summary
    */
   _generateSecuritySummary(result) {
-    const { highRiskCount, mediumRiskCount, lowRiskCount, suspiciousPatterns, filesScanned } = result.summary;
-    
+    const { highRiskCount, mediumRiskCount, lowRiskCount: _lowRiskCount, suspiciousPatterns, filesScanned } = result.summary;
+
     if (highRiskCount > 0) {
       return `Critical security issues found: ${highRiskCount} high-risk patterns`;
     } else if (mediumRiskCount > 0) {
@@ -522,7 +523,7 @@ class SkillValidator {
       warnings: [],
       missingFields: []
     };
-    
+
     // Check required fields
     for (const field of this.requiredMetadataFields) {
       if (!skillData[field] || (typeof skillData[field] === 'string' && skillData[field].trim() === '')) {
@@ -531,7 +532,7 @@ class SkillValidator {
         result.valid = false;
       }
     }
-    
+
     // Check optional but recommended fields
     const recommendedFields = ['dependencies', 'inputs', 'outputs'];
     for (const field of recommendedFields) {
@@ -539,18 +540,18 @@ class SkillValidator {
         result.warnings.push(`Recommended field missing or empty: ${field}`);
       }
     }
-    
+
     // Validate risk level
     const validRiskLevels = ['low', 'medium', 'high'];
     if (skillData.riskLevel && !validRiskLevels.includes(skillData.riskLevel)) {
       result.warnings.push(`Invalid risk level: "${skillData.riskLevel}". Use: low, medium, or high`);
     }
-    
+
     // Validate description length
     if (skillData.description && skillData.description.length < 10) {
       result.warnings.push('Description is too short (minimum 10 characters)');
     }
-    
+
     return result;
   }
 
@@ -559,6 +560,7 @@ class SkillValidator {
    */
   _isValidSemVer(version) {
     // Basic SemVer validation: major.minor.patch
+    // eslint-disable-next-line security/detect-unsafe-regex
     return /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/.test(version);
   }
 
@@ -583,7 +585,7 @@ class SkillValidator {
       if (frontmatterMatch) {
         const frontmatter = frontmatterMatch[1];
         const data = yaml.load(frontmatter);
-        
+
         if (data) {
           result.name = data.name || expectedName;
           result.description = data.description || '';
@@ -598,7 +600,7 @@ class SkillValidator {
 
       // If no frontmatter, try to extract from content
       if (!result.description) {
-        const lines = content.split('\n');
+        const lines = splitLines(content);
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           if (line.startsWith('# ') || line.startsWith('## ')) {
@@ -606,7 +608,7 @@ class SkillValidator {
             for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
               const descLine = lines[j].trim();
               if (descLine && !descLine.startsWith('#')) {
-                result.description += descLine + ' ';
+                result.description += `${descLine} `;
               } else if (descLine.startsWith('#')) {
                 break;
               }
@@ -617,7 +619,7 @@ class SkillValidator {
       }
 
       return result;
-      
+
     } catch (error) {
       console.warn('Failed to parse skill.md:', error.message);
       return result;
@@ -640,7 +642,7 @@ class SkillValidator {
           result.skillMd = path.join(basePath, file);
         }
       }
-      
+
       if (fileName.endsWith('.js') || fileName.endsWith('.py') || fileName.endsWith('.sh')) {
         result.scripts.push(path.join(basePath, file));
       }
@@ -655,11 +657,11 @@ class SkillValidator {
   _listFilesRecursive(dirPath, basePath = '') {
     const files = [];
     const items = fs.readdirSync(dirPath);
-    
+
     for (const item of items) {
       const itemPath = path.join(dirPath, item);
       const relativePath = basePath ? `${basePath}/${item}` : item;
-      
+
       const stats = fs.statSync(itemPath);
       if (stats.isDirectory()) {
         // Skip hidden directories and node_modules
@@ -670,7 +672,7 @@ class SkillValidator {
         files.push(relativePath);
       }
     }
-    
+
     return files;
   }
 

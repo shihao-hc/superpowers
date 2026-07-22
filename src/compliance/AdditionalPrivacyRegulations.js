@@ -9,7 +9,7 @@ class AdditionalPrivacyRegulations {
   }
 
   // ========== LGPD - Brazil ==========
-  
+
   processLGPDRequest(userId, requestType, requestData) {
     const request = {
       id: `lgpd_${Date.now()}`,
@@ -26,26 +26,26 @@ class AdditionalPrivacyRegulations {
     this.privacy._logAudit('lgpd_request', 'received', userId, { requestType });
 
     switch (requestType) {
-      case 'access':
-        return this._handleLGPDAccess(request);
-      case 'correction':
-        return this._handleLGPDCorrection(request);
-      case 'deletion':
-        return this._handleLGPDDeletion(request);
-      case 'portability':
-        return this._handleLGPDPortability(request);
-      case 'information':
-        return this._handleLGPDInformation(request);
-      case 'consent':
-        return this._handleLGPDConsent(request);
-      default:
-        return { error: 'Unknown request type' };
+    case 'access':
+      return this._handleLGPDAccess(request);
+    case 'correction':
+      return this._handleLGPDCorrection(request);
+    case 'deletion':
+      return this._handleLGPDDeletion(request);
+    case 'portability':
+      return this._handleLGPDPortability(request);
+    case 'information':
+      return this._handleLGPDInformation(request);
+    case 'consent':
+      return this._handleLGPDConsent(request);
+    default:
+      return { error: 'Unknown request type' };
     }
   }
 
   _handleLGPDAccess(request) {
     const userData = this.privacy._getUserPersonalData(request.userId);
-    
+
     request.status = 'completed';
     request.completedAt = Date.now();
     request.response = userData;
@@ -65,7 +65,7 @@ class AdditionalPrivacyRegulations {
   _handleLGPDCorrection(request) {
     const { corrections } = request.data;
     const userData = this.privacy.dataStore.get(request.userId);
-    
+
     if (userData) {
       Object.assign(userData.profile, corrections);
       userData.lastUpdated = Date.now();
@@ -86,10 +86,10 @@ class AdditionalPrivacyRegulations {
 
   _handleLGPDDeletion(request) {
     const { legalBasis } = request.data;
-    
+
     // LGPD requires specifying legal basis for retention
     const userData = this.privacy.dataStore.get(request.userId);
-    
+
     if (userData) {
       this.privacy.dataStore.delete(request.userId);
     }
@@ -111,7 +111,7 @@ class AdditionalPrivacyRegulations {
 
   _handleLGPDPortability(request) {
     const userData = this.privacy._getUserPersonalData(request.userId);
-    
+
     const encrypted = this.privacy.encrypt(userData);
 
     request.status = 'completed';
@@ -152,7 +152,7 @@ class AdditionalPrivacyRegulations {
 
   _handleLGPDConsent(request) {
     const { consentType, granted, purpose } = request.data;
-    
+
     const consent = this.privacy.recordConsent(request.userId, consentType, granted, {
       ...request.data,
       purpose,
@@ -171,8 +171,8 @@ class AdditionalPrivacyRegulations {
   }
 
   getLGPDReport() {
-    const requests = this.privacy.dataRequests.filter(r => r.regulation === 'LGPD');
-    
+    const requests = this.privacy.dataRequests.filter((r) => r.regulation === 'LGPD');
+
     return {
       regulation: 'LGPD',
       name: 'Lei Geral de Proteção de Dados',
@@ -180,18 +180,18 @@ class AdditionalPrivacyRegulations {
       period: 'Last 12 months',
       summary: {
         totalRequests: requests.length,
-        completedOnTime: requests.filter(r => 
+        completedOnTime: requests.filter((r) =>
           r.completedAt && (r.completedAt - r.receivedAt) <= 15 * 24 * 60 * 60 * 1000
         ).length,
         averageResponseTime: this._calculateAvgResponseTime(requests),
         dataBreaches: this.privacy.breachLog.length,
-        consentWithdrawals: requests.filter(r => r.type === 'consent' && !r.data?.granted).length
+        consentWithdrawals: requests.filter((r) => r.type === 'consent' && !r.data?.granted).length
       },
       complianceStatus: this._assessLGPDCompliance(requests)
     };
   }
 
-  _assessLGPDCompliance(requests) {
+  _assessLGPDCompliance(_requests) {
     return {
       articlesImplemented: {
         'Article 6 - Processing Principles': true,
@@ -227,22 +227,22 @@ class AdditionalPrivacyRegulations {
     this.privacy._logAudit('pipeda_request', 'received', userId, { requestType });
 
     switch (requestType) {
-      case 'access':
-        return this._handlePIPEDAAccess(request);
-      case 'correction':
-        return this._handlePIPEDACorrection(request);
-      case 'withdraw':
-        return this._handlePIPEDAWithdraw(request);
-      case 'sensitivity':
-        return this._handlePIPEDASensitivity(request);
-      default:
-        return { error: 'Unknown request type' };
+    case 'access':
+      return this._handlePIPEDAAccess(request);
+    case 'correction':
+      return this._handlePIPEDACorrection(request);
+    case 'withdraw':
+      return this._handlePIPEDAWithdraw(request);
+    case 'sensitivity':
+      return this._handlePIPEDASensitivity(request);
+    default:
+      return { error: 'Unknown request type' };
     }
   }
 
   _handlePIPEDAAccess(request) {
     const userData = this.privacy._getUserPersonalData(request.userId);
-    
+
     request.status = 'completed';
     request.completedAt = Date.now();
     request.response = userData;
@@ -276,7 +276,7 @@ class AdditionalPrivacyRegulations {
   _handlePIPEDACorrection(request) {
     const { corrections } = request.data;
     const userData = this.privacy.dataStore.get(request.userId);
-    
+
     if (userData) {
       Object.assign(userData.profile, corrections);
       userData.lastUpdated = Date.now();
@@ -296,7 +296,7 @@ class AdditionalPrivacyRegulations {
 
   _handlePIPEDAWithdraw(request) {
     const { withdrawalType } = request.data;
-    
+
     request.status = 'completed';
     request.completedAt = Date.now();
 
@@ -339,16 +339,16 @@ class AdditionalPrivacyRegulations {
   }
 
   getPIPEDAReport() {
-    const requests = this.privacy.dataRequests.filter(r => r.regulation === 'PIPEDA');
-    
+    const requests = this.privacy.dataRequests.filter((r) => r.regulation === 'PIPEDA');
+
     return {
       regulation: 'PIPEDA',
       name: 'Personal Information Protection and Electronic Documents Act',
       jurisdiction: 'Canada',
       summary: {
         totalRequests: requests.length,
-        accessRequests: requests.filter(r => r.type === 'access').length,
-        correctionRequests: requests.filter(r => r.type === 'correction').length,
+        accessRequests: requests.filter((r) => r.type === 'access').length,
+        correctionRequests: requests.filter((r) => r.type === 'correction').length,
         breachNotifications: this.privacy.breachLog.length
       },
       principlesCompliance: this._getPIPEDAPrinciplesCompliance()
@@ -389,22 +389,22 @@ class AdditionalPrivacyRegulations {
     this.privacy._logAudit('au_privacy_request', 'received', userId, { requestType });
 
     switch (requestType) {
-      case 'access':
-        return this._handleAUAccess(request);
-      case 'correction':
-        return this._handleAUCorrection(request);
-      case 'anon':
-        return this._handleAUAnon(request);
-      case 'complaint':
-        return this._handleAUComplaint(request);
-      default:
-        return { error: 'Unknown request type' };
+    case 'access':
+      return this._handleAUAccess(request);
+    case 'correction':
+      return this._handleAUCorrection(request);
+    case 'anon':
+      return this._handleAUAnon(request);
+    case 'complaint':
+      return this._handleAUComplaint(request);
+    default:
+      return { error: 'Unknown request type' };
     }
   }
 
   _handleAUAccess(request) {
     const userData = this.privacy._getUserPersonalData(request.userId);
-    
+
     request.status = 'completed';
     request.completedAt = Date.now();
     request.response = userData;
@@ -421,7 +421,7 @@ class AdditionalPrivacyRegulations {
   _handleAUCorrection(request) {
     const { corrections, reason } = request.data;
     const userData = this.privacy.dataStore.get(request.userId);
-    
+
     if (userData) {
       Object.assign(userData.profile, corrections);
       userData.lastUpdated = Date.now();
@@ -457,7 +457,7 @@ class AdditionalPrivacyRegulations {
 
   _handleAUComplaint(request) {
     const { complaintDetails } = request.data;
-    
+
     request.status = 'acknowledged';
     request.completedAt = Date.now();
 
@@ -476,8 +476,8 @@ class AdditionalPrivacyRegulations {
   }
 
   getAustraliaPrivacyReport() {
-    const requests = this.privacy.dataRequests.filter(r => r.regulation === 'AU_PRIVACY');
-    
+    const requests = this.privacy.dataRequests.filter((r) => r.regulation === 'AU_PRIVACY');
+
     return {
       regulation: 'AU_PRIVACY',
       name: 'Privacy Act 1988',
@@ -524,10 +524,10 @@ class AdditionalPrivacyRegulations {
   // ========== Utility ==========
 
   _calculateAvgResponseTime(requests) {
-    const completed = requests.filter(r => r.completedAt);
-    if (completed.length === 0) return 0;
-    
-    const totalTime = completed.reduce((sum, r) => 
+    const completed = requests.filter((r) => r.completedAt);
+    if (completed.length === 0) {return 0;}
+
+    const totalTime = completed.reduce((sum, r) =>
       sum + (r.completedAt - r.receivedAt), 0
     );
     return totalTime / completed.length / (24 * 60 * 60 * 1000); // in days

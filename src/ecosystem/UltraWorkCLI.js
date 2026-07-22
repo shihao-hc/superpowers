@@ -106,11 +106,11 @@ class UltraWorkCLI {
   // 初始化项目
   async _handleInit(args) {
     const { name, template, typescript, force } = args;
-    
+
     console.log(`\n🚀 Creating UltraWork Skill: ${name}\n`);
-    
+
     const targetPath = path.join(process.cwd(), name);
-    
+
     // 检查目录
     if (fs.existsSync(targetPath) && !force) {
       console.error(`❌ Directory ${name} already exists. Use --force to overwrite.`);
@@ -122,15 +122,15 @@ class UltraWorkCLI {
 
     // 生成文件
     const files = this._generateProjectFiles(name, { template, typescript });
-    
+
     for (const [filePath, content] of Object.entries(files)) {
       const fullPath = path.join(targetPath, filePath);
       const dir = path.dirname(fullPath);
-      
+
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       fs.writeFileSync(fullPath, content);
       console.log(`  ✅ ${filePath}`);
     }
@@ -145,7 +145,7 @@ class UltraWorkCLI {
   _generateProjectFiles(name, options) {
     const { typescript } = options;
     const ext = typescript ? 'ts' : 'js';
-    
+
     const skillMd = `# ${name}
 
 > ${options.description || 'An UltraWork skill'}
@@ -171,17 +171,17 @@ outputs:
 
 ## Usage
 
-\\`\\`\\`javascript
+\`\`\`javascript
 const result = await skill.execute({ input: 'data' });
-\\`\\`\\`
+\`\`\`
 
 ## Examples
 
 ### Basic Usage
 
-\\`\\`\\`javascript
+\`\`\`javascript
 await skill.execute({ input: 'hello world' });
-\\`\\`\\`
+\`\`\`
 
 ## License
 
@@ -311,19 +311,19 @@ test().catch(console.error);
   _toPascalCase(str) {
     return str
       .split(/[-_\s]/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
   }
 
   // 验证技能
   async _handleValidate(args) {
-    const { path: skillPath, strict } = args;
-    
+    const { path: skillPath, strict: _strict } = args;
+
     console.log(`\n🔍 Validating skill at ${skillPath}\n`);
-    
+
     const issues = [];
     const warnings = [];
-    
+
     // 检查必需文件
     const requiredFiles = ['skill.md'];
     for (const file of requiredFiles) {
@@ -332,12 +332,12 @@ test().catch(console.error);
         issues.push({ type: 'error', message: `Missing required file: ${file}` });
       }
     }
-    
+
     // 验证 skill.md
     const skillMdPath = path.join(skillPath, 'skill.md');
     if (fs.existsSync(skillMdPath)) {
       const content = fs.readFileSync(skillMdPath, 'utf8');
-      
+
       // 检查必需字段
       const requiredFields = ['name:', 'version:', 'inputs:', 'outputs:'];
       for (const field of requiredFields) {
@@ -345,36 +345,36 @@ test().catch(console.error);
           issues.push({ type: 'error', message: `Missing required field: ${field}` });
         }
       }
-      
+
       // 检查 YAML 代码块
       if (!content.includes('```yaml') && !content.includes('```yml')) {
         warnings.push({ type: 'warning', message: 'Missing YAML metadata block' });
       }
     }
-    
+
     // 检查代码文件
-    const codeFiles = fs.readdirSync(skillPath).filter(f => 
+    const codeFiles = fs.readdirSync(skillPath).filter((f) =>
       f.endsWith('.js') || f.endsWith('.ts')
     );
-    
+
     if (codeFiles.length === 0) {
       warnings.push({ type: 'warning', message: 'No code files found' });
     }
-    
+
     // 输出结果
     for (const issue of issues) {
       console.log(`  ❌ ${issue.message}`);
     }
-    
+
     for (const warning of warnings) {
       console.log(`  ⚠️  ${warning.message}`);
     }
-    
+
     if (issues.length === 0 && warnings.length === 0) {
       console.log('  ✅ Skill is valid!\n');
       return { valid: true };
     }
-    
+
     console.log(`\n${issues.length} errors, ${warnings.length} warnings\n`);
     return { valid: issues.length === 0, issues, warnings };
   }
@@ -382,9 +382,9 @@ test().catch(console.error);
   // 测试技能
   async _handleTest(args) {
     const { path: skillPath, input, watch } = args;
-    
+
     console.log(`\n🧪 Testing skill at ${skillPath}\n`);
-    
+
     try {
       // 加载技能
       const indexPath = path.join(skillPath, 'index.js');
@@ -392,26 +392,31 @@ test().catch(console.error);
         console.error('  ❌ No index.js found');
         return;
       }
-      
+
       const SkillClass = require(indexPath);
       const skill = new SkillClass();
-      
+
       // 解析输入
-      const testInput = input ? JSON.parse(input) : { input: 'test' };
-      
+      let testInput;
+      try {
+        testInput = input ? JSON.parse(input) : { input: 'test' };
+      } catch {
+        testInput = { input: 'test' };
+      }
+
       // 执行测试
       console.log('  Input:', JSON.stringify(testInput));
       const result = await skill.execute(testInput);
-      
+
       console.log('\n  Output:');
-      console.log('  ' + JSON.stringify(result, null, 2).replace(/\n/g, '\n  '));
-      
+      console.log(`  ${JSON.stringify(result, null, 2).replace(/\n/g, '\n  ')}`);
+
       if (result.success) {
         console.log('\n  ✅ Test passed!\n');
       } else {
         console.log('\n  ❌ Test failed!\n');
       }
-      
+
       // 监听模式
       if (watch) {
         console.log('  👀 Watching for changes...');
@@ -424,7 +429,7 @@ test().catch(console.error);
           console.log('  Output:', JSON.stringify(newResult, null, 2));
         });
       }
-      
+
     } catch (error) {
       console.error(`\n  ❌ Test error: ${error.message}\n`);
     }
@@ -433,29 +438,29 @@ test().catch(console.error);
   // 发布技能
   async _handlePublish(args) {
     const { path: skillPath, version, isPrivate } = args;
-    
+
     console.log(`\n📦 Publishing skill from ${skillPath}\n`);
-    
+
     // 验证
     const validation = await this._handleValidate({ path: skillPath, strict: false });
     if (!validation.valid) {
       console.error('❌ Cannot publish invalid skill');
       return;
     }
-    
+
     // 生成版本
     const newVersion = version || this._bumpVersion('1.0.0');
-    
+
     console.log(`  Version: ${newVersion}`);
     console.log(`  Visibility: ${isPrivate ? 'Private' : 'Public'}`);
-    
+
     // 模拟发布
     console.log('\n  ⏳ Publishing to marketplace...');
     await this._delay(2000);
-    
+
     const skillId = `skill_${crypto.randomBytes(8).toString('hex')}`;
-    
-    console.log(`\n  ✅ Published successfully!`);
+
+    console.log('\n  ✅ Published successfully!');
     console.log(`  Skill ID: ${skillId}`);
     console.log(`  URL: https://ultrawork.ai/marketplace/${skillId}\n`);
   }
@@ -466,45 +471,45 @@ test().catch(console.error);
   }
 
   _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // 列出技能
-  async _handleList(args) {
+  async _handleList(_args) {
     console.log('\n📋 Local Skills:\n');
-    
+
     const skillsDir = path.join(process.cwd(), 'skills');
     if (!fs.existsSync(skillsDir)) {
       console.log('  No skills directory found.');
       return;
     }
-    
+
     const skills = fs.readdirSync(skillsDir);
-    
+
     for (const skill of skills) {
       const skillPath = path.join(skillsDir, skill);
       const stat = fs.statSync(skillPath);
-      
+
       if (stat.isDirectory()) {
         console.log(`  📁 ${skill}`);
       }
     }
-    
+
     console.log('');
   }
 
   // 搜索技能
   async _handleSearch(args) {
-    const { _: [query], category, limit } = args;
-    
+    const { _: [query], category: _category, limit } = args;
+
     console.log(`\n🔍 Searching for: "${query}"\n`);
-    
+
     // 模拟搜索结果
     const results = [
       { id: 'skill_abc123', name: 'Image Analyzer', author: 'user1', downloads: 1500, rating: 4.8 },
       { id: 'skill_def456', name: 'Document Parser', author: 'user2', downloads: 800, rating: 4.5 }
     ];
-    
+
     for (const result of results.slice(0, limit)) {
       console.log(`  📦 ${result.name}`);
       console.log(`     ID: ${result.id}`);
@@ -517,11 +522,11 @@ test().catch(console.error);
   // 安装技能
   async _handleInstall(args) {
     const { _: [skillId], path: installPath } = args;
-    
+
     console.log(`\n📥 Installing ${skillId}...\n`);
-    
+
     await this._delay(1000);
-    
+
     console.log('  ✅ Installed successfully!');
     console.log(`  Location: ${installPath}/${skillId}\n`);
   }
@@ -529,15 +534,15 @@ test().catch(console.error);
   // 生成代码
   async _handleGenerate(args) {
     const { _: [type, name], path: targetPath } = args;
-    
+
     console.log(`\n🔧 Generating ${type}: ${name}\n`);
-    
+
     const generators = {
       'workflow': this._generateWorkflow.bind(this),
       'trigger': this._generateTrigger.bind(this),
       'executor': this._generateExecutor.bind(this)
     };
-    
+
     const generator = generators[type];
     if (generator) {
       await generator(name, targetPath);
@@ -552,7 +557,7 @@ test().catch(console.error);
       steps: [],
       triggers: []
     }, null, 2);
-    
+
     fs.writeFileSync(path.join(targetPath, `${name}.workflow.json`), content);
     console.log(`  ✅ Created ${name}.workflow.json`);
   }
@@ -567,7 +572,7 @@ module.exports = {
   }
 };
 `;
-    
+
     fs.writeFileSync(path.join(targetPath, `${name}.trigger.js`), content);
     console.log(`  ✅ Created ${name}.trigger.js`);
   }
@@ -588,7 +593,7 @@ class ${className}Executor {
 
 module.exports = { ${className}Executor };
 `;
-    
+
     fs.writeFileSync(path.join(targetPath, `${name}Executor.js`), content);
     console.log(`  ✅ Created ${name}Executor.js`);
   }
@@ -596,7 +601,7 @@ module.exports = { ${className}Executor };
   // 运行命令
   async run(args) {
     const [commandName, ...restArgs] = args;
-    
+
     const command = this.commands.get(commandName);
     if (!command) {
       console.error(`Unknown command: ${commandName}`);
@@ -609,21 +614,21 @@ module.exports = { ${className}Executor };
 
     // 解析参数
     const parsedArgs = this._parseArgs(restArgs, command.options);
-    
+
     // 执行
     await command.handler(parsedArgs);
   }
 
   _parseArgs(args, options) {
     const result = { _: [] };
-    
+
     for (let i = 0; i < args.length; i++) {
       const arg = args[i];
-      
+
       if (arg.startsWith('--')) {
         const optName = arg.slice(2);
-        const opt = options.find(o => o.name === optName);
-        
+        const opt = options.find((o) => o.name === optName);
+
         if (opt && opt.type === 'boolean') {
           result[opt.name] = true;
         } else if (opt) {
@@ -631,8 +636,8 @@ module.exports = { ${className}Executor };
         }
       } else if (arg.startsWith('-')) {
         const shortName = arg.slice(1);
-        const opt = options.find(o => o.short === shortName);
-        
+        const opt = options.find((o) => o.short === shortName);
+
         if (opt) {
           if (opt.type === 'boolean') {
             result[opt.name] = true;
@@ -644,14 +649,14 @@ module.exports = { ${className}Executor };
         result._.push(arg);
       }
     }
-    
+
     // 应用默认值
     for (const opt of options) {
       if (result[opt.name] === undefined) {
         result[opt.name] = opt.default;
       }
     }
-    
+
     return result;
   }
 }

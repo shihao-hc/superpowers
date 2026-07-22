@@ -1,6 +1,6 @@
 /**
  * MultiTTSEngine - 多TTS引擎支持
- * 
+ *
  * 支持:
  * - ElevenLabs API
  * - Web Speech API (本地)
@@ -15,17 +15,17 @@ class MultiTTSEngine {
     this.defaultRate = options.rate || 1;
     this.defaultPitch = options.pitch || 1;
     this.defaultVolume = options.volume || 1;
-    
+
     this.engines = {
       elevenlabs: new ElevenLabsEngine(options.elevenlabs || {}),
       browser: new BrowserSpeechEngine(),
       azure: options.azure ? new AzureTTSEngine(options.azure) : null,
       google: options.google ? new GoogleTTSEngine(options.google) : null
     };
-    
+
     this.cache = options.cache !== false ? new Map() : null;
     this.maxCacheSize = options.maxCacheSize || 50;
-    
+
     this.onSpeakStart = options.onSpeakStart || (() => {});
     this.onSpeakEnd = options.onSpeakEnd || (() => {});
     this.onPhoneme = options.onPhoneme || (() => {});
@@ -35,7 +35,7 @@ class MultiTTSEngine {
   async speak(text, options = {}) {
     const engine = options.engine || this._selectBestEngine();
     const engineInstance = this.engines[engine];
-    
+
     if (!engineInstance || !engineInstance.isAvailable()) {
       console.warn(`[TTS] Engine ${engine} not available, falling back to browser`);
       return this.engines.browser.speak(text, options);
@@ -66,7 +66,7 @@ class MultiTTSEngine {
     } catch (error) {
       console.error(`[TTS] ${engine} failed:`, error);
       this.onerror(error);
-      
+
       if (engine !== 'browser') {
         console.log('[TTS] Falling back to browser speech');
         return this.engines.browser.speak(text, options);
@@ -83,15 +83,15 @@ class MultiTTSEngine {
     if (this.engines.elevenlabs.isAvailable()) {
       return 'elevenlabs';
     }
-    
+
     if (this.engines.azure && this.engines.azure.isAvailable()) {
       return 'azure';
     }
-    
+
     if (this.engines.google && this.engines.google.isAvailable()) {
       return 'google';
     }
-    
+
     return 'browser';
   }
 
@@ -125,7 +125,7 @@ class MultiTTSEngine {
     const startTime = performance.now();
 
     const animate = () => {
-      if (index >= phonemes.length) return;
+      if (index >= phonemes.length) {return;}
 
       const elapsed = performance.now() - startTime;
       const currentPhoneme = phonemes[index];
@@ -162,7 +162,7 @@ class MultiTTSEngine {
   }
 
   stop() {
-    Object.values(this.engines).forEach(engine => {
+    Object.values(this.engines).forEach((engine) => {
       if (engine && engine.stop) {
         engine.stop();
       }
@@ -208,8 +208,8 @@ class BrowserSpeechEngine {
 
       if (options.voice) {
         const voices = this.synth.getVoices();
-        const voice = voices.find(v => v.name === options.voice || v.lang === options.voice);
-        if (voice) utterance.voice = voice;
+        const voice = voices.find((v) => v.name === options.voice || v.lang === options.voice);
+        if (voice) {utterance.voice = voice;}
       }
 
       resolve({
@@ -228,8 +228,8 @@ class BrowserSpeechEngine {
   }
 
   getVoices() {
-    if (!this.synth) return [];
-    return this.synth.getVoices().map(v => ({
+    if (!this.synth) {return [];}
+    return this.synth.getVoices().map((v) => ({
       name: v.name,
       lang: v.lang,
       localService: v.localService
@@ -279,7 +279,7 @@ class ElevenLabsEngine {
   }
 
   stop() {
-    document.querySelectorAll('audio[src^="blob:"]').forEach(audio => {
+    document.querySelectorAll('audio[src^="blob:"]').forEach((audio) => {
       audio.pause();
       audio.src = '';
     });
@@ -347,7 +347,7 @@ class AzureTTSEngine {
   }
 
   stop() {
-    document.querySelectorAll('audio[src^="blob:"]').forEach(audio => {
+    document.querySelectorAll('audio[src^="blob:"]').forEach((audio) => {
       audio.pause();
       audio.src = '';
     });
@@ -409,7 +409,7 @@ class GoogleTTSEngine {
   }
 
   stop() {
-    document.querySelectorAll('audio[src^="blob:"]').forEach(audio => {
+    document.querySelectorAll('audio[src^="blob:"]').forEach((audio) => {
       audio.pause();
       audio.src = '';
     });

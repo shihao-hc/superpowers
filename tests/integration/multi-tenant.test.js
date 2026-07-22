@@ -8,9 +8,6 @@ const express = require('express');
 const { TeamWorkspace } = require('../../src/enterprise/collaboration/TeamWorkspace');
 const { CostOptimizer } = require('../../src/cost/CostOptimizer');
 
-// Mock data isolation
-const tenants = new Map();
-
 // Create test app
 const createTestApp = () => {
   const app = express();

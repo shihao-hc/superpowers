@@ -17,5 +17,16 @@ jobs:
           node-version: '18.x'
       - name: Install dependencies
         run: npm ci
+      - name: ESLint security gate
+        run: npm run lint
+      - name: Pattern security scan
+        run: node scripts/security-scan.js
+      - name: TypeScript check
+        run: npm run typecheck
+        continue-on-error: true
+      - name: Security audit gate
+        run: npm run security:gate
+        env:
+          NODE_ENV: test
       - name: Run tests
         run: npm test

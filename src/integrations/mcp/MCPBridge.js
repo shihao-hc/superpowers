@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 class MCPBridge {
   constructor(options = {}) {
@@ -9,6 +11,7 @@ class MCPBridge {
     this.timeout = options.timeout || 30000;
     this.onToolCall = options.onToolCall || (() => {});
     this.onError = options.onError || ((e) => console.error('[MCPBridge]', e));
+    this.allowedRoots = options.allowedRoots || [process.cwd()];
   }
 
   registerServer(name, config) {
@@ -32,12 +35,12 @@ class MCPBridge {
 
   async connect(serverName) {
     const server = this.servers.get(serverName);
-    if (!server) throw new Error(`Server not found: ${serverName}`);
+    if (!server) {throw new Error(`Server not found: ${serverName}`);}
 
     try {
       server.status = 'connected';
       server.tools = await this._discoverTools(server);
-      
+
       for (const tool of server.tools) {
         this.tools.set(`${serverName}.${tool.name}`, {
           server: serverName,
@@ -65,7 +68,7 @@ class MCPBridge {
   }
 
   _getFileSystemTools(serverName) {
-    if (serverName !== 'filesystem') return [];
+    if (serverName !== 'filesystem') {return [];}
     return [
       { name: 'read_file', description: '读取文件内容', params: ['path'] },
       { name: 'write_file', description: '写入文件', params: ['path', 'content'] },
@@ -79,7 +82,7 @@ class MCPBridge {
   }
 
   _getSequentialThinkingTools(serverName) {
-    if (serverName !== 'sequential-thinking') return [];
+    if (serverName !== 'sequential-thinking') {return [];}
     return [
       { name: 'think', description: '执行思考步骤', params: ['thought', 'step'] },
       { name: 'plan', description: '制定计划', params: ['goal', 'steps'] },
@@ -90,7 +93,7 @@ class MCPBridge {
   }
 
   _getGitHubTools(serverName) {
-    if (serverName !== 'github') return [];
+    if (serverName !== 'github') {return [];}
     return [
       { name: 'clone_repo', description: '克隆仓库', params: ['url', 'destination'] },
       { name: 'create_issue', description: '创建Issue', params: ['repo', 'title', 'body'] },
@@ -104,7 +107,7 @@ class MCPBridge {
   }
 
   _getChromeDevToolsTools(serverName) {
-    if (serverName !== 'chrome-devtools') return [];
+    if (serverName !== 'chrome-devtools') {return [];}
     return [
       { name: 'navigate', description: '导航到URL', params: ['url'] },
       { name: 'click', description: '点击元素', params: ['selector'] },
@@ -118,7 +121,7 @@ class MCPBridge {
   }
 
   _getContext7Tools(serverName) {
-    if (serverName !== 'context7') return [];
+    if (serverName !== 'context7') {return [];}
     return [
       { name: 'save_context', description: '保存上下文', params: ['key', 'value'] },
       { name: 'get_context', description: '获取上下文', params: ['key'] },
@@ -129,7 +132,7 @@ class MCPBridge {
   }
 
   _getMemosTools(serverName) {
-    if (serverName !== 'memos') return [];
+    if (serverName !== 'memos') {return [];}
     return [
       { name: 'create_memo', description: '创建笔记', params: ['content', 'tags'] },
       { name: 'get_memo', description: '获取笔记', params: ['id'] },
@@ -202,127 +205,206 @@ class MCPBridge {
 
   async _executeTool(serverName, toolName, params) {
     switch (serverName) {
-      case 'filesystem':
-        return this._executeFileSystem(toolName, params);
-      case 'sequential-thinking':
-        return this._executeThinking(toolName, params);
-      case 'github':
-        return this._executeGitHub(toolName, params);
-      case 'chrome-devtools':
-        return this._executeChromeDevTools(toolName, params);
-      case 'context7':
-        return this._executeContext7(toolName, params);
-      case 'memos':
-        return this._executeMemos(toolName, params);
-      default:
-        throw new Error(`Unknown server: ${serverName}`);
+    case 'filesystem':
+      return this._executeFileSystem(toolName, params);
+    case 'sequential-thinking':
+      return this._executeThinking(toolName, params);
+    case 'github':
+      return this._executeGitHub(toolName, params);
+    case 'chrome-devtools':
+      return this._executeChromeDevTools(toolName, params);
+    case 'context7':
+      return this._executeContext7(toolName, params);
+    case 'memos':
+      return this._executeMemos(toolName, params);
+    default:
+      throw new Error(`Unknown server: ${serverName}`);
     }
+  }
+
+  _validatePath(requestedPath) {
+    const resolved = path.resolve(this.allowedRoots[0], requestedPath);
+    for (const root of this.allowedRoots) {
+      const rootPath = path.resolve(root);
+      if (resolved.startsWith(rootPath + path.sep) || resolved === rootPath) {
+        return { valid: true, path: resolved, root: rootPath };
+      }
+    }
+    return { valid: false, error: `Path outside allowed roots: ${requestedPath}` };
   }
 
   async _executeFileSystem(toolName, params) {
     switch (toolName) {
-      case 'read_file':
-        return { content: `Content of ${params.path}`, size: 1024 };
-      case 'write_file':
+    case 'read_file': {
+      const validated = this._validatePath(params.path);
+      if (!validated.valid) {return { error: validated.error };}
+      try {
+        const content = fs.readFileSync(validated.path, 'utf-8');
+        return { content, size: content.length };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    case 'write_file': {
+      const validated = this._validatePath(params.path);
+      if (!validated.valid) {return { error: validated.error };}
+      try {
+        fs.writeFileSync(validated.path, params.content || '', 'utf-8');
         return { success: true, bytesWritten: params.content?.length || 0 };
-      case 'list_directory':
-        return { entries: ['file1.js', 'file2.json', 'subdir/'] };
-      case 'create_directory':
-        return { success: true, path: params.path };
-      case 'delete_file':
-        return { success: true, deleted: params.path };
-      case 'file_exists':
-        return { exists: true, path: params.path };
-      case 'search_files':
-        return { matches: ['result1.js', 'result2.js'] };
-      case 'watch_file':
-        return { watching: true, path: params.path };
-      default:
-        throw new Error(`Unknown filesystem tool: ${toolName}`);
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    case 'list_directory': {
+      const validated = this._validatePath(params.path || '.');
+      if (!validated.valid) {return { error: validated.error };}
+      try {
+        const entries = fs.readdirSync(validated.path, { withFileTypes: true });
+        const items = entries.map((entry) => ({
+          name: entry.name,
+          type: entry.isDirectory() ? 'directory' : 'file',
+          path: path.join(validated.path, entry.name)
+        }));
+        return { path: validated.path, items, count: items.length };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    case 'create_directory': {
+      const validated = this._validatePath(params.path);
+      if (!validated.valid) {return { error: validated.error };}
+      try {
+        fs.mkdirSync(validated.path, { recursive: true });
+        return { success: true, path: validated.path };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    case 'delete_file': {
+      const validated = this._validatePath(params.path);
+      if (!validated.valid) {return { error: validated.error };}
+      try {
+        fs.unlinkSync(validated.path);
+        return { success: true, deleted: validated.path };
+      } catch (e) {
+        return { error: e.message };
+      }
+    }
+    case 'file_exists': {
+      const validated = this._validatePath(params.path);
+      if (!validated.valid) {return { exists: false };}
+      return { exists: fs.existsSync(validated.path), path: validated.path };
+    }
+    case 'search_files': {
+      const matches = [];
+      const safePattern = typeof params.pattern === 'string' && params.pattern.length <= 100 && !/\([^)]*[+*][^)]*\)[+*?]/.test(params.pattern) ? params.pattern : '.*';
+      const searchDir = (dir, pattern) => {
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+              searchDir(fullPath, pattern);
+            } else if (entry.name.match(new RegExp(pattern))) {
+              matches.push({ name: entry.name, path: fullPath });
+            }
+          }
+        } catch (e) {}
+      };
+      const validated = this._validatePath(params.directory || '.');
+      if (!validated.valid) {return { error: validated.error };}
+      searchDir(validated.path, safePattern);
+      return { pattern: safePattern, matches, count: matches.length };
+    }
+    case 'watch_file': {
+      return { watching: true, path: params.path, note: 'Watch not implemented in bridge' };
+    }
+    default:
+      throw new Error(`Unknown filesystem tool: ${toolName}`);
     }
   }
 
   async _executeThinking(toolName, params) {
     switch (toolName) {
-      case 'think':
-        return {
-          thought: params.thought,
-          step: params.step,
-          reasoning: `分析: ${params.thought}`,
-          timestamp: Date.now()
-        };
-      case 'plan':
-        return {
-          goal: params.goal,
-          steps: params.steps || [],
-          estimatedTime: params.steps?.length * 60000
-        };
-      case 'analyze':
-        return {
-          problem: params.problem,
-          analysis: `问题分析: ${params.problem}`,
-          insights: ['洞察1', '洞察2']
-        };
-      case 'evaluate':
-        return {
-          options: params.options,
-          recommendation: '推荐选项1',
-          score: 0.85
-        };
-      case 'conclude':
-        return {
-          conclusion: '结论已达成',
-          evidence: params.evidence || [],
-          confidence: 0.9
-        };
-      default:
-        throw new Error(`Unknown thinking tool: ${toolName}`);
+    case 'think':
+      return {
+        thought: params.thought,
+        step: params.step,
+        reasoning: `分析: ${params.thought}`,
+        timestamp: Date.now()
+      };
+    case 'plan':
+      return {
+        goal: params.goal,
+        steps: params.steps || [],
+        estimatedTime: params.steps?.length * 60000
+      };
+    case 'analyze':
+      return {
+        problem: params.problem,
+        analysis: `问题分析: ${params.problem}`,
+        insights: ['洞察1', '洞察2']
+      };
+    case 'evaluate':
+      return {
+        options: params.options,
+        recommendation: '推荐选项1',
+        score: 0.85
+      };
+    case 'conclude':
+      return {
+        conclusion: '结论已达成',
+        evidence: params.evidence || [],
+        confidence: 0.9
+      };
+    default:
+      throw new Error(`Unknown thinking tool: ${toolName}`);
     }
   }
 
   async _executeGitHub(toolName, params) {
     switch (toolName) {
-      case 'clone_repo':
-        return { success: true, path: `/tmp/${params.url?.split('/').pop()}` };
-      case 'create_issue':
-        return { success: true, issueId: Date.now(), url: `https://github.com/${params.repo}/issues/1` };
-      case 'create_pr':
-        return { success: true, prId: Date.now(), url: `https://github.com/${params.repo}/pull/1` };
-      case 'list_issues':
-        return { issues: [{ id: 1, title: 'Test Issue', state: 'open' }] };
-      case 'commit':
-        return { success: true, hash: crypto.randomBytes(20).toString('hex') };
-      case 'push':
-        return { success: true, branch: params.branch };
-      case 'pull':
-        return { success: true, updated: 3 };
-      case 'create_branch':
-        return { success: true, branch: params.name };
-      default:
-        throw new Error(`Unknown GitHub tool: ${toolName}`);
+    case 'clone_repo':
+      return { success: true, path: `/tmp/${params.url?.split('/').pop()}` };
+    case 'create_issue':
+      return { success: true, issueId: Date.now(), url: `https://github.com/${params.repo}/issues/1` };
+    case 'create_pr':
+      return { success: true, prId: Date.now(), url: `https://github.com/${params.repo}/pull/1` };
+    case 'list_issues':
+      return { issues: [{ id: 1, title: 'Test Issue', state: 'open' }] };
+    case 'commit':
+      return { success: true, hash: crypto.randomBytes(20).toString('hex') };
+    case 'push':
+      return { success: true, branch: params.branch };
+    case 'pull':
+      return { success: true, updated: 3 };
+    case 'create_branch':
+      return { success: true, branch: params.name };
+    default:
+      throw new Error(`Unknown GitHub tool: ${toolName}`);
     }
   }
 
   async _executeChromeDevTools(toolName, params) {
     switch (toolName) {
-      case 'navigate':
-        return { success: true, url: params.url };
-      case 'click':
-        return { success: true, selector: params.selector };
-      case 'screenshot':
-        return { success: true, image: 'base64_data' };
-      case 'evaluate':
-        return { result: 'eval_result' };
-      case 'get_performance':
-        return { metrics: { fps: 60, memory: 100 } };
-      case 'get_network':
-        return { requests: [{ url: 'example.com', method: 'GET' }] };
-      case 'emulate_device':
-        return { success: true, device: params.device };
-      case 'set_cookie':
-        return { success: true, cookie: params.name };
-      default:
-        throw new Error(`Unknown DevTools tool: ${toolName}`);
+    case 'navigate':
+      return { success: true, url: params.url };
+    case 'click':
+      return { success: true, selector: params.selector };
+    case 'screenshot':
+      return { success: true, image: 'base64_data' };
+    case 'evaluate':
+      return { result: 'eval_result' };
+    case 'get_performance':
+      return { metrics: { fps: 60, memory: 100 } };
+    case 'get_network':
+      return { requests: [{ url: 'example.com', method: 'GET' }] };
+    case 'emulate_device':
+      return { success: true, device: params.device };
+    case 'set_cookie':
+      return { success: true, cookie: params.name };
+    default:
+      throw new Error(`Unknown DevTools tool: ${toolName}`);
     }
   }
 
@@ -330,20 +412,20 @@ class MCPBridge {
     const contexts = new Map();
 
     switch (toolName) {
-      case 'save_context':
-        contexts.set(params.key, { value: params.value, savedAt: Date.now() });
-        return { success: true, key: params.key };
-      case 'get_context':
-        return { key: params.key, value: contexts.get(params.key)?.value || null };
-      case 'search_context':
-        return { results: [] };
-      case 'list_contexts':
-        return { keys: Array.from(contexts.keys()) };
-      case 'delete_context':
-        contexts.delete(params.key);
-        return { success: true };
-      default:
-        throw new Error(`Unknown Context7 tool: ${toolName}`);
+    case 'save_context':
+      contexts.set(params.key, { value: params.value, savedAt: Date.now() });
+      return { success: true, key: params.key };
+    case 'get_context':
+      return { key: params.key, value: contexts.get(params.key)?.value || null };
+    case 'search_context':
+      return { results: [] };
+    case 'list_contexts':
+      return { keys: Array.from(contexts.keys()) };
+    case 'delete_context':
+      contexts.delete(params.key);
+      return { success: true };
+    default:
+      throw new Error(`Unknown Context7 tool: ${toolName}`);
     }
   }
 
@@ -351,27 +433,28 @@ class MCPBridge {
     const memos = new Map();
 
     switch (toolName) {
-      case 'create_memo':
-        const id = `memo_${Date.now().toString(36)}`;
-        memos.set(id, { id, content: params.content, tags: params.tags, createdAt: Date.now() });
-        return { success: true, id };
-      case 'get_memo':
-        return memos.get(params.id) || { error: 'Not found' };
-      case 'search_memos':
-        return { results: Array.from(memos.values()).filter(m => m.content?.includes(params.query)) };
-      case 'update_memo':
-        if (memos.has(params.id)) {
-          memos.get(params.id).content = params.content;
-          return { success: true };
-        }
-        return { error: 'Not found' };
-      case 'delete_memo':
-        memos.delete(params.id);
+    case 'create_memo': {
+      const id = `memo_${Date.now().toString(36)}`;
+      memos.set(id, { id, content: params.content, tags: params.tags, createdAt: Date.now() });
+      return { success: true, id };
+    }
+    case 'get_memo':
+      return memos.get(params.id) || { error: 'Not found' };
+    case 'search_memos':
+      return { results: Array.from(memos.values()).filter((m) => m.content?.includes(params.query)) };
+    case 'update_memo':
+      if (memos.has(params.id)) {
+        memos.get(params.id).content = params.content;
         return { success: true };
-      case 'list_memos':
-        return { memos: Array.from(memos.values()) };
-      default:
-        throw new Error(`Unknown Memos tool: ${toolName}`);
+      }
+      return { error: 'Not found' };
+    case 'delete_memo':
+      memos.delete(params.id);
+      return { success: true };
+    case 'list_memos':
+      return { memos: Array.from(memos.values()) };
+    default:
+      throw new Error(`Unknown Memos tool: ${toolName}`);
     }
   }
 
@@ -384,12 +467,12 @@ class MCPBridge {
   }
 
   getConnectedServers() {
-    return Array.from(this.servers.values()).filter(s => s.status === 'connected');
+    return Array.from(this.servers.values()).filter((s) => s.status === 'connected');
   }
 
   getTools(serverName = null) {
     if (serverName) {
-      return Array.from(this.tools.values()).filter(t => t.server === serverName);
+      return Array.from(this.tools.values()).filter((t) => t.server === serverName);
     }
     return Array.from(this.tools.values());
   }
@@ -403,13 +486,13 @@ class MCPBridge {
     return {
       servers: {
         total: servers.length,
-        connected: servers.filter(s => s.status === 'connected').length
+        connected: servers.filter((s) => s.status === 'connected').length
       },
       tools: this.tools.size,
       calls: {
         total: this.callHistory.length,
-        completed: this.callHistory.filter(c => c.status === 'completed').length,
-        failed: this.callHistory.filter(c => c.status === 'failed').length
+        completed: this.callHistory.filter((c) => c.status === 'completed').length,
+        failed: this.callHistory.filter((c) => c.status === 'failed').length
       }
     };
   }

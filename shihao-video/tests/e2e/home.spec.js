@@ -19,7 +19,7 @@ test.describe('首页功能测试', () => {
   test('分类导航加载正确', async ({ page }) => {
     const categoryNav = page.locator('.category-nav');
     await expect(categoryNav).toBeVisible();
-    
+
     const allBtn = page.locator('.category-btn').first();
     await expect(allBtn).toBeVisible();
     await expect(allBtn).toContainText('全部');
@@ -46,7 +46,7 @@ test.describe('首页功能测试', () => {
       await searchInput.fill('流浪地球');
       await page.keyboard.press('Enter');
       await page.waitForTimeout(1000);
-      
+
       const cards = page.locator('.video-card');
       const count = await cards.count();
       expect(count).toBeGreaterThan(0);
@@ -57,7 +57,7 @@ test.describe('首页功能测试', () => {
     await page.waitForSelector('.category-btn', { timeout: 10000 });
     const categoryBtns = page.locator('.category-btn');
     const btnCount = await categoryBtns.count();
-    
+
     if (btnCount > 1) {
       await categoryBtns.nth(1).click();
       await page.waitForTimeout(1000);
@@ -77,7 +77,7 @@ test.describe('首页响应式测试', () => {
   test('移动端搜索按钮显示', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    
+
     const searchToggle = page.locator('.search-toggle');
     if (await searchToggle.isVisible()) {
       await searchToggle.click();

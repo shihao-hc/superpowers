@@ -1,9 +1,9 @@
 /**
  * EnhancedVoiceSystem - 增强的语音交互系统
- * 
+ *
  * 参考 AIRI 的 unspeech 和实时语音聊天实现
  * 和 Neuro-sama 的语音合成能力
- * 
+ *
  * 功能:
  * - VAD (Voice Activity Detection) 语音活动检测
  * - STT (Speech-to-Text) 语音识别
@@ -18,7 +18,7 @@ class VoiceActivityDetector {
     this.analyser = null;
     this.microphone = null;
     this.isListening = false;
-    
+
     this.config = {
       threshold: options.threshold || 0.02,
       silenceDuration: options.silenceDuration || 1500,
@@ -26,12 +26,12 @@ class VoiceActivityDetector {
       fftSize: options.fftSize || 2048,
       smoothing: options.smoothing || 0.8
     };
-    
+
     this.speechStartTime = null;
     this.silenceTimer = null;
     this.volumeHistory = [];
     this.historySize = 10;
-    
+
     this.onSpeechStart = options.onSpeechStart || (() => {});
     this.onSpeechEnd = options.onSpeechEnd || (() => {});
     this.onVolumeChange = options.onVolumeChange || (() => {});
@@ -44,17 +44,17 @@ class VoiceActivityDetector {
       this.analyser.fftSize = this.config.fftSize;
       this.analyser.smoothingTimeConstant = this.config.smoothing;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
         }
       });
-      
+
       this.microphone = this.audioContext.createMediaStreamSource(stream);
       this.microphone.connect(this.analyser);
-      
+
       return true;
     } catch (error) {
       console.error('VAD initialization failed:', error);
@@ -63,12 +63,12 @@ class VoiceActivityDetector {
   }
 
   start() {
-    if (!this.audioContext || this.isListening) return;
-    
+    if (!this.audioContext || this.isListening) {return;}
+
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume();
     }
-    
+
     this.isListening = true;
     this.detect();
   }
@@ -82,22 +82,22 @@ class VoiceActivityDetector {
   }
 
   detect() {
-    if (!this.isListening) return;
+    if (!this.isListening) {return;}
 
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
 
     const volume = this._calculateVolume(dataArray);
-    
+
     // 更新音量历史
     this.volumeHistory.push(volume);
     if (this.volumeHistory.length > this.historySize) {
       this.volumeHistory.shift();
     }
-    
+
     // 计算平均音量
     const avgVolume = this.volumeHistory.reduce((a, b) => a + b, 0) / this.volumeHistory.length;
-    
+
     this.onVolumeChange(avgVolume);
 
     if (avgVolume > this.config.threshold) {
@@ -105,7 +105,7 @@ class VoiceActivityDetector {
         this.speechStartTime = Date.now();
         this.onSpeechStart({ volume: avgVolume, timestamp: this.speechStartTime });
       }
-      
+
       // 清除静音计时器
       this._clearSilenceTimer();
     } else if (this.speechStartTime) {
@@ -153,7 +153,7 @@ class VoiceActivityDetector {
   }
 
   getVolumeLevel() {
-    if (!this.analyser) return 0;
+    if (!this.analyser) {return 0;}
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
     return this._calculateVolume(dataArray);
@@ -175,20 +175,20 @@ class SpeechRecognizer {
     this.language = options.language || 'zh-CN';
     this.continuous = options.continuous !== false;
     this.interimResults = options.interimResults !== false;
-    
+
     this.onResult = options.onResult || (() => {});
     this.onError = options.onError || (() => {});
     this.onEnd = options.onEnd || (() => {});
     this.onInterim = options.onInterim || (() => {});
     this.onSpeechStart = options.onSpeechStart || (() => {});
     this.onSpeechEnd = options.onSpeechEnd || (() => {});
-    
+
     this.init();
   }
 
   init() {
-    const SpeechRecognitionAPI = 
-      window.SpeechRecognition || 
+    const SpeechRecognitionAPI =
+      window.SpeechRecognition ||
       window.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
@@ -243,8 +243,8 @@ class SpeechRecognizer {
   }
 
   start() {
-    if (!this.recognition) return false;
-    
+    if (!this.recognition) {return false;}
+
     try {
       this.recognition.start();
       this.isListening = true;
@@ -256,8 +256,8 @@ class SpeechRecognizer {
   }
 
   stop() {
-    if (!this.recognition) return;
-    
+    if (!this.recognition) {return;}
+
     try {
       this.recognition.stop();
       this.isListening = false;
@@ -332,20 +332,20 @@ class EmotionAnalyzer {
   detectFromVoice(voiceData) {
     const { pitch, rate, volume } = voiceData;
     const scores = {};
-    
+
     for (const [emotion, patterns] of Object.entries(this.emotionPatterns)) {
       let score = 0;
       const voice = patterns.voice;
-      
-      if (voice.minPitch && pitch >= voice.minPitch) score += 0.3;
-      if (voice.maxPitch && pitch <= voice.maxPitch) score += 0.3;
-      if (voice.minRate && rate >= voice.minRate) score += 0.3;
-      if (voice.maxRate && rate <= voice.maxRate) score += 0.3;
-      if (volume > 0.5) score += 0.1;
-      
+
+      if (voice.minPitch && pitch >= voice.minPitch) {score += 0.3;}
+      if (voice.maxPitch && pitch <= voice.maxPitch) {score += 0.3;}
+      if (voice.minRate && rate >= voice.minRate) {score += 0.3;}
+      if (voice.maxRate && rate <= voice.maxRate) {score += 0.3;}
+      if (volume > 0.5) {score += 0.1;}
+
       scores[emotion] = score;
     }
-    
+
     const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
     return {
       emotion: best[0],
@@ -367,7 +367,7 @@ class EmotionTTS {
     this.synth = window.speechSynthesis;
     this.language = options.language || 'zh-CN';
     this.enabled = options.enabled !== false;
-    
+
     // 情感到语音参数的映射
     this.emotionParams = {
       happy: { rate: 1.15, pitch: 1.2, volume: 1.0 },
@@ -379,30 +379,30 @@ class EmotionTTS {
       surprised: { rate: 0.95, pitch: 1.2, volume: 1.0 },
       neutral: { rate: 1.0, pitch: 1.0, volume: 1.0 }
     };
-    
+
     this.onStart = options.onStart || (() => {});
     this.onEnd = options.onEnd || (() => {});
     this.onError = options.onError || (() => {});
   }
 
   speak(text, emotion = 'neutral') {
-    if (!this.enabled || !this.synth) return;
-    
+    if (!this.enabled || !this.synth) {return;}
+
     // 停止当前播放
     this.stop();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
     const params = this.emotionParams[emotion] || this.emotionParams.neutral;
-    
+
     utterance.lang = this.language;
     utterance.rate = params.rate;
     utterance.pitch = params.pitch;
     utterance.volume = params.volume;
-    
+
     utterance.onstart = () => this.onStart({ text, emotion });
     utterance.onend = () => this.onEnd({ text, emotion });
     utterance.onerror = (e) => this.onError(e);
-    
+
     this.synth.speak(utterance);
   }
 
@@ -423,30 +423,30 @@ class EnhancedVoiceSystem {
     this.recognizer = new SpeechRecognizer(options.recognizer);
     this.emotionAnalyzer = new EmotionAnalyzer();
     this.tts = new EmotionTTS(options.tts);
-    
+
     this.isVoiceEnabled = false;
     this.currentEmotion = 'neutral';
     this.conversationHistory = [];
-    
+
     // 回调
     this.onUserMessage = options.onUserMessage || (() => {});
     this.onAIResponse = options.onAIResponse || (() => {});
     this.onEmotionChange = options.onEmotionChange || (() => {});
     this.onVolumeChange = options.onVolumeChange || (() => {});
-    
+
     // 自动响应
     this.autoRespond = options.autoRespond !== false;
     this.fetchAI = options.fetchAI || this._defaultFetchAI.bind(this);
-    
+
     this._setupCallbacks();
   }
 
   _setupCallbacks() {
-    this.vad.onSpeechStart = (data) => {
+    this.vad.onSpeechStart = (_data) => {
       this.recognizer.start();
     };
 
-    this.vad.onSpeechEnd = (data) => {
+    this.vad.onSpeechEnd = (_data) => {
       // Speech ended, recognizer will get final result
     };
 
@@ -454,18 +454,18 @@ class EnhancedVoiceSystem {
       this.onVolumeChange(volume);
     };
 
-    this.recognizer.onResult = (data) => {
-      this._handleRecognition(data);
+    this.recognizer.onResult = (_data) => {
+      this._handleRecognition(_data);
     };
 
-    this.recognizer.onInterim = (data) => {
+    this.recognizer.onInterim = (_data) => {
       // 可用于实时字幕
     };
   }
 
   async _handleRecognition(data) {
     const { transcript, confidence } = data;
-    
+
     if (confidence < 0.5) {
       console.log('Low confidence, ignoring:', transcript);
       return;
@@ -474,7 +474,7 @@ class EnhancedVoiceSystem {
     // 情感分析
     const textEmotion = this.emotionAnalyzer.detectFromText(transcript);
     this._updateEmotion(textEmotion.emotion);
-    
+
     // 记录用户消息
     const userMessage = {
       type: 'user',
@@ -483,10 +483,10 @@ class EnhancedVoiceSystem {
       confidence,
       timestamp: Date.now()
     };
-    
+
     this.conversationHistory.push(userMessage);
     this.onUserMessage(userMessage);
-    
+
     // 自动响应
     if (this.autoRespond) {
       try {
@@ -505,12 +505,12 @@ class EnhancedVoiceSystem {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text, 
-          history: history.slice(-10).map(h => ({ role: h.type === 'user' ? 'user' : 'assistant', content: h.text }))
+        body: JSON.stringify({
+          text,
+          history: history.slice(-10).map((h) => ({ role: h.type === 'user' ? 'user' : 'assistant', content: h.text }))
         })
       });
-      
+
       if (response.ok) {
         return await response.json();
       }
@@ -527,11 +527,11 @@ class EnhancedVoiceSystem {
       emotion: response.mood || response.emotion || 'happy',
       timestamp: Date.now()
     };
-    
+
     this.conversationHistory.push(aiMessage);
     this.onAIResponse(aiMessage);
     this.onEmotionChange(aiMessage.emotion);
-    
+
     // TTS
     this.tts.speak(aiMessage.text, aiMessage.emotion);
   }
@@ -547,9 +547,9 @@ class EnhancedVoiceSystem {
   async init() {
     const vadReady = await this.vad.init();
     const sttSupported = this.recognizer.isSupported();
-    
+
     console.log('Voice System:', { vadReady, sttSupported, tts: !!this.tts });
-    
+
     return vadReady && sttSupported;
   }
 

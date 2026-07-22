@@ -31,15 +31,15 @@ class SkillRegistry {
     }
 
     const dirs = fs.readdirSync(this.skillsDir);
-    
+
     for (const dir of dirs) {
       const skillPath = path.join(this.skillsDir, dir);
-      if (!fs.statSync(skillPath).isDirectory()) continue;
+      if (!fs.statSync(skillPath).isDirectory()) {continue;}
 
       const skill = this._discoverSkill(dir);
       if (skill) {
         this.registry.set(skill.name, skill);
-        
+
         // 分类索引
         if (skill.category) {
           if (!this.categories.has(skill.category)) {
@@ -89,7 +89,7 @@ class SkillRegistry {
       try {
         const content = fs.readFileSync(skillMdPath, 'utf8');
         const { metadata, content: body } = parseFrontmatter(content);
-        
+
         skill.name = metadata.name || skillDir;
         skill.description = metadata.description || '';
         skill.category = metadata.category || null;
@@ -110,7 +110,7 @@ class SkillRegistry {
         skill.version = pkg.version || skill.version;
         skill.description = skill.description || pkg.description || '';
         skill.tags = skill.tags.length > 0 ? skill.tags : (pkg.keywords || []);
-        if (pkg.category) skill.category = pkg.category;
+        if (pkg.category) {skill.category = pkg.category;}
       } catch (e) {
         console.warn(`[SkillRegistry] 解析 package.json 失败: ${skillDir}`, e.message);
       }
@@ -139,14 +139,14 @@ class SkillRegistry {
    */
   _scanFiles(skillPath) {
     const files = [];
-    
+
     const scanDir = (dir, prefix = '') => {
-      if (!fs.existsSync(dir)) return;
-      
+      if (!fs.existsSync(dir)) {return;}
+
       for (const entry of fs.readdirSync(dir)) {
         const fullPath = path.join(dir, entry);
         const relPath = prefix ? `${prefix}/${entry}` : entry;
-        
+
         if (fs.statSync(fullPath).isDirectory()) {
           // 只扫描标准子目录
           if (['scripts', 'references', 'assets', 'test', 'tests'].includes(entry)) {
@@ -162,7 +162,7 @@ class SkillRegistry {
         }
       }
     };
-    
+
     scanDir(skillPath);
     return files;
   }
@@ -172,28 +172,28 @@ class SkillRegistry {
    */
   getAllSkills(options = {}) {
     let skills = Array.from(this.registry.values());
-    
+
     if (!options.includeDeprecated) {
-      skills = skills.filter(s => !s.deprecated);
+      skills = skills.filter((s) => !s.deprecated);
     }
-    
+
     if (options.category) {
-      skills = skills.filter(s => s.category === options.category);
+      skills = skills.filter((s) => s.category === options.category);
     }
-    
+
     if (options.tag) {
-      skills = skills.filter(s => s.tags.includes(options.tag));
+      skills = skills.filter((s) => s.tags.includes(options.tag));
     }
-    
+
     if (options.search) {
       const query = options.search.toLowerCase();
-      skills = skills.filter(s => 
+      skills = skills.filter((s) =>
         s.name.toLowerCase().includes(query) ||
         s.description.toLowerCase().includes(query) ||
-        s.tags.some(t => t.toLowerCase().includes(query))
+        s.tags.some((t) => t.toLowerCase().includes(query))
       );
     }
-    
+
     return skills;
   }
 
@@ -202,8 +202,8 @@ class SkillRegistry {
    */
   getSkill(name) {
     const skill = this.registry.get(name);
-    if (!skill) return null;
-    
+    if (!skill) {return null;}
+
     // 如果已弃用但有替代品，返回替代品信息
     if (skill.deprecated && skill.replacement) {
       const replacement = this.registry.get(skill.replacement);
@@ -214,7 +214,7 @@ class SkillRegistry {
         };
       }
     }
-    
+
     return skill;
   }
 
@@ -223,7 +223,7 @@ class SkillRegistry {
    */
   listSkills(options = {}) {
     const skills = this.getAllSkills(options);
-    return skills.map(s => ({
+    return skills.map((s) => ({
       name: s.name,
       description: s.description,
       category: s.category,
@@ -269,9 +269,9 @@ class SkillRegistry {
    */
   getStats() {
     const allSkills = Array.from(this.registry.values());
-    const active = allSkills.filter(s => !s.deprecated);
-    const deprecated = allSkills.filter(s => s.deprecated);
-    const withSKILLMd = allSkills.filter(s => s.hasSKILLMd);
+    const active = allSkills.filter((s) => !s.deprecated);
+    const deprecated = allSkills.filter((s) => s.deprecated);
+    const withSKILLMd = allSkills.filter((s) => s.hasSKILLMd);
 
     return {
       total: allSkills.length,
@@ -288,7 +288,7 @@ class SkillRegistry {
    */
   search(query) {
     const skills = this.getAllSkills({ search: query });
-    return skills.map(s => ({
+    return skills.map((s) => ({
       name: s.name,
       description: s.description,
       category: s.category,
@@ -302,19 +302,19 @@ class SkillRegistry {
   _calculateRelevance(skill, query) {
     let score = 0;
     const q = query.toLowerCase();
-    
-    if (skill.name.toLowerCase() === q) score += 100;
-    else if (skill.name.toLowerCase().includes(q)) score += 50;
-    
-    if (skill.description.toLowerCase().includes(q)) score += 20;
-    
+
+    if (skill.name.toLowerCase() === q) {score += 100;}
+    else if (skill.name.toLowerCase().includes(q)) {score += 50;}
+
+    if (skill.description.toLowerCase().includes(q)) {score += 20;}
+
     for (const tag of skill.tags || []) {
-      if (tag.toLowerCase() === q) score += 30;
-      else if (tag.toLowerCase().includes(q)) score += 15;
+      if (tag.toLowerCase() === q) {score += 30;}
+      else if (tag.toLowerCase().includes(q)) {score += 15;}
     }
-    
-    if (skill.category === q) score += 25;
-    
+
+    if (skill.category === q) {score += 25;}
+
     return score;
   }
 
@@ -377,7 +377,7 @@ class SkillRegistry {
         name: skill.name,
         description: skill.description,
         tags: skill.tags,
-        files: skill.files.map(f => f.path)
+        files: skill.files.map((f) => f.path)
       });
     }
 

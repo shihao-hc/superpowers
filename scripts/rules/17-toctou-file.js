@@ -15,6 +15,7 @@ module.exports = {
       }
     }
   },
+  suggest: '用 try-catch 包裹文件操作代替 existsSync 检查，避免 TOCTOU 竞态。例如：\n    try { await fs.promises.unlink(path); } catch (e) { if (e.code !== "ENOENT") throw e; }',
   references: ['CWE-367'],
   since: '2026-06-28',
 };

@@ -30,7 +30,7 @@ class WorkflowMetrics {
     }
   }
 
-  recordWorkflowExecution(workflowId, duration, status, metadata = {}) {
+  recordWorkflowExecution(workflowId, duration, status, _metadata = {}) {
     if (!this.metrics.workflow.has(workflowId)) {
       this.metrics.workflow.set(workflowId, {
         id: workflowId,
@@ -50,8 +50,8 @@ class WorkflowMetrics {
     wf.totalDuration += duration;
     wf.durations.push({ duration, status, timestamp: Date.now() });
 
-    if (duration < wf.minDuration) wf.minDuration = duration;
-    if (duration > wf.maxDuration) wf.maxDuration = duration;
+    if (duration < wf.minDuration) {wf.minDuration = duration;}
+    if (duration > wf.maxDuration) {wf.maxDuration = duration;}
 
     if (status === 'completed') {
       wf.successes++;
@@ -133,22 +133,22 @@ class WorkflowMetrics {
         ? (wf.totalDuration / wf.executions).toFixed(0)
         : '0';
 
-      const p50 = this._percentile(wf.durations.map(d => d.duration), 50);
-      const p90 = this._percentile(wf.durations.map(d => d.duration), 90);
-      const p99 = this._percentile(wf.durations.map(d => d.duration), 99);
+      const p50 = this._percentile(wf.durations.map((d) => d.duration), 50);
+      const p90 = this._percentile(wf.durations.map((d) => d.duration), 90);
+      const p99 = this._percentile(wf.durations.map((d) => d.duration), 99);
 
       result.push({
         id,
         executions: wf.executions,
         successes: wf.successes,
         failures: wf.failures,
-        successRate: successRate + '%',
-        avgDuration: avgDuration + 'ms',
-        minDuration: wf.minDuration === Infinity ? 'N/A' : wf.minDuration + 'ms',
-        maxDuration: wf.maxDuration + 'ms',
-        p50: p50 + 'ms',
-        p90: p90 + 'ms',
-        p99: p99 + 'ms',
+        successRate: `${successRate}%`,
+        avgDuration: `${avgDuration}ms`,
+        minDuration: wf.minDuration === Infinity ? 'N/A' : `${wf.minDuration}ms`,
+        maxDuration: `${wf.maxDuration}ms`,
+        p50: `${p50}ms`,
+        p90: `${p90}ms`,
+        p99: `${p99}ms`,
         lastExecution: wf.lastExecution
       });
     }
@@ -159,13 +159,13 @@ class WorkflowMetrics {
   getAgentMetrics(agentId = null) {
     const result = [];
 
-    for (const [key, agent] of this.metrics.agent) {
-      if (agentId && agent.agentId !== agentId) continue;
+    for (const [_key, agent] of this.metrics.agent) {
+      if (agentId && agent.agentId !== agentId) {continue;}
 
       result.push({
         ...agent,
         successRate: agent.executions > 0
-          ? (agent.successes / agent.executions * 100).toFixed(2) + '%'
+          ? `${(agent.successes / agent.executions * 100).toFixed(2)}%`
           : '0%'
       });
     }
@@ -182,7 +182,7 @@ class WorkflowMetrics {
       if (avgDuration > threshold) {
         result.push({
           id,
-          avgDuration: avgDuration.toFixed(0) + 'ms',
+          avgDuration: `${avgDuration.toFixed(0)}ms`,
           executions: wf.executions,
           bottleneck: this._findBottleneck(id)
         });
@@ -195,25 +195,25 @@ class WorkflowMetrics {
   _findBottleneck(workflowId) {
     const tasks = [];
 
-    for (const [taskId, task] of this.metrics.task) {
+    for (const [_taskId, task] of this.metrics.task) {
       if (task.workflowId === workflowId) {
         tasks.push(task);
       }
     }
 
-    if (tasks.length === 0) return null;
+    if (tasks.length === 0) {return null;}
 
     tasks.sort((a, b) => b.duration - a.duration);
 
     return {
       agent: tasks[0].agentId,
-      duration: tasks[0].duration + 'ms',
+      duration: `${tasks[0].duration}ms`,
       step: tasks[0].stepIndex
     };
   }
 
   _percentile(arr, p) {
-    if (arr.length === 0) return 0;
+    if (arr.length === 0) {return 0;}
 
     const sorted = [...arr].sort((a, b) => a - b);
     const index = Math.ceil((p / 100) * sorted.length) - 1;
@@ -256,14 +256,14 @@ class WorkflowMetrics {
     output += '\n# HELP ultrawork_agent_executions_total Total agent executions\n';
     output += '# TYPE ultrawork_agent_executions_total counter\n';
 
-    for (const [key, agent] of this.metrics.agent) {
+    for (const [_key, agent] of this.metrics.agent) {
       output += `ultrawork_agent_executions_total{agent="${agent.agentId}",task="${agent.taskType}"} ${agent.executions}\n`;
     }
 
     output += '\n# HELP ultrawork_agent_success_rate Agent success rate\n';
     output += '# TYPE ultrawork_agent_success_rate gauge\n';
 
-    for (const [key, agent] of this.metrics.agent) {
+    for (const [_key, agent] of this.metrics.agent) {
       const rate = agent.executions > 0 ? agent.successes / agent.executions : 0;
       output += `ultrawork_agent_success_rate{agent="${agent.agentId}",task="${agent.taskType}"} ${rate.toFixed(4)}\n`;
     }
@@ -293,12 +293,12 @@ class WorkflowMetrics {
         totalRequests: this.metrics.system.totalRequests,
         totalErrors: this.metrics.system.totalErrors,
         errorRate: this.metrics.system.totalRequests > 0
-          ? (this.metrics.system.totalErrors / this.metrics.system.totalRequests * 100).toFixed(2) + '%'
+          ? `${(this.metrics.system.totalErrors / this.metrics.system.totalRequests * 100).toFixed(2)}%`
           : '0%',
         avgLatency: this.metrics.system.totalRequests > 0
-          ? (this.metrics.system.totalLatency / this.metrics.system.totalRequests).toFixed(0) + 'ms'
+          ? `${(this.metrics.system.totalLatency / this.metrics.system.totalRequests).toFixed(0)}ms`
           : '0ms',
-        uptime: ((Date.now() - this.metrics.system.startTime) / 1000).toFixed(0) + 's'
+        uptime: `${((Date.now() - this.metrics.system.startTime) / 1000).toFixed(0)}s`
       },
       workflows: workflows.slice(0, 10),
       slowWorkflows: slowWorkflows.slice(0, 5),
@@ -309,8 +309,8 @@ class WorkflowMetrics {
   _cleanup() {
     const now = Date.now();
 
-    for (const [id, wf] of this.metrics.workflow) {
-      wf.durations = wf.durations.filter(d => now - d.timestamp < this.retentionPeriod);
+    for (const [_id, wf] of this.metrics.workflow) {
+      wf.durations = wf.durations.filter((d) => now - d.timestamp < this.retentionPeriod);
     }
 
     for (const [id, task] of this.metrics.task) {

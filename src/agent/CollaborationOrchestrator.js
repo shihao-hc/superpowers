@@ -189,7 +189,7 @@ class CollaborationOrchestrator {
   }
 
   async _executeWithAgent(step, input, agent) {
-    const task = {
+    const _task = {
       type: step.task,
       input,
       agentId: agent.id
@@ -215,7 +215,7 @@ class CollaborationOrchestrator {
   }
 
   async _executeDefault(step, input) {
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 100));
 
     return {
       type: step.task,
@@ -237,7 +237,7 @@ class CollaborationOrchestrator {
 
   getExecution(executionId) {
     return this.activeExecutions.get(executionId) ||
-      this.completedExecutions.find(e => e.id === executionId);
+      this.completedExecutions.find((e) => e.id === executionId);
   }
 
   getActiveExecutions() {
@@ -258,7 +258,7 @@ class CollaborationOrchestrator {
 
   async cancelExecution(executionId) {
     const execution = this.activeExecutions.get(executionId);
-    if (!execution) return false;
+    if (!execution) {return false;}
 
     execution.status = 'cancelled';
     execution.completedAt = Date.now();
@@ -280,10 +280,10 @@ class CollaborationOrchestrator {
       activeExecutions: this.activeExecutions.size,
       completedExecutions: completed.length,
       successRate: completed.length > 0
-        ? (completed.filter(e => e.status === 'completed').length / completed.length * 100).toFixed(2) + '%'
+        ? `${(completed.filter((e) => e.status === 'completed').length / completed.length * 100).toFixed(2)}%`
         : '0%',
       avgDuration: completed.length > 0
-        ? (completed.reduce((sum, e) => sum + ((e.completedAt || Date.now()) - e.startedAt), 0) / completed.length).toFixed(0) + 'ms'
+        ? `${(completed.reduce((sum, e) => sum + ((e.completedAt || Date.now()) - e.startedAt), 0) / completed.length).toFixed(0)}ms`
         : '0ms'
     };
   }

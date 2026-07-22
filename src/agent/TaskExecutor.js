@@ -366,7 +366,7 @@ class TaskExecutor {
     try {
       await this.browser.init();
 
-      const steps = template.steps.map(step => {
+      const steps = template.steps.map((step) => {
         const resolvedParams = {};
         for (const [key, value] of Object.entries(step.params)) {
           resolvedParams[key] = typeof value === 'string' && value.startsWith('{{')
@@ -508,9 +508,9 @@ class TaskExecutor {
     const tasks = Array.from(this.tasks.values());
     return {
       total: tasks.length,
-      completed: tasks.filter(t => t.status === 'completed').length,
-      failed: tasks.filter(t => t.status === 'failed').length,
-      running: tasks.filter(t => t.status === 'running').length,
+      completed: tasks.filter((t) => t.status === 'completed').length,
+      failed: tasks.filter((t) => t.status === 'failed').length,
+      running: tasks.filter((t) => t.status === 'running').length,
       templates: this.templates.size
     };
   }

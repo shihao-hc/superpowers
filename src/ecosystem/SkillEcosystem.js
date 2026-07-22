@@ -24,7 +24,7 @@ class SkillStorefront {
     this.tags = new Map();
     this.reviews = new Map();
     this.bundles = new Map();
-    
+
     this._initCategories();
   }
 
@@ -85,7 +85,7 @@ class SkillStorefront {
 
     // 更新分类计数
     const cat = this.categories.get(skill.category);
-    if (cat) cat.count++;
+    if (cat) {cat.count++;}
 
     // 更新标签
     for (const tag of skill.tags) {
@@ -103,46 +103,46 @@ class SkillStorefront {
   }
 
   listSkills(filters = {}) {
-    let skills = Array.from(this.skills.values()).filter(s => s.status === 'approved');
+    let skills = Array.from(this.skills.values()).filter((s) => s.status === 'approved');
 
     if (filters.category) {
-      skills = skills.filter(s => s.category === filters.category);
+      skills = skills.filter((s) => s.category === filters.category);
     }
     if (filters.tags && filters.tags.length > 0) {
-      skills = skills.filter(s => 
-        filters.tags.some(t => s.tags.includes(t))
+      skills = skills.filter((s) =>
+        filters.tags.some((t) => s.tags.includes(t))
       );
     }
     if (filters.author) {
-      skills = skills.filter(s => s.author.id === filters.author);
+      skills = skills.filter((s) => s.author.id === filters.author);
     }
     if (filters.pricing) {
-      skills = skills.filter(s => s.pricing.type === filters.pricing);
+      skills = skills.filter((s) => s.pricing.type === filters.pricing);
     }
     if (filters.search) {
       const q = filters.search.toLowerCase();
-      skills = skills.filter(s =>
+      skills = skills.filter((s) =>
         s.name.toLowerCase().includes(q) ||
         s.description.toLowerCase().includes(q) ||
-        s.tags.some(t => t.toLowerCase().includes(q))
+        s.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
 
     // 排序
     const sortBy = filters.sortBy || 'popular';
     switch (sortBy) {
-      case 'popular':
-        skills.sort((a, b) => b.stats.downloads - a.stats.downloads);
-        break;
-      case 'new':
-        skills.sort((a, b) => b.createdAt - a.createdAt);
-        break;
-      case 'rating':
-        skills.sort((a, b) => b.stats.rating - a.stats.rating);
-        break;
-      case 'trending':
-        skills.sort((a, b) => b.stats.weeklyInstalls - a.stats.weeklyInstalls);
-        break;
+    case 'popular':
+      skills.sort((a, b) => b.stats.downloads - a.stats.downloads);
+      break;
+    case 'new':
+      skills.sort((a, b) => b.createdAt - a.createdAt);
+      break;
+    case 'rating':
+      skills.sort((a, b) => b.stats.rating - a.stats.rating);
+      break;
+    case 'trending':
+      skills.sort((a, b) => b.stats.weeklyInstalls - a.stats.weeklyInstalls);
+      break;
     }
 
     // 分页
@@ -217,7 +217,7 @@ class SkillStorefront {
 
   getFeaturedSkills(limit = 10) {
     const skills = Array.from(this.skills.values())
-      .filter(s => s.status === 'approved')
+      .filter((s) => s.status === 'approved')
       .sort((a, b) => b.stats.downloads - a.stats.downloads)
       .slice(0, limit);
     return skills;
@@ -225,7 +225,7 @@ class SkillStorefront {
 
   getNewReleases(limit = 10) {
     const skills = Array.from(this.skills.values())
-      .filter(s => s.status === 'approved')
+      .filter((s) => s.status === 'approved')
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, limit);
     return skills;
@@ -412,13 +412,13 @@ class AnalyticsHub {
 
   getSkillAnalytics(skillId, options = {}) {
     const downloads = this.events.filter(
-      e => e.type === 'skill.downloaded' && e.skillId === skillId
+      (e) => e.type === 'skill.downloaded' && e.skillId === skillId
     );
     const installs = this.events.filter(
-      e => e.type === 'skill.installed' && e.skillId === skillId
+      (e) => e.type === 'skill.installed' && e.skillId === skillId
     );
     const reviews = this.events.filter(
-      e => e.type === 'skill.reviewed' && e.skillId === skillId
+      (e) => e.type === 'skill.reviewed' && e.skillId === skillId
     );
 
     return {
@@ -426,8 +426,8 @@ class AnalyticsHub {
         totalDownloads: downloads.length,
         totalInstalls: installs.length,
         totalReviews: reviews.length,
-        installRate: downloads.length > 0 
-          ? Math.round(installs.length / downloads.length * 100) 
+        installRate: downloads.length > 0
+          ? Math.round(installs.length / downloads.length * 100)
           : 0
       },
       trends: this._getTrends(downloads, options.days || 30),
@@ -439,13 +439,13 @@ class AnalyticsHub {
   _getTrends(events, days) {
     const trends = [];
     const now = Date.now();
-    
+
     for (let i = days - 1; i >= 0; i--) {
       const dayStart = now - i * 24 * 60 * 60 * 1000;
       const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-      
+
       const count = events.filter(
-        e => e.timestamp >= dayStart && e.timestamp < dayEnd
+        (e) => e.timestamp >= dayStart && e.timestamp < dayEnd
       ).length;
 
       trends.push({
@@ -470,13 +470,13 @@ class AnalyticsHub {
 
   _getConversion(skillId) {
     const viewed = this.events.filter(
-      e => e.type === 'skill.viewed' && e.skillId === skillId
+      (e) => e.type === 'skill.viewed' && e.skillId === skillId
     ).length;
     const downloaded = this.events.filter(
-      e => e.type === 'skill.downloaded' && e.skillId === skillId
+      (e) => e.type === 'skill.downloaded' && e.skillId === skillId
     ).length;
     const installed = this.events.filter(
-      e => e.type === 'skill.installed' && e.skillId === skillId
+      (e) => e.type === 'skill.installed' && e.skillId === skillId
     ).length;
 
     return {
@@ -495,17 +495,17 @@ class AnalyticsHub {
     };
 
     switch (type) {
-      case 'market-overview':
-        report.data = this._marketOverviewReport();
-        break;
-      case 'trending-skills':
-        report.data = this._trendingSkillsReport(options.limit || 20);
-        break;
-      case 'developer-performance':
-        report.data = this._developerPerformanceReport(options.developerId);
-        break;
-      default:
-        throw new Error(`Unknown report type: ${type}`);
+    case 'market-overview':
+      report.data = this._marketOverviewReport();
+      break;
+    case 'trending-skills':
+      report.data = this._trendingSkillsReport(options.limit || 20);
+      break;
+    case 'developer-performance':
+      report.data = this._developerPerformanceReport(options.developerId);
+      break;
+    default:
+      throw new Error(`Unknown report type: ${type}`);
     }
 
     this.reports.set(report.id, report);
@@ -513,9 +513,9 @@ class AnalyticsHub {
   }
 
   _marketOverviewReport() {
-    const skills = this.events.filter(e => e.type === 'skill.published');
-    const downloads = this.events.filter(e => e.type === 'skill.downloaded');
-    const reviews = this.events.filter(e => e.type === 'skill.reviewed');
+    const skills = this.events.filter((e) => e.type === 'skill.published');
+    const downloads = this.events.filter((e) => e.type === 'skill.downloaded');
+    const reviews = this.events.filter((e) => e.type === 'skill.reviewed');
 
     return {
       totalSkills: skills.length,
@@ -546,13 +546,13 @@ class AnalyticsHub {
       if (event.skillId) {
         const score = skillScores.get(event.skillId) || 0;
         let weight = 1;
-        
+
         // 权重
         switch (event.type) {
-          case 'skill.viewed': weight = 1; break;
-          case 'skill.downloaded': weight = 3; break;
-          case 'skill.installed': weight = 5; break;
-          case 'skill.reviewed': weight = 4; break;
+        case 'skill.viewed': weight = 1; break;
+        case 'skill.downloaded': weight = 3; break;
+        case 'skill.installed': weight = 5; break;
+        case 'skill.reviewed': weight = 4; break;
         }
 
         skillScores.set(event.skillId, score + weight);
@@ -566,13 +566,13 @@ class AnalyticsHub {
   }
 
   _developerPerformanceReport(developerId) {
-    const events = this.events.filter(e => e.developerId === developerId);
-    
+    const events = this.events.filter((e) => e.developerId === developerId);
+
     return {
-      totalEarnings: events.filter(e => e.type === 'payment.received')
+      totalEarnings: events.filter((e) => e.type === 'payment.received')
         .reduce((sum, e) => sum + (e.amount || 0), 0),
-      totalDownloads: events.filter(e => e.type === 'skill.downloaded').length,
-      skillCount: events.filter(e => e.type === 'skill.published').length,
+      totalDownloads: events.filter((e) => e.type === 'skill.downloaded').length,
+      skillCount: events.filter((e) => e.type === 'skill.published').length,
       avgRating: 4.5
     };
   }
@@ -608,7 +608,7 @@ class BadgeSystem {
     const currentBadges = this.userBadges.get(userId) || [];
 
     for (const [badgeId, badge] of this.badges.entries()) {
-      if (currentBadges.includes(badgeId)) continue;
+      if (currentBadges.includes(badgeId)) {continue;}
 
       if (this._checkRequirement(badge.requirement, stats)) {
         currentBadges.push(badgeId);
@@ -625,22 +625,22 @@ class BadgeSystem {
 
   _checkRequirement(requirement, stats) {
     switch (requirement.type) {
-      case 'skill_count':
-        return stats.skillCount >= requirement.value;
-      case 'downloads':
-        return stats.totalDownloads >= requirement.value;
-      case 'avg_rating':
-        return stats.avgRating >= requirement.value;
-      case 'verified':
-        return stats.verified === requirement.value;
-      default:
-        return false;
+    case 'skill_count':
+      return stats.skillCount >= requirement.value;
+    case 'downloads':
+      return stats.totalDownloads >= requirement.value;
+    case 'avg_rating':
+      return stats.avgRating >= requirement.value;
+    case 'verified':
+      return stats.verified === requirement.value;
+    default:
+      return false;
     }
   }
 
   getUserBadges(userId) {
     const badgeIds = this.userBadges.get(userId) || [];
-    return badgeIds.map(id => this.badges.get(id)).filter(Boolean);
+    return badgeIds.map((id) => this.badges.get(id)).filter(Boolean);
   }
 }
 
@@ -671,7 +671,7 @@ class LeaderboardSystem {
 
   updateLeaderboard(type, entries) {
     const leaderboard = this.leaderboards.get(type);
-    if (!leaderboard) return;
+    if (!leaderboard) {return;}
 
     leaderboard.entries = entries.slice(0, 100);
     leaderboard.lastUpdated = Date.now();
@@ -679,7 +679,7 @@ class LeaderboardSystem {
 
   getLeaderboard(type, options = {}) {
     const leaderboard = this.leaderboards.get(type);
-    if (!leaderboard) return null;
+    if (!leaderboard) {return null;}
 
     const limit = options.limit || 20;
     const offset = options.offset || 0;

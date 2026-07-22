@@ -14,6 +14,7 @@ module.exports = {
       }
     }
   },
+  suggest: '在日志输出前对敏感字段（password/token/secret）做掩码处理，例如：log({ ...data, password: "***" })。也可以使用 dataMask 中间件自动过滤。',
   references: ['CWE-532'],
   since: '2026-06-28',
 };

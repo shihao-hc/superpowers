@@ -1,11 +1,11 @@
 /**
  * Skill Preview System
  * @deprecated 请使用 SkillRenderer 替代
- * 
+ *
  * 已废弃功能 (2026-03-22):
  * - 此模块已被 src/skills/rendering/SkillRenderer.js 合并
  * - 新代码请使用 getSkillRenderer() 而非 getSkillPreview()
- * 
+ *
  * 迁移指南:
  *   旧: const { getSkillPreview } = require('./preview/SkillPreview');
  *   新: const { getSkillRenderer } = require('./rendering/SkillRenderer');
@@ -21,7 +21,7 @@ const crypto = require('crypto');
  * HTML转义函数 - 防止XSS
  */
 function escapeHtml(str) {
-  if (typeof str !== 'string') return String(str);
+  if (typeof str !== 'string') {return String(str);}
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -45,10 +45,10 @@ class SkillPreview {
     this.previewDir = options.previewDir || path.join(process.cwd(), 'data', 'previews');
     this.maxPreviewSize = options.maxPreviewSize || 10 * 1024 * 1024; // 10MB
     this.cacheTTL = options.cacheTTL || 3600000; // 1 hour
-    
+
     // Preview cache
     this.previewCache = new Map();
-    
+
     // Supported preview formats
     this.supportedFormats = {
       image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'],
@@ -58,11 +58,11 @@ class SkillPreview {
       pdf: ['pdf'],
       code: ['js', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'ts']
     };
-    
+
     // 自动清理定时器
     this.cleanupInterval = null;
     this._startAutoCleanup();
-    
+
     this._ensurePreviewDir();
   }
 
@@ -75,7 +75,7 @@ class SkillPreview {
       this._cleanupExpiredCache();
       console.log('[SkillPreview] 自动清理过期缓存完成');
     }, 3600000);
-    
+
     // 防止定时器阻止进程退出
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
@@ -103,13 +103,13 @@ class SkillPreview {
    */
   getPreviewType(filename) {
     const ext = path.extname(filename).toLowerCase().slice(1);
-    
+
     for (const [type, extensions] of Object.entries(this.supportedFormats)) {
       if (extensions.includes(ext)) {
         return type;
       }
     }
-    
+
     return 'unknown';
   }
 
@@ -131,30 +131,30 @@ class SkillPreview {
     if (buffer.length > this.maxPreviewSize) {
       throw new Error(`File size exceeds maximum limit: ${this.maxPreviewSize} bytes`);
     }
-    
+
     const previewId = this._generatePreviewId(buffer.toString('base64'), filename);
     const ext = path.extname(filename).toLowerCase();
-    
+
     // 验证扩展名
     const safeExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'];
     if (!safeExtensions.includes(ext)) {
       throw new Error(`Invalid image extension: ${ext}`);
     }
-    
+
     // 安全的文件路径
     const previewPath = path.join(this.previewDir, `${previewId}${ext}`);
     if (!isPathSafe(this.previewDir, previewPath)) {
       throw new Error('Invalid preview path');
     }
-    
+
     fs.writeFileSync(previewPath, buffer);
-    
+
     // 生成缩略图（如果需要）
     let thumbnailPath = null;
     if (options.generateThumbnail !== false) {
       thumbnailPath = this._createThumbnail(buffer, previewId, ext);
     }
-    
+
     return {
       id: previewId,
       type: 'image',
@@ -172,17 +172,17 @@ class SkillPreview {
    */
   createHTMLPreview(content, filename, options = {}) {
     const previewId = this._generatePreviewId(content, filename);
-    
+
     // 安全处理HTML
     const sanitizedHTML = this._sanitizeHTML(content);
-    
+
     // 添加预览包装器
     const wrappedHTML = this._wrapHTMLForPreview(sanitizedHTML, options);
-    
+
     // 存储预览文件
     const previewPath = path.join(this.previewDir, `${previewId}.html`);
     fs.writeFileSync(previewPath, wrappedHTML, 'utf8');
-    
+
     return {
       id: previewId,
       type: 'html',
@@ -199,14 +199,14 @@ class SkillPreview {
    * 创建Markdown预览
    */
   createMarkdownPreview(content, filename, options = {}) {
-    const previewId = this._generatePreviewId(content, filename);
-    
+    const _previewId = this._generatePreviewId(content, filename);
+
     // 转换Markdown为HTML
     const htmlContent = this._markdownToHTML(content);
-    
+
     // 创建HTML预览
     const htmlPreview = this.createHTMLPreview(htmlContent, filename.replace(/\.md$/, '.html'), options);
-    
+
     return {
       ...htmlPreview,
       type: 'markdown',
@@ -218,15 +218,15 @@ class SkillPreview {
   /**
    * 创建文本预览
    */
-  createTextPreview(content, filename, options = {}) {
+  createTextPreview(content, filename, _options = {}) {
     const previewId = this._generatePreviewId(content, filename);
-    
+
     // 高亮语法（如果是代码）
     const highlightedContent = this._highlightSyntax(content, filename);
-    
+
     // 转义文件名防止XSS
     const safeFilename = escapeHtml(filename);
-    
+
     // 包装为HTML
     const wrappedHTML = `
 <!DOCTYPE html>
@@ -258,11 +258,11 @@ class SkillPreview {
   <div class="content">${highlightedContent}</div>
 </body>
 </html>`;
-    
+
     // 存储预览文件
     const previewPath = path.join(this.previewDir, `${previewId}.html`);
     fs.writeFileSync(previewPath, wrappedHTML, 'utf8');
-    
+
     return {
       id: previewId,
       type: 'text',
@@ -277,18 +277,18 @@ class SkillPreview {
   /**
    * 创建PDF预览
    */
-  createPDFPreview(buffer, filename, options = {}) {
+  createPDFPreview(buffer, filename, _options = {}) {
     const previewId = this._generatePreviewId(buffer.toString('base64'), filename);
-    
+
     // 存储PDF文件
     const previewPath = path.join(this.previewDir, `${previewId}.pdf`);
     fs.writeFileSync(previewPath, buffer);
-    
+
     // 创建PDF查看器HTML
     const viewerHTML = this._createPDFViewer(previewId);
     const viewerPath = path.join(this.previewDir, `${previewId}_viewer.html`);
     fs.writeFileSync(viewerPath, viewerHTML, 'utf8');
-    
+
     return {
       id: previewId,
       type: 'pdf',
@@ -308,50 +308,50 @@ class SkillPreview {
    */
   createPreview(data, filename, options = {}) {
     const previewType = this.getPreviewType(filename);
-    
+
     switch (previewType) {
-      case 'image':
-        return this.createImagePreview(
-          Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'),
-          filename,
-          options
-        );
-        
-      case 'html':
-        return this.createHTMLPreview(
-          typeof data === 'string' ? data : data.toString(),
-          filename,
-          options
-        );
-        
-      case 'markdown':
-        return this.createMarkdownPreview(
-          typeof data === 'string' ? data : data.toString(),
-          filename,
-          options
-        );
-        
-      case 'text':
-      case 'code':
-        return this.createTextPreview(
-          typeof data === 'string' ? data : data.toString(),
-          filename,
-          options
-        );
-        
-      case 'pdf':
-        return this.createPDFPreview(
-          Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'),
-          filename,
-          options
-        );
-        
-      default:
-        return this.createTextPreview(
-          typeof data === 'string' ? data : data.toString(),
-          filename,
-          options
-        );
+    case 'image':
+      return this.createImagePreview(
+        Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'),
+        filename,
+        options
+      );
+
+    case 'html':
+      return this.createHTMLPreview(
+        typeof data === 'string' ? data : data.toString(),
+        filename,
+        options
+      );
+
+    case 'markdown':
+      return this.createMarkdownPreview(
+        typeof data === 'string' ? data : data.toString(),
+        filename,
+        options
+      );
+
+    case 'text':
+    case 'code':
+      return this.createTextPreview(
+        typeof data === 'string' ? data : data.toString(),
+        filename,
+        options
+      );
+
+    case 'pdf':
+      return this.createPDFPreview(
+        Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'),
+        filename,
+        options
+      );
+
+    default:
+      return this.createTextPreview(
+        typeof data === 'string' ? data : data.toString(),
+        filename,
+        options
+      );
     }
   }
 
@@ -363,44 +363,44 @@ class SkillPreview {
     if (!previewId || !/^[a-zA-Z0-9]+$/.test(previewId)) {
       return null;
     }
-    
+
     // 检查缓存
     const cached = this.previewCache.get(previewId);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.preview;
     }
-    
+
     // 查找预览文件
     const files = fs.readdirSync(this.previewDir);
-    const previewFile = files.find(f => f.startsWith(previewId));
-    
+    const previewFile = files.find((f) => f.startsWith(previewId));
+
     if (!previewFile) {
       return null;
     }
-    
+
     const filePath = path.join(this.previewDir, previewFile);
-    
+
     // 验证文件路径安全
     if (!isPathSafe(this.previewDir, filePath)) {
       console.warn('Path traversal attempt detected:', previewId);
       return null;
     }
-    
+
     const stats = fs.statSync(filePath);
-    
+
     const preview = {
       id: previewId,
       path: filePath,
       size: stats.size,
       modifiedAt: stats.mtime.toISOString()
     };
-    
+
     // 更新缓存
     this.previewCache.set(previewId, {
       preview,
       timestamp: Date.now()
     });
-    
+
     return preview;
   }
 
@@ -412,24 +412,24 @@ class SkillPreview {
     if (!previewId || !/^[a-zA-Z0-9]+$/.test(previewId)) {
       throw new Error('Invalid preview ID');
     }
-    
+
     const files = fs.readdirSync(this.previewDir);
-    const previewFiles = files.filter(f => f.startsWith(previewId));
-    
+    const previewFiles = files.filter((f) => f.startsWith(previewId));
+
     for (const file of previewFiles) {
       const filePath = path.join(this.previewDir, file);
-      
+
       // 验证路径安全
       if (!isPathSafe(this.previewDir, filePath)) {
         console.warn('Path traversal attempt detected in delete:', previewId);
         continue;
       }
-      
+
       fs.unlinkSync(filePath);
     }
-    
+
     this.previewCache.delete(previewId);
-    
+
     return { deleted: previewFiles.length };
   }
 
@@ -440,26 +440,26 @@ class SkillPreview {
     const now = Date.now();
     const files = fs.readdirSync(this.previewDir);
     let deletedCount = 0;
-    
+
     for (const file of files) {
       const filePath = path.join(this.previewDir, file);
-      
+
       // 验证路径安全
       if (!isPathSafe(this.previewDir, filePath)) {
         continue;
       }
-      
+
       const stats = fs.statSync(filePath);
-      
+
       if (now - stats.mtime.getTime() > maxAge) {
         fs.unlinkSync(filePath);
         deletedCount++;
       }
     }
-    
+
     // 同时清理过期的缓存条目
     this._cleanupExpiredCache();
-    
+
     return { deleted: deletedCount };
   }
 
@@ -488,32 +488,33 @@ class SkillPreview {
    * 更安全的HTML清理函数 - 增强版
    */
   _sanitizeHTML(html) {
-    if (!html || typeof html !== 'string') return '';
-    
+    if (!html || typeof html !== 'string') {return '';}
+
     // 第一步：移除所有script标签及其内容
     let sanitized = html
+      // eslint-disable-next-line security/detect-unsafe-regex
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '<!-- script removed -->')
       .replace(/<script[^>]*>/gi, '<!-- script tag removed -->')
       .replace(/<\/script>/gi, '');
-    
+
     // 第二步：移除事件处理器（支持各种引号格式）
     sanitized = sanitized
       .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
       .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
       .replace(/\son\w+\s*=\s*[^\s>"']*/gi, '');
-    
+
     // 第三步：移除危险的属性
     sanitized = sanitized
       .replace(/\s(?:href|src|action)\s*=\s*["']?\s*javascript\s*:/gi, ' data-removed-')
       .replace(/\s(?:href|src|action)\s*=\s*["']?\s*data\s*:/gi, ' data-removed-');
-    
+
     // 第四步：移除危险的标签
     const dangerousTags = ['iframe', 'object', 'embed', 'applet', 'form', 'input', 'button', 'select', 'textarea'];
     for (const tag of dangerousTags) {
       const regex = new RegExp(`<${tag}\\b[^>]*>.*?</${tag}>|<${tag}\\b[^>]*/>`, 'gi');
       sanitized = sanitized.replace(regex, `<!-- ${tag} removed -->`);
     }
-    
+
     // 第五步：移除style标签中的expression和import
     sanitized = sanitized
       .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (match) => {
@@ -521,7 +522,7 @@ class SkillPreview {
           .replace(/expression\s*\([^)]*\)/gi, '')
           .replace(/@import\s+[^;]*;/gi, '');
       });
-    
+
     return sanitized;
   }
 
@@ -531,7 +532,7 @@ class SkillPreview {
   _wrapHTMLForPreview(html, options) {
     // 转义标题中的特殊字符
     const safeTitle = escapeHtml(options?.title || 'HTML Preview');
-    
+
     return `
 <!DOCTYPE html>
 <html>
@@ -573,13 +574,13 @@ class SkillPreview {
 
   _highlightSyntax(content, filename) {
     const ext = path.extname(filename).slice(1);
-    
+
     // 简单的语法高亮
     let highlighted = content
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    
+
     // JavaScript/TypeScript
     if (['js', 'ts', 'jsx', 'tsx'].includes(ext)) {
       highlighted = highlighted
@@ -588,7 +589,7 @@ class SkillPreview {
         .replace(/(['"`])(.*?)\1/g, '<span style="color:#98c379;">$1$2$1</span>')
         .replace(/\/\/(.*?)$/gm, '<span style="color:#5c6370;">//$1</span>');
     }
-    
+
     // Python
     if (ext === 'py') {
       highlighted = highlighted
@@ -596,7 +597,7 @@ class SkillPreview {
         .replace(/\b(print|len|range|str|int|float|list|dict|set|tuple)\b/g, '<span style="color:#e5c07b;">$1</span>')
         .replace(/(#.*?)$/gm, '<span style="color:#5c6370;">$1</span>');
     }
-    
+
     return highlighted;
   }
 
@@ -634,12 +635,12 @@ class SkillPreview {
   getStats() {
     const files = fs.readdirSync(this.previewDir);
     let totalSize = 0;
-    
+
     for (const file of files) {
       const stats = fs.statSync(path.join(this.previewDir, file));
       totalSize += stats.size;
     }
-    
+
     return {
       totalFiles: files.length,
       totalSize,
@@ -667,8 +668,8 @@ const DeprecatedSkillPreview = class extends SkillPreview {
   }
 };
 
-module.exports = { 
-  SkillPreview: DeprecatedSkillPreview, 
+module.exports = {
+  SkillPreview: DeprecatedSkillPreview,
   getSkillPreview,
   DEPRECATED: true,
   REPLACEMENT: 'src/skills/rendering/SkillRenderer'

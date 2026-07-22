@@ -9,7 +9,7 @@ class I18n {
     this.fallbackLocale = options.fallbackLocale || 'en';
     this.translations = new Map();
     this.formatters = new Map();
-    
+
     this._loadTranslations();
     this._initFormatters();
   }
@@ -20,7 +20,7 @@ class I18n {
       // Common
       'app.name': 'UltraWork AI',
       'app.tagline': '智能技能平台',
-      
+
       // Navigation
       'nav.home': '首页',
       'nav.skills': '技能市场',
@@ -30,7 +30,7 @@ class I18n {
       'nav.settings': '设置',
       'nav.profile': '个人中心',
       'nav.logout': '退出登录',
-      
+
       // Skills
       'skills.title': '技能市场',
       'skills.search': '搜索技能...',
@@ -44,7 +44,7 @@ class I18n {
       'skills.usage': '使用次数',
       'skills.rating': '评分',
       'skills.downloads': '下载量',
-      
+
       // Domains
       'domain.finance': '金融',
       'domain.healthcare': '医疗健康',
@@ -52,21 +52,21 @@ class I18n {
       'domain.manufacturing': '制造业',
       'domain.education': '教育',
       'domain.retail': '零售电商',
-      
+
       // Chat
       'chat.placeholder': '输入消息...',
       'chat.send': '发送',
       'chat.skillSuggestion': '您可能需要这个技能',
       'chat.skillExecuted': '技能执行完成',
       'chat.error': '出错了',
-      
+
       // Monitoring
       'monitoring.title': '监控仪表盘',
       'monitoring.successRate': '成功率',
       'monitoring.latency': '响应延迟',
       'monitoring.users': '活跃用户',
       'monitoring.alerts': '告警',
-      
+
       // Compliance
       'compliance.gdpr': 'GDPR合规',
       'compliance.ccpa': 'CCPA合规',
@@ -82,7 +82,7 @@ class I18n {
       'compliance.rightRestriction': '限制处理权',
       'compliance.rightPortability': '数据可携权',
       'compliance.rightObject': '反对权',
-      
+
       // Enterprise
       'enterprise.tenants': '租户管理',
       'enterprise.users': '用户管理',
@@ -90,7 +90,7 @@ class I18n {
       'enterprise.sso': 'SSO配置',
       'enterprise.apiKeys': 'API密钥',
       'enterprise.branding': '品牌定制',
-      
+
       // Actions
       'action.save': '保存',
       'action.cancel': '取消',
@@ -102,7 +102,7 @@ class I18n {
       'action.submit': '提交',
       'action.confirm': '确认',
       'action.close': '关闭',
-      
+
       // Messages
       'msg.saved': '保存成功',
       'msg.deleted': '删除成功',
@@ -110,13 +110,13 @@ class I18n {
       'msg.loading': '加载中...',
       'msg.noData': '暂无数据',
       'msg.confirmDelete': '确定要删除吗？',
-      
+
       // Time
       'time.now': '刚刚',
       'time.minutesAgo': '{n}分钟前',
       'time.hoursAgo': '{n}小时前',
       'time.daysAgo': '{n}天前',
-      
+
       // Errors
       'error.required': '此项为必填',
       'error.invalid': '格式无效',
@@ -124,7 +124,7 @@ class I18n {
       'error.unauthorized': '未授权',
       'error.forbidden': '禁止访问',
       'error.notFound': '未找到',
-      
+
       // Privacy
       'privacy.title': '隐私设置',
       'privacy.cookies': 'Cookie设置',
@@ -133,7 +133,7 @@ class I18n {
       'privacy.accept': '接受全部',
       'privacy.reject': '拒绝全部',
       'privacy.customize': '自定义设置',
-      
+
       // Audit
       'audit.title': '审计日志',
       'audit.timestamp': '时间',
@@ -142,42 +142,42 @@ class I18n {
       'audit.resource': '资源',
       'audit.result': '结果',
       'audit.ip': 'IP地址',
-      
+
       // Skills Descriptions (Finance)
       'skill.stock-analysis.desc': '基于技术指标进行股票走势分析和预测',
       'skill.risk-assessment.desc': '综合评估投资组合风险，提供VaR和CVaR分析',
       'skill.financial-report-gen.desc': '根据财务数据自动生成各类财务报表和分析报告',
       'skill.credit-scoring.desc': '基于机器学习的信用评分和风险定价',
       'skill.portfolio-opt.desc': '基于现代投资组合理论优化资产配置',
-      
+
       // Skills Descriptions (Healthcare)
       'skill.medical-image-analysis.desc': 'X光、CT、MRI等医学影像的AI辅助分析',
       'skill.symptom-checker.desc': '基于症状提供初步健康建议和科室推荐',
       'skill.drug-interaction.desc': '检查药物间的相互作用和禁忌',
       'skill.health-record-summary.desc': '生成患者健康档案的智能摘要',
       'skill.insurance-claim.desc': '自动化保险理赔审核和欺诈检测',
-      
+
       // Skills Descriptions (Legal)
       'skill.contract-review.desc': '基于AI自动审查合同条款，识别风险点并提供修改建议',
       'skill.legal-research.desc': '快速检索法律法规、司法解释和判例',
       'skill.compliance-check.desc': '自动检查企业运营是否符合各类法规要求',
       'skill.case-analysis.desc': '分析案件材料，预测案件走向并生成诉讼策略',
       'skill.document-drafting.desc': '自动生成各类法律文书，包括起诉状、答辩状、合同等',
-      
+
       // Skills Descriptions (Manufacturing)
       'skill.quality-control.desc': '基于机器视觉自动检测产品缺陷，提高质检效率',
       'skill.predictive-maintenance.desc': '基于设备运行数据预测故障，减少非计划停机',
       'skill.supply-chain-optimization.desc': '优化供应链调度，降低库存成本，提高交付效率',
       'skill.process-optimization.desc': '基于历史数据优化生产工艺参数，提升良率',
       'skill.root-cause-analysis.desc': '运用5Why、鱼骨图等方法自动分析质量问题根因',
-      
+
       // Skills Descriptions (Education)
       'skill.smart-lesson-planning.desc': '根据教学大纲和学情分析自动生成教案',
       'skill.smart-grading.desc': '自动批改客观题和主观题，提供详细反馈',
       'skill.learning-analytics.desc': '全面分析学生学习行为，提供个性化学习建议',
       'skill.course-recommendation.desc': '基于学生画像和学习历史推荐最适合的课程',
       'skill.exam-generator.desc': '根据知识点和难度自动生成多样化试题',
-      
+
       // Skills Descriptions (Retail)
       'skill.product-recommendation.desc': '基于用户行为和偏好提供个性化商品推荐',
       'skill.demand-forecast.desc': 'AI驱动的商品需求预测，优化库存和采购',
@@ -190,7 +190,7 @@ class I18n {
     this.translations.set('en', {
       'app.name': 'UltraWork AI',
       'app.tagline': 'Intelligent Skill Platform',
-      
+
       'nav.home': 'Home',
       'nav.skills': 'Skills',
       'nav.domains': 'Domains',
@@ -199,7 +199,7 @@ class I18n {
       'nav.settings': 'Settings',
       'nav.profile': 'Profile',
       'nav.logout': 'Logout',
-      
+
       'skills.title': 'Skill Marketplace',
       'skills.search': 'Search skills...',
       'skills.categories': 'Categories',
@@ -212,26 +212,26 @@ class I18n {
       'skills.usage': 'Usage',
       'skills.rating': 'Rating',
       'skills.downloads': 'Downloads',
-      
+
       'domain.finance': 'Finance',
       'domain.healthcare': 'Healthcare',
       'domain.legal': 'Legal',
       'domain.manufacturing': 'Manufacturing',
       'domain.education': 'Education',
       'domain.retail': 'Retail',
-      
+
       'chat.placeholder': 'Type a message...',
       'chat.send': 'Send',
       'chat.skillSuggestion': 'You might need this skill',
       'chat.skillExecuted': 'Skill executed successfully',
       'chat.error': 'An error occurred',
-      
+
       'monitoring.title': 'Monitoring Dashboard',
       'monitoring.successRate': 'Success Rate',
       'monitoring.latency': 'Latency',
       'monitoring.users': 'Active Users',
       'monitoring.alerts': 'Alerts',
-      
+
       'compliance.gdpr': 'GDPR Compliance',
       'compliance.ccpa': 'CCPA Compliance',
       'compliance.hipaa': 'HIPAA Compliance',
@@ -246,14 +246,14 @@ class I18n {
       'compliance.rightRestriction': 'Right to Restriction',
       'compliance.rightPortability': 'Right to Portability',
       'compliance.rightObject': 'Right to Object',
-      
+
       'enterprise.tenants': 'Tenant Management',
       'enterprise.users': 'User Management',
       'enterprise.audit': 'Audit Log',
       'enterprise.sso': 'SSO Configuration',
       'enterprise.apiKeys': 'API Keys',
       'enterprise.branding': 'Branding',
-      
+
       'action.save': 'Save',
       'action.cancel': 'Cancel',
       'action.delete': 'Delete',
@@ -264,26 +264,26 @@ class I18n {
       'action.submit': 'Submit',
       'action.confirm': 'Confirm',
       'action.close': 'Close',
-      
+
       'msg.saved': 'Saved successfully',
       'msg.deleted': 'Deleted successfully',
       'msg.error': 'Operation failed',
       'msg.loading': 'Loading...',
       'msg.noData': 'No data',
       'msg.confirmDelete': 'Are you sure you want to delete?',
-      
+
       'time.now': 'Just now',
       'time.minutesAgo': '{n} minutes ago',
       'time.hoursAgo': '{n} hours ago',
       'time.daysAgo': '{n} days ago',
-      
+
       'error.required': 'This field is required',
       'error.invalid': 'Invalid format',
       'error.network': 'Network error',
       'error.unauthorized': 'Unauthorized',
       'error.forbidden': 'Forbidden',
       'error.notFound': 'Not found',
-      
+
       'privacy.title': 'Privacy Settings',
       'privacy.cookies': 'Cookie Settings',
       'privacy.analytics': 'Analytics',
@@ -291,7 +291,7 @@ class I18n {
       'privacy.accept': 'Accept All',
       'privacy.reject': 'Reject All',
       'privacy.customize': 'Customize',
-      
+
       'audit.title': 'Audit Log',
       'audit.timestamp': 'Timestamp',
       'audit.user': 'User',
@@ -305,7 +305,7 @@ class I18n {
     this.translations.set('ja', {
       'app.name': 'UltraWork AI',
       'app.tagline': 'インテリジェントスキルプラットフォーム',
-      
+
       'nav.home': 'ホーム',
       'nav.skills': 'スキル',
       'nav.domains': 'ドメイン',
@@ -314,24 +314,24 @@ class I18n {
       'nav.settings': '設定',
       'nav.profile': 'プロフィール',
       'nav.logout': 'ログアウト',
-      
+
       'skills.title': 'スキルマーケット',
       'skills.search': 'スキルを検索...',
       'skills.execute': '実行',
-      
+
       'chat.placeholder': 'メッセージを入力...',
       'chat.send': '送信',
-      
+
       'monitoring.title': '監視ダッシュボード',
-      
+
       'compliance.gdpr': 'GDPRコンプライアンス',
       'compliance.ccpa': 'CCPAコンプライアンス',
       'compliance.hipaa': 'HIPAAコンプライアンス',
-      
+
       'action.save': '保存',
       'action.cancel': 'キャンセル',
       'action.delete': '削除',
-      
+
       'msg.saved': '保存しました',
       'msg.deleted': '削除しました',
       'msg.error': 'エラーが発生しました',
@@ -342,7 +342,7 @@ class I18n {
     this.translations.set('de', {
       'app.name': 'UltraWork AI',
       'app.tagline': 'Intelligente Skill-Plattform',
-      
+
       'nav.home': 'Startseite',
       'nav.skills': 'Skills',
       'nav.domains': 'Bereiche',
@@ -351,24 +351,24 @@ class I18n {
       'nav.settings': 'Einstellungen',
       'nav.profile': 'Profil',
       'nav.logout': 'Abmelden',
-      
+
       'skills.title': 'Skill-Marktplatz',
       'skills.search': 'Skills suchen...',
       'skills.execute': 'Ausführen',
-      
+
       'chat.placeholder': 'Nachricht eingeben...',
       'chat.send': 'Senden',
-      
+
       'monitoring.title': 'Monitoring-Dashboard',
-      
+
       'compliance.gdpr': 'DSGVO-Konformität',
       'compliance.ccpa': 'CCPA-Konformität',
       'compliance.hipaa': 'HIPAA-Konformität',
-      
+
       'action.save': 'Speichern',
       'action.cancel': 'Abbrechen',
       'action.delete': 'Löschen',
-      
+
       'msg.saved': 'Erfolgreich gespeichert',
       'msg.deleted': 'Erfolgreich gelöscht',
       'msg.error': 'Operation fehlgeschlagen',
@@ -379,7 +379,7 @@ class I18n {
     this.translations.set('fr', {
       'app.name': 'UltraWork AI',
       'app.tagline': 'Plateforme de Skills Intelligents',
-      
+
       'nav.home': 'Accueil',
       'nav.skills': 'Skills',
       'nav.domains': 'Domaines',
@@ -388,24 +388,24 @@ class I18n {
       'nav.settings': 'Paramètres',
       'nav.profile': 'Profil',
       'nav.logout': 'Déconnexion',
-      
+
       'skills.title': 'Marché des Skills',
       'skills.search': 'Rechercher des skills...',
       'skills.execute': 'Exécuter',
-      
+
       'chat.placeholder': 'Tapez un message...',
       'chat.send': 'Envoyer',
-      
+
       'monitoring.title': 'Tableau de Bord',
-      
+
       'compliance.gdpr': 'Conformité RGPD',
       'compliance.ccpa': 'Conformité CCPA',
       'compliance.hipaa': 'Conformité HIPAA',
-      
+
       'action.save': 'Enregistrer',
       'action.cancel': 'Annuler',
       'action.delete': 'Supprimer',
-      
+
       'msg.saved': 'Enregistré avec succès',
       'msg.deleted': 'Supprimé avec succès',
       'msg.error': 'Opération échouée',
@@ -416,7 +416,7 @@ class I18n {
     this.translations.set('es', {
       'app.name': 'UltraWork AI',
       'app.tagline': 'Plataforma de Skills Inteligentes',
-      
+
       'nav.home': 'Inicio',
       'nav.skills': 'Skills',
       'nav.domains': 'Dominios',
@@ -425,24 +425,24 @@ class I18n {
       'nav.settings': 'Configuración',
       'nav.profile': 'Perfil',
       'nav.logout': 'Cerrar Sesión',
-      
+
       'skills.title': 'Mercado de Skills',
       'skills.search': 'Buscar skills...',
       'skills.execute': 'Ejecutar',
-      
+
       'chat.placeholder': 'Escribe un mensaje...',
       'chat.send': 'Enviar',
-      
+
       'monitoring.title': 'Panel de Monitoreo',
-      
+
       'compliance.gdpr': 'Cumplimiento GDPR',
       'compliance.ccpa': 'Cumplimiento CCPA',
       'compliance.hipaa': 'Cumplimiento HIPAA',
-      
+
       'action.save': 'Guardar',
       'action.cancel': 'Cancelar',
       'action.delete': 'Eliminar',
-      
+
       'msg.saved': 'Guardado exitosamente',
       'msg.deleted': 'Eliminado exitosamente',
       'msg.error': 'Operación fallida',
@@ -454,7 +454,7 @@ class I18n {
       'app.name': 'UltraWork AI',
       'app.tagline': 'منصة المهارات الذكية',
       'app.direction': 'rtl',
-      
+
       'nav.home': 'الرئيسية',
       'nav.skills': 'المهارات',
       'nav.domains': 'المجالات',
@@ -463,24 +463,24 @@ class I18n {
       'nav.settings': 'الإعدادات',
       'nav.profile': 'الملف الشخصي',
       'nav.logout': 'تسجيل الخروج',
-      
+
       'skills.title': 'سوق المهارات',
       'skills.search': 'البحث عن مهارات...',
       'skills.execute': 'تنفيذ',
-      
+
       'chat.placeholder': 'اكتب رسالة...',
       'chat.send': 'إرسال',
-      
+
       'monitoring.title': 'لوحة المراقبة',
-      
+
       'compliance.gdpr': 'الامتثال لـ GDPR',
       'compliance.ccpa': 'الامتثال لـ CCPA',
       'compliance.hipaa': 'الامتثال لـ HIPAA',
-      
+
       'action.save': 'حفظ',
       'action.cancel': 'إلغاء',
       'action.delete': 'حذف',
-      
+
       'msg.saved': 'تم الحفظ بنجاح',
       'msg.deleted': 'تم الحذف بنجاح',
       'msg.error': 'فشلت العملية',
@@ -490,37 +490,37 @@ class I18n {
 
   _initFormatters() {
     // Date formatter
-    this.formatters.set('date', (value, options = {}) => {
+    this.formatters.set('date', (value, _options = {}) => {
       const date = new Date(value);
       const locale = this.currentLocale;
-      
+
       const formats = {
         'zh-CN': { year: 'numeric', month: 'long', day: 'numeric' },
         'en': { year: 'numeric', month: 'short', day: 'numeric' },
         'ja': { year: 'numeric', month: 'long', day: 'numeric' }
       };
-      
+
       return date.toLocaleDateString(locale, formats[locale] || formats['en']);
     });
 
     // DateTime formatter
-    this.formatters.set('datetime', (value, options = {}) => {
+    this.formatters.set('datetime', (value, _options = {}) => {
       const date = new Date(value);
       const locale = this.currentLocale;
       return date.toLocaleString(locale);
     });
 
     // Relative time formatter
-    this.formatters.set('relativeTime', (value, options = {}) => {
+    this.formatters.set('relativeTime', (value, _options = {}) => {
       const now = Date.now();
       const diff = now - new Date(value).getTime();
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(diff / 86400000);
-      
-      if (minutes < 1) return this.t('time.now');
-      if (minutes < 60) return this.t('time.minutesAgo').replace('{n}', minutes);
-      if (hours < 24) return this.t('time.hoursAgo').replace('{n}', hours);
+
+      if (minutes < 1) {return this.t('time.now');}
+      if (minutes < 60) {return this.t('time.minutesAgo').replace('{n}', minutes);}
+      if (hours < 24) {return this.t('time.hoursAgo').replace('{n}', hours);}
       return this.t('time.daysAgo').replace('{n}', days);
     });
 
@@ -552,11 +552,11 @@ class I18n {
 
   setLocale(locale) {
     // Validate locale is a string and matches whitelist
-    if (typeof locale !== 'string') return false;
-    
+    if (typeof locale !== 'string') {return false;}
+
     // Sanitize: only allow alphanumeric and hyphen/underscore
-    const sanitized = locale.substring(0, 10).replace(/[^a-zA-Z0-9_\-]/g, '');
-    
+    const sanitized = locale.substring(0, 10).replace(/[^a-zA-Z0-9_-]/g, '');
+
     // Check against whitelist and available translations
     if (I18n.ALLOWED_LOCALES.includes(sanitized) && this.translations.has(sanitized)) {
       this.currentLocale = sanitized;
@@ -572,12 +572,12 @@ class I18n {
   getAvailableLocales() {
     // Only return whitelisted locales
     return Array.from(this.translations.keys())
-      .filter(code => I18n.ALLOWED_LOCALES.includes(code))
-      .map(code => ({
-      code,
-      name: this._getLocaleName(code),
-      nativeName: this._getNativeLocaleName(code)
-    }));
+      .filter((code) => I18n.ALLOWED_LOCALES.includes(code))
+      .map((code) => ({
+        code,
+        name: this._getLocaleName(code),
+        nativeName: this._getNativeLocaleName(code)
+      }));
   }
 
   _getLocaleName(code) {
@@ -649,24 +649,24 @@ class I18n {
   }
 
   t(key, params = {}) {
-    let translation = this.translations.get(this.currentLocale)?.get(key);
-    
+    let translation = this.translations.get(this.currentLocale)?.[key];
+
     if (!translation) {
-      translation = this.translations.get(this.fallbackLocale)?.get(key);
+      translation = this.translations.get(this.fallbackLocale)?.[key];
     }
-    
+
     if (!translation) {
       console.warn(`[i18n] Missing translation: ${key}`);
       return key;
     }
-    
+
     // Replace parameters
     if (Object.keys(params).length > 0) {
       Object.entries(params).forEach(([k, v]) => {
         translation = translation.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
       });
     }
-    
+
     return translation;
   }
 
@@ -680,7 +680,7 @@ class I18n {
 
   translateSkill(skill) {
     const prefix = `skill.${skill.name}`;
-    
+
     return {
       ...skill,
       name: this.t(`${prefix}.name`) || skill.name,
@@ -689,7 +689,7 @@ class I18n {
   }
 
   translateSkills(skills) {
-    return skills.map(skill => this.translateSkill(skill));
+    return skills.map((skill) => this.translateSkill(skill));
   }
 
   translateDomain(domain) {
@@ -700,10 +700,10 @@ class I18n {
   }
 
   getUITranslations() {
-    const translations = this.translations.get(this.currentLocale) || 
-                         this.translations.get(this.fallbackLocale) || 
+    const translations = this.translations.get(this.currentLocale) ||
+                         this.translations.get(this.fallbackLocale) ||
                          {};
-    
+
     // Group by category
     return {
       navigation: this._filterKeys(translations, 'nav.'),

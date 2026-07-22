@@ -22,7 +22,7 @@ class PluginGovernance {
 
   validatePermission(pluginName, action) {
     const policy = this.getPolicy(pluginName);
-    if (!policy) return false;
+    if (!policy) {return false;}
     return policy.allowedActions.includes(action);
   }
 

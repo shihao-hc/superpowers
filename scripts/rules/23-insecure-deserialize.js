@@ -17,6 +17,7 @@ module.exports = {
       }
     }
   },
+  suggest: '对用户输入的 JSON.parse 添加 try-catch 保护：try { JSON.parse(input) } catch { /* 记录错误，返回默认值 */ }。也可考虑使用 JSON.parse 的 reviver 参数验证字段。优先使用类型验证库（如 zod、joi）解析并验证 JSON 输入。',
   references: ['CWE-502'],
   since: '2026-06-28',
 };

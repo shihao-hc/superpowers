@@ -1,6 +1,6 @@
 const { MCPClient } = require('./MCPClient');
 
-const READ_ONLY_METHODS = ['tools/list', 'ping'];
+const _READ_ONLY_METHODS = ['tools/list', 'ping'];
 
 class DynamicPoolManager {
   constructor(options = {}) {
@@ -25,12 +25,12 @@ class DynamicPoolManager {
   }
 
   start() {
-    if (!this.enabled || this.intervalId) return;
-    
+    if (!this.enabled || this.intervalId) {return;}
+
     this.intervalId = setInterval(() => {
       this._checkAndScale();
     }, this.checkInterval);
-    
+
     this.intervalId.unref();
   }
 
@@ -43,14 +43,14 @@ class DynamicPoolManager {
 
   async _checkAndScale() {
     const now = Date.now();
-    if (now - this.lastScaleTime < this.scaleCooldown) return;
-    
+    if (now - this.lastScaleTime < this.scaleCooldown) {return;}
+
     for (const [name, pool] of this.pools) {
       const status = pool.getStatus();
-      const utilization = status.poolSize > 0 
-        ? status.inUse / status.poolSize 
+      const utilization = status.poolSize > 0
+        ? status.inUse / status.poolSize
         : 0;
-      
+
       if (utilization > this.scaleUpThreshold && status.poolSize < this.maxSize) {
         await pool.scaleUp();
         this.lastScaleTime = now;
@@ -69,8 +69,8 @@ class DynamicPoolManager {
       const status = pool.getStatus();
       pools[name] = {
         poolSize: status.poolSize,
-        utilization: status.poolSize > 0 
-          ? (status.inUse / status.poolSize * 100).toFixed(1) + '%'
+        utilization: status.poolSize > 0
+          ? `${(status.inUse / status.poolSize * 100).toFixed(1)}%`
           : '0%'
       };
     }
@@ -91,7 +91,7 @@ class MCPConnectionPool {
       timeout: options.timeout || 30000,
       ...options
     };
-    
+
     this.pool = [];
     this.available = [];
     this.inUse = new Set();
@@ -103,7 +103,7 @@ class MCPConnectionPool {
       totalWaitTime: 0,
       maxWaitTime: 0
     };
-    
+
     this._initPool();
   }
 
@@ -126,38 +126,38 @@ class MCPConnectionPool {
   }
 
   async start() {
-    const startPromises = this.pool.map(client => 
-      client.start().catch(err => {
+    const startPromises = this.pool.map((client) =>
+      client.start().catch((err) => {
         console.error(`[MCPConnectionPool] Failed to start client ${client.name}:`, err.message);
         return null;
       })
     );
-    
+
     const results = await Promise.all(startPromises);
-    this.available = results.filter(c => c !== null);
-    
+    this.available = results.filter((c) => c !== null);
+
     if (this.available.length === 0) {
       throw new Error(`MCP connection pool ${this.name} failed to start any connections`);
     }
-    
+
     return this.available.length;
   }
 
   async stop() {
-    await Promise.all(this.pool.map(c => c.stop()));
+    await Promise.all(this.pool.map((c) => c.stop()));
     this.available = [];
     this.inUse.clear();
     this.waitQueue = [];
   }
 
   async scaleUp() {
-    if (this.pool.length >= this.options.maxSize) return false;
-    
+    if (this.pool.length >= this.options.maxSize) {return false;}
+
     const newIndex = this.pool.length;
     const client = this._createClient(newIndex);
     this.pool.push(client);
     this.available.push(client);
-    
+
     try {
       await client.start();
     } catch (error) {
@@ -165,39 +165,39 @@ class MCPConnectionPool {
       if (idx !== -1) {
         this.pool.splice(idx, 1);
         const availIdx = this.available.indexOf(client);
-        if (availIdx !== -1) this.available.splice(availIdx, 1);
+        if (availIdx !== -1) {this.available.splice(availIdx, 1);}
       }
       return false;
     }
-    
+
     return true;
   }
 
   async scaleDown() {
-    if (this.pool.length <= this.options.minSize) return false;
-    if (this.inUse.size >= this.pool.length) return false;
-    
+    if (this.pool.length <= this.options.minSize) {return false;}
+    if (this.inUse.size >= this.pool.length) {return false;}
+
     const idx = this.pool.length - 1;
     const client = this.pool[idx];
-    
-    if (this.inUse.has(client)) return false;
-    
+
+    if (this.inUse.has(client)) {return false;}
+
     await client.stop();
     this.pool.splice(idx, 1);
     const availIdx = this.available.indexOf(client);
-    if (availIdx !== -1) this.available.splice(availIdx, 1);
-    
+    if (availIdx !== -1) {this.available.splice(availIdx, 1);}
+
     return true;
   }
 
   async acquire() {
     const startWait = Date.now();
-    
+
     while (true) {
       if (this.available.length > 0) {
         const client = this.available.pop();
         this.inUse.add(client);
-        
+
         if (!client.ready) {
           try {
             await client.start();
@@ -206,24 +206,24 @@ class MCPConnectionPool {
             throw error;
           }
         }
-        
+
         this.stats.totalWaitTime += Date.now() - startWait;
         this.stats.maxWaitTime = Math.max(this.stats.maxWaitTime, Date.now() - startWait);
-        
+
         return client;
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 10));
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
   release(client) {
     this.inUse.delete(client);
-    
+
     if (client.connected && !client.closing) {
       this.available.push(client);
     }
-    
+
     while (this.waitQueue.length > 0 && this.available.length > 0) {
       const waiter = this.waitQueue.shift();
       waiter.resolve();
@@ -232,9 +232,9 @@ class MCPConnectionPool {
 
   async call(method, params = {}) {
     const client = await this.acquire();
-    
+
     this.stats.totalRequests++;
-    
+
     try {
       const result = await client.call(method, params);
       this.stats.successfulRequests++;
@@ -268,8 +268,8 @@ class MCPConnectionPool {
       waiting: this.waitQueue.length,
       stats: {
         ...this.stats,
-        avgWaitTime: this.stats.totalRequests > 0 
-          ? this.stats.totalWaitTime / this.stats.totalRequests 
+        avgWaitTime: this.stats.totalRequests > 0
+          ? this.stats.totalWaitTime / this.stats.totalRequests
           : 0,
         successRate: this.stats.totalRequests > 0
           ? this.stats.successfulRequests / this.stats.totalRequests
@@ -288,25 +288,25 @@ class MCPClientPoolFactory {
     const readonlyPatterns = [
       'read', 'list', 'get', 'search', 'query', 'fetch', 'find'
     ];
-    
+
     const writePatterns = [
       'write', 'create', 'update', 'delete', 'remove', 'set', 'post', 'put', 'patch'
     ];
-    
+
     const lowerTool = toolName.toLowerCase();
-    
+
     for (const pattern of writePatterns) {
       if (lowerTool.includes(pattern)) {
         return { usePool: false, reason: 'write operation' };
       }
     }
-    
+
     for (const pattern of readonlyPatterns) {
       if (lowerTool.includes(pattern)) {
         return { usePool: true, reason: 'read operation' };
       }
     }
-    
+
     return { usePool: options.defaultToPool || false, reason: 'default' };
   }
 }

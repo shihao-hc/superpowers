@@ -11,14 +11,14 @@ const ENCRYPTION_KEY = process.env.MEMORY_ENCRYPTION_KEY || null;
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
 function getEncryptionKey() {
-  if (!ENCRYPTION_KEY) return null;
+  if (!ENCRYPTION_KEY) {return null;}
   return crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
 }
 
 function encrypt(data) {
   const key = getEncryptionKey();
-  if (!key) return JSON.stringify(data);
-  
+  if (!key) {return JSON.stringify(data);}
+
   try {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
@@ -45,7 +45,7 @@ function decrypt(encryptedData) {
       return {};
     }
   }
-  
+
   try {
     const payload = JSON.parse(encryptedData);
     const iv = Buffer.from(payload.iv, 'base64');
@@ -66,24 +66,24 @@ function decrypt(encryptedData) {
 }
 
 function sanitizeKey(key) {
-  if (typeof key !== 'string') return false;
-  if (PROTECTED_KEYS.includes(key)) return false;
-  if (key.length > MAX_KEY_LENGTH) return false;
-  if (!/^[a-zA-Z0-9_\-:.]+$/.test(key)) return false;
+  if (typeof key !== 'string') {return false;}
+  if (PROTECTED_KEYS.includes(key)) {return false;}
+  if (key.length > MAX_KEY_LENGTH) {return false;}
+  if (!/^[a-zA-Z0-9_\-:.]+$/.test(key)) {return false;}
   return true;
 }
 
 function sanitizeValue(value) {
-  if (value === null || value === undefined) return true;
+  if (value === null || value === undefined) {return true;}
   const str = JSON.stringify(value);
   return str.length <= MAX_VALUE_SIZE;
 }
 
 function deepSanitize(obj) {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj !== 'object') return obj;
+  if (obj === null || obj === undefined) {return obj;}
+  if (typeof obj !== 'object') {return obj;}
   if (Array.isArray(obj)) {
-    return obj.map(item => deepSanitize(item));
+    return obj.map((item) => deepSanitize(item));
   }
   const sanitized = {};
   for (const key of Object.keys(obj)) {
@@ -139,7 +139,7 @@ class MemoryAgent {
   persist() {
     try {
       const dir = path.dirname(this.memoryPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
       const encrypted = encrypt(this.memory);
       fs.writeFileSync(this.memoryPath, encrypted, 'utf8');
     } catch (e) {
@@ -174,7 +174,7 @@ class MemoryAgent {
     let filtered = entries;
 
     if (query) {
-      filtered = entries.filter(([key, value]) => 
+      filtered = entries.filter(([key, value]) =>
         key.toLowerCase().includes(query) ||
         JSON.stringify(value).toLowerCase().includes(query)
       );
@@ -204,7 +204,7 @@ class MemoryAgent {
 
   export(format = 'json') {
     const entries = Object.entries(this.memory);
-    
+
     if (format === 'csv') {
       const header = 'key,value,timestamp\n';
       const rows = entries.map(([key, value]) => {
@@ -215,7 +215,7 @@ class MemoryAgent {
       }).join('\n');
       return header + rows;
     }
-    
+
     return JSON.stringify(this.memory, null, 2);
   }
 
@@ -234,7 +234,7 @@ class MemoryAgent {
       for (let i = 0; i < entries.length; i++) {
         const [key, value] = entries[i];
         const comma = i < entries.length - 1 ? ',' : '';
-        yield JSON.stringify({ key, value }) + comma + '\n';
+        yield `${JSON.stringify({ key, value }) + comma}\n`;
       }
       yield '}';
     }

@@ -29,7 +29,7 @@ class SkillNodeDefinitions {
       'internal-comms': this.getInternalCommsNodeDefinition(),
       'algorithmic-art': this.getAlgorithmicArtNodeDefinition()
     };
-    
+
     return definitions[skillName] || null;
   }
 

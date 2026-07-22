@@ -12,13 +12,13 @@ class AdaptiveOptimizer {
     this.configFile = path.join(this.dataDir, 'optimizer-config.json');
     this.historyFile = path.join(this.dataDir, 'optimization-history.json');
     this.rulesFile = path.join(this.dataDir, 'adaptive-rules.json');
-    
+
     // 依赖的系统
     this.monitor = options.monitor;
     this.reviewWorkflow = options.reviewWorkflow;
     this.rewardSystem = options.rewardSystem;
     this.trustScore = options.trustScore;
-    
+
     // 优化配置
     this.config = {
       enabled: true,
@@ -26,9 +26,9 @@ class AdaptiveOptimizer {
       minDataPoints: 100, // 最少数据点
       confidenceLevel: 0.8, // 置信度阈值
       maxAdjustmentPercent: 20, // 单次最大调整百分比
-      cooldownPeriod: 7 * 24 * 60 * 60 * 1000, // 7天冷却期
+      cooldownPeriod: 7 * 24 * 60 * 60 * 1000 // 7天冷却期
     };
-    
+
     // 自适应规则
     this.rules = {
       // 审核阈值调整规则
@@ -39,7 +39,7 @@ class AdaptiveOptimizer {
         functionality: { min: 60, max: 85, current: 70 },
         maintainability: { min: 50, max: 80, current: 60 }
       },
-      
+
       // 奖励规则调整
       rewardMultipliers: {
         skillPublished: { min: 0.5, max: 2.0, current: 1.0 },
@@ -47,7 +47,7 @@ class AdaptiveOptimizer {
         reviewWritten: { min: 0.5, max: 2.0, current: 1.0 },
         securityScanPassed: { min: 0.5, max: 2.0, current: 1.0 }
       },
-      
+
       // 信任分数权重调整
       trustScoreWeights: {
         codeQuality: { min: 0.2, max: 0.4, current: 0.30 },
@@ -57,23 +57,23 @@ class AdaptiveOptimizer {
         authorReputation: { min: 0.05, max: 0.15, current: 0.10 },
         verificationStatus: { min: 0.05, max: 0.15, current: 0.10 }
       },
-      
+
       // 自动审批阈值
       autoApproval: {
         trustScoreThreshold: { min: 70, max: 95, current: 90 },
         minReviewsRequired: { min: 1, max: 5, current: 2 }
       }
     };
-    
+
     // 优化历史
     this.history = [];
-    
+
     // 上次优化时间
     this.lastOptimization = null;
-    
+
     this._ensureDataDir();
     this._loadData();
-    
+
     // 启动自动优化
     this._startAutoOptimization();
   }
@@ -90,12 +90,12 @@ class AdaptiveOptimizer {
         const configData = JSON.parse(fs.readFileSync(this.configFile, 'utf8'));
         this.config = { ...this.config, ...configData };
       }
-      
+
       if (fs.existsSync(this.rulesFile)) {
         const rulesData = JSON.parse(fs.readFileSync(this.rulesFile, 'utf8'));
         this.rules = { ...this.rules, ...rulesData };
       }
-      
+
       if (fs.existsSync(this.historyFile)) {
         const historyData = JSON.parse(fs.readFileSync(this.historyFile, 'utf8'));
         this.history = historyData.optimizations || [];
@@ -124,12 +124,12 @@ class AdaptiveOptimizer {
    * 启动自动优化
    */
   _startAutoOptimization() {
-    if (!this.config.enabled) return;
-    
+    if (!this.config.enabled) {return;}
+
     setInterval(() => {
       this.runOptimizationCycle();
     }, this.config.analysisInterval);
-    
+
     console.log('[AdaptiveOptimizer] 自动优化已启动，间隔:', this.config.analysisInterval / 1000 / 60, '分钟');
   }
 
@@ -190,7 +190,7 @@ class AdaptiveOptimizer {
       this._saveData();
 
       console.log('[AdaptiveOptimizer] 优化完成，调整数:', results.adjustments.length);
-      
+
     } catch (error) {
       console.error('[AdaptiveOptimizer] 优化失败:', error.message);
       results.error = error.message;
@@ -289,19 +289,19 @@ class AdaptiveOptimizer {
    */
   _analyzeAndAdjustReviewThresholds(data) {
     const adjustments = [];
-    
+
     if (data.reviews.approved + data.reviews.rejected < this.config.minDataPoints) {
       return adjustments; // 数据不足
     }
 
     const approvalRate = data.reviews.approved / (data.reviews.approved + data.reviews.rejected);
-    
+
     // 如果通过率过高 (>90%)，考虑提高阈值
     if (approvalRate > 0.9) {
       for (const [criterion, config] of Object.entries(this.rules.reviewThresholds)) {
         const increase = Math.min(this.config.maxAdjustmentPercent, 5);
         const newValue = Math.min(config.max, config.current * (1 + increase / 100));
-        
+
         if (newValue !== config.current) {
           adjustments.push({
             type: 'review_threshold',
@@ -313,13 +313,13 @@ class AdaptiveOptimizer {
         }
       }
     }
-    
+
     // 如果通过率过低 (<50%)，考虑降低阈值
     if (approvalRate < 0.5) {
       for (const [criterion, config] of Object.entries(this.rules.reviewThresholds)) {
         const decrease = Math.min(this.config.maxAdjustmentPercent, 5);
         const newValue = Math.max(config.min, config.current * (1 - decrease / 100));
-        
+
         if (newValue !== config.current) {
           adjustments.push({
             type: 'review_threshold',
@@ -340,12 +340,12 @@ class AdaptiveOptimizer {
    */
   _analyzeAndAdjustRewardRules(data) {
     const adjustments = [];
-    
+
     // 如果下载量增长缓慢，考虑增加下载奖励
     if (data.executions.total > 1000 && data.downloads.total < data.executions.total * 0.1) {
       const config = this.rules.rewardMultipliers.skillDownloaded;
       const newValue = Math.min(config.max, config.current * 1.2);
-      
+
       if (newValue !== config.current) {
         adjustments.push({
           type: 'reward_multiplier',
@@ -356,12 +356,12 @@ class AdaptiveOptimizer {
         });
       }
     }
-    
+
     // 如果审核参与度低，考虑增加审核奖励
     if (data.reviews.approved + data.reviews.rejected < data.executions.total * 0.05) {
       const config = this.rules.rewardMultipliers.reviewWritten;
       const newValue = Math.min(config.max, config.current * 1.15);
-      
+
       if (newValue !== config.current) {
         adjustments.push({
           type: 'reward_multiplier',
@@ -372,13 +372,13 @@ class AdaptiveOptimizer {
         });
       }
     }
-    
+
     // 如果错误率高，考虑增加安全扫描奖励
     const errorRate = data.executions.total > 0 ? data.errors.total / data.executions.total : 0;
     if (errorRate > 0.1) {
       const config = this.rules.rewardMultipliers.securityScanPassed;
       const newValue = Math.min(config.max, config.current * 1.25);
-      
+
       if (newValue !== config.current) {
         adjustments.push({
           type: 'reward_multiplier',
@@ -398,7 +398,7 @@ class AdaptiveOptimizer {
    */
   _analyzeAndAdjustTrustWeights(data) {
     const adjustments = [];
-    
+
     if (data.trustScores.avgScore === 0) {
       return adjustments; // 无数据
     }
@@ -407,7 +407,7 @@ class AdaptiveOptimizer {
     if (data.trustScores.avgScore < 60) {
       const config = this.rules.trustScoreWeights.codeQuality;
       const newValue = Math.min(config.max, config.current + 0.02);
-      
+
       if (newValue !== config.current) {
         adjustments.push({
           type: 'trust_weight',
@@ -420,14 +420,14 @@ class AdaptiveOptimizer {
     }
 
     // 如果下载量与信任分不匹配，调整下载权重
-    const downloadsPerSkill = data.downloads.total > 0 && data.trustScores.distribution 
+    const downloadsPerSkill = data.downloads.total > 0 && data.trustScores.distribution
       ? data.downloads.total / (data.trustScores.distribution.excellent + data.trustScores.distribution.good + 1)
       : 0;
-    
+
     if (downloadsPerSkill < 10) {
       const config = this.rules.trustScoreWeights.downloadPopularity;
       const newValue = Math.min(config.max, config.current + 0.01);
-      
+
       if (newValue !== config.current) {
         adjustments.push({
           type: 'trust_weight',
@@ -451,22 +451,22 @@ class AdaptiveOptimizer {
         this.rules.reviewThresholds[adj.criterion].current = adj.newValue;
       }
     }
-    
+
     // 更新审核工作流配置
     if (this.reviewWorkflow && adjustments.length > 0) {
       const newMinScores = {};
       for (const [criterion, config] of Object.entries(this.rules.reviewThresholds)) {
         newMinScores[criterion] = config.current;
       }
-      
+
       try {
         this.reviewWorkflow.updateConfig({
           reviewCriteria: {
             ...this.reviewWorkflow.getConfig().reviewCriteria,
             ...Object.fromEntries(
-              Object.entries(newMinScores).map(([k, v]) => [k, { 
+              Object.entries(newMinScores).map(([k, v]) => [k, {
                 ...(this.reviewWorkflow.getConfig().reviewCriteria[k] || {}),
-                minScore: v 
+                minScore: v
               }])
             )
           }
@@ -486,7 +486,7 @@ class AdaptiveOptimizer {
         this.rules.rewardMultipliers[adj.rule].current = adj.newValue;
       }
     }
-    
+
     // 注意：奖励系统的实际调整需要重新配置pointRules
     // 这里只更新配置，实际应用需要额外的集成
   }
@@ -500,7 +500,7 @@ class AdaptiveOptimizer {
         this.rules.trustScoreWeights[adj.weight].current = adj.newValue;
       }
     }
-    
+
     // 归一化权重
     this._normalizeTrustWeights();
   }
@@ -511,7 +511,7 @@ class AdaptiveOptimizer {
   _normalizeTrustWeights() {
     const weights = this.rules.trustScoreWeights;
     const total = Object.values(weights).reduce((sum, w) => sum + w.current, 0);
-    
+
     if (Math.abs(total - 1.0) > 0.01) {
       const factor = 1.0 / total;
       for (const key of Object.keys(weights)) {
@@ -526,7 +526,7 @@ class AdaptiveOptimizer {
    */
   _generateRecommendations(data) {
     const recommendations = [];
-    
+
     // 审核效率建议
     if (data.reviews.pending > 50) {
       recommendations.push({
@@ -536,7 +536,7 @@ class AdaptiveOptimizer {
         action: 'add_reviewers'
       });
     }
-    
+
     // 错误率建议
     const errorRate = data.executions.total > 0 ? data.errors.total / data.executions.total : 0;
     if (errorRate > 0.15) {
@@ -547,7 +547,7 @@ class AdaptiveOptimizer {
         action: 'increase_review_strictness'
       });
     }
-    
+
     // 社区参与建议
     if (data.rewards.badgesAwarded < data.rewards.totalPoints * 0.01) {
       recommendations.push({
@@ -557,7 +557,7 @@ class AdaptiveOptimizer {
         action: 'adjust_badge_requirements'
       });
     }
-    
+
     // 信任分数分布建议
     if (data.trustScores.distribution) {
       const { poor, below } = data.trustScores.distribution;
@@ -571,7 +571,7 @@ class AdaptiveOptimizer {
         });
       }
     }
-    
+
     // 性能建议
     if (data.executions.avgDuration > 5000) {
       recommendations.push({
@@ -581,7 +581,7 @@ class AdaptiveOptimizer {
         action: 'optimize热门_skills'
       });
     }
-    
+
     return recommendations;
   }
 
@@ -623,7 +623,7 @@ class AdaptiveOptimizer {
     } else {
       throw new Error(`Invalid configuration: ${category}.${key}`);
     }
-    
+
     this._saveData();
     return this.getCurrentConfig();
   }
@@ -652,11 +652,11 @@ class AdaptiveOptimizer {
    */
   generateReport() {
     const recentOptimizations = this.history.slice(-10);
-    
+
     const totalAdjustments = recentOptimizations.reduce(
       (sum, opt) => sum + (opt.adjustments?.length || 0), 0
     );
-    
+
     const adjustmentsByType = {};
     for (const opt of recentOptimizations) {
       for (const adj of opt.adjustments || []) {
@@ -664,7 +664,7 @@ class AdaptiveOptimizer {
         adjustmentsByType[key] = (adjustmentsByType[key] || 0) + 1;
       }
     }
-    
+
     return {
       summary: {
         totalOptimizations: this.history.length,
@@ -673,7 +673,7 @@ class AdaptiveOptimizer {
         lastOptimization: this.lastOptimization
       },
       currentConfig: this.getCurrentConfig(),
-      recentOptimizations: recentOptimizations.map(opt => ({
+      recentOptimizations: recentOptimizations.map((opt) => ({
         timestamp: opt.timestamp,
         adjustments: opt.adjustments?.length || 0,
         recommendations: opt.recommendations?.length || 0

@@ -32,6 +32,7 @@ class MCPAlertManager {
     this.onAlert = options.onAlert || (() => {});
     this.alertCounters = new Map();
     this.rateLimitWindows = new Map();
+    this._counterTimerHandles = new Set();
 
     this._setupDefaultRules();
   }
@@ -42,10 +43,10 @@ class MCPAlertManager {
       name: '敏感操作告警',
       enabled: true,
       match: (toolName) => {
-        return SENSITIVE_TOOLS.some(s => s.pattern.test(toolName));
+        return SENSITIVE_TOOLS.some((s) => s.pattern.test(toolName));
       },
       severity: (toolName) => {
-        const match = SENSITIVE_TOOLS.find(s => s.pattern.test(toolName));
+        const match = SENSITIVE_TOOLS.find((s) => s.pattern.test(toolName));
         return match ? match.severity : 'low';
       },
       rateLimit: 60,
@@ -118,7 +119,7 @@ class MCPAlertManager {
   }
 
   removeRule(ruleId) {
-    const index = this.alertRules.findIndex(r => r.id === ruleId);
+    const index = this.alertRules.findIndex((r) => r.id === ruleId);
     if (index !== -1) {
       this.alertRules.splice(index, 1);
       return true;
@@ -152,7 +153,7 @@ class MCPAlertManager {
     const alerts = [];
 
     for (const rule of this.alertRules) {
-      if (!rule.enabled) continue;
+      if (!rule.enabled) {continue;}
 
       if (!this._checkRateLimit(rule.id, rule.rateLimit)) {
         continue;
@@ -220,12 +221,12 @@ class MCPAlertManager {
   _getChannelsForSeverity(severity, preferredPlatforms) {
     const channelIds = [];
     const severityOrder = ['critical', 'high', 'medium', 'low'];
-    const severityIndex = severityOrder.indexOf(severity);
+    const _severityIndex = severityOrder.indexOf(severity);
 
     for (const [channelId, config] of this.alertChannels) {
-      if (!config.enabled) continue;
-      if (!config.severityFilter.includes(severity)) continue;
-      if (!preferredPlatforms.includes(config.platform)) continue;
+      if (!config.enabled) {continue;}
+      if (!config.severityFilter.includes(severity)) {continue;}
+      if (!preferredPlatforms.includes(config.platform)) {continue;}
 
       channelIds.push(channelId);
     }
@@ -261,12 +262,14 @@ class MCPAlertManager {
     const count = this.alertCounters.get(key) || 0;
     this.alertCounters.set(key, count + 1);
 
-    setTimeout(() => {
+    const handle = setTimeout(() => {
+      this._counterTimerHandles.delete(handle);
       const current = this.alertCounters.get(key) || 0;
       if (current > 0) {
         this.alertCounters.set(key, current - 1);
       }
     }, 60000);
+    this._counterTimerHandles.add(handle);
   }
 
   _formatAlertMessage(data) {
@@ -278,7 +281,7 @@ class MCPAlertManager {
       low: '低危'
     };
 
-    const sensitiveInfo = SENSITIVE_TOOLS.find(s => s.pattern.test(data.toolFullName));
+    const sensitiveInfo = SENSITIVE_TOOLS.find((s) => s.pattern.test(data.toolFullName));
 
     return [
       `${severityIcon} *${severityText[data.severity]}告警* - MCP 敏感操作`,
@@ -309,19 +312,19 @@ class MCPAlertManager {
 
     if (options.since) {
       const since = typeof options.since === 'number' ? options.since : Date.now() - options.since;
-      history = history.filter(a => a.timestamp >= since);
+      history = history.filter((a) => a.timestamp >= since);
     }
 
     if (options.severity) {
-      history = history.filter(a => a.severity === options.severity);
+      history = history.filter((a) => a.severity === options.severity);
     }
 
     if (options.ruleId) {
-      history = history.filter(a => a.ruleId === options.ruleId);
+      history = history.filter((a) => a.ruleId === options.ruleId);
     }
 
     if (options.username) {
-      history = history.filter(a => a.username === options.username);
+      history = history.filter((a) => a.username === options.username);
     }
 
     return history;
@@ -340,14 +343,14 @@ class MCPAlertManager {
       total: this.alertHistory.length,
       bySeverity,
       byRule,
-      activeRules: this.alertRules.filter(r => r.enabled).length,
+      activeRules: this.alertRules.filter((r) => r.enabled).length,
       configuredChannels: this.alertChannels.size
     };
   }
 
   exportConfig() {
     return {
-      rules: this.alertRules.map(r => ({
+      rules: this.alertRules.map((r) => ({
         id: r.id,
         enabled: r.enabled,
         rateLimit: r.rateLimit,
@@ -361,6 +364,10 @@ class MCPAlertManager {
   }
 
   destroy() {
+    for (const handle of this._counterTimerHandles) {
+      clearTimeout(handle);
+    }
+    this._counterTimerHandles.clear();
     this.alertRules = [];
     this.alertHistory = [];
     this.alertChannels.clear();

@@ -9,7 +9,7 @@ class VisualFlowBuilder {
     this.edges = new Map();
     this.templates = new Map();
     this.validations = [];
-    
+
     this._initDefaultNodes();
     this._initTemplates();
   }
@@ -462,7 +462,7 @@ class VisualFlowBuilder {
   getAllNodes(category = null) {
     const all = Array.from(this.nodes.values());
     if (category) {
-      return all.filter(n => n.category === category);
+      return all.filter((n) => n.category === category);
     }
     return all;
   }
@@ -517,22 +517,22 @@ class VisualFlowBuilder {
     const warnings = [];
 
     // 检查起点
-    const triggers = flow.nodes.filter(n => n.type.startsWith('trigger.'));
+    const triggers = flow.nodes.filter((n) => n.type.startsWith('trigger.'));
     if (triggers.length === 0) {
       errors.push({ code: 'NO_TRIGGER', message: '工作流必须包含触发器节点' });
     }
 
     // 检查终点
-    const outputs = flow.nodes.filter(n => n.type === 'io.output' || n.outputs.length === 0);
+    const outputs = flow.nodes.filter((n) => n.type === 'io.output' || (n.outputs || []).length === 0);
     if (outputs.length === 0) {
       warnings.push({ code: 'NO_OUTPUT', message: '工作流没有输出节点' });
     }
 
     // 检查断开的连接
     for (const edge of flow.edges) {
-      const sourceNode = flow.nodes.find(n => n.id === edge.from);
-      const targetNode = flow.nodes.find(n => n.id === edge.to);
-      
+      const sourceNode = flow.nodes.find((n) => n.id === edge.from);
+      const targetNode = flow.nodes.find((n) => n.id === edge.to);
+
       if (!sourceNode) {
         errors.push({ code: 'INVALID_SOURCE', message: `边 ${edge.from} -> ${edge.to} 源节点不存在` });
       }
@@ -575,7 +575,7 @@ class VisualFlowBuilder {
       for (const neighbor of adj.get(nodeId) || []) {
         if (!visited.has(neighbor)) {
           const cycle = dfs(neighbor, [...path]);
-          if (cycle.length > 0) return cycle;
+          if (cycle.length > 0) {return cycle;}
         } else if (recStack.has(neighbor)) {
           const cycleStart = path.indexOf(neighbor);
           return [...path.slice(cycleStart), neighbor];
@@ -589,7 +589,7 @@ class VisualFlowBuilder {
     for (const node of flow.nodes) {
       if (!visited.has(node.id)) {
         const cycle = dfs(node.id, []);
-        if (cycle.length > 0) cycles.push(cycle.join(' -> '));
+        if (cycle.length > 0) {cycles.push(cycle.join(' -> '));}
       }
     }
 
@@ -600,7 +600,7 @@ class VisualFlowBuilder {
   generateCode(flow) {
     const validation = this.validateFlow(flow);
     if (!validation.valid) {
-      throw new Error(`Flow validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
+      throw new Error(`Flow validation failed: ${validation.errors.map((e) => e.message).join(', ')}`);
     }
 
     const code = {
@@ -615,32 +615,32 @@ class VisualFlowBuilder {
   _generateJS(flow) {
     let code = `// UltraWork Flow: ${flow.name || 'Untitled'}\n`;
     code += `// Generated: ${new Date().toISOString()}\n\n`;
-    code += `const { WorkflowEngine } = require('./workflow/WorkflowEngine');\n\n`;
-    code += `async function executeFlow(input) {\n`;
-    code += `  const engine = new WorkflowEngine();\n\n`;
-    code += `  // Node definitions\n`;
-    
+    code += 'const { WorkflowEngine } = require(\'./workflow/WorkflowEngine\');\n\n';
+    code += 'async function executeFlow(input) {\n';
+    code += '  const engine = new WorkflowEngine();\n\n';
+    code += '  // Node definitions\n';
+
     for (const node of flow.nodes) {
       code += `  engine.registerNode('${node.id}', {\n`;
       code += `    type: '${node.type}',\n`;
       code += `    config: ${JSON.stringify(node.config || {})},\n`;
-      code += `    handler: async (inputs, context) => {\n`;
+      code += '    handler: async (inputs, context) => {\n';
       code += `      // ${node.name || node.type}\n`;
-      code += `      // TODO: Implement node logic\n`;
-      code += `      return { output: inputs };\n`;
-      code += `    }\n`;
-      code += `  });\n\n`;
+      code += '      // TODO: Implement node logic\n';
+      code += '      return { output: inputs };\n';
+      code += '    }\n';
+      code += '  });\n\n';
     }
 
-    code += `  // Edge connections\n`;
+    code += '  // Edge connections\n';
     for (const edge of flow.edges) {
       code += `  engine.connect('${edge.from}', '${edge.to}');\n`;
     }
 
-    code += `\n  // Execute\n`;
-    code += `  return await engine.execute(input);\n`;
-    code += `}\n\n`;
-    code += `module.exports = { executeFlow };\n`;
+    code += '\n  // Execute\n';
+    code += '  return await engine.execute(input);\n';
+    code += '}\n\n';
+    code += 'module.exports = { executeFlow };\n';
 
     return code;
   }
@@ -648,34 +648,34 @@ class VisualFlowBuilder {
   _generatePython(flow) {
     let code = `# UltraWork Flow: ${flow.name || 'Untitled'}\n`;
     code += `# Generated: ${new Date().toISOString()}\n\n`;
-    code += `from typing import Any, Dict, List\n`;
-    code += `from workflow_engine import WorkflowEngine\n\n\n`;
-    code += `async def execute_flow(input_data: Any) -> Any:\n`;
-    code += `    engine = WorkflowEngine()\n\n`;
-    code += `    # Node definitions\n`;
-    
+    code += 'from typing import Any, Dict, List\n';
+    code += 'from workflow_engine import WorkflowEngine\n\n\n';
+    code += 'async def execute_flow(input_data: Any) -> Any:\n';
+    code += '    engine = WorkflowEngine()\n\n';
+    code += '    # Node definitions\n';
+
     for (const node of flow.nodes) {
-      code += `    engine.register_node(\n`;
+      code += '    engine.register_node(\n';
       code += `        node_id="${node.id}",\n`;
       code += `        node_type="${node.type}",\n`;
       code += `        config=${JSON.stringify(node.config || {})},\n`;
-      code += `        handler=async def handler(inputs, context):\n`;
+      code += '        handler=async def handler(inputs, context):\n';
       code += `            # ${node.name || node.type}\n`;
-      code += `            return {"output": inputs}\n`;
-      code += `    )\n\n`;
+      code += '            return {"output": inputs}\n';
+      code += '    )\n\n';
     }
 
-    code += `    # Edge connections\n`;
+    code += '    # Edge connections\n';
     for (const edge of flow.edges) {
       code += `    engine.connect("${edge.from}", "${edge.to}")\n`;
     }
 
-    code += `\n    # Execute\n`;
-    code += `    return await engine.execute(input_data)\n\n`;
-    code += `if __name__ == "__main__":\n`;
-    code += `    import asyncio\n`;
-    code += `    result = asyncio.run(execute_flow({}))\n`;
-    code += `    print(result)\n`;
+    code += '\n    # Execute\n';
+    code += '    return await engine.execute(input_data)\n\n';
+    code += 'if __name__ == "__main__":\n';
+    code += '    import asyncio\n';
+    code += '    result = asyncio.run(execute_flow({}))\n';
+    code += '    print(result)\n';
 
     return code;
   }
@@ -685,13 +685,13 @@ class VisualFlowBuilder {
       version: '1.0',
       name: flow.name,
       description: flow.description,
-      nodes: flow.nodes.map(n => ({
+      nodes: flow.nodes.map((n) => ({
         id: n.id,
         type: n.type,
         position: { x: n.x, y: n.y },
         config: n.config || {}
       })),
-      edges: flow.edges.map(e => ({
+      edges: flow.edges.map((e) => ({
         source: e.from,
         target: e.to,
         sourcePort: e.fromPort,
@@ -711,14 +711,14 @@ class VisualFlowBuilder {
 
   getTemplates(filters = {}) {
     let templates = Array.from(this.templates.values());
-    
+
     if (filters.category) {
-      templates = templates.filter(t => t.category === filters.category);
+      templates = templates.filter((t) => t.category === filters.category);
     }
     if (filters.difficulty) {
-      templates = templates.filter(t => t.difficulty === filters.difficulty);
+      templates = templates.filter((t) => t.difficulty === filters.difficulty);
     }
-    
+
     return templates;
   }
 
@@ -733,8 +733,8 @@ class VisualFlowBuilder {
       id: `flow_${Date.now()}`,
       name: customConfig.name || template.name,
       description: customConfig.description || template.description,
-      nodes: template.nodes.map(n => ({ ...n, id: `${n.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })),
-      edges: template.edges.map(e => ({ ...e })),
+      nodes: template.nodes.map((n) => ({ ...n, id: `${n.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` })),
+      edges: template.edges.map((e) => ({ ...e })),
       createdAt: Date.now()
     };
 

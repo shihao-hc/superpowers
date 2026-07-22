@@ -1,0 +1,209 @@
+# Default values for OpenCode
+# This file contains the default values for the Helm chart
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/opencode/opencode
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 3000
+  metricsPort: 3001
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: opencode.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: opencode-tls
+      hosts:
+        - opencode.example.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+config:
+  nodeEnv: production
+  logLevel: info
+  port: 3000
+  redis:
+    host: "opencode-redis"
+    port: 6379
+  mongodb:
+    host: "opencode-mongodb"
+    port: 27017
+    database: opencode
+  prometheus:
+    enabled: true
+    endpoint: /api/metrics
+
+# External dependencies
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mongodb:
+  enabled: true
+  auth:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+prometheus:
+  enabled: true
+  server:
+    retention: 15d
+  alertmanager:
+    enabled: false
+
+grafana:
+  enabled: true
+  adminPassword: "" # Set via secret
+  persistence:
+    enabled: true
+    size: 1Gi
+
+# Security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+
+containerSecurityContext:
+  capabilities:
+    drop:
+      - ALL
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+# Volumes
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+
+# RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]
+
+# Network policies
+networkPolicy:
+  enabled: true
+  egressRules:
+    - to:
+        - podSelector:
+            matchLabels:
+              tier: database
+      ports:
+        - port: 6379
+        - port: 27017
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+        - port: 443
+        - port: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  minAvailable: 1
+
+# Service Monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /api/metrics
+
+# Pod Annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: "/api/metrics"
+
+# Vertical Pod Autoscaler
+verticalPodAutoscaler:
+  enabled: false
+  recommendationOnly: true

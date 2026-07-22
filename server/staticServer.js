@@ -5,34 +5,35 @@ const path = require('path');
 const http = require('http');
 
 const config = require('../config');
+const logger = require('./utils/logger');
 const i18n = require('../src/i18n');
 const app = express();
 const port = config.get('server.port', 3000);
 const wsConfig = config.get('websocket');
-const serverConfig = config.get('server', {});
+const _serverConfig = config.get('server', {});
 
 let helmet, rateLimit, compression;
-try { helmet = require('helmet'); } catch (e) { console.warn('[Security] helmet not available'); }
-try { rateLimit = require('express-rate-limit'); } catch (e) { console.warn('[Security] rate-limit not available'); }
-try { compression = require('compression'); } catch (e) { console.warn('[Server] compression not available'); }
+try { helmet = require('helmet'); } catch (e) { logger.warn('[Security] helmet not available'); }
+try { rateLimit = require('express-rate-limit'); } catch (e) { logger.warn('[Security] rate-limit not available'); }
+try { compression = require('compression'); } catch (e) { logger.warn('[Server] compression not available'); }
 
 if (helmet) {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.socket.io"],
-        scriptSrc: ["'self'", "https://cdn.socket.io", "https://unpkg.com", "https://cdn.jsdelivr.net"],
+        defaultSrc: ['\'self\''],
+        styleSrc: ['\'self\'', '\'unsafe-inline\'', 'https://cdn.socket.io'],
+        scriptSrc: ['\'self\'', 'https://cdn.socket.io', 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
         scriptSrcAttr: null,
-        connectSrc: ["'self'", "ws:", "wss:", "http://localhost:*", "http://127.0.0.1:*"],
-        imgSrc: ["'self'", "data:", "blob:"],
-        fontSrc: ["'self'", "data:"],
-        mediaSrc: ["'self'", "blob:", "http://localhost:*"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
-        workerSrc: ["'self'", "blob:"],
-        frameSrc: ["'none'"]
+        connectSrc: ['\'self\'', 'ws:', 'wss:', 'http://localhost:*', 'http://127.0.0.1:*'],
+        imgSrc: ['\'self\'', 'data:', 'blob:'],
+        fontSrc: ['\'self\'', 'data:'],
+        mediaSrc: ['\'self\'', 'blob:', 'http://localhost:*'],
+        objectSrc: ['\'none\''],
+        baseUri: ['\'self\''],
+        formAction: ['\'self\''],
+        workerSrc: ['\'self\'', 'blob:'],
+        frameSrc: ['\'none\'']
       }
     },
     crossOriginEmbedderPolicy: false,
@@ -46,16 +47,16 @@ if (helmet) {
     }
   }));
 }
-if (compression) app.use(compression());
+if (compression) {app.use(compression());}
 
 if (process.env.TRUST_PROXY === 'true') {
   app.set('trust proxy', 1);
-  console.log('[Server] Trust proxy enabled');
+  logger.info('[Server] Trust proxy enabled');
 }
 
 // Request size limits
 app.use((req, res, next) => {
-  const limit = process.env.MAX_REQUEST_SIZE || '10mb';
+  const _limit = process.env.MAX_REQUEST_SIZE || '10mb';
   req.setTimeout(30000);
   next();
 });
@@ -75,7 +76,7 @@ app.use('/api', (req, res, next) => {
 
 if (rateLimit) {
   const { ipKeyGenerator } = require('express-rate-limit');
-  
+
   // General API limiter - 100 requests per minute per IP
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -85,12 +86,12 @@ if (rateLimit) {
     legacyHeaders: false,
     keyGenerator: (req, res) => {
       const forwarded = req.headers['x-forwarded-for'];
-      if (forwarded) return forwarded.split(',')[0].trim();
+      if (forwarded) {return forwarded.split(',')[0].trim();}
       return ipKeyGenerator(req, res);
     }
   });
   app.use('/api/', apiLimiter);
-  
+
   // Chat limiter - 30 requests per minute
   const chatLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -99,7 +100,7 @@ if (rateLimit) {
     standardHeaders: true
   });
   app.use('/api/chat', chatLimiter);
-  
+
   // Memory limiter - 20 requests per minute
   const memoryLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -107,7 +108,7 @@ if (rateLimit) {
     message: { error: '记忆操作过于频繁，请稍后再试' }
   });
   app.use('/api/memory', memoryLimiter);
-  
+
   // Sensitive operations - 10 requests per minute
   const sensitiveLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -118,7 +119,7 @@ if (rateLimit) {
   app.use('/api/personality/create', sensitiveLimiter);
   app.use('/api/auth/', sensitiveLimiter);
   app.use('/api/plugins/', sensitiveLimiter);
-  
+
   // Installation limiter - 5 requests per minute
   const installLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -128,7 +129,7 @@ if (rateLimit) {
   });
   app.use('/api/vertical-domains/:domainId/solutions/:solutionId/install', installLimiter);
   app.use('/api/marketplace/workflows/:workflowId/download', installLimiter);
-  
+
   // Vision/image limiter - 10 requests per minute
   const visionLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -136,7 +137,7 @@ if (rateLimit) {
     message: { error: '图片处理请求过于频繁，请稍后再试' }
   });
   app.use('/api/vision', visionLimiter);
-  
+
   // Agent execution limiter - 20 requests per minute
   const agentLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -145,7 +146,7 @@ if (rateLimit) {
   });
   app.use('/api/agent/', agentLimiter);
   app.use('/api/executions/', agentLimiter);
-  
+
   // Price monitor limiter - 30 requests per minute
   const priceLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -153,7 +154,7 @@ if (rateLimit) {
     message: { error: '价格监控请求过于频繁，请稍后再试' }
   });
   app.use('/api/price-monitor/', priceLimiter);
-  
+
   // WebSocket connection limiter
   const wsLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -162,13 +163,13 @@ if (rateLimit) {
     skipSuccessfulRequests: true
   });
   app.use('/socket.io', wsLimiter);
-  
-  console.log('[Security] Rate limiting enabled');
+
+  logger.info('[Security] Rate limiting enabled');
 }
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(o => o);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter((o) => o);
 if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
-  console.error('[Security] ALLOWED_ORIGINS must be set in production');
+  logger.error('[Security] ALLOWED_ORIGINS must be set in production');
   process.exit(1);
 }
 const corsOptions = {
@@ -182,7 +183,7 @@ const API_KEY = process.env.API_KEY || null;
 const crypto = require('crypto');
 
 function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (typeof a !== 'string' || typeof b !== 'string') {return false;}
   const lenA = a.length;
   const lenB = b.length;
   const maxLen = Math.max(lenA, lenB);
@@ -201,8 +202,8 @@ const authMiddleware = (req, res, next) => {
     }
     return next();
   }
-  if (!key) return res.status(401).json({ error: 'API_KEY required' });
-  if (timingSafeEqual(key, API_KEY)) return next();
+  if (!key) {return res.status(401).json({ error: 'API_KEY required' });}
+  if (timingSafeEqual(key, API_KEY)) {return next();}
   return res.status(401).json({ error: 'Unauthorized' });
 };
 
@@ -216,10 +217,10 @@ function generateCsrfToken() {
   return token;
 }
 
-function validateCsrfToken(token) {
-  if (!token) return false;
+function _validateCsrfToken(token) {
+  if (!token) {return false;}
   const expiresAt = csrfTokens.get(token);
-  if (!expiresAt) return false;
+  if (!expiresAt) {return false;}
   if (Date.now() > expiresAt) {
     csrfTokens.delete(token);
     return false;
@@ -228,11 +229,11 @@ function validateCsrfToken(token) {
 }
 
 function validateId(id) {
-  if (typeof id !== 'string') return false;
+  if (typeof id !== 'string') {return false;}
   // Prevent prototype pollution
-  if (id === '__proto__' || id === 'constructor' || id === 'prototype') return false;
+  if (id === '__proto__' || id === 'constructor' || id === 'prototype') {return false;}
   // Allow alphanumeric, dash, underscore, length 1-50
-  if (id.length > 50) return false;
+  if (id.length > 50) {return false;}
   return /^[a-z0-9_-]+$/i.test(id);
 }
 
@@ -243,7 +244,7 @@ app.get('/api/csrf-token', (req, res) => {
 setInterval(() => {
   const now = Date.now();
   for (const [token, expiresAt] of csrfTokens.entries()) {
-    if (now > expiresAt) csrfTokens.delete(token);
+    if (now > expiresAt) {csrfTokens.delete(token);}
   }
 }, 60000);
 
@@ -254,10 +255,10 @@ const MAX_AUDIT_LOG_SIZE = 5000;
 function auditMiddleware(req, res, next) {
   const start = Date.now();
   const originalSend = res.send;
-  
+
   res.send = function(data) {
     const duration = Date.now() - start;
-    const isSensitive = SENSITIVE_PATHS.some(p => req.path.startsWith(p));
+    const isSensitive = SENSITIVE_PATHS.some((p) => req.path.startsWith(p));
     const logEntry = {
       timestamp: new Date().toISOString(),
       method: req.method,
@@ -269,16 +270,16 @@ function auditMiddleware(req, res, next) {
       sensitive: isSensitive,
       bodyKeys: req.body ? Object.keys(req.body) : []
     };
-    
+
     if (isSensitive || res.statusCode >= 400) {
       auditLog.push(logEntry);
-      if (auditLog.length > MAX_AUDIT_LOG_SIZE) auditLog.shift();
-      console.log(`[AUDIT] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+      if (auditLog.length > MAX_AUDIT_LOG_SIZE) {auditLog.shift();}
+      logger.info(`[AUDIT] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
     }
-    
+
     return originalSend.call(this, data);
   };
-  
+
   next();
 }
 
@@ -288,15 +289,15 @@ app.get('/api/audit-log', authMiddleware, (req, res) => {
   const { limit = 100, level } = req.query;
   const maxLimit = Math.min(parseInt(limit) || 100, 500);
   let logs = auditLog.slice(-maxLimit);
-  
+
   if (level) {
-    logs = logs.filter(l => {
-      if (level === 'sensitive') return l.sensitive;
-      if (level === 'error') return l.statusCode >= 400;
+    logs = logs.filter((l) => {
+      if (level === 'sensitive') {return l.sensitive;}
+      if (level === 'error') {return l.statusCode >= 400;}
       return true;
     });
   }
-  
+
   res.json({
     total: auditLog.length,
     returned: logs.length,
@@ -329,7 +330,7 @@ setInterval(() => {
     wsRateLimits.clear();
     entries.forEach(([k, v]) => wsRateLimits.set(k, v));
   }
-  if (removed > 0) console.log(`[WS] Cleaned up ${removed} rate limit entries`);
+  if (removed > 0) {logger.info(`[WS] Cleaned up ${removed} rate limit entries`);}
 }, WS_RATE_LIMIT_CLEANUP_INTERVAL);
 
 const wsRateLimitMiddleware = (socket, next) => {
@@ -388,7 +389,7 @@ try {
     pingTimeout: wsConfig.pingTimeout || 60000,
     pingInterval: wsConfig.pingInterval || 25000
   };
-  
+
   if (wsConfig.compression?.enabled) {
     ioConfig.perMessageDeflate = {
       threshold: wsConfig.compression.threshold || 1024,
@@ -400,14 +401,14 @@ try {
       concurrencyLimit: 10
     };
   }
-  
+
   io = require('socket.io')(server, {
     ...ioConfig,
     middleware: wsRateLimitMiddleware
   });
-  console.log('[Socket.IO] WebSocket server initialized' + (wsConfig.compression?.enabled ? ' with compression' : '') + ' with rate limiting');
+  logger.info(`[Socket.IO] WebSocket server initialized${wsConfig.compression?.enabled ? ' with compression' : ''} with rate limiting`);
 } catch (e) {
-  console.warn('[Socket.IO] Not available, WebSocket disabled');
+  logger.warn('[Socket.IO] Not available, WebSocket disabled');
 }
 
 app.use(express.json({ limit: '100kb' }));
@@ -434,7 +435,7 @@ const { getChatWebSocketHandler } = require(path.resolve(ROOT_DIR, 'src/chat/Cha
 
 const pm = new PersonalityManager(path.resolve(ROOT_DIR, 'data/personalities.json'));
 pm.loadSync();
-console.log('Personality loaded:', pm.activeName);
+logger.info('Personality loaded:', pm.activeName);
 
 let ollamaBridge = null;
 const inferenceEngine = config.get('inference.engine', 'mock');
@@ -449,15 +450,19 @@ if (inferenceEngine === 'ollama') {
       model: ollamaConfig.defaultModel || 'llama3.2',
       maxTokens: ollamaConfig.maxTokens || 256
     });
-    console.log('OllamaBridge initialized');
+    logger.info('OllamaBridge initialized');
   } catch (e) {
-    console.warn('OllamaBridge init failed:', e.message);
+    logger.warn('OllamaBridge init failed:', e.message);
   }
 }
 
-const chat = new ChatAgent(pm, { 
-  ollamaBridge, 
-  defaultModel: config.get('inference.ollama.defaultModel', 'llama3.2') 
+let _brainSystem = null;
+try { _brainSystem = require(path.resolve(ROOT_DIR, 'src/core/BrainSystem')).BrainSystem; } catch (e) { /* BrainSystem 可选 */ }
+
+const chat = new ChatAgent(pm, {
+  ollamaBridge,
+  defaultModel: config.get('inference.ollama.defaultModel', 'llama3.2'),
+  brainSystem: _brainSystem
 });
 const memoryConfig = config.get('memory', {});
 const memory = new MemoryAgent({
@@ -478,7 +483,7 @@ async function initGame() {
       gameManager = new GameManager(pm, chat, memory, config.get('game.minecraft', {}));
       await gameManager.initialize();
     } catch (e) {
-      console.warn('GameManager init failed:', e.message);
+      logger.warn('GameManager init failed:', e.message);
     }
   }
 }
@@ -503,18 +508,18 @@ function checkWsCommandRateLimit(socketId) {
 }
 
 function sanitizeCommand(cmd) {
-  if (!cmd || typeof cmd !== 'string') return null;
+  if (!cmd || typeof cmd !== 'string') {return null;}
   const trimmed = cmd.trim();
   const sanitized = trimmed.substring(0, 500);
-  
+
   const lowerSanitized = sanitized.toLowerCase();
-  if (/^(https?|ftp):/i.test(sanitized)) return null;
-  if (/\0/.test(sanitized)) return null;
-  if (/<script/i.test(lowerSanitized)) return null;
-  if (/javascript\s*:/i.test(sanitized)) return null;
-  if (/data\s*:/i.test(sanitized)) return null;
-  if (/vbscript\s*:/i.test(sanitized)) return null;
-  
+  if (/^(https?|ftp):/i.test(sanitized)) {return null;}
+  if (/\0/.test(sanitized)) {return null;}
+  if (/<script/i.test(lowerSanitized)) {return null;}
+  if (/javascript\s*:/i.test(sanitized)) {return null;}
+  if (/data\s*:/i.test(sanitized)) {return null;}
+  if (/vbscript\s*:/i.test(sanitized)) {return null;}
+
   return sanitized;
 }
 
@@ -524,16 +529,16 @@ try {
   chatHandler = getChatWebSocketHandler({
     skillManager: null // Will be initialized when needed
   });
-  console.log('[ChatWS] Chat WebSocket handler initialized');
+  logger.info('[ChatWS] Chat WebSocket handler initialized');
 } catch (e) {
-  console.warn('[ChatWS] Chat WebSocket handler init failed:', e.message);
+  logger.warn('[ChatWS] Chat WebSocket handler init failed:', e.message);
 }
 
 if (io) {
   io.on('connection', (socket) => {
     const userInfo = socket.user ? ` (user: ${socket.user.username || 'unknown'}, role: ${socket.user.role || 'unknown'})` : ' (anonymous)';
-    console.log('[Socket.IO] Client connected:', socket.id + userInfo);
-    
+    logger.info('[Socket.IO] Client connected:', socket.id + userInfo);
+
     socket.on('game_status', () => {
       const status = gameManager?.getStatus?.() || { enabled: false };
       if (gameManager?.game?.getStatus) {
@@ -549,11 +554,11 @@ if (io) {
       }
       socket.emit('game_status', status);
     });
-    
+
     socket.on('mood', () => {
       socket.emit('mood', pm.getMood());
     });
-    
+
     socket.on('game_command', async (command) => {
       if (typeof command !== 'string') {
         return socket.emit('error', { message: 'Command must be string' });
@@ -561,21 +566,21 @@ if (io) {
       if (!checkWsCommandRateLimit(socket.id)) {
         return socket.emit('error', { message: 'Rate limit exceeded' });
       }
-      
+
       const sanitized = sanitizeCommand(command);
       if (!sanitized) {
         return socket.emit('error', { message: 'Invalid or forbidden command' });
       }
-      
+
       if (gameManager) {
         const result = await gameManager.handleMessage(sanitized);
         socket.emit('command_result', { command: sanitized, result });
         socket.emit('game_status', gameManager.getStatus());
       }
     });
-    
+
     socket.on('disconnect', () => {
-      console.log('[Socket.IO] Client disconnected:', socket.id);
+      logger.info('[Socket.IO] Client disconnected:', socket.id);
       wsCommandRateLimits.delete(socket.id);
     });
 
@@ -640,7 +645,7 @@ if (io) {
       } else {
         // Fallback response
         socket.emit('message_start', { conversationId: data.conversationId });
-        socket.emit('message_chunk', { 
+        socket.emit('message_chunk', {
           conversationId: data.conversationId,
           content: '抱歉，聊天服务暂时不可用。'
         });
@@ -654,8 +659,8 @@ if (io) {
       }
     });
   });
-  
-  console.log('[Socket.IO] WebSocket ready on /socket.io');
+
+  logger.info('[Socket.IO] WebSocket ready on /socket.io');
 }
 
 // ========== REST API ==========
@@ -693,12 +698,12 @@ app.get('/api/personality/list', (req, res) => {
 
 app.post('/api/personality/switch', authMiddleware, (req, res) => {
   const { name } = req.body || {};
-  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!name) {return res.status(400).json({ error: 'name required' });}
   const oldName = pm.activeName;
   const success = pm.setActive(name);
   if (success) {
     memory.remember('personality_switch', { from: oldName, to: name, at: new Date().toISOString() });
-    if (io) io.emit('mood', pm.getMood());
+    if (io) {io.emit('mood', pm.getMood());}
     const currentPersonality = pm.getCurrentPersonality();
     const rawAvatar = currentPersonality?.avatar;
     const safeTypes = ['svg', 'live2d', 'vrm'];
@@ -725,28 +730,28 @@ app.post('/api/personality/switch', authMiddleware, (req, res) => {
 
 app.post('/api/personality/create', authMiddleware, (req, res) => {
   const { name, description, style } = req.body || {};
-  
+
   if (!name || typeof name !== 'string' || name.length < 1 || name.length > 50) {
     return res.status(400).json({ error: 'Invalid name (1-50 chars)' });
   }
-  
+
   const safeName = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '');
   if (!safeName) {
     return res.status(400).json({ error: 'Invalid name characters' });
   }
-  
+
   if (pm.personalities && pm.personalities[safeName]) {
     return res.status(400).json({ error: 'Personality already exists' });
   }
-  
+
   const styleConfigs = {
     emoji: { emoji: true, rate: 1.0 },
     formal: { emoji: false, rate: 0.9 },
     playful: { emoji: true, rate: 1.2 }
   };
-  
+
   const styleConfig = styleConfigs[style] || styleConfigs.emoji;
-  
+
   if (pm.createPersonality) {
     const success = pm.createPersonality(safeName, {
       name: safeName,
@@ -757,7 +762,7 @@ app.post('/api/personality/create', authMiddleware, (req, res) => {
         style: style
       }
     });
-    
+
     if (success) {
       memory.remember('personality_created', { name: safeName, style, at: new Date().toISOString() });
       res.json({ ok: true, name: safeName });
@@ -772,22 +777,22 @@ app.post('/api/personality/create', authMiddleware, (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const { text, history } = req.body || {};
-    if (!text) return res.status(400).json({ error: 'text required' });
-    if (text.length > 4000) return res.status(400).json({ error: 'text too long (max 4000 chars)' });
-    
+    if (!text) {return res.status(400).json({ error: 'text required' });}
+    if (text.length > 4000) {return res.status(400).json({ error: 'text too long (max 4000 chars)' });}
+
     let contextHistory = [];
     if (history && Array.isArray(history)) {
       const boundedHistory = history.length > 100 ? history.slice(-100) : history;
-      contextHistory = boundedHistory.slice(-10).map(h => ({
+      contextHistory = boundedHistory.slice(-10).map((h) => ({
         role: (h.role === 'user' || h.role === 'assistant') ? h.role : 'user',
         content: String(h.content).substring(0, 2000)
       }));
     }
-    
+
     const result = await router.routeMessage(text, contextHistory);
     res.json(result);
   } catch (err) {
-    console.error('[Chat] Error:', err.message);
+    logger.error('[Chat] Error:', err.message);
     res.status(500).json({ error: '处理失败' });
   }
 });
@@ -801,26 +806,26 @@ const ALLOWED_MODELS = [
 
 app.post('/api/ollama/model', (req, res) => {
   const { model } = req.body || {};
-  if (!model) return res.status(400).json({ error: 'model required' });
-  
+  if (!model) {return res.status(400).json({ error: 'model required' });}
+
   const safeModel = String(model).trim().toLowerCase();
   const MAX_MODEL_LENGTH = 50;
-  
+
   if (safeModel.length > MAX_MODEL_LENGTH) {
     return res.status(400).json({ error: 'Model name too long' });
   }
-  
+
   if (!ALLOWED_MODELS.includes(safeModel)) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'Invalid model name',
       allowed: ALLOWED_MODELS
     });
   }
-  
+
   if (ollamaBridge) {
     ollamaBridge.defaultModel = safeModel;
   }
-  
+
   res.json({ ok: true, model: safeModel });
 });
 
@@ -899,8 +904,8 @@ app.post('/api/vision', authMiddleware, async (req, res) => {
       res.status(500).json({ success: false, error: result.error });
     }
   } catch (error) {
-    console.error('[Vision API] Error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('[Vision API] Error:', error.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -911,7 +916,7 @@ app.get('/api/vision/models', async (req, res) => {
 
   try {
     const visionModels = await ollamaBridge.listVisionModels();
-    res.json({ models: visionModels.map(m => m.name) });
+    res.json({ models: visionModels.map((m) => m.name) });
   } catch (error) {
     res.json({ models: [] });
   }
@@ -931,7 +936,7 @@ app.post('/api/agent/execute', authMiddleware, async (req, res) => {
       taskId: `task_${Date.now()}`
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -978,13 +983,13 @@ const attestations = new Map();
 
 app.get('/api/attestations', (req, res) => {
   const result = [];
-  for (const [id, att] of attestations) {
+  for (const [_id, att] of attestations) {
     result.push({
       id: att.id,
       hash: att.hash,
       data: att.data,
       metadata: att.metadata,
-      signature: att.signature ? att.signature.substring(0, 32) + '...' : null,
+      signature: att.signature ? `${att.signature.substring(0, 32)}...` : null,
       verified: att.verified || false
     });
   }
@@ -1089,7 +1094,7 @@ app.get('/api/solutions', (req, res) => {
   const industry = req.query.industry;
   let result = verticalSolutions;
   if (industry) {
-    result = result.filter(s => s.industry === industry);
+    result = result.filter((s) => s.industry === industry);
   }
   res.json(result);
 });
@@ -1390,7 +1395,7 @@ const e2eSolutions = {
 };
 
 app.get('/api/vertical-domains', (req, res) => {
-  const result = verticalDomains.map(domain => ({
+  const result = verticalDomains.map((domain) => ({
     ...domain,
     e2eCount: (e2eSolutions[domain.id] || []).length
   }));
@@ -1399,11 +1404,11 @@ app.get('/api/vertical-domains', (req, res) => {
 
 app.get('/api/vertical-domains/:domainId/skills', (req, res) => {
   const { domainId } = req.params;
-  
+
   if (!validateId(domainId)) {
     return res.status(400).json({ error: 'Invalid domain ID format' });
   }
-  
+
   // Return domain-specific skills
   const domainSkills = {
     finance: [
@@ -1422,31 +1427,31 @@ app.get('/api/vertical-domains/:domainId/skills', (req, res) => {
 
 app.get('/api/vertical-domains/:domainId/solutions', (req, res) => {
   const { domainId } = req.params;
-  
+
   if (!validateId(domainId)) {
     return res.status(400).json({ error: 'Invalid domain ID format' });
   }
-  
+
   const solutions = e2eSolutions[domainId] || [];
   res.json(solutions);
 });
 
 app.post('/api/vertical-domains/:domainId/solutions/:solutionId/install', authMiddleware, (req, res) => {
   const { domainId, solutionId } = req.params;
-  
+
   // Input validation
   if (!domainId || !solutionId) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
-  
+
   // Validate domainId and solutionId format (alphanumeric, dash, underscore only) and prevent prototype pollution
   if (!validateId(domainId) || !validateId(solutionId)) {
     return res.status(400).json({ error: 'Invalid parameter format' });
   }
-  
+
   const solutions = e2eSolutions[domainId] || [];
-  const solution = solutions.find(s => s.id === solutionId);
-  
+  const solution = solutions.find((s) => s.id === solutionId);
+
   if (!solution) {
     return res.status(404).json({ error: 'Solution not found' });
   }
@@ -1460,7 +1465,7 @@ app.post('/api/vertical-domains/:domainId/solutions/:solutionId/install', authMi
     templateId: solution.templateId,
     status: 'installing',
     progress: 0,
-    stages: solution.stages.map(s => ({ name: s, status: 'pending' })),
+    stages: solution.stages.map((s) => ({ name: s, status: 'pending' })),
     startedAt: Date.now()
   };
 
@@ -1478,16 +1483,16 @@ app.post('/api/vertical-domains/:domainId/solutions/:solutionId/install', authMi
     }
   }, 1000);
 
-  res.json({ 
-    id: installId, 
+  res.json({
+    id: installId,
     status: 'installing',
     message: `开始安装「${solution.name}」...`
   });
 });
 
 app.get('/api/vertical-domains/solutions', (req, res) => {
-  const allSolutions = Object.entries(e2eSolutions).flatMap(([domainId, sols]) => 
-    sols.map(s => ({ ...s, domainId }))
+  const allSolutions = Object.entries(e2eSolutions).flatMap(([domainId, sols]) =>
+    sols.map((s) => ({ ...s, domainId }))
   );
   res.json(allSolutions);
 });
@@ -1495,24 +1500,24 @@ app.get('/api/vertical-domains/solutions', (req, res) => {
 // Import demo data for a solution
 app.post('/api/vertical-domains/:domainId/solutions/:solutionId/demo-data', authMiddleware, (req, res) => {
   const { domainId, solutionId } = req.params;
-  
+
   if (!validateId(domainId) || !validateId(solutionId)) {
     return res.status(400).json({ error: 'Invalid parameter format' });
   }
-  
+
   const solutions = e2eSolutions[domainId] || [];
-  const solution = solutions.find(s => s.id === solutionId);
-  
+  const solution = solutions.find((s) => s.id === solutionId);
+
   if (!solution) {
     return res.status(404).json({ error: 'Solution not found' });
   }
-  
+
   if (!solution.demoData) {
     return res.status(404).json({ error: 'No demo data available for this solution' });
   }
 
   const importId = `import_${Date.now().toString(36)}`;
-  
+
   res.json({
     id: importId,
     status: 'success',
@@ -1524,34 +1529,34 @@ app.post('/api/vertical-domains/:domainId/solutions/:solutionId/demo-data', auth
 // Get solution recommendations based on related solutions
 app.get('/api/vertical-domains/solutions/:solutionId/recommendations', (req, res) => {
   const { solutionId } = req.params;
-  
+
   if (!validateId(solutionId)) {
     return res.status(400).json({ error: 'Invalid solution ID format' });
   }
-  
+
   let targetSolution = null;
   let targetDomainId = null;
-  
+
   for (const [domainId, solutions] of Object.entries(e2eSolutions)) {
-    const sol = solutions.find(s => s.id === solutionId);
+    const sol = solutions.find((s) => s.id === solutionId);
     if (sol) {
       targetSolution = sol;
       targetDomainId = domainId;
       break;
     }
   }
-  
+
   if (!targetSolution) {
     return res.status(404).json({ error: 'Solution not found' });
   }
-  
+
   const recommendations = [];
-  
+
   // Add related solutions
   if (targetSolution.relatedSolutions) {
     for (const relatedId of targetSolution.relatedSolutions) {
       for (const [domainId, solutions] of Object.entries(e2eSolutions)) {
-        const related = solutions.find(s => s.id === relatedId);
+        const related = solutions.find((s) => s.id === relatedId);
         if (related) {
           recommendations.push({
             ...related,
@@ -1562,35 +1567,35 @@ app.get('/api/vertical-domains/solutions/:solutionId/recommendations', (req, res
       }
     }
   }
-  
+
   // Add high automation solutions from same domain
   const sameDomainSolutions = (e2eSolutions[targetDomainId] || [])
-    .filter(s => s.id !== solutionId && s.automationRate >= 75)
-    .map(s => ({ ...s, domainId: targetDomainId, reason: 'high-automation' }));
-  
+    .filter((s) => s.id !== solutionId && s.automationRate >= 75)
+    .map((s) => ({ ...s, domainId: targetDomainId, reason: 'high-automation' }));
+
   recommendations.push(...sameDomainSolutions);
-  
+
   res.json(recommendations.slice(0, 5));
 });
 
 // Popular solutions ranking
 app.get('/api/vertical-domains/solutions/popular', (req, res) => {
   let { limit = 10, sortBy = 'automationRate' } = req.query;
-  
+
   // Validate limit
   limit = parseInt(limit);
-  if (isNaN(limit) || limit < 1) limit = 10;
-  if (limit > 100) limit = 100; // cap to prevent excessive data
-  
+  if (isNaN(limit) || limit < 1) {limit = 10;}
+  if (limit > 100) {limit = 100;} // eslint-disable-line no-useless-assignment
+
   // Validate sortBy
   const allowedSort = ['automationRate', 'installs', 'rating'];
   if (!allowedSort.includes(sortBy)) {
     sortBy = 'automationRate';
   }
-  
-  const allSolutions = Object.entries(e2eSolutions).flatMap(([domainId, sols]) => 
-    sols.map(s => ({ 
-      ...s, 
+
+  const allSolutions = Object.entries(e2eSolutions).flatMap(([domainId, sols]) =>
+    sols.map((s) => ({
+      ...s,
       domainId,
       // Simulated popularity metrics (in production, these would come from database)
       installs: Math.floor(Math.random() * 1000) + 100,
@@ -1598,50 +1603,50 @@ app.get('/api/vertical-domains/solutions/popular', (req, res) => {
       trials: Math.floor(Math.random() * 500) + 50
     }))
   );
-  
+
   // Sort by different criteria
-  let sorted = allSolutions;
+  let sorted;
   switch (sortBy) {
-    case 'automationRate':
-      sorted = allSolutions.sort((a, b) => b.automationRate - a.automationRate);
-      break;
-    case 'installs':
-      sorted = allSolutions.sort((a, b) => b.installs - a.installs);
-      break;
-    case 'rating':
-      sorted = allSolutions.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
-      break;
-    default:
-      sorted = allSolutions.sort((a, b) => b.automationRate - a.automationRate);
+  case 'automationRate':
+    sorted = allSolutions.sort((a, b) => b.automationRate - a.automationRate);
+    break;
+  case 'installs':
+    sorted = allSolutions.sort((a, b) => b.installs - a.installs);
+    break;
+  case 'rating':
+    sorted = allSolutions.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+    break;
+  default:
+    sorted = allSolutions.sort((a, b) => b.automationRate - a.automationRate);
   }
-  
+
   res.json({
-    hot: sorted.slice(0, 3).map(s => ({ ...s, badge: '🔥 热门' })),
-    highAutomation: allSolutions.filter(s => s.automationRate >= 80).map(s => ({ ...s, badge: '⚡ 高自动化' })),
-    newlyAdded: allSolutions.filter(s => ['energy', 'agriculture', 'government', 'transportation', 'media'].includes(s.domainId)).map(s => ({ ...s, badge: '🆕 新增' }))
+    hot: sorted.slice(0, 3).map((s) => ({ ...s, badge: '🔥 热门' })),
+    highAutomation: allSolutions.filter((s) => s.automationRate >= 80).map((s) => ({ ...s, badge: '⚡ 高自动化' })),
+    newlyAdded: allSolutions.filter((s) => ['energy', 'agriculture', 'government', 'transportation', 'media'].includes(s.domainId)).map((s) => ({ ...s, badge: '🆕 新增' }))
   });
 });
 
 // Search solutions by keyword (for chat recommendation)
 app.get('/api/vertical-domains/solutions/search', (req, res) => {
   let { q } = req.query;
-  
+
   if (!q || typeof q !== 'string') {
     return res.json([]);
   }
-  
+
   // Limit length to prevent DoS
   if (q.length > 100) {
     q = q.substring(0, 100);
   }
-  
+
   if (q.length < 2) {
     return res.json([]);
   }
-  
+
   const keywords = q.toLowerCase();
   const results = [];
-  
+
   const solutionKeywords = {
     '信贷': ['smart-credit-fullflow', 'finance'],
     '贷款': ['smart-credit-fullflow', 'finance'],
@@ -1665,22 +1670,22 @@ app.get('/api/vertical-domains/solutions/search', (req, res) => {
     '内容': ['content-publishing', 'media'],
     '媒体': ['content-publishing', 'media']
   };
-  
+
   for (const [keyword, [solutionId, domainId]] of Object.entries(solutionKeywords)) {
     if (keywords.includes(keyword)) {
-      const solution = (e2eSolutions[domainId] || []).find(s => s.id === solutionId);
-      if (solution && !results.find(r => r.id === solutionId)) {
+      const solution = (e2eSolutions[domainId] || []).find((s) => s.id === solutionId);
+      if (solution && !results.find((r) => r.id === solutionId)) {
         results.push({ ...solution, domainId, matchKeyword: keyword });
       }
     }
   }
-  
+
   res.json(results.slice(0, 3));
 });
 
 app.post('/api/solutions/:id/deploy', authMiddleware, async (req, res) => {
-  const solution = verticalSolutions.find(s => s.id === req.params.id);
-  if (!solution) return res.status(404).json({ error: 'Solution not found' });
+  const solution = verticalSolutions.find((s) => s.id === req.params.id);
+  if (!solution) {return res.status(404).json({ error: 'Solution not found' });}
 
   const deploymentId = `deploy_${req.params.id}_${Date.now().toString(36)}`;
   const deployment = {
@@ -1699,13 +1704,13 @@ app.get('/api/models', (req, res) => {
   const { industry, type, minRating, sortBy } = req.query;
   let result = [...modelMarketplace];
 
-  if (industry) result = result.filter(m => m.industry === industry);
-  if (type) result = result.filter(m => m.type === type);
-  if (minRating) result = result.filter(m => m.rating >= parseFloat(minRating));
+  if (industry) {result = result.filter((m) => m.industry === industry);}
+  if (type) {result = result.filter((m) => m.type === type);}
+  if (minRating) {result = result.filter((m) => m.rating >= parseFloat(minRating));}
 
-  if (sortBy === 'rating') result.sort((a, b) => b.rating - a.rating);
-  if (sortBy === 'downloads') result.sort((a, b) => b.downloads - a.downloads);
-  if (sortBy === 'price') result.sort((a, b) => a.price - b.price);
+  if (sortBy === 'rating') {result.sort((a, b) => b.rating - a.rating);}
+  if (sortBy === 'downloads') {result.sort((a, b) => b.downloads - a.downloads);}
+  if (sortBy === 'price') {result.sort((a, b) => a.price - b.price);}
 
   res.json(result);
 });
@@ -1726,8 +1731,8 @@ app.post('/api/models/train', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/models/:id/subscribe', authMiddleware, (req, res) => {
-  const model = modelMarketplace.find(m => m.id === req.params.id);
-  if (!model) return res.status(404).json({ error: 'Model not found' });
+  const model = modelMarketplace.find((m) => m.id === req.params.id);
+  if (!model) {return res.status(404).json({ error: 'Model not found' });}
 
   res.json({
     success: true,
@@ -1741,9 +1746,9 @@ const priceMonitorProducts = new Map();
 const priceMonitorAlerts = [];
 
 app.get('/api/price-monitor/products', (req, res) => {
-  const products = Array.from(priceMonitorProducts.values()).map(p => {
+  const products = Array.from(priceMonitorProducts.values()).map((p) => {
     const history = p.priceHistory || [];
-    const prices = history.map(h => h.price).filter(Boolean);
+    const prices = history.map((h) => h.price).filter(Boolean);
     const trend = prices.length >= 2
       ? (prices[prices.length - 1] > prices[0] ? 'rising' : prices[prices.length - 1] < prices[0] ? 'falling' : 'stable')
       : 'stable';
@@ -1763,7 +1768,7 @@ app.get('/api/price-monitor/products', (req, res) => {
 app.post('/api/price-monitor/products', authMiddleware, (req, res) => {
   const { name, url, targetPrice, selector } = req.body || {};
 
-  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!name) {return res.status(400).json({ error: 'name required' });}
 
   const id = `prod_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -1793,12 +1798,12 @@ app.delete('/api/price-monitor/products/:id', authMiddleware, (req, res) => {
 
 app.post('/api/price-monitor/products/:id/price', authMiddleware, (req, res) => {
   const product = priceMonitorProducts.get(req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
+  if (!product) {return res.status(404).json({ error: 'Product not found' });}
 
   const { price } = req.body || {};
   const numericPrice = parseFloat(price);
 
-  if (isNaN(numericPrice)) return res.status(400).json({ error: 'Invalid price' });
+  if (isNaN(numericPrice)) {return res.status(400).json({ error: 'Invalid price' });}
 
   product.previousPrice = product.currentPrice;
   product.currentPrice = numericPrice;
@@ -1858,15 +1863,15 @@ app.get('/api/price-monitor/alerts', (req, res) => {
   let alerts = [...priceMonitorAlerts];
 
   if (unreadOnly) {
-    alerts = alerts.filter(a => !a.read);
+    alerts = alerts.filter((a) => !a.read);
   }
 
   res.json(alerts.slice(-50));
 });
 
 app.post('/api/price-monitor/alerts/:id/read', (req, res) => {
-  const alert = priceMonitorAlerts.find(a => a.id === req.params.id);
-  if (alert) alert.read = true;
+  const alert = priceMonitorAlerts.find((a) => a.id === req.params.id);
+  if (alert) {alert.read = true;}
   res.json({ success: true });
 });
 
@@ -1874,7 +1879,7 @@ app.post('/api/price-monitor/check-all', authMiddleware, async (req, res) => {
   const results = [];
 
   for (const [id, product] of priceMonitorProducts) {
-    if (product.status !== 'active') continue;
+    if (product.status !== 'active') {continue;}
     results.push({
       id,
       name: product.name,
@@ -1886,20 +1891,20 @@ app.post('/api/price-monitor/check-all', authMiddleware, async (req, res) => {
   res.json({ checked: results.length, products: results });
 });
 
-const predictions = new Map();
+const _predictions = new Map();
 const notifications = [];
 const autoAdjustRules = new Map();
 
 app.get('/api/price-monitor/:id/predict', (req, res) => {
   const product = priceMonitorProducts.get(req.params.id);
-  if (!product) return res.status(404).json({ error: 'Product not found' });
+  if (!product) {return res.status(404).json({ error: 'Product not found' });}
 
   const history = product.priceHistory || [];
   if (history.length < 3) {
     return res.json({ error: '数据不足', predictions: [] });
   }
 
-  const prices = history.map(h => h.price).filter(Boolean);
+  const prices = history.map((h) => h.price).filter(Boolean);
   const lastPrice = prices[prices.length - 1];
   const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
   const trend = lastPrice > avgPrice ? 'rising' : lastPrice < avgPrice ? 'falling' : 'stable';
@@ -1919,8 +1924,8 @@ app.get('/api/price-monitor/:id/predict', (req, res) => {
   const recommendation = trend === 'rising'
     ? { action: 'buy_soon', reason: '预计上涨，建议尽快采购' }
     : trend === 'falling'
-    ? { action: 'wait', reason: '预计下跌，建议等待' }
-    : { action: 'hold', reason: '价格稳定' };
+      ? { action: 'wait', reason: '预计下跌，建议等待' }
+      : { action: 'hold', reason: '价格稳定' };
 
   res.json({
     productId: req.params.id,
@@ -1935,7 +1940,7 @@ app.get('/api/price-monitor/:id/predict', (req, res) => {
 app.post('/api/price-monitor/rules', authMiddleware, (req, res) => {
   const { name, productId, conditionType, conditionValue, actionType, actionValue } = req.body || {};
 
-  if (!name || !productId) return res.status(400).json({ error: 'name and productId required' });
+  if (!name || !productId) {return res.status(400).json({ error: 'name and productId required' });}
 
   const ruleId = `rule_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -1964,7 +1969,7 @@ app.get('/api/price-monitor/rules', (req, res) => {
 app.post('/api/notifications', authMiddleware, async (req, res) => {
   const { title, body, channels, priority } = req.body || {};
 
-  if (!title || !body) return res.status(400).json({ error: 'title and body required' });
+  if (!title || !body) {return res.status(400).json({ error: 'title and body required' });}
 
   const notifId = `notif_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -1990,7 +1995,7 @@ app.post('/api/notifications', authMiddleware, async (req, res) => {
 app.get('/api/notifications', (req, res) => {
   const unreadOnly = req.query.unread === 'true';
   let result = [...notifications];
-  if (unreadOnly) result = result.filter(n => !n.read);
+  if (unreadOnly) {result = result.filter((n) => !n.read);}
   res.json(result.slice(-50));
 });
 
@@ -2005,20 +2010,20 @@ app.get('/api/marketplace/workflows', (req, res) => {
   const { category, keyword, sortBy, minRating } = req.query;
   let result = Array.from(workflowMarket.values());
 
-  if (category) result = result.filter(w => w.category === category);
-  if (minRating) result = result.filter(w => w.rating >= parseFloat(minRating));
+  if (category) {result = result.filter((w) => w.category === category);}
+  if (minRating) {result = result.filter((w) => w.rating >= parseFloat(minRating));}
   if (keyword) {
     const kw = keyword.toLowerCase();
-    result = result.filter(w =>
+    result = result.filter((w) =>
       w.name.toLowerCase().includes(kw) ||
       w.description.toLowerCase().includes(kw)
     );
   }
 
   switch (sortBy) {
-    case 'downloads': result.sort((a, b) => b.downloads - a.downloads); break;
-    case 'rating': result.sort((a, b) => b.rating - a.rating); break;
-    case 'newest': result.sort((a, b) => b.createdAt - a.createdAt); break;
+  case 'downloads': result.sort((a, b) => b.downloads - a.downloads); break;
+  case 'rating': result.sort((a, b) => b.rating - a.rating); break;
+  case 'newest': result.sort((a, b) => b.createdAt - a.createdAt); break;
   }
 
   res.json(result.slice(0, 50));
@@ -2027,7 +2032,7 @@ app.get('/api/marketplace/workflows', (req, res) => {
 app.post('/api/marketplace/workflows', authMiddleware, (req, res) => {
   const { name, description, category, tags, nodes, connections } = req.body || {};
 
-  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!name) {return res.status(400).json({ error: 'name required' });}
 
   const id = `wf_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -2051,13 +2056,13 @@ app.post('/api/marketplace/workflows', authMiddleware, (req, res) => {
 
 app.get('/api/marketplace/workflows/:id', (req, res) => {
   const workflow = workflowMarket.get(req.params.id);
-  if (!workflow) return res.status(404).json({ error: 'Not found' });
+  if (!workflow) {return res.status(404).json({ error: 'Not found' });}
   res.json(workflow);
 });
 
 app.post('/api/marketplace/workflows/:id/download', (req, res) => {
   const workflow = workflowMarket.get(req.params.id);
-  if (!workflow) return res.status(404).json({ error: 'Not found' });
+  if (!workflow) {return res.status(404).json({ error: 'Not found' });}
 
   workflow.downloads++;
   res.json({ success: true, downloads: workflow.downloads });
@@ -2065,7 +2070,7 @@ app.post('/api/marketplace/workflows/:id/download', (req, res) => {
 
 app.post('/api/marketplace/workflows/:id/rate', authMiddleware, (req, res) => {
   const workflow = workflowMarket.get(req.params.id);
-  if (!workflow) return res.status(404).json({ error: 'Not found' });
+  if (!workflow) {return res.status(404).json({ error: 'Not found' });}
 
   const { rating } = req.body || {};
   const numericRating = Math.max(1, Math.min(5, parseInt(rating) || 3));
@@ -2083,7 +2088,7 @@ app.get('/api/plugins', (req, res) => {
 app.post('/api/plugins', authMiddleware, (req, res) => {
   const { name, description, nodeTypes, version } = req.body || {};
 
-  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!name) {return res.status(400).json({ error: 'name required' });}
 
   const id = `plugin_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -2104,7 +2109,7 @@ app.post('/api/plugins', authMiddleware, (req, res) => {
 
 app.post('/api/plugins/:id/install', authMiddleware, (req, res) => {
   const plugin = plugins.get(req.params.id);
-  if (!plugin) return res.status(404).json({ error: 'Plugin not found' });
+  if (!plugin) {return res.status(404).json({ error: 'Plugin not found' });}
 
   plugin.downloads++;
   res.json({ success: true, plugin });
@@ -2112,7 +2117,7 @@ app.post('/api/plugins/:id/install', authMiddleware, (req, res) => {
 
 app.get('/api/executions', (req, res) => {
   const result = [];
-  for (const [id, exec] of executions) {
+  for (const [_id, exec] of executions) {
     result.push(exec);
   }
   res.json(result);
@@ -2120,7 +2125,7 @@ app.get('/api/executions', (req, res) => {
 
 app.post('/api/executions', authMiddleware, async (req, res) => {
   const { workflowId } = req.body || {};
-  const workflow = workflows.find(w => w.id === workflowId);
+  const workflow = workflows.find((w) => w.id === workflowId);
 
   if (!workflow) {
     return res.status(404).json({ error: 'Workflow not found' });
@@ -2149,7 +2154,7 @@ app.post('/api/executions', authMiddleware, async (req, res) => {
 
   const simulateExecution = async () => {
     for (let i = 0; i < execution.steps.length; i++) {
-      await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+      await new Promise((r) => setTimeout(r, 1000 + Math.random() * 2000));
       execution.steps[i].status = 'completed';
       execution.steps[i].endTime = Date.now();
       execution.steps[i].result = { type: execution.steps[i].task, completed: true };
@@ -2172,7 +2177,7 @@ app.post('/api/executions', authMiddleware, async (req, res) => {
 
 app.post('/api/executions/:id/cancel', authMiddleware, (req, res) => {
   const exec = executions.get(req.params.id);
-  if (!exec) return res.status(404).json({ error: 'Not found' });
+  if (!exec) {return res.status(404).json({ error: 'Not found' });}
 
   exec.status = 'cancelled';
   exec.completedAt = Date.now();
@@ -2217,20 +2222,20 @@ app.post('/api/agent/tasks/:id/cancel', authMiddleware, (req, res) => {
 
 app.get('/api/memory', authMiddleware, (req, res) => {
   const { page, pageSize, query, format, export: isExport, stream } = req.query;
-  
+
   if (isExport === 'true') {
     if (stream === 'true') {
       res.setHeader('Content-Type', format === 'csv' ? 'text/csv' : 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="memory-${Date.now()}.${format || 'json'}"`);
       res.setHeader('Transfer-Encoding', 'chunked');
-      
+
       for (const chunk of memory.streamExport(format || 'json')) {
         res.write(chunk);
       }
       res.end();
       return;
     }
-    
+
     const exportData = memory.export(format || 'json');
     if (format === 'csv') {
       res.setHeader('Content-Type', 'text/csv');
@@ -2241,7 +2246,7 @@ app.get('/api/memory', authMiddleware, (req, res) => {
       data: exportData
     });
   }
-  
+
   if (page || query) {
     const result = memory.list({
       page: parseInt(page) || 1,
@@ -2250,7 +2255,7 @@ app.get('/api/memory', authMiddleware, (req, res) => {
     });
     return res.json(result);
   }
-  
+
   res.json(memory.dump());
 });
 
@@ -2297,12 +2302,12 @@ try {
       customSiteTitle: 'UltraWork AI API Docs',
       swaggerOptions: { persistAuthorization: true }
     }));
-    console.log('[Docs] Swagger UI available at /api-docs');
+    logger.info('[Docs] Swagger UI available at /api-docs');
   } else {
-    console.warn('[Docs] OpenAPI spec not found at docs/openapi.json');
+    logger.warn('[Docs] OpenAPI spec not found at docs/openapi.json');
   }
 } catch (e) {
-  console.warn('[Docs] Swagger UI not available:', e.message);
+  logger.warn('[Docs] Swagger UI not available:', e.message);
 }
 
 app.delete('/api/memory', authMiddleware, (req, res) => {
@@ -2335,9 +2340,9 @@ app.get('/api/ollama/status', async (req, res) => {
   try {
     const connected = await ollamaBridge.checkConnection();
     const models = await ollamaBridge.listModels();
-    res.json({ 
-      available: connected, 
-      models: models.map(m => m.name) || [], 
+    res.json({
+      available: connected,
+      models: models.map((m) => m.name) || [],
       model: ollamaBridge.defaultModel,
       maxTokens: ollamaBridge.maxTokens
     });
@@ -2346,7 +2351,7 @@ app.get('/api/ollama/status', async (req, res) => {
   }
 });
 
-console.log(`Inference engine: ${inferenceEngine}`);
+logger.info(`Inference engine: ${inferenceEngine}`);
 
 // ========== Game API ==========
 app.get('/api/game/status', (req, res) => {
@@ -2354,10 +2359,10 @@ app.get('/api/game/status', (req, res) => {
 });
 
 app.post('/api/game/connect', authMiddleware, async (req, res) => {
-  if (!gameManager) return res.status(500).json({ error: 'Game not enabled' });
+  if (!gameManager) {return res.status(500).json({ error: 'Game not enabled' });}
   try {
     await gameManager.game.connect();
-    if (io) io.emit('game_status', gameManager.getStatus());
+    if (io) {io.emit('game_status', gameManager.getStatus());}
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2365,34 +2370,34 @@ app.post('/api/game/connect', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/game/disconnect', authMiddleware, async (req, res) => {
-  if (!gameManager) return res.status(500).json({ error: 'Game not enabled' });
+  if (!gameManager) {return res.status(500).json({ error: 'Game not enabled' });}
   try {
     await gameManager.disconnect();
-    if (io) io.emit('game_status', gameManager.getStatus());
+    if (io) {io.emit('game_status', gameManager.getStatus());}
     res.json({ ok: true });
   } catch (error) {
-    console.error('[Game] Disconnect error:', error.message);
-    res.status(500).json({ ok: false, error: error.message });
+    logger.error('[Game] Disconnect error:', error.message);
+    res.status(500).json({ ok: false, error: 'Disconnect failed' });
   }
 });
 
 app.post('/api/game/command', authMiddleware, async (req, res) => {
-  if (!gameManager) return res.status(500).json({ error: 'Game not enabled' });
+  if (!gameManager) {return res.status(500).json({ error: 'Game not enabled' });}
   const { command } = req.body || {};
-  if (!command || typeof command !== 'string') return res.status(400).json({ error: 'command required' });
+  if (!command || typeof command !== 'string') {return res.status(400).json({ error: 'command required' });}
   const sanitized = sanitizeCommand(command);
-  if (!sanitized) return res.status(400).json({ error: 'Invalid or forbidden command' });
+  if (!sanitized) {return res.status(400).json({ error: 'Invalid or forbidden command' });}
   const result = await gameManager.handleMessage(sanitized);
-  if (io) io.emit('game_status', gameManager.getStatus());
+  if (io) {io.emit('game_status', gameManager.getStatus());}
   res.json(result || { ok: true });
 });
 
 app.post('/api/game/plan', authMiddleware, async (req, res) => {
-  if (!gameManager) return res.status(500).json({ error: 'Game not enabled' });
+  if (!gameManager) {return res.status(500).json({ error: 'Game not enabled' });}
   const { task } = req.body || {};
-  if (!task || typeof task !== 'string') return res.status(400).json({ error: 'task required' });
+  if (!task || typeof task !== 'string') {return res.status(400).json({ error: 'task required' });}
   const safeTask = String(task).substring(0, 500);
-  if (/[;&|`$]/.test(safeTask)) return res.status(400).json({ error: 'Task contains forbidden characters' });
+  if (/[;&|`$]/.test(safeTask)) {return res.status(400).json({ error: 'Task contains forbidden characters' });}
   const result = await gameManager.planAndExecute(safeTask);
   res.json(result);
 });
@@ -2402,28 +2407,28 @@ app.get('/api/game/events', (req, res) => {
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught Exception:', err);
+  logger.error('[FATAL] Uncaught Exception:', err);
   gracefulShutdown('uncaughtException');
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled Rejection:', reason);
+process.on('unhandledRejection', (reason, _promise) => {
+  logger.error('[FATAL] Unhandled Rejection:', reason);
   if (process.env.NODE_ENV === 'production') {
     gracefulShutdown('unhandledRejection');
   }
 });
 
 const gracefulShutdown = (signal) => {
-  console.log(`\n[Server] Received ${signal}, shutting down gracefully...`);
-  if (pm?.stopMoodDrift) pm.stopMoodDrift();
-  if (gameManager?.disconnect) gameManager.disconnect();
-  if (io) io.close();
+  logger.info(`\n[Server] Received ${signal}, shutting down gracefully...`);
+  if (pm?.stopMoodDrift) {pm.stopMoodDrift();}
+  if (gameManager?.disconnect) {gameManager.disconnect();}
+  if (io) {io.close();}
   server.close(() => {
-    console.log('[Server] HTTP server closed');
+    logger.info('[Server] HTTP server closed');
     process.exit(0);
   });
   setTimeout(() => {
-    console.error('[Server] Forced shutdown after timeout');
+    logger.error('[Server] Forced shutdown after timeout');
     process.exit(1);
   }, 10000);
 };
@@ -2431,7 +2436,7 @@ const gracefulShutdown = (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-const improvedHealthCheck = async () => {
+const _improvedHealthCheck = async () => {
   const health = {
     ok: true,
     uptime: process.uptime(),
@@ -2449,7 +2454,7 @@ const improvedHealthCheck = async () => {
     memoryStats: memory?.getStats ? memory.getStats() : null,
     timestamp: new Date().toISOString()
   };
-  
+
   if (ollamaBridge) {
     try {
       health.ollama = await ollamaBridge.checkConnection();
@@ -2457,7 +2462,7 @@ const improvedHealthCheck = async () => {
       health.ollamaError = e.message;
     }
   }
-  
+
   return health;
 };
 
@@ -2483,7 +2488,8 @@ app.get('/metrics', (req, res) => {
 
   output += '\n# HELP ultrawork_websocket_connections WebSocket connections\n';
   output += '# TYPE ultrawork_websocket_connections gauge\n';
-  output += `ultrawork_websocket_connections ${wss ? wss.clients?.size || 0 : 0}\n`;
+  const wsServer = req.app.get('wss');
+  output += `ultrawork_websocket_connections ${wsServer ? wsServer.clients?.size || 0 : 0}\n`;
 
   const memUsage = process.memoryUsage();
   output += '\n# HELP ultrawork_memory_heap_bytes Memory heap usage\n';
@@ -2517,22 +2523,22 @@ app.get('/metrics', (req, res) => {
 app.get('/api/dashboard', (req, res) => {
   res.json({
     system: {
-      uptime: ((Date.now() - workflowMetrics.system.startTime) / 1000).toFixed(0) + 's',
+      uptime: `${((Date.now() - workflowMetrics.system.startTime) / 1000).toFixed(0)}s`,
       requests: workflowMetrics.system.requests,
       errors: workflowMetrics.system.errors,
       errorRate: workflowMetrics.system.requests > 0
-        ? (workflowMetrics.system.errors / workflowMetrics.system.requests * 100).toFixed(2) + '%'
+        ? `${(workflowMetrics.system.errors / workflowMetrics.system.requests * 100).toFixed(2)}%`
         : '0%',
       memory: {
-        heapUsed: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2) + 'MB',
-        rss: (process.memoryUsage().rss / 1024 / 1024).toFixed(2) + 'MB'
+        heapUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)}MB`,
+        rss: `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)}MB`
       }
     },
     industry: {
       priceMonitor: {
         products: priceMonitorProducts.size,
         alerts: priceMonitorAlerts.length,
-        unreadAlerts: priceMonitorAlerts.filter(a => !a.read).length
+        unreadAlerts: priceMonitorAlerts.filter((a) => !a.read).length
       },
       attestations: attestations.size
     }
@@ -2541,32 +2547,32 @@ app.get('/api/dashboard', (req, res) => {
 
 app.get('/health', async (req, res) => {
   const isPublic = req.query.public === 'true';
-  
+
   if (isPublic) {
-    return res.json({ 
-      ok: true, 
-      status: 'online',
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  if (!API_KEY) {
-    return res.json({ 
+    return res.json({
       ok: true,
       status: 'online',
       timestamp: new Date().toISOString()
     });
   }
-  
+
+  if (!API_KEY) {
+    return res.json({
+      ok: true,
+      status: 'online',
+      timestamp: new Date().toISOString()
+    });
+  }
+
   const key = req.headers['x-api-key'];
   if (!timingSafeEqual(key || '', API_KEY)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   try {
     const memUsage = process.memoryUsage();
     const memUsed = memUsage.heapUsed / 1024 / 1024;
-    
+
     const health = {
       ok: true,
       uptime: Math.floor(process.uptime()),
@@ -2592,12 +2598,12 @@ app.get('/health', async (req, res) => {
       } : null,
       timestamp: new Date().toISOString()
     };
-    
+
     if (memUsed > 500) {
       health.warnings = health.warnings || [];
       health.warnings.push('High memory usage detected');
     }
-    
+
     if (ollamaBridge) {
       try {
         health.ollama = await ollamaBridge.checkConnection();
@@ -2605,7 +2611,7 @@ app.get('/health', async (req, res) => {
         health.ollamaError = 'Connection failed';
       }
     }
-    
+
     res.json(health);
   } catch (e) {
     res.status(503).json({ ok: false, error: 'Health check failed' });
@@ -2613,12 +2619,12 @@ app.get('/health', async (req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`UltraWork AI listening on port ${port}`);
+  logger.info(`UltraWork AI listening on port ${port}`);
 });
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${port} in use.`);
+    logger.error(`Port ${port} in use.`);
     process.exit(1);
   }
 });
@@ -2628,44 +2634,54 @@ let mcpPlugin = null;
 let mcpWorkflowEngine = null;
 
 // Initialize Skills API immediately (independent of MCP)
-let skillAutoLoader = null;
-let skillAutoRouter = null;
 try {
   const { SkillManager } = require(path.resolve(ROOT_DIR, 'src/skills/SkillManager'));
   const { SkillsApi, SkillAutoRouter } = require(path.resolve(ROOT_DIR, 'src/skills/api'));
   const { SkillAutoLoader } = require(path.resolve(ROOT_DIR, 'src/skills/SkillAutoLoader'));
-  
+
   const skillManager = new SkillManager({ hotReload: false });
   const loadedSkills = skillManager.loadAllSkills();
   const skillsApi = new SkillsApi(skillManager);
   app.use('/api/skills', skillsApi.getRouter());
-  
+
   // Initialize Skill AutoLoader
-  skillAutoLoader = new SkillAutoLoader();
-  skillAutoRouter = new SkillAutoRouter(skillAutoLoader);
+  const skillAutoLoader = new SkillAutoLoader();
+  const skillAutoRouter = new SkillAutoRouter(skillAutoLoader);
   app.use('/api/skills/auto', skillAutoRouter.getRouter());
-  
-  console.log('[Skills] Skills API initialized');
-  console.log(`[Skills] Loaded ${loadedSkills.length} skills`);
-  console.log('[Skills] AutoLoader enabled:', skillAutoLoader.isEnabled());
-  
+
+  logger.info('[Skills] Skills API initialized');
+  logger.info(`[Skills] Loaded ${loadedSkills.length} skills`);
+  logger.info('[Skills] AutoLoader enabled:', skillAutoLoader.isEnabled());
+
   // Get startup skills
   const startupSkills = skillAutoLoader.getStartupSkills();
-  console.log('[Skills] Startup skills to load:', startupSkills);
+  logger.info('[Skills] Startup skills to load:', startupSkills);
 } catch (error) {
-  console.warn('[Skills] Initialization failed:', error.message);
+  logger.warn('[Skills] Initialization failed:', error.message);
 }
 
 async function initMCP() {
   try {
+    const jwt = require('jsonwebtoken');
     const { MCPPlugin } = require(path.resolve(ROOT_DIR, 'src/mcp/MCPPlugin'));
     const { NodeWorkflowEngine } = require(path.resolve(ROOT_DIR, 'src/workflow/NodeWorkflowEngine'));
-    const { router: mcpRouter, setMCPPlugin, setPermissionManager } = require(path.resolve(ROOT_DIR, 'src/mcp/router'));
+    const { router: mcpRouter, setMCPPlugin, setPermissionManager, setAuthMiddleware } = require(path.resolve(ROOT_DIR, 'src/mcp/router'));
     const { createMCPMetricsHandler } = require(path.resolve(ROOT_DIR, 'src/mcp/metrics'));
+
+    // Wire up JWT auth for MCP router
+    const mcpSecret = process.env.JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
+    setAuthMiddleware((token) => {
+      try {
+        const payload = jwt.verify(token, mcpSecret, { issuer: 'ultrawork-ai' });
+        return { valid: true, username: payload.username, role: payload.role || 'user' };
+      } catch (e) {
+        return { valid: false, error: e.message };
+      }
+    });
 
     // Always mount the router first
     app.use('/api/mcp', mcpRouter);
-    console.log('[MCP] Router mounted at /api/mcp');
+    logger.info('[MCP] Router mounted at /api/mcp');
 
     mcpPlugin = new MCPPlugin({
       configPath: path.resolve(ROOT_DIR, 'config/mcp-servers.json'),
@@ -2673,22 +2689,22 @@ async function initMCP() {
     });
 
     mcpPlugin.on('server-registered', (info) => {
-      console.log(`[MCP] Server registered: ${info.name}`);
+      logger.info(`[MCP] Server registered: ${info.name}`);
     });
     mcpPlugin.on('loaded', (info) => {
-      console.log(`[MCP] Loaded: ${info.serversRegistered} servers, ${info.toolsAvailable} tools`);
+      logger.info(`[MCP] Loaded: ${info.serversRegistered} servers, ${info.toolsAvailable} tools`);
     });
     mcpPlugin.on('status-change', (info) => {
-      console.log(`[MCP] Status changed: ${info.status}`);
+      logger.info(`[MCP] Status changed: ${info.status}`);
     });
-    
+
     // Start MCP loading in background
     setMCPPlugin(mcpPlugin);
-    console.log('[MCP] Plugin reference set, loading in background...');
-    
+    logger.info('[MCP] Plugin reference set, loading in background...');
+
     mcpPlugin.onLoad().then(() => {
-      console.log('[MCP] Background loading complete');
-      
+      logger.info('[MCP] Background loading complete');
+
       if (mcpPlugin.getPermissionManager()) {
         setPermissionManager(mcpPlugin.getPermissionManager());
       }
@@ -2697,94 +2713,94 @@ async function initMCP() {
       mcpPlugin.registerWorkflowEngine(mcpWorkflowEngine);
 
       app.get('/api/mcp/metrics', createMCPMetricsHandler(mcpPlugin));
-      
-      console.log('[MCP] Integration initialized');
-      console.log(`[MCP] Servers: ${Object.keys(mcpPlugin.getStatus().servers || {}).length}`);
-      console.log(`[MCP] Tools: ${mcpPlugin.getStatus().tools}`);
-      console.log(`[MCP] Nodes: ${mcpPlugin.getStatus().nodes}`);
-    }).catch(err => {
-      console.error('[MCP] Background loading failed:', err.message);
+
+      logger.info('[MCP] Integration initialized');
+      logger.info(`[MCP] Servers: ${Object.keys(mcpPlugin.getStatus().servers || {}).length}`);
+      logger.info(`[MCP] Tools: ${mcpPlugin.getStatus().tools}`);
+      logger.info(`[MCP] Nodes: ${mcpPlugin.getStatus().nodes}`);
+    }).catch((err) => {
+      logger.error('[MCP] Background loading failed:', err.message);
     });
 
   } catch (error) {
-    console.warn('[MCP] Initialization failed:', error.message);
-    console.warn('[MCP] MCP features will be unavailable');
+    logger.warn('[MCP] Initialization failed:', error.message);
+    logger.warn('[MCP] MCP features will be unavailable');
   }
 }
 
 // MCP Annotations API (direct routes as fallback)
 try {
   const ToolAnnotations = require(path.resolve(ROOT_DIR, 'src/mcp/engines/ToolAnnotations'));
-  
+
   app.get('/api/mcp/annotations', (req, res) => {
     res.json({ annotations: ToolAnnotations.ANNOTATIONS, count: Object.keys(ToolAnnotations.ANNOTATIONS).length });
   });
-  
+
   app.get('/api/mcp/annotations/summary', (req, res) => {
     const annotations = ToolAnnotations.ANNOTATIONS;
     const summary = {
       total: Object.keys(annotations).length,
-      readOnly: Object.values(annotations).filter(a => a.readOnlyHint).length,
-      destructive: Object.values(annotations).filter(a => a.destructiveHint).length,
-      idempotent: Object.values(annotations).filter(a => a.idempotentHint).length
+      readOnly: Object.values(annotations).filter((a) => a.readOnlyHint).length,
+      destructive: Object.values(annotations).filter((a) => a.destructiveHint).length,
+      idempotent: Object.values(annotations).filter((a) => a.idempotentHint).length
     };
     res.json(summary);
   });
-  
+
   app.get('/api/mcp/annotations/risk-level', (req, res) => {
     const { tools } = req.query;
-    if (!tools) return res.status(400).json({ error: 'tools query parameter required' });
+    if (!tools) {return res.status(400).json({ error: 'tools query parameter required' });}
     const toolList = tools.split(',');
-    const riskLevels = toolList.map(tool => ({
+    const riskLevels = toolList.map((tool) => ({
       tool,
       riskLevel: ToolAnnotations.getRiskLevel(tool),
       ...ToolAnnotations.getAnnotation(tool)
     }));
     res.json({ riskLevels });
   });
-  
-  console.log('[MCP] Annotation routes registered directly');
+
+  logger.info('[MCP] Annotation routes registered directly');
 } catch (error) {
-  console.warn('[MCP] Failed to register annotation routes:', error.message);
+  logger.warn('[MCP] Failed to register annotation routes:', error.message);
 }
 
 // MCP Roots API
 try {
   const { rootsManager } = require(path.resolve(ROOT_DIR, 'src/mcp/engines/RootsManager'));
-  
+
   app.get('/api/mcp/roots', (req, res) => {
     res.json({ roots: rootsManager.roots, count: rootsManager.roots.length });
   });
-  
+
   app.get('/api/mcp/roots/validate', (req, res) => {
     const { path: targetPath } = req.query;
-    if (!targetPath) return res.status(400).json({ error: 'path query required' });
+    if (!targetPath) {return res.status(400).json({ error: 'path query required' });}
     const validation = rootsManager.validatePath(targetPath);
     res.json({ ...validation, allowed: validation.valid });
   });
-  
+
   app.get('/api/mcp/roots/:id', (req, res) => {
-    const root = rootsManager.roots.find(r => r.id === req.params.id);
-    if (!root) return res.status(404).json({ error: 'Root not found' });
+    const root = rootsManager.roots.find((r) => r.id === req.params.id);
+    if (!root) {return res.status(404).json({ error: 'Root not found' });}
     res.json(root);
   });
-  
+
   app.post('/api/mcp/roots', authMiddleware, (req, res) => {
     const { path: rootPath, name, type } = req.body;
-    if (!rootPath) return res.status(400).json({ error: 'path required' });
-    const newRoot = rootsManager.addRoot(rootPath, name, type);
+    if (!rootPath) {return res.status(400).json({ error: 'path required' });}
+    const _newRoot = rootsManager.addRoot(rootPath, name, type);
     res.json({ roots: rootsManager.roots, added: rootPath });
   });
-  
+
   app.delete('/api/mcp/roots/:id', authMiddleware, (req, res) => {
     const success = rootsManager.removeRoot(req.params.id);
-    if (!success) return res.status(404).json({ error: 'Root not found' });
+    if (!success) {return res.status(404).json({ error: 'Root not found' });}
     res.json({ success: true });
   });
-  
-  console.log('[MCP] Roots routes registered directly');
+
+  logger.info('[MCP] Roots routes registered directly');
 } catch (error) {
-  console.warn('[MCP] Failed to register roots routes:', error.message);
+  logger.warn('[MCP] Failed to register roots routes:', error.message);
 }
 
 // MCP Status API
@@ -2815,9 +2831,9 @@ app.post('/api/mcp/call', authMiddleware, async (req, res) => {
   if (!mcpPlugin) {
     return res.status(503).json({ error: 'MCP not available' });
   }
-  
+
   const { toolFullName, params } = req.body || {};
-  
+
   if (!toolFullName) {
     return res.status(400).json({ error: 'toolFullName required' });
   }
@@ -2826,7 +2842,7 @@ app.post('/api/mcp/call', authMiddleware, async (req, res) => {
     const result = await mcpPlugin.executeTool(toolFullName, params || {});
     res.json({ success: true, result });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -2834,34 +2850,34 @@ app.get('/api/mcp/workflow/nodes', (req, res) => {
   if (!mcpWorkflowEngine) {
     return res.status(503).json({ error: 'MCP workflow not available' });
   }
-  
+
   const nodes = mcpWorkflowEngine.getAllNodeTypes()
-    .filter(n => n.type.startsWith('mcp.'))
-    .map(n => ({
+    .filter((n) => n.type.startsWith('mcp.'))
+    .map((n) => ({
       type: n.type,
       name: n.name,
       category: n.category,
       description: n.description
     }));
-  
+
   res.json({ nodes, count: nodes.length });
 });
 
 // Initialize MCP with proper async handling
 initMCP().then(() => {
-  console.log('[MCP] Initialization complete');
-}).catch(err => {
-  console.warn('[MCP] Initialization failed:', err.message);
+  logger.info('[MCP] Initialization complete');
+}).catch((err) => {
+  logger.warn('[MCP] Initialization failed:', err.message);
 });
 
 initGame();
 
 // ================== Error Handlers (MUST be at end) ==================
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   const statusCode = err.statusCode || err.status || 500;
-  console.error(`[ERROR] ${req.method} ${req.path} - ${statusCode}: ${err.message}`);
-  const errorMessage = process.env.NODE_ENV === 'production' 
-    ? '服务器内部错误' 
+  logger.error(`[ERROR] ${req.method} ${req.path} - ${statusCode}: ${err.message}`);
+  const errorMessage = process.env.NODE_ENV === 'production'
+    ? '服务器内部错误'
     : err.message;
   res.status(statusCode).json({
     error: errorMessage,
@@ -2871,7 +2887,7 @@ app.use((err, req, res, next) => {
 });
 
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not Found',
     path: req.path,
     method: req.method

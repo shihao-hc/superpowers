@@ -9,7 +9,7 @@
  * HTML转义，防止XSS攻击
  */
 function escapeHtml(str) {
-  if (!str) return '';
+  if (!str) {return '';}
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -39,7 +39,7 @@ function safeJsonParse(jsonString, defaultValue = null) {
  * 安全的正则表达式转义
  */
 function escapeRegex(str) {
-  if (!str) return '';
+  if (!str) {return '';}
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -47,8 +47,8 @@ function escapeRegex(str) {
  * 创建安全的正则表达式
  */
 function createSafeRegex(pattern, flags = '') {
-  const escaped = escapeRegex(pattern).replace(/\*/g, '.*');
-  return new RegExp('^' + escaped + '$', flags);
+  const escaped = escapeRegex(pattern).replace(/\\\*/g, '.*');
+  return new RegExp(`^${escaped}$`, flags);
 }
 
 /**
@@ -70,7 +70,7 @@ class InputValidator {
   }
 
   static validateStringLength(str, min = 0, max = Infinity) {
-    if (typeof str !== 'string') return false;
+    if (typeof str !== 'string') {return false;}
     return str.length >= min && str.length <= max;
   }
 
@@ -126,9 +126,9 @@ class TimerManager {
   }
 
   cleanup() {
-    this.timers.forEach(id => clearTimeout(id));
-    this.intervals.forEach(id => clearInterval(id));
-    
+    this.timers.forEach((id) => clearTimeout(id));
+    this.intervals.forEach((id) => clearInterval(id));
+
     this.timers.clear();
     this.intervals.clear();
   }
@@ -160,7 +160,7 @@ class EnhancedEventBus {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
-    
+
     return () => this.off(event, callback);
   }
 
@@ -186,14 +186,14 @@ class EnhancedEventBus {
       data,
       timestamp: Date.now()
     };
-    
+
     this.history.push(eventRecord);
     if (this.history.length > this.maxHistory) {
       this.history.shift();
     }
 
     if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach(callback => {
+      this.listeners.get(event).forEach((callback) => {
         try {
           callback(data);
         } catch (error) {
@@ -203,7 +203,7 @@ class EnhancedEventBus {
     }
 
     if (this.onceListeners.has(event)) {
-      this.onceListeners.get(event).forEach(callback => {
+      this.onceListeners.get(event).forEach((callback) => {
         try {
           callback(data);
         } catch (error) {
@@ -294,27 +294,27 @@ class RetryHandler {
     } = options;
 
     let lastError;
-    
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         return await fn(attempt);
       } catch (error) {
         lastError = error;
-        
-        if (attempt === maxAttempts) break;
-        
+
+        if (attempt === maxAttempts) {break;}
+
         onRetry({
           attempt,
           error,
           nextDelay: delay * Math.pow(backoff, attempt - 1)
         });
-        
-        await new Promise(resolve => 
+
+        await new Promise((resolve) =>
           setTimeout(resolve, delay * Math.pow(backoff, attempt - 1))
         );
       }
     }
-    
+
     throw lastError;
   }
 }
@@ -337,9 +337,9 @@ class ConfigManager {
   set(key, value) {
     const oldValue = this.config[key];
     this.config[key] = value;
-    
+
     if (this.listeners.has(key)) {
-      this.listeners.get(key).forEach(callback => {
+      this.listeners.get(key).forEach((callback) => {
         try {
           callback(value, oldValue);
         } catch (error) {
@@ -360,7 +360,7 @@ class ConfigManager {
       this.listeners.set(key, new Set());
     }
     this.listeners.get(key).add(callback);
-    
+
     return () => {
       if (this.listeners.has(key)) {
         this.listeners.get(key).delete(callback);
@@ -378,6 +378,24 @@ class ConfigManager {
   }
 }
 
+// ==================== 文件工具 ====================
+
+const fs = require('fs');
+
+/**
+ * 将内容按行分割，自动处理 Windows CRLF
+ */
+function splitLines(content) {
+  return content.replace(/\r\n/g, '\n').split('\n');
+}
+
+/**
+ * 读取文件并按行分割，自动处理 CRLF
+ */
+function readFileLines(filePath, encoding = 'utf-8') {
+  return splitLines(fs.readFileSync(filePath, encoding));
+}
+
 // ==================== 导出 ====================
 
 module.exports = {
@@ -390,5 +408,7 @@ module.exports = {
   EnhancedEventBus,
   ErrorHandler,
   RetryHandler,
-  ConfigManager
+  ConfigManager,
+  splitLines,
+  readFileLines
 };

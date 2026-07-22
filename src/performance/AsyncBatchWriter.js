@@ -7,7 +7,7 @@ class AsyncBatchWriter {
     this.flushInterval = options.flushInterval || 5000;
     this.maxQueueSize = options.maxQueueSize || 10000;
     this.encoding = options.encoding || 'utf8';
-    
+
     this.queue = [];
     this.writeStream = null;
     this.flushTimer = null;
@@ -33,7 +33,7 @@ class AsyncBatchWriter {
     }
 
     const normalizedPath = path.normalize(logPath);
-    
+
     const normalizedDir = path.dirname(normalizedPath);
     const allowedBase = path.resolve(process.cwd(), 'logs');
     if (!normalizedDir.startsWith(allowedBase)) {
@@ -45,17 +45,17 @@ class AsyncBatchWriter {
       if (!fs.existsSync(normalizedDir)) {
         fs.mkdirSync(normalizedDir, { recursive: true });
       }
-      
+
       if (this.writeStream) {
         this.writeStream.end();
       }
-      
+
       this.writeStream = fs.createWriteStream(normalizedPath, { flags: 'a', encoding: this.encoding });
-      
+
       this.writeStream.on('error', (err) => {
         console.error('[AsyncBatchWriter] Write error:', err.message);
       });
-      
+
       return true;
     } catch (error) {
       console.error('[AsyncBatchWriter] Failed to set log path:', error.message);
@@ -71,11 +71,11 @@ class AsyncBatchWriter {
     }
 
     this.queue.push(data);
-    
+
     if (this.queue.length >= this.batchSize) {
       this.flush();
     }
-    
+
     return true;
   }
 
@@ -91,16 +91,16 @@ class AsyncBatchWriter {
     this.isWriting = true;
     const startTime = Date.now();
     const itemsToWrite = this.queue.splice(0, this.batchSize);
-    
+
     try {
       if (this.writeStream) {
-        const lines = itemsToWrite.map(item => JSON.stringify(item)).join('\n') + '\n';
-        
-        await new Promise((resolve, reject) => {
+        const lines = `${itemsToWrite.map((item) => JSON.stringify(item)).join('\n')}\n`;
+
+        await new Promise((resolve, _reject) => {
           this._pendingWrites++;
-          
+
           const canWrite = this.writeStream.write(lines);
-          
+
           if (canWrite) {
             this._pendingWrites--;
             resolve();
@@ -139,7 +139,7 @@ class AsyncBatchWriter {
         this.flush();
       }
     }, this.flushInterval);
-    
+
     this.flushTimer.unref();
   }
 
@@ -153,7 +153,7 @@ class AsyncBatchWriter {
   async close() {
     this.stopAutoFlush();
     await this.flush(true);
-    
+
     if (this.writeStream) {
       await new Promise((resolve) => {
         this.writeStream.end(resolve);
@@ -188,7 +188,7 @@ class BufferedAuditWriter extends AsyncBatchWriter {
       maxQueueSize: options.auditMaxMemoryEntries || 10000,
       ...options
     });
-    
+
     this.retentionDays = options.retentionDays || 30;
     this.compressionEnabled = options.compressionEnabled || false;
     this.encryptionKey = options.encryptionKey || null;
@@ -200,16 +200,16 @@ class BufferedAuditWriter extends AsyncBatchWriter {
   }
 
   _encrypt(data) {
-    if (!this.encryptionKey) return data;
-    
+    if (!this.encryptionKey) {return data;}
+
     const crypto = require('crypto');
     const iv = crypto.randomBytes(16);
     const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    
+
     let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     return {
       iv: iv.toString('hex'),
       data: encrypted,
@@ -224,8 +224,8 @@ class BufferedAuditWriter extends AsyncBatchWriter {
       ...entryData
     };
 
-    const dataToWrite = this.encryptionKey 
-      ? this._encrypt(entry) 
+    const dataToWrite = this.encryptionKey
+      ? this._encrypt(entry)
       : entry;
 
     return this.add(dataToWrite);
@@ -233,39 +233,39 @@ class BufferedAuditWriter extends AsyncBatchWriter {
 
   rotateLogFile() {
     const dateStr = this._getDateStr();
-    
+
     if (dateStr === this.currentDate) {
       return null;
     }
 
     this.currentDate = dateStr;
     const logPath = `logs/mcp-audit-${dateStr}.jsonl`;
-    
+
     this.setLogPath(logPath);
-    
+
     return logPath;
   }
 
   cleanupOldFiles(dir = 'logs') {
     try {
-      if (!fs.existsSync(dir)) return;
-      
+      if (!fs.existsSync(dir)) {return;}
+
       const maxAge = Date.now() - (this.retentionDays * 24 * 60 * 60 * 1000);
-      
+
       const files = fs.readdirSync(dir)
-        .filter(f => f.startsWith('mcp-audit-') && f.endsWith('.jsonl'))
-        .map(f => ({
+        .filter((f) => f.startsWith('mcp-audit-') && f.endsWith('.jsonl'))
+        .map((f) => ({
           name: f,
           path: path.join(dir, f),
           mtime: fs.statSync(path.join(dir, f)).mtime
         }))
-        .filter(f => f.mtime.getTime() < maxAge);
-      
+        .filter((f) => f.mtime.getTime() < maxAge);
+
       for (const file of files) {
         fs.unlinkSync(file.path);
         console.log(`[BufferedAuditWriter] Deleted expired log: ${file.name}`);
       }
-      
+
       return files.length;
     } catch (error) {
       console.error('[BufferedAuditWriter] Cleanup error:', error.message);

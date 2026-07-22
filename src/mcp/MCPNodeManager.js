@@ -31,7 +31,7 @@ class MCPNodeManager extends EventEmitter {
 
   _registerToolAsNode(tool) {
     const nodeType = this._toolToNodeType(tool.fullName);
-    
+
     if (this.registeredNodes.has(nodeType)) {
       return;
     }
@@ -73,7 +73,7 @@ class MCPNodeManager extends EventEmitter {
   }
 
   _createExecutor(tool) {
-    return async (node, inputs, executeNode) => {
+    return async (node, inputs, _executeNode) => {
       const traceId = `trace_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`;
 
       this.emit('execution-start', {
@@ -87,7 +87,7 @@ class MCPNodeManager extends EventEmitter {
 
       const validation = this.registry.validateParams(tool.fullName, params);
       if (!validation.valid) {
-        const error = new Error(`Parameter validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
+        const error = new Error(`Parameter validation failed: ${validation.errors.map((e) => e.message).join(', ')}`);
         this.emit('execution-error', {
           nodeId: node.id,
           toolFullName: tool.fullName,
@@ -141,7 +141,7 @@ class MCPNodeManager extends EventEmitter {
     return inputs;
   }
 
-  _extractOutputs(tool) {
+  _extractOutputs(_tool) {
     return [
       { name: 'result', type: 'any', description: 'Tool execution result' },
       { name: 'success', type: 'boolean', description: 'Whether the tool executed successfully' },
@@ -165,7 +165,7 @@ class MCPNodeManager extends EventEmitter {
     return params;
   }
 
-  _formatOutput(result, tool) {
+  _formatOutput(result, _tool) {
     if (result === undefined || result === null) {
       return { result: null, success: true, error: null };
     }
@@ -191,11 +191,11 @@ class MCPNodeManager extends EventEmitter {
 
   _nodeTypeToTool(nodeType) {
     const parts = nodeType.replace(`${this.options.nodePrefix}.`, '').split('.');
-    if (parts.length < 2) return null;
-    
+    if (parts.length < 2) {return null;}
+
     const toolName = parts.pop();
     const serverName = parts.join(':');
-    
+
     return `${serverName}:${toolName}`;
   }
 
@@ -230,7 +230,7 @@ class MCPNodeManager extends EventEmitter {
   }
 
   _syncNodes() {
-    const currentTools = new Set(this.registry.getTools().map(t => t.fullName));
+    const currentTools = new Set(this.registry.getTools().map((t) => t.fullName));
     const currentNodes = new Set(this.registeredNodes.keys());
 
     for (const nodeType of currentNodes) {
@@ -286,22 +286,22 @@ class MCPNodeManager extends EventEmitter {
       ],
       execute: async (node, inputs) => {
         const { items = [], toolFullName } = inputs;
-        
+
         if (!toolFullName) {
           return { results: [], successCount: 0, errorCount: 0 };
         }
 
-        const calls = items.map(item => ({
+        const calls = items.map((item) => ({
           toolFullName,
           params: item
         }));
 
         const results = await this.bridge.batchCall(calls);
-        
+
         return {
-          results: results.map(r => r.result).filter(Boolean),
-          successCount: results.filter(r => r.success).length,
-          errorCount: results.filter(r => !r.success).length
+          results: results.map((r) => r.result).filter(Boolean),
+          successCount: results.filter((r) => r.success).length,
+          errorCount: results.filter((r) => !r.success).length
         };
       }
     };

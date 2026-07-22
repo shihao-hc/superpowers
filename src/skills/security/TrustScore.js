@@ -10,7 +10,7 @@ class TrustScore {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'trust');
     this.dataFile = path.join(this.dataDir, 'trust-scores.json');
-    
+
     // 评分权重配置
     this.weights = {
       codeQuality: 0.30,      // 代码质量
@@ -20,7 +20,7 @@ class TrustScore {
       authorReputation: 0.10,  // 作者信誉
       verificationStatus: 0.10 // 认证状态
     };
-    
+
     // 评分阈值
     this.thresholds = {
       excellent: 90,
@@ -29,7 +29,7 @@ class TrustScore {
       below: 40,
       poor: 0
     };
-    
+
     this.scores = new Map();
     this._ensureDataDir();
     this._loadData();
@@ -89,7 +89,7 @@ class TrustScore {
     const communityFeedback = Math.min(ratingScore + reviewBonus, 100);
 
     // 3. 下载量分数 (对数缩放)
-    const downloadScore = downloadCount > 0 
+    const downloadScore = downloadCount > 0
       ? Math.min(Math.log10(downloadCount + 1) * 20, 100)
       : 0;
 
@@ -108,12 +108,12 @@ class TrustScore {
 
     // 6. 认证状态分数
     let verificationScore = 0;
-    if (isVerified) verificationScore += 50;
-    if (isOfficial) verificationScore += 30;
-    if (securityScanPassed) verificationScore += 20;
+    if (isVerified) {verificationScore += 50;}
+    if (isOfficial) {verificationScore += 30;}
+    if (securityScanPassed) {verificationScore += 20;}
 
     // 计算加权总分
-    const totalScore = 
+    const totalScore =
       codeQuality * this.weights.codeQuality +
       communityFeedback * this.weights.communityFeedback +
       downloadScore * this.weights.downloadPopularity +
@@ -209,7 +209,7 @@ class TrustScore {
         color: '#ef4444'
       }
     };
-    
+
     return descriptions[trustLevel] || descriptions.average;
   }
 
@@ -218,16 +218,16 @@ class TrustScore {
    */
   getAllScores(options = {}) {
     const { sortBy = 'score', sortOrder = 'desc', limit = 100 } = options;
-    
-    let scores = Array.from(this.scores.values());
-    
+
+    const scores = Array.from(this.scores.values());
+
     // 排序
     scores.sort((a, b) => {
       const aVal = a[sortBy] || a.score;
       const bVal = b[sortBy] || b.score;
       return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
     });
-    
+
     return scores.slice(0, limit);
   }
 
@@ -236,7 +236,7 @@ class TrustScore {
    */
   getTrustedSkills(minScore = 70) {
     return Array.from(this.scores.values())
-      .filter(s => s.score >= minScore)
+      .filter((s) => s.score >= minScore)
       .sort((a, b) => b.score - a.score);
   }
 
@@ -245,7 +245,7 @@ class TrustScore {
    */
   getSkillsNeedingAttention(maxScore = 50) {
     return Array.from(this.scores.values())
-      .filter(s => s.score <= maxScore)
+      .filter((s) => s.score <= maxScore)
       .sort((a, b) => a.score - b.score);
   }
 
@@ -254,7 +254,7 @@ class TrustScore {
    */
   batchUpdateScores(skillMetricsArray) {
     const results = [];
-    
+
     for (const { skillId, metrics } of skillMetricsArray) {
       try {
         const score = this.calculateScore(skillId, metrics);
@@ -263,7 +263,7 @@ class TrustScore {
         results.push({ skillId, success: false, error: error.message });
       }
     }
-    
+
     return results;
   }
 
@@ -272,7 +272,7 @@ class TrustScore {
    */
   getStats() {
     const scores = Array.from(this.scores.values());
-    
+
     if (scores.length === 0) {
       return {
         totalSkills: 0,
@@ -298,7 +298,7 @@ class TrustScore {
     const topSkills = scores
       .sort((a, b) => b.score - a.score)
       .slice(0, 10)
-      .map(s => ({ skillId: s.skillId, score: s.score, trustLevel: s.trustLevel }));
+      .map((s) => ({ skillId: s.skillId, score: s.score, trustLevel: s.trustLevel }));
 
     return {
       totalSkills: scores.length,
@@ -314,7 +314,7 @@ class TrustScore {
    */
   generateBadge(trustLevel, format = 'svg') {
     const levelInfo = this.getTrustLevelDescription(trustLevel);
-    
+
     // 简化的徽章生成（实际应使用SVG模板）
     return {
       badge: levelInfo.badge,

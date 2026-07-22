@@ -1,6 +1,6 @@
 /**
  * SocialPlatformIntegration - 社交平台集成
- * 
+ *
  * 功能:
  * - Discord Bot 集成
  * - Telegram Bot 集成
@@ -16,7 +16,7 @@ class DiscordIntegration {
     this.isConnected = false;
     this.messageHandlers = [];
     this.commands = new Map();
-    
+
     // Discord.js is loaded server-side
     this.DISCORD_AVAILABLE = false;
   }
@@ -35,7 +35,7 @@ class DiscordIntegration {
           ]
         });
         this.DISCORD_AVAILABLE = true;
-        
+
         this.setupEventHandlers();
         console.log('Discord client initialized');
       }
@@ -45,7 +45,7 @@ class DiscordIntegration {
   }
 
   setupEventHandlers() {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     this.client.on('ready', () => {
       console.log(`Discord bot logged in as ${this.client.user.tag}`);
@@ -53,7 +53,7 @@ class DiscordIntegration {
     });
 
     this.client.on('messageCreate', async (message) => {
-      if (message.author.bot) return;
+      if (message.author.bot) {return;}
 
       const context = {
         platform: 'discord',
@@ -108,14 +108,14 @@ class DiscordIntegration {
     this.messageHandlers.push(handler);
   }
 
-  registerCommand(name, handler, description = '') {
-    this.commands.set(name.toLowerCase(), { handler, description });
+  registerCommand(name, handler, _description = '') {
+    this.commands.set(name.toLowerCase(), { handler, description: _description });
   }
 
   async handleCommand(message, context) {
     const args = message.content.slice(1).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
-    
+
     const command = this.commands.get(commandName);
     if (command) {
       await command.handler(args, message, context);
@@ -123,11 +123,11 @@ class DiscordIntegration {
   }
 
   async sendMessage(channelId, content, options = {}) {
-    if (!this.client) return null;
+    if (!this.client) {return null;}
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (!channel) return null;
+      if (!channel) {return null;}
 
       const messageOptions = {
         content: content
@@ -148,11 +148,11 @@ class DiscordIntegration {
   }
 
   async sendDM(userId, content) {
-    if (!this.client) return null;
+    if (!this.client) {return null;}
 
     try {
       const user = await this.client.users.fetch(userId);
-      if (!user) return null;
+      if (!user) {return null;}
       return await user.send(content);
     } catch (error) {
       console.error('Failed to send DM:', error);
@@ -161,7 +161,7 @@ class DiscordIntegration {
   }
 
   async sendTypingIndicator(channelId) {
-    if (!this.client) return;
+    if (!this.client) {return;}
 
     try {
       const channel = await this.client.channels.fetch(channelId);
@@ -174,19 +174,19 @@ class DiscordIntegration {
   }
 
   createEmbed(data) {
-    if (!this.client) return null;
-    
+    if (!this.client) {return null;}
+
     const { EmbedBuilder } = require('discord.js');
     const embed = new EmbedBuilder();
-    
-    if (data.title) embed.setTitle(data.title);
-    if (data.description) embed.setDescription(data.description);
-    if (data.color) embed.setColor(data.color);
-    if (data.fields) embed.addFields(data.fields);
-    if (data.footer) embed.setFooter(data.footer);
-    if (data.thumbnail) embed.setThumbnail(data.thumbnail);
-    if (data.image) embed.setImage(data.image);
-    
+
+    if (data.title) {embed.setTitle(data.title);}
+    if (data.description) {embed.setDescription(data.description);}
+    if (data.color) {embed.setColor(data.color);}
+    if (data.fields) {embed.addFields(data.fields);}
+    if (data.footer) {embed.setFooter(data.footer);}
+    if (data.thumbnail) {embed.setThumbnail(data.thumbnail);}
+    if (data.image) {embed.setImage(data.image);}
+
     return embed;
   }
 
@@ -208,7 +208,7 @@ class TelegramIntegration {
     this.commands = new Map();
     this.webhookUrl = options.webhookUrl;
     this.pollingInterval = options.pollingInterval || 1000;
-    
+
     // Telegram Bot API
     this.API_BASE = 'https://api.telegram.org/bot';
   }
@@ -243,7 +243,7 @@ class TelegramIntegration {
   }
 
   async connect() {
-    if (!this.token) return false;
+    if (!this.token) {return false;}
 
     try {
       // Test connection
@@ -252,14 +252,14 @@ class TelegramIntegration {
         this.bot = response.result;
         console.log(`Telegram bot connected: ${this.bot.username}`);
         this.isConnected = true;
-        
+
         // Start polling or webhook
         if (this.webhookUrl) {
           await this.setupWebhook();
         } else {
           this.startPolling();
         }
-        
+
         return true;
       }
       return false;
@@ -281,9 +281,9 @@ class TelegramIntegration {
 
   startPolling() {
     let offset = 0;
-    
+
     const poll = async () => {
-      if (!this.isConnected) return;
+      if (!this.isConnected) {return;}
 
       try {
         const response = await this.callAPI('getUpdates', {
@@ -312,7 +312,7 @@ class TelegramIntegration {
     const response = await this.callAPI('setWebhook', {
       url: this.webhookUrl
     });
-    
+
     if (response.ok) {
       console.log('Webhook set up successfully');
     } else {
@@ -321,7 +321,7 @@ class TelegramIntegration {
   }
 
   async handleUpdate(update) {
-    if (!update.message) return;
+    if (!update.message) {return;}
 
     const message = update.message;
     const context = {
@@ -359,7 +359,7 @@ class TelegramIntegration {
     this.messageHandlers.push(handler);
   }
 
-  registerCommand(name, handler, description = '') {
+  registerCommand(name, handler, _description = '') {
     this.commands.set(name.toLowerCase(), handler);
   }
 
@@ -424,15 +424,15 @@ class TelegramIntegration {
   }
 
   createKeyboard(buttons) {
-    return buttons.map(row => 
-      row.map(btn => ({ text: btn }))
+    return buttons.map((row) =>
+      row.map((btn) => ({ text: btn }))
     );
   }
 
   createInlineKeyboard(buttons) {
     return {
-      inline_keyboard: buttons.map(row =>
-        row.map(btn => ({
+      inline_keyboard: buttons.map((row) =>
+        row.map((btn) => ({
           text: btn.text,
           callback_data: btn.data || btn.text
         }))

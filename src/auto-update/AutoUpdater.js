@@ -33,10 +33,10 @@ class AutoUpdateSystem {
     console.log(`Applying update ${updatePackage.version}...`);
     // Backup current version
     await this.backup();
-    
+
     // Apply update
     console.log('Update applied successfully');
-    
+
     return { status: 'applied', version: updatePackage.version };
   }
 

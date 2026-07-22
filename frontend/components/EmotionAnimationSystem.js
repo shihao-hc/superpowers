@@ -1,6 +1,6 @@
 /**
  * EmotionAnimationSystem - 情绪驱动的动画系统
- * 
+ *
  * 功能:
  * - 自动检测对话内容中的情绪
  * - 根据情绪触发不同的表情和动作
@@ -15,12 +15,12 @@ class EmotionAnimationSystem {
     this.targetEmotion = 'neutral';
     this.transitionProgress = 1;
     this.transitionSpeed = options.transitionSpeed || 0.1;
-    
+
     this.emotionQueue = [];
     this.isTransitioning = false;
     this.emotionHoldTime = options.holdTime || 2000;
     this.holdTimer = null;
-    
+
     // Emotion detection patterns
     this.emotionKeywords = {
       happy: {
@@ -74,7 +74,7 @@ class EmotionAnimationSystem {
         low: /有点期待|还不错/
       }
     };
-    
+
     // Emotion intensity levels
     this.emotionIntensities = {
       neutral: 0,
@@ -90,7 +90,7 @@ class EmotionAnimationSystem {
       excited: 0.8,
       angry: 0.9
     };
-    
+
     // Animation presets for each emotion
     this.animationPresets = {
       happy: {
@@ -205,7 +205,7 @@ class EmotionAnimationSystem {
     let detectedEmotion = 'neutral';
     let intensity = 0;
     let intensityLevel = 'low';
-    
+
     for (const [emotion, patterns] of Object.entries(this.emotionKeywords)) {
       for (const [level, pattern] of Object.entries(patterns)) {
         if (pattern.test(text)) {
@@ -218,7 +218,7 @@ class EmotionAnimationSystem {
         }
       }
     }
-    
+
     return {
       emotion: detectedEmotion,
       intensity,
@@ -252,20 +252,20 @@ class EmotionAnimationSystem {
    * Set emotion with optional intensity
    */
   setEmotion(emotion, options = {}) {
-    const { 
-      intensity = 1, 
-      hold = true, 
+    const {
+      intensity = 1,
+      hold = true,
       priority = false,
-      transition = true 
+      _transition = true
     } = options;
-    
+
     if (priority || !this.isTransitioning) {
       if (priority) {
         this.emotionQueue.unshift({ emotion, intensity, hold });
       } else {
         this.emotionQueue.push({ emotion, intensity, hold });
       }
-      
+
       if (!this.isTransitioning) {
         this.processEmotionQueue();
       }
@@ -280,16 +280,16 @@ class EmotionAnimationSystem {
       this.isTransitioning = false;
       return;
     }
-    
+
     this.isTransitioning = true;
     const { emotion, intensity, hold } = this.emotionQueue.shift();
-    
+
     await this.transitionToEmotion(emotion, intensity);
-    
+
     if (hold && this.emotionHoldTime > 0) {
       await this.holdEmotion(emotion);
     }
-    
+
     // Process next emotion in queue
     setTimeout(() => this.processEmotionQueue(), 100);
   }
@@ -301,28 +301,28 @@ class EmotionAnimationSystem {
     const preset = this.animationPresets[emotion] || this.animationPresets.neutral;
     this.targetEmotion = emotion;
     this.transitionProgress = 0;
-    
+
     return new Promise((resolve) => {
       const animate = () => {
         this.transitionProgress += this.transitionSpeed;
-        
+
         if (this.transitionProgress >= 1) {
           this.transitionProgress = 1;
           this.currentEmotion = emotion;
-          
+
           // Apply final preset
           this.applyAnimationPreset(preset, intensity);
-          
+
           // Trigger particle effect
           if (preset.particleEffect) {
             this.triggerParticleEffect(preset.particleEffect, preset.particleColor);
           }
-          
+
           // Update character
           if (this.character) {
             this.character.setMood(emotion);
           }
-          
+
           resolve();
         } else {
           // Interpolate between current and target
@@ -330,7 +330,7 @@ class EmotionAnimationSystem {
           requestAnimationFrame(animate);
         }
       };
-      
+
       animate();
     });
   }
@@ -341,14 +341,14 @@ class EmotionAnimationSystem {
   interpolateAnimation(targetPreset, intensity) {
     const currentPreset = this.animationPresets[this.currentEmotion] || this.animationPresets.neutral;
     const t = this.easeOutCubic(this.transitionProgress);
-    
+
     const interpolated = {
       eyeScale: this.lerp(currentPreset.eyeScale, targetPreset.eyeScale, t),
       mouthCurve: this.lerp(currentPreset.mouthCurve, targetPreset.mouthCurve, t),
       blush: this.lerp(currentPreset.blush, targetPreset.blush * intensity, t),
       eyebrow: this.lerp(currentPreset.eyebrow, targetPreset.eyebrow, t)
     };
-    
+
     this.applyAnimationValues(interpolated);
   }
 
@@ -362,18 +362,18 @@ class EmotionAnimationSystem {
       blush: preset.blush * intensity,
       eyebrow: preset.eyebrow
     };
-    
+
     this.applyAnimationValues(values);
-    
+
     // Apply special effects
     if (preset.bodyBounce && this.character) {
       this.character.bodyBounce = preset.bodyBounce * intensity;
     }
-    
+
     if (preset.headTilt && this.character) {
       this.character.headTilt = preset.headTilt;
     }
-    
+
     if (preset.shakeIntensity) {
       this.triggerShake(preset.shakeIntensity);
     }
@@ -383,8 +383,8 @@ class EmotionAnimationSystem {
    * Apply animation values to character
    */
   applyAnimationValues(values) {
-    if (!this.character) return;
-    
+    if (!this.character) {return;}
+
     // Update mood modifiers
     const moodModifiers = {
       eyeScale: values.eyeScale,
@@ -392,7 +392,7 @@ class EmotionAnimationSystem {
       blush: values.blush,
       eyebrow: values.eyebrow
     };
-    
+
     this.character.moodModifiers = this.character.moodModifiers || {};
     Object.assign(this.character.moodModifiers, moodModifiers);
   }
@@ -400,10 +400,10 @@ class EmotionAnimationSystem {
   /**
    * Hold emotion for specified duration
    */
-  holdEmotion(emotion) {
+  holdEmotion(_emotion) {
     return new Promise((resolve) => {
-      if (this.holdTimer) clearTimeout(this.holdTimer);
-      
+      if (this.holdTimer) {clearTimeout(this.holdTimer);}
+
       this.holdTimer = setTimeout(() => {
         resolve();
       }, this.emotionHoldTime);
@@ -414,8 +414,8 @@ class EmotionAnimationSystem {
    * Trigger particle effect
    */
   triggerParticleEffect(effectType, color) {
-    if (!this.character || !this.character._addParticleBurst) return;
-    
+    if (!this.character || !this.character._addParticleBurst) {return;}
+
     const effectConfigs = {
       sparkle: { count: 10, size: 3, spread: 50 },
       drop: { count: 5, size: 2, spread: 30, gravity: 0.5 },
@@ -427,10 +427,10 @@ class EmotionAnimationSystem {
       sleep: { count: 4, size: 6, spread: 30 },
       confetti: { count: 20, size: 3, spread: 100 }
     };
-    
+
     const config = effectConfigs[effectType];
-    if (!config) return;
-    
+    if (!config) {return;}
+
     for (let i = 0; i < config.count; i++) {
       this.character.particles.push({
         x: this.character.width / 2 + (Math.random() - 0.5) * config.spread,
@@ -450,22 +450,22 @@ class EmotionAnimationSystem {
    * Trigger shake animation
    */
   triggerShake(intensity) {
-    if (!this.character) return;
-    
+    if (!this.character) {return;}
+
     let shakeCount = 0;
     const maxShakes = 10;
-    
+
     const shake = () => {
       if (shakeCount >= maxShakes) {
         this.character.headRotY = 0;
         return;
       }
-      
+
       this.character.headRotY = (Math.random() - 0.5) * intensity;
       shakeCount++;
       setTimeout(shake, 50);
     };
-    
+
     shake();
   }
 
@@ -474,13 +474,13 @@ class EmotionAnimationSystem {
    */
   analyzeAndSetEmotion(text, options = {}) {
     const analysis = this.analyzeText(text);
-    
+
     this.setEmotion(analysis.baseEmotion, {
       intensity: analysis.intensity / 3,
       hold: options.hold !== false,
       priority: options.priority || false
     });
-    
+
     return analysis;
   }
 
@@ -506,14 +506,14 @@ class EmotionAnimationSystem {
     this.targetEmotion = 'neutral';
     this.isTransitioning = false;
     this.transitionProgress = 1;
-    
+
     if (this.holdTimer) {
       clearTimeout(this.holdTimer);
       this.holdTimer = null;
     }
-    
+
     this.applyAnimationPreset(this.animationPresets.neutral);
-    
+
     if (this.character) {
       this.character.setMood('neutral');
     }
@@ -552,10 +552,10 @@ class EmotionSpeechEnhancer {
    */
   analyzeSpeechPattern(audioData) {
     const { volume, pitch, speakingRate } = audioData;
-    
+
     let emotion = 'neutral';
     let intensity = 0;
-    
+
     // High pitch + fast rate = excited/happy
     if (pitch > 200 && speakingRate > 150) {
       emotion = 'excited';
@@ -586,7 +586,7 @@ class EmotionSpeechEnhancer {
       emotion = 'shy';
       intensity = 0.4;
     }
-    
+
     return { emotion, intensity };
   }
 
@@ -610,11 +610,11 @@ class EmotionSpeechEnhancer {
       timestamp: Date.now(),
       duration
     });
-    
+
     // Clean old entries
     const now = Date.now();
     this.speechEmotionHistory = this.speechEmotionHistory.filter(
-      entry => now - entry.timestamp < duration
+      (entry) => now - entry.timestamp < duration
     );
   }
 
@@ -625,12 +625,12 @@ class EmotionSpeechEnhancer {
     if (this.speechEmotionHistory.length === 0) {
       return 'neutral';
     }
-    
+
     const counts = {};
-    this.speechEmotionHistory.forEach(entry => {
+    this.speechEmotionHistory.forEach((entry) => {
       counts[entry.emotion] = (counts[entry.emotion] || 0) + 1;
     });
-    
+
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     return sorted[0][0];
   }

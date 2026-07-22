@@ -4,7 +4,7 @@
  */
 
 const { dryRunEngine } = require('../engines/DryRunEngine');
-const { thinkingChain } = require('../engines/ThinkingChain');
+const { thinkingChain: _thinkingChain } = require('../engines/ThinkingChain');
 
 class DevToolsBridge {
   constructor(config = {}) {
@@ -19,7 +19,7 @@ class DevToolsBridge {
    */
   async discoverBrowser() {
     const ports = [9222, 9223, 9224, 9225];
-    
+
     for (const port of ports) {
       try {
         const response = await fetch(`http://localhost:${port}/json`);
@@ -28,14 +28,16 @@ class DevToolsBridge {
           if (tabs.length > 0) {
             return {
               port,
-              tabs: tabs.map(t => ({ id: t.id, title: t.title, url: t.url })),
-              wsUrl: tabs[0].webSocketDebuggerUrl
+              tabs: tabs.map((t) => ({ id: t.id, title: t.title, url: t.url })),
+              wsUrl: tabs[0]?.webSocketDebuggerUrl
             };
           }
         }
-      } catch {}
+      } catch (e) {
+        this.logger?.debug(`Browser discovery failed on port ${port}: ${e.message}`);
+      }
     }
-    
+
     return { port: null, tabs: [], wsUrl: null };
   }
 
@@ -71,7 +73,7 @@ class DevToolsBridge {
       // 录制与回放
       this._tool('record_actions', '开始录制'),
       this._tool('stop_recording', '停止录制'),
-      this._tool('replay_actions', '回放操作', { actions: { type: 'array' } }),
+      this._tool('replay_actions', '回放操作', { actions: { type: 'array' } })
     ];
   }
 
@@ -101,7 +103,7 @@ class DevToolsBridge {
       stop_performance_trace: this.stopPerformanceTrace.bind(this),
       record_actions: this.recordActions.bind(this),
       stop_recording: this.stopRecording.bind(this),
-      replay_actions: this.replayActions.bind(this),
+      replay_actions: this.replayActions.bind(this)
     };
     return handlers[name];
   }
@@ -109,9 +111,9 @@ class DevToolsBridge {
   /**
    * 发现本地浏览器
    */
-  async discoverBrowsers(params) {
+  async discoverBrowsers(_params) {
     const result = await this.discoverBrowser();
-    
+
     return {
       ...result,
       message: result.port ? `Found browser on port ${result.port}` : 'No browser found',
@@ -122,9 +124,9 @@ class DevToolsBridge {
   /**
    * 自动连接
    */
-  async autoConnect(params) {
+  async autoConnect(_params) {
     const result = await this.discoverBrowser();
-    
+
     if (!result.wsUrl) {
       return { connected: false, error: 'No browser found', suggestion: 'Use launch_browser first' };
     }
@@ -143,8 +145,8 @@ class DevToolsBridge {
   /**
    * 启动浏览器
    */
-  async launchBrowser(params) {
-    const { channel = 'stable' } = params || {};
+  async launchBrowser(_params) {
+    const { channel: _channel = 'stable' } = _params || {};
 
     return {
       connected: false,
@@ -157,7 +159,7 @@ class DevToolsBridge {
   /**
    * 断开连接
    */
-  async disconnect(params) {
+  async disconnect(_params) {
     this.connected = false;
     this.wsUrl = null;
     this.browser = null;
@@ -181,7 +183,7 @@ class DevToolsBridge {
   async evaluate(params) {
     const { expression } = params;
     const preview = this._previewCdp('Runtime.evaluate', { expression });
-    if (preview) return preview;
+    if (preview) {return preview;}
 
     return {
       result: `[DRYRUN] Would execute: ${expression}`,
@@ -196,7 +198,7 @@ class DevToolsBridge {
   async clickElement(params) {
     const { selector } = params;
     const preview = this._previewCdp('DOM.click', { selector });
-    if (preview) return preview;
+    if (preview) {return preview;}
 
     return {
       result: `[DRYRUN] Would click element: ${selector}`,
@@ -222,7 +224,7 @@ class DevToolsBridge {
   /**
    * 获取控制台日志
    */
-  async getConsoleLogs(params) {
+  async getConsoleLogs(_params) {
     return {
       connected: this.connected,
       logs: [
@@ -234,7 +236,7 @@ class DevToolsBridge {
   /**
    * 获取DOM快照
    */
-  async getDomSnapshot(params) {
+  async getDomSnapshot(_params) {
     return {
       connected: this.connected,
       dom: '[DOM_STRUCTURE]',
@@ -245,7 +247,7 @@ class DevToolsBridge {
   /**
    * 获取网络请求
    */
-  async getNetworkRequests(params) {
+  async getNetworkRequests(_params) {
     return {
       connected: this.connected,
       requests: [],
@@ -256,7 +258,7 @@ class DevToolsBridge {
   /**
    * 获取页面信息
    */
-  async getPageInfo(params) {
+  async getPageInfo(_params) {
     return {
       connected: this.connected,
       url: 'http://example.com',
@@ -268,7 +270,7 @@ class DevToolsBridge {
   /**
    * 获取性能指标
    */
-  async getPerformanceMetrics(params) {
+  async getPerformanceMetrics(_params) {
     return {
       connected: this.connected,
       metrics: {
@@ -285,7 +287,7 @@ class DevToolsBridge {
   /**
    * 获取堆快照
    */
-  async takeHeapSnapshot(params) {
+  async takeHeapSnapshot(_params) {
     return {
       connected: this.connected,
       snapshot: { nodes: 0, edges: 0 },
@@ -302,7 +304,7 @@ class DevToolsBridge {
     return {
       connected: this.connected,
       url,
-      status: '[DRYRUN] Would navigate to: ' + url
+      status: `[DRYRUN] Would navigate to: ${url}`
     };
   }
 
@@ -312,7 +314,7 @@ class DevToolsBridge {
   async typeText(params) {
     const { selector, text } = params;
     const preview = this._previewCdp('Input.dispatchKeyEvent', { selector, text });
-    if (preview) return preview;
+    if (preview) {return preview;}
 
     return {
       connected: this.connected,
@@ -336,7 +338,7 @@ class DevToolsBridge {
   /**
    * 开始性能追踪
    */
-  async startPerformanceTrace(params) {
+  async startPerformanceTrace(_params) {
     return {
       connected: this.connected,
       traceId: `trace_${Date.now()}`,
@@ -359,7 +361,7 @@ class DevToolsBridge {
   /**
    * 录制操作
    */
-  async recordActions(params) {
+  async recordActions(_params) {
     return {
       recording: true,
       actions: [],
@@ -370,7 +372,7 @@ class DevToolsBridge {
   /**
    * 停止录制
    */
-  async stopRecording(params) {
+  async stopRecording(_params) {
     return {
       recording: false,
       actions: [],
@@ -384,7 +386,7 @@ class DevToolsBridge {
   async replayActions(params) {
     const { actions } = params;
     const preview = this._previewCdp('replay', { actions });
-    if (preview) return preview;
+    if (preview) {return preview;}
 
     return {
       connected: this.connected,
@@ -398,7 +400,7 @@ class DevToolsBridge {
    */
   async healthCheck() {
     const discovery = await this.discoverBrowser();
-    
+
     return {
       status: discovery.port ? 'healthy' : 'disconnected',
       connected: this.connected,

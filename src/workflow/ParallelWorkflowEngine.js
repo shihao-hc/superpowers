@@ -32,7 +32,7 @@ class ParallelWorkflowEngine {
       name: '输出', icon: '📤', category: '基础',
       inputs: [{ name: 'value', type: 'any' }], outputs: [],
       hasSideEffect: false,
-      execute: (node, inputs) => ({ result: inputs.value })
+      execute: (_node, inputs) => ({ result: inputs.value })
     });
 
     this.registerNodeType('text', {
@@ -54,7 +54,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'a', type: 'string' }, { name: 'b', type: 'string' }],
       outputs: [{ name: 'result', type: 'string' }],
       hasSideEffect: false,
-      execute: (node, inputs) => ({ result: String(inputs.a || '') + String(inputs.b || '') })
+      execute: (_node, inputs) => ({ result: String(inputs.a || '') + String(inputs.b || '') })
     });
 
     this.registerNodeType('llm_call', {
@@ -62,8 +62,8 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'prompt', type: 'string' }],
       outputs: [{ name: 'response', type: 'string' }],
       hasSideEffect: false,
-      execute: async (node, inputs) => {
-        await new Promise(r => setTimeout(r, 500));
+      execute: async (_node, inputs) => {
+        await new Promise((r) => setTimeout(r, 500));
         return { response: `[LLM] ${inputs.prompt}` };
       }
     });
@@ -73,7 +73,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'image', type: 'image' }, { name: 'prompt', type: 'string' }],
       outputs: [{ name: 'description', type: 'string' }],
       hasSideEffect: false,
-      execute: async (node, inputs) => {
+      execute: async (_node, inputs) => {
         return { description: `[Vision] ${inputs.prompt}` };
       }
     });
@@ -83,8 +83,8 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'url', type: 'string' }, { name: 'method', type: 'string' }, { name: 'body', type: 'string' }],
       outputs: [{ name: 'response', type: 'string' }, { name: 'status', type: 'number' }],
       hasSideEffect: true,
-      execute: async (node, inputs) => {
-        await new Promise(r => setTimeout(r, 300));
+      execute: async (_node, _inputs) => {
+        await new Promise((r) => setTimeout(r, 300));
         return { response: 'OK', status: 200 };
       }
     });
@@ -98,7 +98,7 @@ class ParallelWorkflowEngine {
       ],
       outputs: [{ name: 'result', type: 'any' }],
       hasSideEffect: false,
-      execute: (node, inputs) => ({
+      execute: (_node, inputs) => ({
         result: inputs.condition ? inputs.trueValue : inputs.falseValue
       })
     });
@@ -108,9 +108,9 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'value', type: 'any' }, { name: 'cases', type: 'array' }],
       outputs: [{ name: 'result', type: 'any' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
+      execute: (_node, inputs) => {
         const cases = inputs.cases || [];
-        const match = cases.find(c => c.value === inputs.value);
+        const match = cases.find((c) => c.value === inputs.value);
         return { result: match ? match.result : cases[0]?.result };
       }
     });
@@ -120,8 +120,8 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'items', type: 'array' }],
       outputs: [{ name: 'results', type: 'array' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
-        return { results: (inputs.items || []).map(item => ({ item })) };
+      execute: (_node, inputs) => {
+        return { results: (inputs.items || []).map((item) => ({ item })) };
       }
     });
 
@@ -130,10 +130,10 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'tasks', type: 'array' }],
       outputs: [{ name: 'results', type: 'array' }],
       hasSideEffect: false,
-      execute: async (node, inputs) => {
+      execute: async (_node, inputs) => {
         const tasks = inputs.tasks || [];
         const results = await Promise.all(tasks.map(async (task, i) => {
-          await new Promise(r => setTimeout(r, Math.random() * 500));
+          await new Promise((r) => setTimeout(r, Math.random() * 500));
           return { index: i, result: task };
         }));
         return { results };
@@ -145,8 +145,8 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'input', type: 'any' }, { name: 'ms', type: 'number' }],
       outputs: [{ name: 'output', type: 'any' }],
       hasSideEffect: false,
-      execute: async (node, inputs) => {
-        await new Promise(r => setTimeout(r, inputs.ms || 1000));
+      execute: async (_node, inputs) => {
+        await new Promise((r) => setTimeout(r, inputs.ms || 1000));
         return { output: inputs.input };
       }
     });
@@ -156,7 +156,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'text', type: 'string' }],
       outputs: [{ name: 'data', type: 'object' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
+      execute: (_node, inputs) => {
         try {
           return { data: JSON.parse(inputs.text || '{}') };
         } catch (e) {
@@ -170,7 +170,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'title', type: 'string' }, { name: 'body', type: 'string' }],
       outputs: [{ name: 'sent', type: 'boolean' }],
       hasSideEffect: true,
-      execute: async (node, inputs) => {
+      execute: async (_node, inputs) => {
         return { sent: true, title: inputs.title };
       }
     });
@@ -180,7 +180,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'data', type: 'any' }],
       outputs: [{ name: 'hash', type: 'string' }, { name: 'attestationId', type: 'string' }],
       hasSideEffect: true,
-      execute: async (node, inputs) => {
+      execute: async (_node, inputs) => {
         const hash = crypto.createHash('sha256').update(JSON.stringify(inputs.data)).digest('hex');
         return { hash, attestationId: `att_${Date.now().toString(36)}` };
       }
@@ -193,7 +193,7 @@ class ParallelWorkflowEngine {
       hasSideEffect: false,
       execute: async (node, inputs, context) => {
         const workflowData = node.data.workflow;
-        if (!workflowData) return { output: inputs.input, error: 'No workflow data' };
+        if (!workflowData) {return { output: inputs.input, error: 'No workflow data' };}
 
         if (context && context.executeSubWorkflow) {
           return { output: await context.executeSubWorkflow(workflowData, inputs) };
@@ -207,7 +207,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'items', type: 'array' }, { name: 'condition', type: 'string' }],
       outputs: [{ name: 'filtered', type: 'array' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
+      execute: (_node, inputs) => {
         return { filtered: (inputs.items || []).filter(Boolean) };
       }
     });
@@ -217,8 +217,8 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'items', type: 'array' }],
       outputs: [{ name: 'mapped', type: 'array' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
-        return { mapped: (inputs.items || []).map(item => item) };
+      execute: (_node, inputs) => {
+        return { mapped: (inputs.items || []).map((item) => item) };
       }
     });
 
@@ -227,7 +227,7 @@ class ParallelWorkflowEngine {
       inputs: [{ name: 'a', type: 'array' }, { name: 'b', type: 'array' }],
       outputs: [{ name: 'result', type: 'array' }],
       hasSideEffect: false,
-      execute: (node, inputs) => {
+      execute: (_node, inputs) => {
         return { result: [...(inputs.a || []), ...(inputs.b || [])] };
       }
     });
@@ -249,7 +249,7 @@ class ParallelWorkflowEngine {
 
   addNode(type, data = {}) {
     const nodeType = this.nodeTypes.get(type);
-    if (!nodeType) throw new Error(`Unknown node type: ${type}`);
+    if (!nodeType) {throw new Error(`Unknown node type: ${type}`);}
 
     const nodeId = `node_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -260,8 +260,8 @@ class ParallelWorkflowEngine {
       icon: nodeType.icon,
       category: nodeType.category,
       data: { ...nodeType.defaultData, ...data },
-      inputs: nodeType.inputs.map(i => ({ ...i, value: null })),
-      outputs: nodeType.outputs.map(o => ({ ...o, value: null })),
+      inputs: nodeType.inputs.map((i) => ({ ...i, value: null })),
+      outputs: nodeType.outputs.map((o) => ({ ...o, value: null })),
       hasSideEffect: nodeType.hasSideEffect,
       status: 'idle'
     };
@@ -272,7 +272,7 @@ class ParallelWorkflowEngine {
 
   deleteNode(nodeId) {
     this.connections = this.connections.filter(
-      c => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
+      (c) => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
     );
     this.nodes.delete(nodeId);
   }
@@ -288,7 +288,7 @@ class ParallelWorkflowEngine {
   }
 
   disconnect(connectionId) {
-    this.connections = this.connections.filter(c => c.id !== connectionId);
+    this.connections = this.connections.filter((c) => c.id !== connectionId);
   }
 
   addBreakpoint(nodeId) {
@@ -311,7 +311,7 @@ class ParallelWorkflowEngine {
 
     for (const [nodeId, deps] of graph) {
       indegree.set(nodeId, deps.length);
-      if (deps.length === 0) queue.push(nodeId);
+      if (deps.length === 0) {queue.push(nodeId);}
     }
 
     let completed = 0;
@@ -322,7 +322,7 @@ class ParallelWorkflowEngine {
 
       const promises = batch.map(async (nodeId) => {
         const node = this.nodes.get(nodeId);
-        if (!node) return;
+        if (!node) {return;}
 
         if (this.breakpoints.has(nodeId)) {
           node.status = 'breakpoint';
@@ -359,7 +359,7 @@ class ParallelWorkflowEngine {
 
           const duration = Date.now() - startTime;
 
-          node.outputs.forEach(output => {
+          node.outputs.forEach((output) => {
             if (result && result[output.name] !== undefined) {
               output.value = result[output.name];
             }
@@ -457,7 +457,7 @@ class ParallelWorkflowEngine {
   }
 
   async _waitForResume(nodeId) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this.breakpoints.delete(nodeId);
       resolve();
     });
@@ -465,7 +465,7 @@ class ParallelWorkflowEngine {
 
   getExecutionLogs(nodeId = null, limit = 100) {
     let logs = this.executionLogs;
-    if (nodeId) logs = logs.filter(l => l.nodeId === nodeId);
+    if (nodeId) {logs = logs.filter((l) => l.nodeId === nodeId);}
     return logs.slice(-limit);
   }
 

@@ -9,7 +9,7 @@ class LocalEngine {
     return Promise.resolve(true);
   }
   infer(input) {
-    if (!this.modelLoaded) return { ok: false, text: 'model-not-loaded' };
+    if (!this.modelLoaded) {return { ok: false, text: 'model-not-loaded' };}
     // Simple deterministic response for demonstration
     const t = (input || '').trim();
     return { ok: true, text: `LocalEngine response: ${t}` };

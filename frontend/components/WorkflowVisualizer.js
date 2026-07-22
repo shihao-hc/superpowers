@@ -12,7 +12,7 @@ class WorkflowVisualizer {
 
   async init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     await this.loadData();
     this.render();
@@ -26,15 +26,15 @@ class WorkflowVisualizer {
         fetch('/api/executions')
       ]);
 
-      if (wfRes.ok) this.workflows = await wfRes.json();
-      if (execRes.ok) this.executions = await execRes.json();
+      if (wfRes.ok) {this.workflows = await wfRes.json();}
+      if (execRes.ok) {this.executions = await execRes.json();}
     } catch (e) {
       console.warn('[WorkflowVisualizer] Load failed:', e);
     }
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.container.innerHTML = `
       <div class="workflow-visualizer">
@@ -42,7 +42,7 @@ class WorkflowVisualizer {
           <h4>🔄 Agent 工作流</h4>
           <div class="workflow-stats">
             <span class="stat">流程: ${this.workflows.length}</span>
-            <span class="stat success">完成: ${this.executions.filter(e => e.status === 'completed').length}</span>
+            <span class="stat success">完成: ${this.executions.filter((e) => e.status === 'completed').length}</span>
           </div>
         </div>
         <div class="workflow-grid" id="workflow-grid"></div>
@@ -56,11 +56,11 @@ class WorkflowVisualizer {
 
   renderWorkflows() {
     const grid = document.getElementById('workflow-grid');
-    if (!grid) return;
+    if (!grid) {return;}
 
     grid.innerHTML = '';
 
-    this.workflows.forEach(wf => {
+    this.workflows.forEach((wf) => {
       const card = document.createElement('div');
       card.className = `workflow-card ${this.selectedWorkflow === wf.id ? 'selected' : ''}`;
       card.innerHTML = `
@@ -93,7 +93,7 @@ class WorkflowVisualizer {
 
   renderExecutions() {
     const list = document.getElementById('execution-list');
-    if (!list) return;
+    if (!list) {return;}
 
     list.innerHTML = '';
 
@@ -102,7 +102,7 @@ class WorkflowVisualizer {
       return;
     }
 
-    this.executions.slice().reverse().forEach(exec => {
+    this.executions.slice().reverse().forEach((exec) => {
       const card = this.createExecutionCard(exec);
       list.appendChild(card);
     });
@@ -131,7 +131,7 @@ class WorkflowVisualizer {
       : '进行中';
 
     const progress = exec.steps
-      ? `${exec.steps.filter(s => s.status === 'completed').length}/${exec.steps.length}`
+      ? `${exec.steps.filter((s) => s.status === 'completed').length}/${exec.steps.length}`
       : '-';
 
     card.innerHTML = `
@@ -206,7 +206,7 @@ class WorkflowVisualizer {
   }
 
   escapeHtml(str) {
-    if (!str) return '';
+    if (!str) {return '';}
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;

@@ -14,7 +14,7 @@ class CachePreheater extends EventEmitter {
       enabled: options.enabled !== false,
       ...options
     };
-    
+
     this.stats = {
       totalPreheated: 0,
       successful: 0,
@@ -131,8 +131,8 @@ class CachePreheater extends EventEmitter {
 
     console.log(`[CachePreheater] Executing strategy: ${strategy.name}`);
 
-    const items = typeof strategy.items === 'function' 
-      ? await strategy.items() 
+    const items = typeof strategy.items === 'function'
+      ? await strategy.items()
       : strategy.items;
 
     if (!Array.isArray(items)) {
@@ -152,9 +152,9 @@ class CachePreheater extends EventEmitter {
           results.preheated.push(item.key || item.name || JSON.stringify(item));
           this.stats.successful++;
         } catch (error) {
-          results.failed.push({ 
-            key: item.key || item.name || JSON.stringify(item), 
-            error: error.message 
+          results.failed.push({
+            key: item.key || item.name || JSON.stringify(item),
+            error: error.message
           });
           this.stats.failed++;
         }
@@ -169,7 +169,7 @@ class CachePreheater extends EventEmitter {
 
   async _warmupItem(item, bridge) {
     if (!item.executor) {
-      const cacheKey = item.key;
+      const _cacheKey = item.key;
       if (bridge._isCacheable) {
         return;
       }
@@ -194,8 +194,8 @@ class CachePreheater extends EventEmitter {
       isWarming: this.isWarming,
       strategiesCount: this.warmupStrategies.size,
       queueSize: this.warmupQueue.length,
-      duration: this.stats.endTime 
-        ? this.stats.endTime - this.stats.startTime 
+      duration: this.stats.endTime
+        ? this.stats.endTime - this.stats.startTime
         : null
     };
   }
@@ -238,8 +238,8 @@ function createMCPToolPreheater(bridge, options = {}) {
             tools.push({
               fullName: tool.fullName,
               serverName,
-              sampleParams: tool.inputSchema 
-                ? _generateSampleParams(tool.inputSchema) 
+              sampleParams: tool.inputSchema
+                ? _generateSampleParams(tool.inputSchema)
                 : {}
             });
           }
@@ -253,28 +253,28 @@ function createMCPToolPreheater(bridge, options = {}) {
 }
 
 function _generateSampleParams(schema) {
-  if (!schema || !schema.properties) return {};
-  
+  if (!schema || !schema.properties) {return {};}
+
   const params = {};
   const required = schema.required || [];
-  
+
   for (const [name, def] of Object.entries(schema.properties)) {
     if (required.includes(name)) {
       params[name] = _getSampleValue(def.type);
     }
   }
-  
+
   return params;
 }
 
 function _getSampleValue(type) {
   switch (type) {
-    case 'string': return '';
-    case 'number': return 0;
-    case 'boolean': return false;
-    case 'array': return [];
-    case 'object': return {};
-    default: return null;
+  case 'string': return '';
+  case 'number': return 0;
+  case 'boolean': return false;
+  case 'array': return [];
+  case 'object': return {};
+  default: return null;
   }
 }
 

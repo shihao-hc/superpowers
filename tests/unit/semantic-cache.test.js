@@ -29,10 +29,16 @@ describe('SemanticCache', () => {
     });
 
     it('should expire entries after TTL', async () => {
-      const shortCache = new SemanticCache({ defaultTTL: 1 });
+      const shortCache = new SemanticCache({ defaultTTL: 60000 });
+      const origDateNow = Date.now.bind(Date);
       await shortCache.set('key', { data: 'value' });
-      await new Promise(resolve => setTimeout(resolve, 10));
-      const result = await shortCache.get('key');
+
+      let result = await shortCache.get('key');
+      expect(result.hit).toBe(true);
+
+      Date.now = () => origDateNow() + 120000;
+      result = await shortCache.get('key');
+      Date.now = origDateNow;
       expect(result.hit).toBe(false);
     });
   });
@@ -47,7 +53,7 @@ describe('SemanticCache', () => {
     it('should return exact match before semantic', async () => {
       await cache.set('exact key', { value: 'exact' });
       await cache.set('similar key', { value: 'similar' });
-      
+
       const result = await cache.get('exact key');
       expect(result.type).toBe('exact');
     });
@@ -58,7 +64,7 @@ describe('SemanticCache', () => {
       await cache.set('key1', { data: 'value1' });
       await cache.get('key1');
       await cache.get('key2');
-      
+
       const stats = cache.getStats();
       expect(stats.hits).toBe(1);
       expect(stats.misses).toBe(1);
@@ -69,7 +75,7 @@ describe('SemanticCache', () => {
       await cache.get('key1');
       await cache.get('key1');
       await cache.get('key2');
-      
+
       const stats = cache.getStats();
       expect(stats.hitRate).toBeGreaterThan(0);
     });
@@ -77,13 +83,16 @@ describe('SemanticCache', () => {
 
   describe('cleanup', () => {
     it('should remove expired entries', async () => {
-      const shortCache = new SemanticCache({ defaultTTL: 1 });
+      const shortCache = new SemanticCache({ defaultTTL: 60000 });
+      const origDateNow = Date.now.bind(Date);
       await shortCache.set('key1', { data: 'value1' });
-      await new Promise(resolve => setTimeout(resolve, 5));
+
+      Date.now = () => origDateNow() + 120000;
       await shortCache.set('key2', { data: 'value2' });
-      
+
       const cleaned = shortCache.cleanup();
-      expect(cleaned.cleaned).toBeGreaterThanOrEqual(0);
+      Date.now = origDateNow;
+      expect(cleaned.cleaned).toBe(1);
     });
   });
 
@@ -91,9 +100,53 @@ describe('SemanticCache', () => {
     it('should invalidate entries by tag', async () => {
       await cache.set('key1', { data: 'value1' }, { tags: ['tag1'] });
       await cache.set('key2', { data: 'value2' }, { tags: ['tag2'] });
-      
+
       const result = cache.invalidateByTags(['tag1']);
       expect(result.invalidated).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should skip semantic search when useSemantic is false', async () => {
+      await cache.set('key', { data: 'val' });
+      const result = await cache.get('key', { useSemantic: false });
+      expect(result.hit).toBe(true);
+      expect(result.type).toBe('exact');
+    });
+
+    it('should skip semantic search when exactMatch is true', async () => {
+      await cache.set('key', { data: 'val' });
+      const result = await cache.get('key', { exactMatch: true });
+      expect(result.hit).toBe(true);
+      expect(result.type).toBe('exact');
+    });
+
+    it('should evict old entries when cache is full', async () => {
+      const smallCache = new SemanticCache({ maxCacheSize: 10, defaultTTL: 60000 });
+      for (let i = 0; i < 15; i++) {
+        await smallCache.set(`key${i}`, { data: i });
+      }
+      const stats = smallCache.getStats();
+      expect(stats.evictions).toBeGreaterThan(0);
+    });
+
+    it('should clear all entries and reset stats', async () => {
+      await cache.set('k1', 'v1');
+      await cache.set('k2', 'v2');
+      const result1 = await cache.get('k1');
+      expect(result1.hit).toBe(true);
+      cache.clear();
+      const result2 = await cache.get('k1');
+      expect(result2.hit).toBe(false);
+      const stats = cache.getStats();
+      expect(stats.hits).toBe(0);
+      expect(stats.misses).toBe(1);
+    });
+
+    it('should return zero hit rate when no operations performed', () => {
+      const stats = cache.getStats();
+      expect(stats.hitRate).toBe(0);
+      expect(stats.semanticHitRate).toBe(0);
     });
   });
 });

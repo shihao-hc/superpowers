@@ -5,6 +5,9 @@ const RECONNECT_CONFIG = {
   multiplier: 2
 };
 
+let mineflayer;
+try { mineflayer = require('mineflayer'); } catch (e) { /* 忽略错误 */ }
+
 class GameAgent {
   constructor(options = {}) {
     this.bot = null;
@@ -23,10 +26,9 @@ class GameAgent {
     this._onDisconnectCallback = null;
 
     if (this.enabled) {
-      try {
-        require('mineflayer');
+      if (mineflayer) {
         console.log(`[GameAgent] Mineflayer loaded, target: ${this.host}:${this.port}`);
-      } catch (e) {
+      } else {
         this.enabled = false;
         console.warn('[GameAgent] Mineflayer not installed');
       }
@@ -41,14 +43,15 @@ class GameAgent {
     if (!this.enabled) {
       throw new Error('Mineflayer not available. Install with: npm install mineflayer');
     }
-    
+
     if (this.bot) {
       await this.disconnect();
     }
 
     return new Promise((resolve, reject) => {
       try {
-        const { createBot } = require('mineflayer');
+        if (!mineflayer) {throw new Error('Mineflayer not loaded');}
+        const createBot = mineflayer.createBot;
         this.bot = createBot({
           host: this.host,
           port: this.port,
@@ -56,7 +59,12 @@ class GameAgent {
           version: this.version
         });
 
+        const timeoutHandle = setTimeout(() => {
+          if (!this.connected) {reject(new Error('Connection timeout'));}
+        }, 10000);
+
         this.bot.once('spawn', () => {
+          clearTimeout(timeoutHandle);
           this.connected = true;
           this.reconnectAttempts = 0;
           this._setupListeners();
@@ -65,18 +73,16 @@ class GameAgent {
         });
 
         this.bot.once('end', (reason) => {
+          clearTimeout(timeoutHandle);
           this.connected = false;
           console.log(`[GameAgent] Disconnected: ${reason}`);
           this._handleDisconnect();
         });
 
         this.bot.once('error', (err) => {
+          clearTimeout(timeoutHandle);
           reject(err);
         });
-
-        setTimeout(() => {
-          if (!this.connected) reject(new Error('Connection timeout'));
-        }, 10000);
       } catch (err) {
         reject(err);
       }
@@ -87,8 +93,8 @@ class GameAgent {
     if (this._onDisconnectCallback) {
       this._onDisconnectCallback();
     }
-    
-    if (!this.autoReconnect) return;
+
+    if (!this.autoReconnect) {return;}
     if (this.reconnectAttempts >= RECONNECT_CONFIG.maxAttempts) {
       console.log('[GameAgent] Max reconnection attempts reached, stopping');
       return;
@@ -98,10 +104,10 @@ class GameAgent {
       RECONNECT_CONFIG.baseDelay * Math.pow(RECONNECT_CONFIG.multiplier, this.reconnectAttempts),
       RECONNECT_CONFIG.maxDelay
     );
-    
+
     this.reconnectAttempts++;
     console.log(`[GameAgent] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${RECONNECT_CONFIG.maxAttempts})...`);
-    
+
     this.reconnectTimer = setTimeout(async () => {
       try {
         await this.connect();
@@ -126,7 +132,7 @@ class GameAgent {
   }
 
   _setupListeners() {
-    if (!this.bot) return;
+    if (!this.bot) {return;}
 
     this.bot.on('health', () => {
       this._emit('health', { health: this.bot.health, food: this.bot.food });
@@ -162,13 +168,13 @@ class GameAgent {
   }
 
   on(event, callback) {
-    if (!this.events[event]) this.events[event] = [];
+    if (!this.events[event]) {this.events[event] = [];}
     this.events[event].push(callback);
   }
 
   _emit(event, data) {
     if (this.events[event]) {
-      this.events[event].forEach(cb => cb(data));
+      this.events[event].forEach((cb) => cb(data));
     }
   }
 

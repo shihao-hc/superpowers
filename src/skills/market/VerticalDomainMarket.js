@@ -4,12 +4,12 @@
  */
 
 class VerticalDomainMarket {
-  constructor(options = {}) {
+  constructor(_options = {}) {
     this.domains = new Map();
     this.categories = new Map();
     this.skills = new Map();
     this.templates = new Map();
-    
+
     this._initializeDomains();
   }
 
@@ -444,13 +444,13 @@ class VerticalDomainMarket {
 
     // Initialize Legal domain skills
     this._initializeLegalSkills();
-    
+
     // Initialize Manufacturing domain skills
     this._initializeManufacturingSkills();
-    
+
     // Initialize Education domain skills
     this._initializeEducationSkills();
-    
+
     // Initialize Retail domain skills
     this._initializeRetailSkills();
   }
@@ -1122,7 +1122,7 @@ class VerticalDomainMarket {
    */
   _registerSkill(domainId, skill) {
     skill.id = `${domainId}-${skill.id}`;
-    
+
     this.skills.set(skill.id, {
       ...skill,
       domainId,
@@ -1149,7 +1149,7 @@ class VerticalDomainMarket {
    */
   _registerTemplate(domainId, template) {
     template.id = `${domainId}-${template.id}`;
-    
+
     this.templates.set(template.id, {
       ...template,
       domainId,
@@ -1168,7 +1168,7 @@ class VerticalDomainMarket {
    * Get all domains
    */
   getDomains() {
-    return Array.from(this.domains.values()).map(domain => ({
+    return Array.from(this.domains.values()).map((domain) => ({
       ...domain,
       skills: undefined,
       templates: undefined,
@@ -1189,41 +1189,41 @@ class VerticalDomainMarket {
    */
   getDomainSkills(domainId, options = {}) {
     const domain = this.domains.get(domainId);
-    if (!domain) return [];
+    if (!domain) {return [];}
 
     const { category, search, sort = 'rating', limit = 50 } = options;
-    
+
     let skills = domain.skills
-      .map(id => this.skills.get(id))
-      .filter(s => s && s.status === 'active');
+      .map((id) => this.skills.get(id))
+      .filter((s) => s && s.status === 'active');
 
     if (category) {
-      skills = skills.filter(s => s.category === category);
+      skills = skills.filter((s) => s.category === category);
     }
 
     if (search) {
       const lowerSearch = search.toLowerCase();
-      skills = skills.filter(s => 
+      skills = skills.filter((s) =>
         s.name.toLowerCase().includes(lowerSearch) ||
         s.description.toLowerCase().includes(lowerSearch) ||
-        s.tags.some(t => t.toLowerCase().includes(lowerSearch))
+        s.tags.some((t) => t.toLowerCase().includes(lowerSearch))
       );
     }
 
     // Sort
     switch (sort) {
-      case 'rating':
-        skills.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'downloads':
-        skills.sort((a, b) => b.downloads - a.downloads);
-        break;
-      case 'newest':
-        skills.sort((a, b) => b.registeredAt - a.registeredAt);
-        break;
-      case 'name':
-        skills.sort((a, b) => a.name.localeCompare(b.name));
-        break;
+    case 'rating':
+      skills.sort((a, b) => b.rating - a.rating);
+      break;
+    case 'downloads':
+      skills.sort((a, b) => b.downloads - a.downloads);
+      break;
+    case 'newest':
+      skills.sort((a, b) => b.registeredAt - a.registeredAt);
+      break;
+    case 'name':
+      skills.sort((a, b) => a.name.localeCompare(b.name));
+      break;
     }
 
     return skills.slice(0, limit);
@@ -1241,11 +1241,11 @@ class VerticalDomainMarket {
    */
   getDomainTemplates(domainId) {
     const domain = this.domains.get(domainId);
-    if (!domain) return [];
+    if (!domain) {return [];}
 
     return domain.templates
-      .map(id => this.templates.get(id))
-      .filter(t => t);
+      .map((id) => this.templates.get(id))
+      .filter((t) => t);
   }
 
   /**
@@ -1260,15 +1260,15 @@ class VerticalDomainMarket {
    */
   search(query, options = {}) {
     const { domains, limit = 20 } = options;
-    
-    let allSkills = [];
-    
-    for (const [skillId, skill] of this.skills) {
-      if (domains && !domains.includes(skill.domainId)) continue;
-      
-      const lowerQuery = query.toLowerCase();
+
+    const allSkills = [];
+
+    for (const [_skillId, skill] of this.skills) {
+      if (domains && !domains.includes(skill.domainId)) {continue;}
+
+      const _lowerQuery = query.toLowerCase();
       const matchScore = this._calculateMatchScore(skill, query);
-      
+
       if (matchScore > 0) {
         allSkills.push({
           ...skill,
@@ -1288,10 +1288,10 @@ class VerticalDomainMarket {
     const lowerQuery = query.toLowerCase();
     let score = 0;
 
-    if (skill.name.toLowerCase().includes(lowerQuery)) score += 0.5;
-    if (skill.nameEn.toLowerCase().includes(lowerQuery)) score += 0.4;
-    if (skill.description.toLowerCase().includes(lowerQuery)) score += 0.3;
-    if (skill.tags.some(t => t.toLowerCase().includes(lowerQuery))) score += 0.2;
+    if (skill.name.toLowerCase().includes(lowerQuery)) {score += 0.5;}
+    if (skill.nameEn.toLowerCase().includes(lowerQuery)) {score += 0.4;}
+    if (skill.description.toLowerCase().includes(lowerQuery)) {score += 0.3;}
+    if (skill.tags.some((t) => t.toLowerCase().includes(lowerQuery))) {score += 0.2;}
 
     return score;
   }
@@ -1301,7 +1301,7 @@ class VerticalDomainMarket {
    */
   updateSkillMetrics(skillId, metrics) {
     const skill = this.skills.get(skillId);
-    if (!skill) return;
+    if (!skill) {return;}
 
     if (metrics.successRate !== undefined) {
       skill.metrics.successRate = metrics.successRate;
@@ -1324,10 +1324,10 @@ class VerticalDomainMarket {
    */
   recordUsage(skillId, usageData) {
     const skill = this.skills.get(skillId);
-    if (!skill) return;
+    if (!skill) {return;}
 
     skill.metrics.usageCount++;
-    
+
     if (usageData.success !== undefined) {
       const total = skill.metrics.usageCount;
       const currentSuccess = skill.metrics.successRate * (total - 1);
@@ -1352,10 +1352,10 @@ class VerticalDomainMarket {
    */
   getDomainStats(domainId) {
     const domain = this.domains.get(domainId);
-    if (!domain) return null;
+    if (!domain) {return null;}
 
-    const skills = domain.skills.map(id => this.skills.get(id)).filter(s => s);
-    
+    const skills = domain.skills.map((id) => this.skills.get(id)).filter((s) => s);
+
     return {
       domain: {
         id: domain.id,
@@ -1366,8 +1366,8 @@ class VerticalDomainMarket {
       skillsCount: skills.length,
       totalDownloads: skills.reduce((sum, s) => sum + s.downloads, 0),
       totalUsage: skills.reduce((sum, s) => sum + s.metrics.usageCount, 0),
-      averageRating: skills.length > 0 
-        ? skills.reduce((sum, s) => sum + s.rating, 0) / skills.length 
+      averageRating: skills.length > 0
+        ? skills.reduce((sum, s) => sum + s.rating, 0) / skills.length
         : 0,
       averageSuccessRate: skills.length > 0
         ? skills.reduce((sum, s) => sum + s.metrics.successRate, 0) / skills.length
@@ -1378,7 +1378,7 @@ class VerticalDomainMarket {
       topSkills: skills
         .sort((a, b) => b.rating - a.rating)
         .slice(0, 5)
-        .map(s => ({ id: s.id, name: s.name, rating: s.rating, downloads: s.downloads }))
+        .map((s) => ({ id: s.id, name: s.name, rating: s.rating, downloads: s.downloads }))
     };
   }
 
@@ -1387,7 +1387,7 @@ class VerticalDomainMarket {
    */
   getComplianceInfo(domainId) {
     const domain = this.domains.get(domainId);
-    if (!domain) return null;
+    if (!domain) {return null;}
 
     return {
       regulations: domain.compliance,

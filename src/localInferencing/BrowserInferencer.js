@@ -15,7 +15,7 @@ class BrowserInferencer {
     }
     // Very tiny heuristic-based mock inference
     const lower = (input || '').toLowerCase();
-    if (lower.includes('hello')) return { ok: true, text: 'Hello there! (inference mock)' };
+    if (lower.includes('hello')) {return { ok: true, text: 'Hello there! (inference mock)' };}
     return { ok: true, text: `Processed: ${input}` };
   }
 }

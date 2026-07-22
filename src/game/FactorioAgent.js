@@ -14,11 +14,11 @@ class FactorioRCON {
   async connect() {
     return new Promise((resolve, reject) => {
       this.socket = new net.Socket();
-      
+
       this.socket.connect(this.port, this.host, () => {
         this.connected = true;
         console.log('[Factorio] Connected to RCON');
-        
+
         this.sendRaw(3, this.password).catch(console.error);
         resolve();
       });
@@ -41,40 +41,40 @@ class FactorioRCON {
 
   _handlePacket(data) {
     let offset = 0;
-    
+
     while (offset + 4 <= data.length) {
       const size = data.readInt32LE(offset);
-      
+
       if (size <= 0 || size > 32768) {
         console.warn('[Factorio] Invalid packet size:', size);
         break;
       }
-      
+
       if (offset + 4 + size > data.length) {
         console.warn('[Factorio] Incomplete packet, waiting for more data');
         break;
       }
-      
+
       const packetEnd = offset + 4 + size;
       if (packetEnd - (offset + 4) < 12) {
         offset = packetEnd;
         continue;
       }
-      
+
       const packetData = data.slice(offset + 4, packetEnd);
       const requestId = packetData.readInt32LE(0);
       const type = packetData.readInt32LE(4);
       const payload = packetData.slice(8, packetData.length - 2).toString('utf8');
-      
+
       if (this.pending.has(requestId)) {
-        const { resolve, reject } = this.pending.get(requestId);
+        const { resolve, reject: _reject } = this.pending.get(requestId);
         this.pending.delete(requestId);
-        
+
         if (type === 0 || type === 2) {
           resolve(payload);
         }
       }
-      
+
       offset = packetEnd;
     }
   }
@@ -82,7 +82,7 @@ class FactorioRCON {
   async sendRaw(type, payload) {
     const requestId = ++this.requestId;
     const buffer = Buffer.alloc(4 + 4 + Buffer.byteLength(payload) + 2 + 2);
-    
+
     let offset = 0;
     buffer.writeInt32LE(buffer.length - 4, offset);
     offset += 4;
@@ -93,16 +93,16 @@ class FactorioRCON {
     buffer.write(payload, offset, 'utf8');
     offset += Buffer.byteLength(payload);
     buffer.writeInt16LE(0, offset);
-    
+
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Not connected'));
         return;
       }
-      
+
       this.pending.set(requestId, { resolve, reject });
       this.socket.write(buffer);
-      
+
       setTimeout(() => {
         if (this.pending.has(requestId)) {
           this.pending.delete(requestId);
@@ -125,39 +125,39 @@ class FactorioRCON {
   }
 
   _validateCommand(command) {
-    if (!command || typeof command !== 'string') return false;
-    if (command.length > 500) return false;
-    
+    if (!command || typeof command !== 'string') {return false;}
+    if (command.length > 500) {return false;}
+
     const allowedCommands = [
       '/players', '/command', '/help', '/server-save',
       'players', 'server-save',
       'script-output'
     ];
-    
+
     const trimmed = command.trim().toLowerCase();
-    
+
     for (const allowed of allowedCommands) {
       if (trimmed.startsWith(allowed) || trimmed === allowed) {
         return true;
       }
     }
-    
+
     if (/^[a-z][a-z0-9_-]*$/i.test(command.trim())) {
       return true;
     }
-    
-    const safePattern = /^[\w\s\/=._-]+$/;
+
+    const safePattern = /^[\w\s/=._-]+$/;
     if (!safePattern.test(command)) {
       return false;
     }
-    
+
     const dangerous = [';', '&&', '||', '|', '`', '$(', '\n', '\r', '\0'];
     for (const char of dangerous) {
       if (command.includes(char)) {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -203,7 +203,7 @@ class FactorioAgent {
     if (!this.connected) {
       return { ok: false, error: 'Not connected' };
     }
-    
+
     try {
       const result = await this.rcon.sendCommand(command);
       return { ok: true, result };

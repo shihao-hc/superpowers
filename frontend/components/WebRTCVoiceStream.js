@@ -1,6 +1,6 @@
 /**
  * WebRTCVoiceStream - WebRTC低延迟语音流管道
- * 
+ *
  * 功能:
  * - 低延迟双向语音通话
  * - 音频流传输到服务器
@@ -22,24 +22,24 @@ class WebRTCVoiceStream {
       bitrate: 128000,
       ...options
     };
-    
+
     this.peerConnection = null;
     this.dataChannel = null;
     this.localStream = null;
     this.remoteStream = null;
-    
+
     this.audioContext = null;
     this.mediaRecorder = null;
     this.audioChunks = [];
-    
+
     this.isConnected = false;
     this.isConnecting = false;
-    
+
     this.onConnectionStateChange = options.onConnectionStateChange || (() => {});
     this.onRemoteStream = options.onRemoteStream || (() => {});
     this.onAudioData = options.onAudioData || (() => {});
     this.onError = options.onError || (() => {});
-    
+
     this.ws = null;
     this.clientId = null;
   }
@@ -49,7 +49,7 @@ class WebRTCVoiceStream {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
         sampleRate: this.options.audioConstraints.sampleRate
       });
-      
+
       console.log('[WebRTC] AudioContext initialized');
       return true;
     } catch (error) {
@@ -63,7 +63,7 @@ class WebRTCVoiceStream {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: this.options.audioConstraints
       });
-      
+
       console.log('[WebRTC] Local audio captured');
       return true;
     } catch (error) {
@@ -74,38 +74,38 @@ class WebRTCVoiceStream {
   }
 
   async connect() {
-    if (this.isConnecting || this.isConnected) return;
-    
+    if (this.isConnecting || this.isConnected) {return;}
+
     this.isConnecting = true;
-    
+
     try {
       await this.startCapture();
-      
+
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' }
         ]
       });
-      
+
       this._setupPeerConnectionHandlers();
       this._setupDataChannel();
-      
+
       const audioTracks = this.localStream.getAudioTracks();
       this.peerConnection.addTrack(audioTracks[0], this.localStream);
-      
+
       await this._connectSignaling();
-      
+
       const offer = await this.peerConnection.createOffer({
         offerToReceiveAudio: true
       });
       await this.peerConnection.setLocalDescription(offer);
-      
+
       this._sendSignaling({ type: 'offer', sdp: offer.sdp });
-      
+
       this.isConnecting = false;
       this.isConnected = true;
-      
+
       console.log('[WebRTC] Connection initiated');
       return true;
     } catch (error) {
@@ -122,22 +122,22 @@ class WebRTCVoiceStream {
         this._sendSignaling({ type: 'ice-candidate', candidate: event.candidate });
       }
     };
-    
+
     this.peerConnection.ontrack = (event) => {
       this.remoteStream = event.streams[0];
       this.onRemoteStream(this.remoteStream);
     };
-    
+
     this.peerConnection.onconnectionstatechange = () => {
       const state = this.peerConnection.connectionState;
       console.log('[WebRTC] Connection state:', state);
       this.onConnectionStateChange(state);
-      
+
       if (state === 'failed' || state === 'disconnected') {
         this._handleDisconnect();
       }
     };
-    
+
     this.peerConnection.ondatachannel = (event) => {
       this.dataChannel = event.channel;
       this._setupDataChannelHandlers();
@@ -156,11 +156,11 @@ class WebRTCVoiceStream {
       console.log('[WebRTC] Data channel opened');
       this._startAudioCapture();
     };
-    
+
     this.dataChannel.onmessage = (event) => {
       this._handleDataChannelMessage(event.data);
     };
-    
+
     this.dataChannel.onerror = (error) => {
       console.error('[WebRTC] Data channel error:', error);
     };
@@ -169,12 +169,12 @@ class WebRTCVoiceStream {
   async _connectSignaling() {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(this.options.signalingUrl);
-      
+
       this.ws.onopen = () => {
         console.log('[WebRTC] Signaling connected');
         resolve();
       };
-      
+
       this.ws.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -183,12 +183,12 @@ class WebRTCVoiceStream {
           console.error('[WebRTC] Signaling parse error:', e);
         }
       };
-      
+
       this.ws.onerror = (error) => {
         console.error('[WebRTC] Signaling error:', error);
         reject(error);
       };
-      
+
       this.ws.onclose = () => {
         console.log('[WebRTC] Signaling closed');
         this._handleDisconnect();
@@ -204,18 +204,18 @@ class WebRTCVoiceStream {
 
   async _handleSignalingMessage(data) {
     switch (data.type) {
-      case 'offer':
-        await this._handleOffer(data);
-        break;
-      case 'answer':
-        await this._handleAnswer(data);
-        break;
-      case 'ice-candidate':
-        await this._handleIceCandidate(data);
-        break;
-      case 'client-id':
-        this.clientId = data.clientId;
-        break;
+    case 'offer':
+      await this._handleOffer(data);
+      break;
+    case 'answer':
+      await this._handleAnswer(data);
+      break;
+    case 'ice-candidate':
+      await this._handleIceCandidate(data);
+      break;
+    case 'client-id':
+      this.clientId = data.clientId;
+      break;
     }
   }
 
@@ -225,10 +225,10 @@ class WebRTCVoiceStream {
         type: 'offer',
         sdp: data.sdp
       }));
-      
+
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
-      
+
       this._sendSignaling({ type: 'answer', sdp: answer.sdp });
     } catch (error) {
       console.error('[WebRTC] Handle offer failed:', error);
@@ -257,34 +257,34 @@ class WebRTCVoiceStream {
   _startAudioCapture() {
     const source = this.audioContext.createMediaStreamSource(this.localStream);
     const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-    
+
     processor.onaudioprocess = (event) => {
-      if (!this.isConnected) return;
-      
+      if (!this.isConnected) {return;}
+
       const inputData = event.inputBuffer.getChannelData(0);
       const pcmData = this._convertToPCM16(inputData);
-      
+
       if (this.dataChannel && this.dataChannel.readyState === 'open') {
         this.dataChannel.send(pcmData);
       }
-      
+
       this.onAudioData(inputData);
     };
-    
+
     source.connect(processor);
     processor.connect(this.audioContext.destination);
-    
+
     console.log('[WebRTC] Audio capture started');
   }
 
   _convertToPCM16(float32Array) {
     const pcm16 = new Int16Array(float32Array.length);
-    
+
     for (let i = 0; i < float32Array.length; i++) {
       const s = Math.max(-1, Math.min(1, float32Array[i]));
       pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
-    
+
     return pcm16.buffer;
   }
 
@@ -301,16 +301,16 @@ class WebRTCVoiceStream {
 
   _handleControlMessage(message) {
     switch (message.type) {
-      case 'transcript':
-        if (this.onTranscript) {
-          this.onTranscript(message.text, message.isFinal);
-        }
-        break;
-      case 'tts':
-        if (this.onTTS) {
-          this.onTTS(message.text, message.emotion);
-        }
-        break;
+    case 'transcript':
+      if (this.onTranscript) {
+        this.onTranscript(message.text, message.isFinal);
+      }
+      break;
+    case 'tts':
+      if (this.onTTS) {
+        this.onTTS(message.text, message.emotion);
+      }
+      break;
     }
   }
 
@@ -318,15 +318,15 @@ class WebRTCVoiceStream {
     try {
       const int16Array = new Int16Array(pcmBuffer);
       const float32Array = new Float32Array(int16Array.length);
-      
+
       for (let i = 0; i < int16Array.length; i++) {
         float32Array[i] = int16Array[i] / 0x8000;
       }
-      
+
       const audioBuffer = await this.audioContext.decodeAudioData(
         this._float32ToArrayBuffer(float32Array)
       );
-      
+
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.audioContext.destination);
@@ -339,13 +339,13 @@ class WebRTCVoiceStream {
   _float32ToArrayBuffer(float32Array) {
     const buffer = new ArrayBuffer(44 + float32Array.length * 2);
     const view = new DataView(buffer);
-    
+
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-    
+
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + float32Array.length * 2, true);
     writeString(8, 'WAVE');
@@ -359,12 +359,12 @@ class WebRTCVoiceStream {
     view.setUint16(34, 16, true);
     writeString(36, 'data');
     view.setUint32(40, float32Array.length * 2, true);
-    
+
     const dataOffset = 44;
     for (let i = 0; i < float32Array.length; i++) {
       view.setInt16(dataOffset + i * 2, float32Array[i] * 0x7FFF, true);
     }
-    
+
     return buffer;
   }
 
@@ -391,11 +391,11 @@ class WebRTCVoiceStream {
   _handleDisconnect() {
     this.isConnected = false;
     this.isConnecting = false;
-    
+
     if (this.mediaRecorder) {
       this.mediaRecorder.stop();
     }
-    
+
     this.onConnectionStateChange('disconnected');
   }
 
@@ -404,25 +404,25 @@ class WebRTCVoiceStream {
       this.dataChannel.close();
       this.dataChannel = null;
     }
-    
+
     if (this.peerConnection) {
       this.peerConnection.close();
       this.peerConnection = null;
     }
-    
+
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach((track) => track.stop());
       this.localStream = null;
     }
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
-    
+
     this.isConnected = false;
     this.isConnecting = false;
-    
+
     console.log('[WebRTC] Disconnected');
   }
 
@@ -453,14 +453,14 @@ class VoiceActivityDetector {
     this.silenceThreshold = options.silenceThreshold || 0.01;
     this.speechTimeout = options.speechTimeout || 300;
     this.silenceTimeout = options.silenceTimeout || 500;
-    
+
     this.isSpeaking = false;
     this.audioContext = null;
     this.analyser = null;
-    
+
     this.onSpeechStart = options.onSpeechStart || (() => {});
     this.onSpeechEnd = options.onSpeechEnd || (() => {});
-    
+
     this.speechStartTime = 0;
     this.lastSpeechTime = 0;
     this.silenceTimer = null;
@@ -472,20 +472,20 @@ class VoiceActivityDetector {
     this.analyser.fftSize = 256;
   }
 
-  processAudioData(audioData) {
-    if (!this.analyser) return;
-    
+  processAudioData(_audioData) {
+    if (!this.analyser) {return;}
+
     const timeData = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteTimeDomainData(timeData);
-    
+
     let sum = 0;
     for (let i = 0; i < timeData.length; i++) {
       const normalized = (timeData[i] - 128) / 128;
       sum += normalized * normalized;
     }
-    
+
     const rms = Math.sqrt(sum / timeData.length);
-    
+
     if (rms > this.threshold) {
       this._handleSpeech();
     } else if (rms < this.silenceThreshold) {
@@ -499,14 +499,14 @@ class VoiceActivityDetector {
       this.speechStartTime = Date.now();
       this.onSpeechStart();
     }
-    
+
     this.lastSpeechTime = Date.now();
-    
+
     if (this.silenceTimer) {
       clearTimeout(this.silenceTimer);
       this.silenceTimer = null;
     }
-    
+
     this.silenceTimer = setTimeout(() => {
       if (this.isSpeaking && Date.now() - this.lastSpeechTime > this.silenceTimeout) {
         this._endSpeech();
@@ -546,7 +546,7 @@ class AudioStreamProcessor {
     this.sourceNode = null;
     this.gainNode = null;
     this.compressor = null;
-    
+
     this.gain = options.gain || 1.0;
     this.isProcessing = false;
   }
@@ -554,20 +554,20 @@ class AudioStreamProcessor {
   initialize(stream) {
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     this.sourceNode = this.audioContext.createMediaStreamSource(stream);
-    
+
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = this.gain;
-    
+
     this.compressor = this.audioContext.createDynamicsCompressor();
     this.compressor.threshold.value = -24;
     this.compressor.knee.value = 30;
     this.compressor.ratio.value = 12;
     this.compressor.attack.value = 0.003;
     this.compressor.release.value = 0.25;
-    
+
     this.sourceNode.connect(this.gainNode);
     this.gainNode.connect(this.compressor);
-    
+
     this.isProcessing = true;
     return this.compressor;
   }
@@ -580,8 +580,8 @@ class AudioStreamProcessor {
   }
 
   getProcessedStream() {
-    if (!this.compressor) return null;
-    
+    if (!this.compressor) {return null;}
+
     const dest = this.audioContext.createMediaStreamDestination();
     this.compressor.connect(dest);
     return dest.stream;
@@ -597,7 +597,7 @@ class AudioStreamProcessor {
     if (this.compressor) {
       this.compressor.disconnect();
     }
-    
+
     this.isProcessing = false;
   }
 }

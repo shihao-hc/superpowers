@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 const { Worker, isMainThread, parentPort, workerData } = (() => {
   try { return require('worker_threads'); } catch (e) { return {}; }
 })();
@@ -7,7 +7,7 @@ if (!isMainThread) {
   // Worker thread: execute a plugin method
   const { pluginPath, method, args } = workerData;
   try {
-    let Cls = require(pluginPath);
+    const Cls = require(pluginPath);
     let inst = null;
     if (typeof Cls === 'function') {
       inst = new Cls();
@@ -44,8 +44,8 @@ if (!isMainThread) {
         worker.on('message', (msg) => {
           clearTimeout(timer);
           settled = true;
-          if (msg && msg.error) reject(new Error(msg.error));
-          else resolve(msg.result);
+          if (msg && msg.error) {reject(new Error(msg.error));}
+          else {resolve(msg.result);}
         });
         worker.on('error', (err) => {
           clearTimeout(timer);

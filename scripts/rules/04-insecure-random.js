@@ -16,6 +16,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将对 Math.random() 的安全相关调用替换为 crypto.randomBytes()。例如：crypto.randomBytes(32).toString("hex") 生成安全令牌。保留 Math.random() 仅用于非安全场景（如随机 UI 颜色）。',
   references: ['CWE-338'],
   since: '2026-06-28',
 };

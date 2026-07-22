@@ -25,21 +25,21 @@
   let memoryTotalPages = 1;
   let memoryQuery = '';
   let conversationHistory = [];
-  let maxHistoryLength = 10;
+  const maxHistoryLength = 10;
   let isTyping = false;
   let isListening = false;
   let recognition = null;
   let socket = null;
   let reconnectAttempts = 0;
-  let maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 5;
   let live2dComponent = null;
   let vrmComponent = null;
   let virtualCharacter = null;
-  let activeComponent = null;
+  const _activeComponent = null;
   let live2dHidden = false;
   let voiceAvatar = null;
   let ttsSystem = null;
-  let lipSyncAnimator = null;
+  const _lipSyncAnimator = null;
   let visionSystem = null;
   let performanceOptimizer = null;
 
@@ -67,7 +67,7 @@
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
     const sanitizeVariants = (obj, min, max) => {
-      if (typeof obj !== 'object' || Array.isArray(obj)) return {};
+      if (typeof obj !== 'object' || Array.isArray(obj)) {return {};}
       const result = {};
       for (const key of Object.keys(obj)) {
         if (typeof obj[key] === 'number') {
@@ -95,12 +95,12 @@
       type: safeTypes.includes(config.type) ? config.type : 'svg',
       fallback: typeof config.fallback === 'string' ? config.fallback : null
     };
-    
+
     const isModelUrl = typeof config.model === 'string' && config.model.startsWith('https://');
     const isLocalModel = typeof config.model === 'string'
       && config.model.startsWith('/models/')
       && !config.model.includes('..');
-    
+
     if (safeConfig.type === 'live2d' && (isModelUrl || isLocalModel)) {
       safeConfig.model = config.model;
     }
@@ -130,40 +130,40 @@
 
   function hideTypingIndicator() {
     const indicator = document.getElementById('typing-indicator');
-    if (indicator) indicator.remove();
+    if (indicator) {indicator.remove();}
     isTyping = false;
   }
 
   function append(text, className, showTime = true, sender = null) {
     const div = document.createElement('div');
-    div.className = 'msg ' + (className || '');
-    
+    div.className = `msg ${className || ''}`;
+
     if (sender) {
       const senderDiv = document.createElement('div');
       senderDiv.className = 'sender';
       senderDiv.textContent = sender;
       div.appendChild(senderDiv);
     }
-    
+
     const contentDiv = document.createElement('div');
     contentDiv.className = 'content';
     contentDiv.textContent = text;
     div.appendChild(contentDiv);
-    
+
     if (showTime) {
       const timeDiv = document.createElement('span');
       timeDiv.className = 'time';
       timeDiv.textContent = getTime();
       div.appendChild(timeDiv);
     }
-    
+
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
   }
 
   function speak(text, moodVal) {
-    if (!ttsEnabled) return;
-    
+    if (!ttsEnabled) {return;}
+
     if (voiceAvatar) {
       voiceAvatar.speak(text, {
         mood: moodVal,
@@ -172,14 +172,14 @@
       });
       return;
     }
-    
+
     if (ttsSystem) {
       ttsSystem.setMoodRatePitch(moodVal, currentTTSConfig.rateVariants, currentTTSConfig.pitchVariants);
       ttsSystem.speak(text);
       return;
     }
-    
-    if (!('speechSynthesis' in window)) return;
+
+    if (!('speechSynthesis' in window)) {return;}
     triggerLive2DSpeaking();
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
@@ -202,7 +202,7 @@
       { mood: 'curious', words: ['为什么', '怎么', '什么', '?', '？', '吗', '呢'] }
     ];
     for (const p of patterns) {
-      if (p.words.some(w => text.includes(w))) return p.mood;
+      if (p.words.some((w) => text.includes(w))) {return p.mood;}
     }
     return currentMood || 'neutral';
   }
@@ -212,7 +212,7 @@
     const moodInfo = MOOD_EMOJIS[currentMood] || MOOD_EMOJIS.neutral;
     moodEmoji.textContent = moodInfo.emoji;
     moodText.textContent = moodInfo.text;
-    moodText.className = 'mood-text ' + moodInfo.class;
+    moodText.className = `mood-text ${moodInfo.class}`;
     updateAvatarMood(currentMood);
   }
 
@@ -243,35 +243,35 @@
   function renderPersonalityCards(personalities, activeName) {
     personalityCards.innerHTML = '';
     const avatars = { '狐九': '🦊', '艾利': '🦁', '默认': '🤖' };
-    
-    personalities.forEach(p => {
+
+    personalities.forEach((p) => {
       const card = document.createElement('div');
-      card.className = 'personality-card' + (p.name === activeName ? ' active' : '');
+      card.className = `personality-card${p.name === activeName ? ' active' : ''}`;
       card.dataset.name = escapeHtml(p.name);
-      
+
       const avatar = document.createElement('div');
       avatar.className = 'avatar';
       avatar.textContent = avatars[p.name] || avatars['默认'];
-      
+
       const nameDiv = document.createElement('div');
       nameDiv.className = 'name';
       nameDiv.textContent = p.name;
-      
+
       const descDiv = document.createElement('div');
       descDiv.className = 'desc';
       descDiv.textContent = p.description || '';
-      
+
       card.appendChild(avatar);
       card.appendChild(nameDiv);
       card.appendChild(descDiv);
-      
+
       if (p.name === activeName) {
         const activeTag = document.createElement('div');
         activeTag.className = 'active-tag';
         activeTag.textContent = '✓ 当前';
         card.appendChild(activeTag);
       }
-      
+
       card.onclick = () => switchPersonality(p.name);
       personalityCards.appendChild(card);
     });
@@ -279,70 +279,70 @@
 
   function loadPersonality() {
     Promise.all([
-      fetch('/api/personality').then(r => r.json()),
-      fetch('/health').then(r => r.json()).catch(() => ({}))
+      fetch('/api/personality').then((r) => r.json()),
+      fetch('/health').then((r) => r.json()).catch(() => ({}))
     ])
-    .then(([data, health]) => {
-      currentPersonality = data.name || 'AI';
-      currentMood = data.mood || 'neutral';
-      currentTTSConfig = sanitizeTTSConfig(data.tts);
-      
-      let personalityConfig = null;
-      if (data.personalities) {
-        const activePersonality = data.personalities.find(p => p.name === currentPersonality);
-        if (activePersonality && activePersonality.avatar) {
-          currentAvatarConfig = sanitizeAvatarConfig(activePersonality.avatar);
-          personalityConfig = {
-            modelParams: activePersonality.modelParams,
-            idleAnimation: activePersonality.idleAnimation
-          };
+      .then(([data, health]) => {
+        currentPersonality = data.name || 'AI';
+        currentMood = data.mood || 'neutral';
+        currentTTSConfig = sanitizeTTSConfig(data.tts);
+
+        let personalityConfig = null;
+        if (data.personalities) {
+          const activePersonality = data.personalities.find((p) => p.name === currentPersonality);
+          if (activePersonality && activePersonality.avatar) {
+            currentAvatarConfig = sanitizeAvatarConfig(activePersonality.avatar);
+            personalityConfig = {
+              modelParams: activePersonality.modelParams,
+              idleAnimation: activePersonality.idleAnimation
+            };
+          }
         }
-      }
-      
-      updateMoodDisplay(currentMood);
-      initAvatar(currentAvatarConfig, personalityConfig);
-      currentPersonalityEl.textContent = currentPersonality;
-      
-      if (data.personalities) {
-        renderPersonalityCards(data.personalities, currentPersonality);
-      }
-      
-      if (health.models && health.models.length > 0) {
-        modelSelect.innerHTML = '';
-        health.models.forEach(m => {
-          const opt = document.createElement('option');
-          opt.value = String(m);
-          opt.textContent = String(m);
-          modelSelect.appendChild(opt);
-        });
-        if (health.model) {
-          modelSelect.value = String(health.model);
+
+        updateMoodDisplay(currentMood);
+        initAvatar(currentAvatarConfig, personalityConfig);
+        currentPersonalityEl.textContent = currentPersonality;
+
+        if (data.personalities) {
+          renderPersonalityCards(data.personalities, currentPersonality);
         }
-      }
-      
-      updateConnectionStatus(true);
-      append('[系统] 启动完成 | 人格: ' + currentPersonality + ' | 心情: ' + currentMood, 'system-msg');
-      loadMemory();
-    })
-    .catch(() => {
-      updateConnectionStatus(false);
-      append('[系统] 连接失败，请刷新页面', 'error-msg');
-    });
+
+        if (health.models && health.models.length > 0) {
+          modelSelect.innerHTML = '';
+          health.models.forEach((m) => {
+            const opt = document.createElement('option');
+            opt.value = String(m);
+            opt.textContent = String(m);
+            modelSelect.appendChild(opt);
+          });
+          if (health.model) {
+            modelSelect.value = String(health.model);
+          }
+        }
+
+        updateConnectionStatus(true);
+        append(`[系统] 启动完成 | 人格: ${currentPersonality} | 心情: ${currentMood}`, 'system-msg');
+        loadMemory();
+      })
+      .catch(() => {
+        updateConnectionStatus(false);
+        append('[系统] 连接失败，请刷新页面', 'error-msg');
+      });
   }
 
   let _avatarInitLock = false;
-  
+
   async function initAvatar(avatarConfig, personalityConfig) {
     while (_avatarInitLock) {
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 50));
     }
     _avatarInitLock = true;
-    
+
     try {
       const container = document.getElementById('live2d-container');
       const moodIndicator = document.getElementById('live2d-mood-text');
-      
-      if (!container) return;
+
+      if (!container) {return;}
 
       if (live2dComponent) {
         try { live2dComponent.destroy(); } catch (e) {}
@@ -381,7 +381,7 @@
     } catch (error) {
       console.warn('Avatar init failed:', error);
       const moodIndicator = document.getElementById('live2d-mood-text');
-      if (moodIndicator) moodIndicator.textContent = '使用2D形象';
+      if (moodIndicator) {moodIndicator.textContent = '使用2D形象';}
       initVirtualCharacter(moodIndicator);
     } finally {
       _avatarInitLock = false;
@@ -390,7 +390,7 @@
 
   function initVirtualCharacter(moodIndicator) {
     if (typeof VirtualCharacter === 'undefined') {
-      if (moodIndicator) moodIndicator.textContent = '形象组件未加载';
+      if (moodIndicator) {moodIndicator.textContent = '形象组件未加载';}
       return;
     }
 
@@ -399,26 +399,8 @@
     virtualCharacter.setPersonality(currentPersonality);
     virtualCharacter.setMood(currentMood);
 
-    if (moodIndicator) moodIndicator.textContent = '2D形象已加载';
+    if (moodIndicator) {moodIndicator.textContent = '2D形象已加载';}
     append('[系统] 2D虚拟形象已加载', 'system-msg');
-  }
-
-  function updateVirtualCharacterMood(mood) {
-    if (virtualCharacter) {
-      virtualCharacter.setMood(mood);
-    }
-  }
-
-  function triggerVirtualCharacterSpeaking() {
-    if (virtualCharacter) {
-      virtualCharacter.speak();
-    }
-  }
-
-  function stopVirtualCharacterSpeaking() {
-    if (virtualCharacter) {
-      virtualCharacter.stopSpeaking();
-    }
   }
 
   async function initLive2DModel(modelPath, personalityConfig, moodIndicator) {
@@ -438,11 +420,11 @@
         enableIdleAnimation: true,
         mobileFallback: true
       });
-      
+
       live2dComponent.onTap = ({ x, y }) => {
         append(`[交互] 点击了虚拟形象 (${x.toFixed(0)}, ${y.toFixed(0)})`, 'system-msg');
       };
-      
+
       await live2dComponent.init(modelPath, personalityConfig);
       live2dComponent.setMood(currentMood);
       moodIndicator.textContent = 'Live2D 已加载';
@@ -533,12 +515,6 @@
     }
   }
 
-  function updateLive2DMood(mood) {
-    if (live2dComponent) {
-      live2dComponent.setMood(mood);
-    }
-  }
-
   function triggerLive2DSpeaking() {
     if (live2dComponent) {
       live2dComponent.speak();
@@ -568,15 +544,15 @@
     const randomBtn = document.getElementById('live2d-random-motion');
     const hideBtn = document.getElementById('live2d-hide');
     const section = document.getElementById('live2d-section');
-    
+
     if (soundBtn) {
       soundBtn.addEventListener('click', () => {
         ttsEnabled = !ttsEnabled;
         soundBtn.style.opacity = ttsEnabled ? 1 : 0.5;
-        append('[系统] ' + (ttsEnabled ? '🔊' : '🔇') + ' 虚拟形象声音 ' + (ttsEnabled ? '开启' : '关闭'), 'system-msg');
+        append(`[系统] ${ttsEnabled ? '🔊' : '🔇'} 虚拟形象声音 ${ttsEnabled ? '开启' : '关闭'}`, 'system-msg');
       });
     }
-    
+
     if (randomBtn) {
       randomBtn.addEventListener('click', () => {
         if (live2dComponent && live2dComponent.oml2d) {
@@ -588,7 +564,7 @@
         }
       });
     }
-    
+
     if (hideBtn && section) {
       hideBtn.addEventListener('click', () => {
         live2dHidden = !live2dHidden;
@@ -599,44 +575,44 @@
   }
 
   function switchPersonality(name) {
-    if (name === currentPersonality) return;
-    append('[系统] 正在切换到 ' + escapeHtml(name) + '...', 'system-msg');
+    if (name === currentPersonality) {return;}
+    append(`[系统] 正在切换到 ${escapeHtml(name)}...`, 'system-msg');
     fetch('/api/personality/switch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name })
     })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        currentPersonality = typeof data.active === 'string' ? data.active : currentPersonality;
-        currentMood = typeof data.mood === 'string' ? data.mood : 'neutral';
-        currentTTSConfig = sanitizeTTSConfig(data.tts);
-        
-        if (data.avatar) {
-          currentAvatarConfig = sanitizeAvatarConfig(data.avatar);
-        }
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          currentPersonality = typeof data.active === 'string' ? data.active : currentPersonality;
+          currentMood = typeof data.mood === 'string' ? data.mood : 'neutral';
+          currentTTSConfig = sanitizeTTSConfig(data.tts);
 
-        if (virtualCharacter) {
-          virtualCharacter.setPersonality(currentPersonality);
+          if (data.avatar) {
+            currentAvatarConfig = sanitizeAvatarConfig(data.avatar);
+          }
+
+          if (virtualCharacter) {
+            virtualCharacter.setPersonality(currentPersonality);
+          }
+
+          updateMoodDisplay(currentMood);
+          currentPersonalityEl.textContent = currentPersonality;
+          conversationHistory = [];
+          loadPersonality();
+          append(`[系统] ✓ 已切换到 ${escapeHtml(currentPersonality)}`, 'system-msg');
+        } else {
+          append(`[系统] ✗ 切换失败: ${escapeHtml(data.error || '未知错误')}`, 'error-msg');
         }
-        
-        updateMoodDisplay(currentMood);
-        currentPersonalityEl.textContent = currentPersonality;
-        conversationHistory = [];
-        loadPersonality();
-        append('[系统] ✓ 已切换到 ' + escapeHtml(currentPersonality), 'system-msg');
-      } else {
-        append('[系统] ✗ 切换失败: ' + escapeHtml(data.error || '未知错误'), 'error-msg');
-      }
-    })
-    .catch(err => append('[系统] ✗ ' + escapeHtml(err.message), 'error-msg'));
+      })
+      .catch((err) => append(`[系统] ✗ ${escapeHtml(err.message)}`, 'error-msg'));
   }
 
   function getMemoryType(key) {
-    if (key.includes('switch')) return { type: 'switch', label: '切换', color: '#9C27B0' };
-    if (key.includes('user')) return { type: 'user', label: '用户', color: '#2196F3' };
-    if (key.includes('game')) return { type: 'game', label: '游戏', color: '#4CAF50' };
+    if (key.includes('switch')) {return { type: 'switch', label: '切换', color: '#9C27B0' };}
+    if (key.includes('user')) {return { type: 'user', label: '用户', color: '#2196F3' };}
+    if (key.includes('game')) {return { type: 'game', label: '游戏', color: '#4CAF50' };}
     return { type: 'interaction', label: '交互', color: '#FF9800' };
   }
 
@@ -645,23 +621,23 @@
       const { items, pagination } = data;
       memoryPage = pagination.page;
       memoryTotalPages = pagination.totalPages;
-      
+
       memoryListEl.innerHTML = '';
-      
+
       if (items.length === 0) {
         memoryListEl.innerHTML = '<div style="padding:40px;text-align:center;color:#999;grid-column:1/-1;">暂无记忆</div>';
         updatePaginationUI(pagination);
         return;
       }
-      
+
       items.forEach(({ key, value, timestamp }) => {
         const typeInfo = getMemoryType(key);
         const card = document.createElement('div');
-        card.className = 'memory-card type-' + typeInfo.type;
-        
+        card.className = `memory-card type-${typeInfo.type}`;
+
         const val = typeof value === 'object' ? JSON.stringify(value) : String(value);
-        const displayVal = val.length > 60 ? val.substring(0, 60) + '...' : val;
-        
+        const displayVal = val.length > 60 ? `${val.substring(0, 60)}...` : val;
+
         card.innerHTML = `
           <div class="memory-key">${escapeHtml(key)}</div>
           <div class="memory-value">${escapeHtml(displayVal)}</div>
@@ -671,38 +647,38 @@
             <button class="delete-btn" data-key="${escapeHtml(key)}">×</button>
           </div>
         `;
-        
+
         card.querySelector('.delete-btn').addEventListener('click', function() {
           const keyToDelete = this.dataset.key;
           deleteMemory(keyToDelete);
         });
-        
+
         memoryListEl.appendChild(card);
       });
-      
+
       updatePaginationUI(pagination);
     } else {
       allMemory = data || {};
       const search = memorySearchEl?.value?.toLowerCase() || '';
-      const entries = Object.entries(data || {}).filter(([k]) => 
+      const entries = Object.entries(data || {}).filter(([k]) =>
         !k.startsWith('__') && (search === '' || k.toLowerCase().includes(search))
       );
-      
+
       memoryListEl.innerHTML = '';
-      
+
       if (entries.length === 0) {
         memoryListEl.innerHTML = '<div style="padding:40px;text-align:center;color:#999;grid-column:1/-1;">暂无记忆</div>';
         return;
       }
-      
+
       entries.forEach(([key, value]) => {
         const typeInfo = getMemoryType(key);
         const card = document.createElement('div');
-        card.className = 'memory-card type-' + typeInfo.type;
-        
+        card.className = `memory-card type-${typeInfo.type}`;
+
         const val = typeof value === 'object' ? JSON.stringify(value) : String(value);
-        const displayVal = val.length > 60 ? val.substring(0, 60) + '...' : val;
-        
+        const displayVal = val.length > 60 ? `${val.substring(0, 60)}...` : val;
+
         card.innerHTML = `
           <div class="memory-key">${escapeHtml(key)}</div>
           <div class="memory-value">${escapeHtml(displayVal)}</div>
@@ -711,12 +687,12 @@
             <button class="delete-btn" data-key="${escapeHtml(key)}">×</button>
           </div>
         `;
-        
+
         card.querySelector('.delete-btn').addEventListener('click', function() {
           const keyToDelete = this.dataset.key;
           deleteMemory(keyToDelete);
         });
-        
+
         memoryListEl.appendChild(card);
       });
     }
@@ -724,8 +700,8 @@
 
   function updatePaginationUI(pagination) {
     const paginationEl = document.getElementById('memory-pagination');
-    if (!paginationEl) return;
-    
+    if (!paginationEl) {return;}
+
     const page = Number.isInteger(pagination.page) ? pagination.page : 1;
     const totalPages = Number.isInteger(pagination.totalPages) ? pagination.totalPages : 1;
     const total = Number.isInteger(pagination.total) ? pagination.total : 0;
@@ -754,9 +730,9 @@
   function loadMemory(page = 1, query = '') {
     memoryQuery = query || memoryQuery;
     const params = new URLSearchParams({ page, query: memoryQuery });
-    fetch('/api/memory?' + params)
-      .then(r => r.json())
-      .then(data => renderMemoryList(data))
+    fetch(`/api/memory?${params}`)
+      .then((r) => r.json())
+      .then((data) => renderMemoryList(data))
       .catch(() => renderMemoryList({}));
   }
 
@@ -770,9 +746,9 @@
   };
 
   window.deleteMemory = function(key) {
-    if (!confirm('确定要删除这条记忆吗？')) return;
-    fetch('/api/memory/' + encodeURIComponent(key), { method: 'DELETE' })
-      .then(r => r.json())
+    if (!confirm('确定要删除这条记忆吗？')) {return;}
+    fetch(`/api/memory/${encodeURIComponent(key)}`, { method: 'DELETE' })
+      .then((r) => r.json())
       .then(() => {
         loadMemory(memoryPage, memoryQuery);
         append('[记忆] 已删除', 'system-msg');
@@ -782,13 +758,13 @@
 
   window.exportMemory = function() {
     fetch('/api/memory?export=true&format=json')
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         const blob = new Blob([data.data], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'memory-' + new Date().toISOString().slice(0,10) + '.json';
+        a.download = `memory-${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
         append('[记忆] ✓ 已导出 JSON', 'system-msg');
@@ -797,9 +773,9 @@
   };
 
   window.clearMemory = function() {
-    if (!confirm('确定要清空所有记忆吗？')) return;
+    if (!confirm('确定要清空所有记忆吗？')) {return;}
     fetch('/api/memory', { method: 'DELETE' })
-      .then(r => r.json())
+      .then((r) => r.json())
       .then(() => {
         allMemory = {};
         renderMemoryList({});
@@ -820,30 +796,30 @@
     const name = document.getElementById('new-personality-name').value.trim();
     const desc = document.getElementById('new-personality-desc').value.trim();
     const style = document.getElementById('new-personality-style').value;
-    
+
     if (!name) {
       alert('请输入人格名称');
       return;
     }
-    
+
     fetch('/api/personality/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description: desc, style })
     })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        append('[系统] ✓ 人格 "' + name + '" 创建成功', 'system-msg');
-        closeCreateModal();
-        loadPersonality();
-        document.getElementById('new-personality-name').value = '';
-        document.getElementById('new-personality-desc').value = '';
-      } else {
-        append('[系统] ✗ 创建失败: ' + (data.error || '未知错误'), 'error-msg');
-      }
-    })
-    .catch(err => append('[系统] ✗ ' + err.message, 'error-msg'));
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          append(`[系统] ✓ 人格 "${name}" 创建成功`, 'system-msg');
+          closeCreateModal();
+          loadPersonality();
+          document.getElementById('new-personality-name').value = '';
+          document.getElementById('new-personality-desc').value = '';
+        } else {
+          append(`[系统] ✗ 创建失败: ${data.error || '未知错误'}`, 'error-msg');
+        }
+      })
+      .catch((err) => append(`[系统] ✗ ${err.message}`, 'error-msg'));
   };
 
   function initVoiceInput() {
@@ -852,12 +828,12 @@
       voiceBtn.style.display = 'none';
       return;
     }
-    
+
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'zh-CN';
-    
+
     recognition.onresult = (event) => {
       const result = event.results[event.results.length - 1];
       input.value = result[0].transcript;
@@ -866,13 +842,13 @@
         sendMessage(input.value);
       }
     };
-    
+
     recognition.onerror = () => stopListening();
     recognition.onend = () => stopListening();
   }
 
   function startListening() {
-    if (!recognition || isListening) return;
+    if (!recognition || isListening) {return;}
     isListening = true;
     voiceBtn.classList.add('listening');
     voiceBtn.textContent = '🔴';
@@ -880,7 +856,7 @@
   }
 
   function stopListening() {
-    if (!recognition || !isListening) return;
+    if (!recognition || !isListening) {return;}
     isListening = false;
     voiceBtn.classList.remove('listening');
     voiceBtn.textContent = '🎤';
@@ -896,23 +872,23 @@
   });
 
   function connectSocket() {
-    if (typeof io === 'undefined') return;
-    
+    if (typeof io === 'undefined') {return;}
+
     socket = io();
-    
+
     socket.on('connect', () => {
       updateConnectionStatus(true);
     });
-    
+
     socket.on('disconnect', () => {
       updateConnectionStatus(false);
       attemptReconnect();
     });
-    
+
     socket.on('mood', (data) => {
       updateMoodDisplay(data.mood);
     });
-    
+
     socket.on('connect_error', () => {
       updateConnectionStatus(false);
     });
@@ -923,57 +899,57 @@
       append('[系统] 连接失败，请刷新页面', 'error-msg');
       return;
     }
-    
+
     reconnectOverlay.classList.add('show');
     reconnectAttempts++;
-    
+
     setTimeout(() => {
-      if (socket) socket.connect();
+      if (socket) {socket.connect();}
       loadPersonality();
     }, 2000 * reconnectAttempts);
   }
 
   function sendMessage(text) {
-    if (!text.trim()) return;
-    
+    if (!text.trim()) {return;}
+
     append(text, 'user-msg');
     conversationHistory.push({ role: 'user', content: text });
     if (conversationHistory.length > maxHistoryLength) {
       conversationHistory.shift();
     }
-    
+
     showTypingIndicator();
-    
+
     fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, history: conversationHistory })
     })
-    .then(r => r.json())
-    .then(data => {
-      hideTypingIndicator();
-      
-      const reply = data.reply || '无回复';
-      const detectedMood = detectMood(reply);
-      updateMoodDisplay(detectedMood);
-      append(reply, 'ai-msg', true, currentPersonality);
-      speak(reply, detectedMood);
-      
-      conversationHistory.push({ role: 'assistant', content: reply });
-      if (conversationHistory.length > maxHistoryLength) {
-        conversationHistory.shift();
-      }
-    })
-    .catch(err => {
-      hideTypingIndicator();
-      append('[错误] ' + err.message, 'error-msg');
-      updateConnectionStatus(false);
-    });
+      .then((r) => r.json())
+      .then((data) => {
+        hideTypingIndicator();
+
+        const reply = data.reply || '无回复';
+        const detectedMood = detectMood(reply);
+        updateMoodDisplay(detectedMood);
+        append(reply, 'ai-msg', true, currentPersonality);
+        speak(reply, detectedMood);
+
+        conversationHistory.push({ role: 'assistant', content: reply });
+        if (conversationHistory.length > maxHistoryLength) {
+          conversationHistory.shift();
+        }
+      })
+      .catch((err) => {
+        hideTypingIndicator();
+        append(`[错误] ${err.message}`, 'error-msg');
+        updateConnectionStatus(false);
+      });
   }
 
   sendBtn.addEventListener('click', () => {
     const text = input.value.trim();
-    if (!text) return;
+    if (!text) {return;}
     input.value = '';
     sendMessage(text);
   });
@@ -982,7 +958,7 @@
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const text = input.value.trim();
-      if (!text) return;
+      if (!text) {return;}
       input.value = '';
       sendMessage(text);
     }
@@ -992,7 +968,7 @@
     ttsEnabled = !ttsEnabled;
     ttsToggle.classList.toggle('active', ttsEnabled);
     ttsToggle.querySelector('.icon').textContent = ttsEnabled ? '🔊' : '🔇';
-    
+
     if (voiceAvatar) {
       if (ttsEnabled) {
         voiceAvatar.enable();
@@ -1000,8 +976,8 @@
         voiceAvatar.disable();
       }
     }
-    
-    append('[系统] ' + (ttsEnabled ? '🔊' : '🔇') + ' 语音' + (ttsEnabled ? '已开启' : '已关闭'), 'system-msg');
+
+    append(`[系统] ${ttsEnabled ? '🔊' : '🔇'} 语音${ttsEnabled ? '已开启' : '已关闭'}`, 'system-msg');
   });
 
   modelSelect.addEventListener('change', () => {
@@ -1011,21 +987,21 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model })
     })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        append('[系统] 已切换到模型: ' + model, 'system-msg');
-      }
-    })
-    .catch(() => {});
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          append(`[系统] 已切换到模型: ${model}`, 'system-msg');
+        }
+      })
+      .catch(() => {});
   });
 
   memorySearchEl?.addEventListener('input', () => {
-    if (!memoryQuery) loadMemory(1, memorySearchEl.value);
+    if (!memoryQuery) {loadMemory(1, memorySearchEl.value);}
   });
 
   memorySearchEl?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') filterMemory();
+    if (e.key === 'Enter') {filterMemory();}
   });
 
   document.getElementById('create-modal')?.addEventListener('click', (e) => {
@@ -1035,7 +1011,7 @@
   });
 
   function initVisionSystem() {
-    if (typeof MultiModalVision === 'undefined') return;
+    if (typeof MultiModalVision === 'undefined') {return;}
 
     visionSystem = new MultiModalVision({
       apiEndpoint: '/api/vision',
@@ -1044,7 +1020,7 @@
       maxImageSize: 1024,
       imageQuality: 0.8,
       onError: (error) => {
-        append('[视觉] 错误: ' + error.message, 'error-msg');
+        append(`[视觉] 错误: ${error.message}`, 'error-msg');
       }
     });
 
@@ -1098,7 +1074,7 @@
 
       fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {return;}
 
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -1110,7 +1086,7 @@
     }
 
     async function analyzeVisionImage(imageData) {
-      if (!preview || !imageEl || !resultDiv || !resultText) return;
+      if (!preview || !imageEl || !resultDiv || !resultText) {return;}
 
       imageEl.src = imageData;
       preview.style.display = 'block';
@@ -1126,18 +1102,18 @@
           resultText.textContent = result.description;
           append(`[视觉] ${currentPersonality}: ${result.description}`, 'ai-msg', true, currentPersonality);
         } else {
-          resultText.textContent = '分析失败: ' + result.error;
-          append('[视觉] 分析失败: ' + result.error, 'error-msg');
+          resultText.textContent = `分析失败: ${result.error}`;
+          append(`[视觉] 分析失败: ${result.error}`, 'error-msg');
         }
       } catch (error) {
-        resultText.textContent = '错误: ' + error.message;
-        append('[视觉] 错误: ' + error.message, 'error-msg');
+        resultText.textContent = `错误: ${error.message}`;
+        append(`[视觉] 错误: ${error.message}`, 'error-msg');
       }
     }
   }
 
   function initPerformanceOptimizer() {
-    if (typeof PerformanceOptimizer === 'undefined') return;
+    if (typeof PerformanceOptimizer === 'undefined') {return;}
 
     performanceOptimizer = new PerformanceOptimizer({
       cacheMaxSize: 500,
@@ -1184,12 +1160,12 @@ function initTaskManagement() {
       const commandInput = document.getElementById('task-command');
 
       if (commandInput) {
-        const paramStr = template.params.map(p => `[${p}]`).join(' ');
+        const paramStr = template.params.map((p) => `[${p}]`).join(' ');
         commandInput.value = `${template.name}: ${paramStr}`;
         commandInput.placeholder = template.description;
       }
 
-      if (modal) modal.classList.add('show');
+      if (modal) {modal.classList.add('show');}
     };
 
     viewer.init();
@@ -1204,7 +1180,7 @@ function initTaskManagement() {
   const browserModal = document.getElementById('browser-modal');
 
   let currentIdentity = null;
-  let taskList = [];
+  const taskList = [];
 
   if (btnNewTask) {
     btnNewTask.addEventListener('click', () => {
@@ -1325,7 +1301,7 @@ function initTaskManagement() {
         body: JSON.stringify({ action: 'goto', url })
       });
 
-      const result = await response.json();
+      const _result = await response.json();
       document.getElementById('browser-connected').textContent = '已连接';
       document.getElementById('browser-url').textContent = url;
 
@@ -1338,7 +1314,7 @@ function initTaskManagement() {
 
   function renderTaskList(tasks) {
     const container = document.getElementById('task-list');
-    if (!container) return;
+    if (!container) {return;}
 
     container.innerHTML = '';
 
@@ -1347,7 +1323,7 @@ function initTaskManagement() {
       return;
     }
 
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       const statusColors = {
         pending: '#FFC107',
         running: '#2196F3',

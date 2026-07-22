@@ -42,10 +42,10 @@ class PriceMonitorService {
 
   recordPrice(productId, price, source = 'manual') {
     const product = this.products.get(productId);
-    if (!product) return null;
+    if (!product) {return null;}
 
     const numericPrice = parseFloat(price);
-    if (isNaN(numericPrice) || numericPrice < 0 || !isFinite(numericPrice)) return null;
+    if (isNaN(numericPrice) || numericPrice < 0 || !isFinite(numericPrice)) {return null;}
 
     product.previousPrice = product.currentPrice;
     product.currentPrice = numericPrice;
@@ -103,7 +103,7 @@ class PriceMonitorService {
       }
     }
 
-    if (!alertType) return null;
+    if (!alertType) {return null;}
 
     return {
       id: `alert_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`,
@@ -121,7 +121,7 @@ class PriceMonitorService {
 
   async checkPrice(productId) {
     const product = this.products.get(productId);
-    if (!product) throw new Error('Product not found');
+    if (!product) {throw new Error('Product not found');}
 
     return {
       productId,
@@ -140,7 +140,7 @@ class PriceMonitorService {
     const results = [];
 
     for (const [productId, product] of this.products) {
-      if (product.status !== 'active') continue;
+      if (product.status !== 'active') {continue;}
 
       try {
         const status = await this.checkPrice(productId);
@@ -155,7 +155,7 @@ class PriceMonitorService {
   }
 
   startMonitoring() {
-    if (this._checkTimer) return;
+    if (this._checkTimer) {return;}
 
     this._checkTimer = setInterval(() => {
       this.checkAllPrices().catch(this.onError);
@@ -178,12 +178,12 @@ class PriceMonitorService {
   }
 
   getActiveProducts() {
-    return Array.from(this.products.values()).filter(p => p.status === 'active');
+    return Array.from(this.products.values()).filter((p) => p.status === 'active');
   }
 
   getPriceHistory(productId, limit = 50) {
     const product = this.products.get(productId);
-    if (!product) return [];
+    if (!product) {return [];}
     return product.priceHistory.slice(-limit);
   }
 
@@ -191,18 +191,18 @@ class PriceMonitorService {
     let alerts = [...this.alerts];
 
     if (options.unreadOnly) {
-      alerts = alerts.filter(a => !a.read);
+      alerts = alerts.filter((a) => !a.read);
     }
 
     if (options.productId) {
-      alerts = alerts.filter(a => a.productId === options.productId);
+      alerts = alerts.filter((a) => a.productId === options.productId);
     }
 
     return alerts.slice(-(options.limit || 50));
   }
 
   markAlertRead(alertId) {
-    const alert = this.alerts.find(a => a.id === alertId);
+    const alert = this.alerts.find((a) => a.id === alertId);
     if (alert) {
       alert.read = true;
       return true;
@@ -212,12 +212,12 @@ class PriceMonitorService {
 
   getProductStats(productId) {
     const product = this.products.get(productId);
-    if (!product) return null;
+    if (!product) {return null;}
 
     const history = product.priceHistory;
-    if (history.length === 0) return null;
+    if (history.length === 0) {return null;}
 
-    const prices = history.map(h => h.price);
+    const prices = history.map((h) => h.price);
     const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
 
     const recentPrices = prices.slice(-10);
@@ -244,11 +244,11 @@ class PriceMonitorService {
     return {
       products: {
         total: products.length,
-        active: products.filter(p => p.status === 'active').length
+        active: products.filter((p) => p.status === 'active').length
       },
       alerts: {
         total: this.alerts.length,
-        unread: this.alerts.filter(a => !a.read).length
+        unread: this.alerts.filter((a) => !a.read).length
       },
       monitoring: {
         active: this._checkTimer !== null,

@@ -6,7 +6,7 @@ const READ_ONLY_TOOLS = [
   'list_issues', 'search_repositories', 'think', 'get_file'
 ];
 
-const CACHEABLE_METHODS = ['tools/call'];
+const _CACHEABLE_METHODS = ['tools/call'];
 
 class MCPBridge extends EventEmitter {
   static setMCPClient(clientClass) {
@@ -45,7 +45,7 @@ class MCPBridge extends EventEmitter {
       cacheHits: 0,
       cacheMisses: 0
     };
-    
+
     if (this.options.enableCallCache) {
       this._startCacheCleanup();
     }
@@ -60,23 +60,23 @@ class MCPBridge extends EventEmitter {
   _cleanupCache() {
     const now = Date.now();
     let evicted = 0;
-    
+
     for (const [key, entry] of this.callCache.entries()) {
       if (now - entry.timestamp > this.options.callCacheTTL) {
         this.callCache.delete(key);
         evicted++;
       }
     }
-    
+
     if (evicted > 0) {
       this.cacheStats.evictions += evicted;
     }
-    
+
     if (this.callCache.size > this.options.maxCacheSize) {
       const toDelete = Math.ceil(this.options.maxCacheSize * 0.2);
       let count = 0;
       for (const key of this.callCache.keys()) {
-        if (count >= toDelete) break;
+        if (count >= toDelete) {break;}
         this.callCache.delete(key);
         count++;
       }
@@ -90,35 +90,35 @@ class MCPBridge extends EventEmitter {
   }
 
   _isCacheable(server, tool) {
-    return READ_ONLY_TOOLS.some(t => 
+    return READ_ONLY_TOOLS.some((t) =>
       tool.toLowerCase().includes(t.toLowerCase())
     ) || server.toLowerCase().includes('filesystem');
   }
 
   _getCachedResult(key) {
-    if (!this.options.enableCallCache) return null;
-    
+    if (!this.options.enableCallCache) {return null;}
+
     const cached = this.callCache.get(key);
-    if (!cached) return null;
-    
+    if (!cached) {return null;}
+
     if (Date.now() - cached.timestamp > this.options.callCacheTTL) {
       this.callCache.delete(key);
       return null;
     }
-    
+
     this.cacheStats.hits++;
     this.metrics.cacheHits++;
     return cached.result;
   }
 
   _setCachedResult(key, result) {
-    if (!this.options.enableCallCache) return;
-    
+    if (!this.options.enableCallCache) {return;}
+
     if (this.callCache.size >= this.options.maxCacheSize) {
       const firstKey = this.callCache.keys().next().value;
       this.callCache.delete(firstKey);
     }
-    
+
     this.callCache.set(key, {
       result,
       timestamp: Date.now()
@@ -133,7 +133,7 @@ class MCPBridge extends EventEmitter {
       misses: this.cacheStats.misses,
       evictions: this.cacheStats.evictions,
       hitRate: this.cacheStats.hits + this.cacheStats.misses > 0
-        ? (this.cacheStats.hits / (this.cacheStats.hits + this.cacheStats.misses) * 100).toFixed(2) + '%'
+        ? `${(this.cacheStats.hits / (this.cacheStats.hits + this.cacheStats.misses) * 100).toFixed(2)}%`
         : '0%'
     };
   }
@@ -216,7 +216,7 @@ class MCPBridge extends EventEmitter {
   async stop() {
     const promises = [];
     for (const [name, client] of this.clients.entries()) {
-      promises.push(client.stop().catch(err => {
+      promises.push(client.stop().catch((err) => {
         console.error(`[MCPBridge] Error stopping ${name}:`, err.message);
       }));
     }
@@ -225,6 +225,10 @@ class MCPBridge extends EventEmitter {
     this.toolToServer.clear();
     this.serverToTools.clear();
     this.callCache.clear();
+    if (this._cacheCleanupInterval) {
+      clearInterval(this._cacheCleanupInterval);
+      this._cacheCleanupInterval = null;
+    }
     this.emit('stopped');
   }
 
@@ -235,10 +239,6 @@ class MCPBridge extends EventEmitter {
     }
 
     const [serverName, toolName] = toolFullName.split(':');
-    if (!serverName || !toolName) {
-      throw new Error(`Invalid tool name format: ${toolFullName}. Expected format: server:tool`);
-    }
-
     const client = this.clients.get(serverName);
     if (!client) {
       throw new Error(`MCP server not found: ${serverName}`);
@@ -250,7 +250,7 @@ class MCPBridge extends EventEmitter {
 
     const skipCache = context.skipCache || false;
     const cacheKey = this._getCacheKey(toolFullName, params);
-    
+
     if (!skipCache && this._isCacheable(serverName, toolName)) {
       const cached = this._getCachedResult(cacheKey);
       if (cached !== null) {
@@ -340,14 +340,14 @@ class MCPBridge extends EventEmitter {
       throw new Error(`Batch size must be between 1 and ${MAX_BATCH_SIZE}`);
     }
 
-    const validatedCalls = calls.filter(c => 
-      c && 
-      typeof c.toolFullName === 'string' && 
+    const _validatedCalls = calls.filter((c) =>
+      c &&
+      typeof c.toolFullName === 'string' &&
       /^[a-zA-Z0-9_-]+:[a-zA-Z0-9_]+$/.test(c.toolFullName)
     );
 
     const results = await Promise.allSettled(
-      calls.map(call => this.call(call.toolFullName, call.params, context))
+      calls.map((call) => this.call(call.toolFullName, call.params, context))
     );
 
     return results.map((result, index) => ({
@@ -365,7 +365,7 @@ class MCPBridge extends EventEmitter {
     }
 
     const allTools = [];
-    for (const [name, tools] of this.serverToTools.entries()) {
+    for (const [_name, tools] of this.serverToTools.entries()) {
       allTools.push(...tools);
     }
     return allTools;
@@ -374,16 +374,16 @@ class MCPBridge extends EventEmitter {
   getToolMetadata(toolFullName) {
     const [serverName, toolName] = toolFullName.split(':');
     const client = this.clients.get(serverName);
-    if (!client) return null;
+    if (!client) {return null;}
 
     const tools = this.serverToTools.get(serverName) || [];
-    return tools.find(t => t.name === toolName) || null;
+    return tools.find((t) => t.name === toolName) || null;
   }
 
   getServerStatus(serverName = null) {
     if (serverName) {
       const client = this.clients.get(serverName);
-      if (!client) return null;
+      if (!client) {return null;}
 
       return {
         ...client.getStatus(),
@@ -405,7 +405,7 @@ class MCPBridge extends EventEmitter {
     const shutdownPromises = [];
     for (const [name, client] of this.clients) {
       shutdownPromises.push(
-        client.stop().catch(err => {
+        client.stop().catch((err) => {
           this.emit('shutdown-error', { server: name, error: err.message });
         })
       );
@@ -418,12 +418,16 @@ class MCPBridge extends EventEmitter {
     this.serverToTools.clear();
     this.circuitBreakers.clear();
     this.rateLimiter.clear();
+    if (this._cacheCleanupInterval) {
+      clearInterval(this._cacheCleanupInterval);
+      this._cacheCleanupInterval = null;
+    }
 
     this.emit('shutdown-completed');
   }
 
   _checkRateLimit(serverName) {
-    if (!this.options.rateLimit.enabled) return;
+    if (!this.options.rateLimit.enabled) {return;}
 
     const now = Date.now();
     if (!this.rateLimiter.has(serverName)) {
@@ -432,7 +436,7 @@ class MCPBridge extends EventEmitter {
 
     const requests = this.rateLimiter.get(serverName);
     const windowStart = now - 1000;
-    const recentRequests = requests.filter(time => time > windowStart);
+    const recentRequests = requests.filter((time) => time > windowStart);
 
     if (recentRequests.length >= this.options.rateLimit.maxRequestsPerSecond) {
       const waitTime = Math.ceil((recentRequests[0] + 1000 - now) / 1000) * 1000;
@@ -455,7 +459,7 @@ class MCPBridge extends EventEmitter {
 
   _checkCircuitBreaker(serverName) {
     const cb = this.circuitBreakers.get(serverName);
-    if (!cb) return;
+    if (!cb) {return;}
 
     if (cb.state === 'open') {
       const timeSinceFailure = Date.now() - cb.lastFailure;
@@ -470,7 +474,7 @@ class MCPBridge extends EventEmitter {
 
   _tripCircuitBreaker(serverName) {
     const cb = this.circuitBreakers.get(serverName);
-    if (!cb) return;
+    if (!cb) {return;}
 
     cb.failures++;
     cb.lastFailure = Date.now();
@@ -483,7 +487,7 @@ class MCPBridge extends EventEmitter {
 
   _resetCircuitBreaker(serverName) {
     const cb = this.circuitBreakers.get(serverName);
-    if (!cb) return;
+    if (!cb) {return;}
 
     cb.failures = 0;
     cb.state = 'closed';

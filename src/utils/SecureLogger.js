@@ -19,8 +19,8 @@ const SENSITIVE_PATTERNS = [
 ];
 
 const sanitize = (obj) => {
-  if (obj === null || obj === undefined) return obj;
-  
+  if (obj === null || obj === undefined) {return obj;}
+
   if (typeof obj === 'string') {
     for (const pattern of SENSITIVE_PATTERNS) {
       if (pattern.test(obj)) {
@@ -29,7 +29,7 @@ const sanitize = (obj) => {
     }
     return obj;
   }
-  
+
   if (typeof obj === 'object') {
     if (Array.isArray(obj)) {
       return obj.map(sanitize);
@@ -40,7 +40,7 @@ const sanitize = (obj) => {
     }
     return sanitized;
   }
-  
+
   return obj;
 };
 
@@ -53,11 +53,11 @@ const formatMessage = (level, module, message, data) => {
     message,
     pid: process.pid
   };
-  
+
   if (data !== undefined) {
     logEntry.data = sanitize(data);
   }
-  
+
   return JSON.stringify(logEntry);
 };
 

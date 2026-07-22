@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 class AgentInbox {
   constructor(agentId, options = {}) {
@@ -12,7 +13,7 @@ class AgentInbox {
   }
 
   _sanitizeId(id) {
-    if (!id || typeof id !== 'string') return 'unknown';
+    if (!id || typeof id !== 'string') {return 'unknown';}
     return id.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 64);
   }
 
@@ -43,7 +44,7 @@ class AgentInbox {
       read: false
     };
 
-    const line = JSON.stringify(envelope) + '\n';
+    const line = `${JSON.stringify(envelope)}\n`;
 
     try {
       fs.appendFileSync(this.inboxPath, line, 'utf-8');
@@ -65,7 +66,7 @@ class AgentInbox {
       }
 
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n').filter(Boolean);
+      const lines = splitLines(content).filter(Boolean);
 
       const messages = [];
       const indices = [];
@@ -74,8 +75,8 @@ class AgentInbox {
         try {
           const msg = JSON.parse(lines[i]);
 
-          if (msg.timestamp < since) continue;
-          if (unreadOnly && msg.read) continue;
+          if (msg.timestamp < since) {continue;}
+          if (unreadOnly && msg.read) {continue;}
 
           messages.push(msg);
           indices.push(i);
@@ -98,7 +99,7 @@ class AgentInbox {
   _markAsRead(indices) {
     try {
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n');
+      const lines = splitLines(content);
 
       for (const idx of indices) {
         if (lines[idx]) {
@@ -106,7 +107,7 @@ class AgentInbox {
             const msg = JSON.parse(lines[idx]);
             msg.read = true;
             lines[idx] = JSON.stringify(msg);
-          } catch (e) {}
+          } catch (e) { /* 忽略解析错误 */ }
         }
       }
 
@@ -118,17 +119,17 @@ class AgentInbox {
 
   getUnreadCount() {
     try {
-      if (!fs.existsSync(this.inboxPath)) return 0;
+      if (!fs.existsSync(this.inboxPath)) {return 0;}
 
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n').filter(Boolean);
+      const lines = splitLines(content).filter(Boolean);
 
       let count = 0;
       for (const line of lines) {
         try {
           const msg = JSON.parse(line);
-          if (!msg.read) count++;
-        } catch (e) {}
+          if (!msg.read) {count++;}
+        } catch (e) { /* 忽略解析错误 */ }
       }
 
       return count;
@@ -139,12 +140,12 @@ class AgentInbox {
 
   getLastMessage() {
     try {
-      if (!fs.existsSync(this.inboxPath)) return null;
+      if (!fs.existsSync(this.inboxPath)) {return null;}
 
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n').filter(Boolean);
+      const lines = splitLines(content).filter(Boolean);
 
-      if (lines.length === 0) return null;
+      if (lines.length === 0) {return null;}
 
       return JSON.parse(lines[lines.length - 1]);
     } catch (error) {
@@ -154,17 +155,17 @@ class AgentInbox {
 
   compact() {
     try {
-      if (!fs.existsSync(this.inboxPath)) return;
+      if (!fs.existsSync(this.inboxPath)) {return;}
 
       const stats = fs.statSync(this.inboxPath);
-      if (stats.size < this.maxFileSize) return;
+      if (stats.size < this.maxFileSize) {return;}
 
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n').filter(Boolean);
+      const lines = splitLines(content).filter(Boolean);
 
       const recent = lines.slice(-1000);
 
-      const compacted = recent.join('\n') + '\n';
+      const compacted = `${recent.join('\n')}\n`;
       fs.writeFileSync(this.inboxPath, compacted, 'utf-8');
 
       console.log(`[AgentInbox] Compacted ${this.agentId}: ${lines.length} → ${recent.length} messages`);
@@ -201,14 +202,14 @@ class AgentInbox {
 
       const stats = fs.statSync(this.inboxPath);
       const content = fs.readFileSync(this.inboxPath, 'utf-8');
-      const lines = content.split('\n').filter(Boolean);
+      const lines = splitLines(content).filter(Boolean);
 
       let unread = 0;
       for (const line of lines) {
         try {
           const msg = JSON.parse(line);
-          if (!msg.read) unread++;
-        } catch (e) {}
+          if (!msg.read) {unread++;}
+        } catch (e) { /* 忽略解析错误 */ }
       }
 
       return {
@@ -256,7 +257,7 @@ class MessageBus {
     const results = [];
 
     for (const agentId of channelAgents) {
-      if (excludeAgents.includes(agentId)) continue;
+      if (excludeAgents.includes(agentId)) {continue;}
       const result = this.send(agentId, {
         ...message,
         metadata: { ...message.metadata, channel }
@@ -278,7 +279,7 @@ class MessageBus {
     const subs = this.subscribers.get(agentId);
     if (subs) {
       const idx = subs.indexOf(callback);
-      if (idx > -1) subs.splice(idx, 1);
+      if (idx > -1) {subs.splice(idx, 1);}
     }
   }
 
@@ -312,7 +313,7 @@ class MessageBus {
   }
 
   destroy() {
-    for (const [agentId, inbox] of this.inboxes) {
+    for (const [_agentId, inbox] of this.inboxes) {
       inbox.compact();
     }
     this.inboxes.clear();

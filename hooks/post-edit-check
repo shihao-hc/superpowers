@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# PostToolUse hook: 自动检查 Write/Edit 操作后的学习流程要点
+# 触发条件: Write 或 Edit 操作完成后
+
+set -euo pipefail
+
+# Determine plugin root directory - use CLAUDE_PLUGIN_ROOT if available
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
+LEARN_FLOW_DOC="${PLUGIN_ROOT}/docs/学习流程v4.md"
+
+# 从环境变量获取工具输入
+TOOL_INPUT="${CLAUDE_TOOL_INPUT:-}"
+
+# 检查是否是代码文件
+is_code_file() {
+    local file="$1"
+    [[ "$file" =~ \.(js|ts|py|java|c|cpp|h|go|rs|rb|php)$ ]]
+}
+
+# 安全验证：确保文件路径在允许的目录下
+is_safe_path() {
+    local file="$1"
+    
+    # 检查路径是否包含危险字符
+    if [[ "$file" =~ [[:space:]] ]]; then
+        return 1
+    fi
+    
+    # 检查是否是绝对路径且在 PLUGIN_ROOT 下
+    if [[ "$file" =~ ^/ ]] || [[ "$file" =~ ^[A-Za-z]: ]]; then
+        # 允许的根目录
+        if [[ "$file" =~ ^${PLUGIN_ROOT}/ ]] || [[ "$file" =~ ^/d/龙虾/ ]] || [[ "$file" =~ ^D:/龙虾/ ]]; then
+            return 0
+        fi
+        return 1
+    fi
+    
+    # 相对路径允许
+    return 0
+}
+
+# 检查是否有资源泄漏风险
+check_resource_leak() {
+    local file="$1"
+    local content="$2"
+    
+    # 检查 AsyncClient/HTTP 客户端
+    if grep -qE "(AsyncClient|http\.client|requests\.(get|post)|fetch|axios)" "$file" 2>/dev/null; then
+        if ! grep -qE "(async with|with.*client|\.close\(\)|\.shutdown\(\)|using.*client)" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中可能有 HTTP 客户端资源泄漏风险"
+        fi
+    fi
+    
+    # 检查文件句柄
+    if grep -qE "(open\(|fopen|FileInputStream)" "$file" 2>/dev/null; then
+        if ! grep -qE "(with.*:|finally.*close|\.close\(\))" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中可能有文件句柄泄漏风险"
+        fi
+    fi
+    
+    # 检查 EventEmitter/destroy
+    if grep -qE "(EventEmitter|addEventListener|on\()" "$file" 2>/dev/null; then
+        if ! grep -qE "(removeEventListener|off\(|destroy\(\)|cleanup)" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中可能有事件监听器未清理风险"
+        fi
+    fi
+}
+
+# 检查边界条件处理
+check_boundary() {
+    local file="$1"
+    local content="$2"
+    
+    # 检查 null/undefined/falsy 处理
+    if grep -qE "(\|\||&&)" "$file" 2>/dev/null; then
+        if grep -qE "\|\|.*=.*0\|\|.*===.*false" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中有 falsy 判断，需检查 0/false 是否被误判（考虑用 ?? ）"
+        fi
+    fi
+    
+    # 检查 await 遗漏
+    if grep -qE "(async|await|Promise)" "$file" 2>/dev/null; then
+        local async_funcs=$(grep -cE "async function|async (" "$file" 2>/dev/null || echo "0")
+        local await_count=$(grep -cE "await " "$file" 2>/dev/null || echo "0")
+        if [ "$async_funcs" -gt 0 ] && [ "$await_count" -eq 0 ]; then
+            echo "⚠️ 血脉2: $file 中有 async 函数但可能缺少 await"
+        fi
+    fi
+}
+
+# 检查错误处理
+check_error_handling() {
+    local file="$1"
+    
+    # 检查空 catch
+    local empty_catches=$(grep -nE "catch[^{]*\{\s*\}" "$file" 2>/dev/null || echo "")
+    if [ -n "$empty_catches" ]; then
+        echo "⚠️ 血脉2: $file 中有空 catch 块"
+    fi
+    
+    # 检查 try without catch
+    if grep -qE "try\s*\{" "$file" 2>/dev/null; then
+        if ! grep -qE "catch\s*\{" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中有 try 但可能缺少 catch"
+        fi
+    fi
+}
+
+# 检查文档更新需求
+check_doc_update() {
+    local file="$1"
+    
+    # 如果修改了核心模块，检查是否需要更新文档
+    if [[ "$file" =~ \.(js|ts)$ ]] && [[ "$file" =~ /src/ ]]; then
+        local doc_files=$(find "${PLUGIN_ROOT}/docs" -name "*.md" 2>/dev/null | wc -l)
+        if [ "$doc_files" -eq 0 ]; then
+            echo "💡 血脉4: 新增功能，建议更新文档"
+        fi
+    fi
+}
+
+# 检查跨平台兼容性
+check_cross_platform() {
+    local file="$1"
+    
+    # 检查 Windows 特定路径
+    if grep -qE "(mkdir|rmdir|del|dir|type|findstr)" "$file" 2>/dev/null; then
+        if ! grep -qE "(os\.platform|process\.platform|platform\.system)" "$file" 2>/dev/null; then
+            echo "⚠️ 血脉2: $file 中有 Windows 特定命令，需检查跨平台兼容性"
+        fi
+    fi
+}
+
+# 模式化提炼提醒
+extract_pattern_reminder() {
+    local file="$1"
+    
+    # 检查是否有可复用的模式
+    if grep -qE "class [A-Z][a-zA-Z]+\s*extends" "$file" 2>/dev/null; then
+        echo "💡 血脉3: 检测到类继承，考虑提炼为设计模式"
+    fi
+    
+    if grep -qE "function [a-z_]+\(.*\).*\{[^}]*return.*\{[^}]*\}" "$file" 2>/dev/null; then
+        echo "💡 血脉3: 检测到复杂函数，考虑拆分为更小的可复用模式"
+    fi
+}
+
+# 主检查逻辑
+run_checks() {
+    local file=""
+    local content=""
+    
+    # 解析工具输入
+    if [[ "$TOOL_INPUT" =~ \"filePath\":\"([^\"]+)\" ]]; then
+        file="${BASH_REMATCH[1]}"
+    elif [[ "$TOOL_INPUT" =~ \"path\":\"([^\"]+)\" ]]; then
+        file="${BASH_REMATCH[1]}"
+    fi
+    
+    # 安全验证
+    if [ -z "$file" ]; then
+        exit 0
+    fi
+    
+    if ! is_safe_path "$file"; then
+        exit 0
+    fi
+    
+    if [ ! -f "$file" ]; then
+        exit 0
+    fi
+    
+    echo "=== 学习流程自动检查 ===" >&2
+    echo "" >&2
+    
+    check_resource_leak "$file" "$content"
+    check_boundary "$file" "$content"
+    check_error_handling "$file"
+    check_cross_platform "$file"
+    check_doc_update "$file"
+    extract_pattern_reminder "$file"
+    
+    echo "" >&2
+    echo "血脉自问:" >&2
+    echo "□ 边界情况处理了吗？" >&2
+    echo "□ 资源正确释放了吗？" >&2
+    echo "□ 有哪些可以模式化的经验？" >&2
+    
+    # 输出 JSON 格式的提醒
+    local reminders="【学习流程自动检查】
+⚠️ 血脉2: 边界决定健壮性 - 请确认以上检查项
+💡 血脉3: 每次实践后提炼3个可复用模式
+💡 血脉4: 完成后立即更新文档"
+    
+    # JSON 转义 (完整转义)
+    reminders="${reminders//\\/\\\\}"
+    reminders="${reminders//\"/\\\"}"
+    reminders="${reminders//$'\n'/\\n}"
+    reminders="${reminders//$'\r'/\\r}"
+    reminders="${reminders//$'\t'/\\t}"
+    
+    printf '{\n  "additionalContext": "%s"\n}\n' "$reminders"
+}
+
+run_checks

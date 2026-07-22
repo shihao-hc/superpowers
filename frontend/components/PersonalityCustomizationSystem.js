@@ -1,6 +1,6 @@
 /**
  * PersonalityCustomizationSystem - 人格定制系统
- * 
+ *
  * 功能:
  * - 自定义人格特征
  * - 语言风格设置
@@ -36,19 +36,19 @@ class PersonalityTraits {
 
   generateSystemPrompt() {
     const traits = [];
-    
-    if (this.friendliness > 0.7) traits.push('你是一个非常友好的AI');
-    if (this.playfulness > 0.7) traits.push('你说话活泼可爱，喜欢用颜文字');
-    if (this.formality > 0.7) traits.push('你说话正式专业');
-    if (this.humor > 0.7) traits.push('你很幽默，经常开玩笑');
-    if (this.empathy > 0.7) traits.push('你很有同理心，善于倾听');
-    if (this.curiosity > 0.7) traits.push('你对新事物充满好奇');
-    if (this.confidence > 0.7) traits.push('你自信而坚定');
-    if (this.patience > 0.7) traits.push('你非常有耐心');
-    if (this.energy > 0.7) traits.push('你充满活力和热情');
-    if (this.wisdom > 0.7) traits.push('你智慧深邃，善于思考');
 
-    return traits.join('，') + '。';
+    if (this.friendliness > 0.7) {traits.push('你是一个非常友好的AI');}
+    if (this.playfulness > 0.7) {traits.push('你说话活泼可爱，喜欢用颜文字');}
+    if (this.formality > 0.7) {traits.push('你说话正式专业');}
+    if (this.humor > 0.7) {traits.push('你很幽默，经常开玩笑');}
+    if (this.empathy > 0.7) {traits.push('你很有同理心，善于倾听');}
+    if (this.curiosity > 0.7) {traits.push('你对新事物充满好奇');}
+    if (this.confidence > 0.7) {traits.push('你自信而坚定');}
+    if (this.patience > 0.7) {traits.push('你非常有耐心');}
+    if (this.energy > 0.7) {traits.push('你充满活力和热情');}
+    if (this.wisdom > 0.7) {traits.push('你智慧深邃，善于思考');}
+
+    return `${traits.join('，')}。`;
   }
 
   toObject() {
@@ -99,17 +99,17 @@ class LanguageStyle {
 
   processText(text) {
     let processed = text;
-    
+
     // Add emojis based on style
     if (this.emojiStyle !== 'none' && Math.random() < this.exclamationRate) {
-      processed += ' ' + this.getRandomEmoji();
+      processed += ` ${this.getRandomEmoji()}`;
     }
-    
+
     // Add exclamation marks
     if (this.exclamationRate > 0.5) {
       processed = processed.replace(/。/g, '！');
     }
-    
+
     return processed;
   }
 
@@ -137,7 +137,7 @@ class VoiceConfig {
     this.pitch = config.pitch || 1.0;
     this.volume = config.volume || 1.0;
     this.speakingStyle = config.speakingStyle || 'normal'; // normal, cheerful, sad, angry
-    
+
     // Mood-based adjustments
     this.moodAdjustments = config.moodAdjustments || {
       happy: { rate: 1.2, pitch: 1.1 },
@@ -209,7 +209,7 @@ class AppearanceConfig {
   }
 
   removeAccessory(accessory) {
-    this.accessories = this.accessories.filter(a => a !== accessory);
+    this.accessories = this.accessories.filter((a) => a !== accessory);
   }
 
   toObject() {
@@ -244,13 +244,13 @@ class PersonalityProfile {
   }
 
   generateId() {
-    return 'profile_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return `profile_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   getFullPrompt() {
     const basePrompt = this.traits.generateSystemPrompt();
     const styleModifiers = this.traits.getStyleModifiers();
-    
+
     return {
       personality: basePrompt,
       style: styleModifiers,
@@ -272,7 +272,7 @@ class PersonalityProfile {
 
   getResponseTemplate(emotion) {
     const templates = this.responseTemplates[emotion];
-    if (!templates) return null;
+    if (!templates) {return null;}
     return templates[Math.floor(Math.random() * templates.length)];
   }
 
@@ -310,12 +310,12 @@ class PersonalityCustomizationSystem {
 
   init() {
     this.loadFromStorage();
-    
+
     // Create default profile if none exists
     if (this.profiles.size === 0) {
       this.createDefaultProfiles();
     }
-    
+
     // Set active profile
     if (!this.activeProfileId) {
       this.activeProfileId = this.profiles.keys().next().value;
@@ -471,10 +471,10 @@ class PersonalityCustomizationSystem {
 
   updateProfile(id, updates) {
     const profile = this.profiles.get(id);
-    if (!profile) return null;
+    if (!profile) {return null;}
 
-    if (updates.name) profile.name = updates.name;
-    if (updates.description) profile.description = updates.description;
+    if (updates.name) {profile.name = updates.name;}
+    if (updates.description) {profile.description = updates.description;}
     if (updates.traits) {
       Object.entries(updates.traits).forEach(([key, value]) => {
         profile.setTrait(key, value);
@@ -504,26 +504,26 @@ class PersonalityCustomizationSystem {
     if (this.profiles.size <= 1) {
       return false; // Keep at least one profile
     }
-    
+
     this.profiles.delete(id);
-    
+
     if (this.activeProfileId === id) {
       this.activeProfileId = this.profiles.keys().next().value;
       this.onProfileChange(this.getActiveProfile());
     }
-    
+
     this.saveToStorage();
     return true;
   }
 
   duplicateProfile(id, newName) {
     const original = this.profiles.get(id);
-    if (!original) return null;
+    if (!original) {return null;}
 
     const duplicate = original.clone();
     duplicate.id = undefined; // Will be regenerated
     duplicate.name = newName || `${original.name} (副本)`;
-    
+
     const newProfile = this.createProfile(duplicate.name, duplicate.toJSON());
     return newProfile;
   }
@@ -533,7 +533,7 @@ class PersonalityCustomizationSystem {
   }
 
   getProfileSummaries() {
-    return this.getAllProfiles().map(p => ({
+    return this.getAllProfiles().map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
@@ -544,7 +544,7 @@ class PersonalityCustomizationSystem {
   saveToStorage() {
     try {
       const data = {
-        profiles: Array.from(this.profiles.values()).map(p => p.toJSON()),
+        profiles: Array.from(this.profiles.values()).map((p) => p.toJSON()),
         activeProfileId: this.activeProfileId
       };
       localStorage.setItem(this.storageKey, JSON.stringify(data));
@@ -556,16 +556,16 @@ class PersonalityCustomizationSystem {
   loadFromStorage() {
     try {
       const data = localStorage.getItem(this.storageKey);
-      if (!data) return;
+      if (!data) {return;}
 
       const parsed = JSON.parse(data);
-      
+
       this.profiles.clear();
-      parsed.profiles.forEach(profileData => {
+      parsed.profiles.forEach((profileData) => {
         const profile = PersonalityProfile.fromJSON(profileData);
         this.profiles.set(profile.id, profile);
       });
-      
+
       this.activeProfileId = parsed.activeProfileId;
     } catch (error) {
       console.error('Failed to load profiles:', error);
@@ -574,7 +574,7 @@ class PersonalityCustomizationSystem {
 
   exportProfile(id) {
     const profile = this.profiles.get(id);
-    if (!profile) return null;
+    if (!profile) {return null;}
     return JSON.stringify(profile.toJSON(), null, 2);
   }
 
@@ -594,7 +594,7 @@ class PersonalityCustomizationSystem {
   exportAllProfiles() {
     const data = {
       version: '1.0',
-      profiles: Array.from(this.profiles.values()).map(p => p.toJSON()),
+      profiles: Array.from(this.profiles.values()).map((p) => p.toJSON()),
       exportedAt: Date.now()
     };
     return JSON.stringify(data, null, 2);
@@ -603,16 +603,16 @@ class PersonalityCustomizationSystem {
   importAllProfiles(jsonString, merge = false) {
     try {
       const data = JSON.parse(jsonString);
-      
+
       if (!merge) {
         this.profiles.clear();
       }
-      
-      data.profiles.forEach(profileData => {
+
+      data.profiles.forEach((profileData) => {
         const profile = PersonalityProfile.fromJSON(profileData);
         this.profiles.set(profile.id, profile);
       });
-      
+
       this.saveToStorage();
       return true;
     } catch (error) {

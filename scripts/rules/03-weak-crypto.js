@@ -14,6 +14,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将 crypto.createHash("md5"/"sha1") 替换为 crypto.createHash("sha256") 或更高。对于密码哈希，使用 bcrypt（推荐）或 scrypt。对于 HMAC，使用 crypto.createHmac("sha256", key)。',
   references: ['CWE-327'],
   since: '2026-06-28',
 };

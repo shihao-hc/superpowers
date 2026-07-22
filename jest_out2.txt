@@ -1,0 +1,5 @@
+﻿jest-haste-map: Haste module naming collision: ultrawork-ai
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\package.json
+    * <rootDir>\docker\package.json
+

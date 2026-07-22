@@ -9,7 +9,7 @@ class DataMaskingEngine {
   constructor() {
     this.rules = new Map();
     this.patterns = new Map();
-    
+
     this._initDefaultPatterns();
     this._initDefaultRules();
   }
@@ -18,11 +18,14 @@ class DataMaskingEngine {
     // 预定义敏感数据模式
     const patterns = {
       'email': /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+      // eslint-disable-next-line security/detect-unsafe-regex
       'phone': /(\+?86)?[-.\s]?1[3-9]\d{9}/g,
       'id-card': /\b[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g,
+      // eslint-disable-next-line security/detect-unsafe-regex
       'credit-card': /\b(?:\d{4}[-\s]?){3}\d{4}\b/g,
       'ssn': /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g,
       'bank-account': /\b\d{10,20}\b/g,
+      // eslint-disable-next-line security/detect-unsafe-regex
       'ip-address': /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
       'medical-record': /\bMRN[:\s]*\d{8,}\b/gi,
       'passport': /\b[A-Z]{1,2}\d{6,9}\b/g,
@@ -47,7 +50,7 @@ class DataMaskingEngine {
         type: 'partial',
         replacement: (match) => {
           const [local, domain] = match.split('@');
-          const masked = local[0] + '***' + (local.length > 4 ? local.slice(-2) : '');
+          const masked = `${local[0]}***${local.length > 4 ? local.slice(-2) : ''}`;
           return `${masked}@${domain}`;
         }
       },
@@ -66,7 +69,7 @@ class DataMaskingEngine {
         pattern: 'id-card',
         type: 'partial',
         replacement: (match) => {
-          return match.slice(0, 6) + '********' + match.slice(-4);
+          return `${match.slice(0, 6)}********${match.slice(-4)}`;
         }
       },
       {
@@ -75,7 +78,7 @@ class DataMaskingEngine {
         pattern: 'credit-card',
         type: 'full',
         replacement: (match) => {
-          return '**** **** **** ' + match.replace(/[-\s]/g, '').slice(-4);
+          return `**** **** **** ${match.replace(/[-\s]/g, '').slice(-4)}`;
         }
       },
       {
@@ -84,7 +87,7 @@ class DataMaskingEngine {
         pattern: 'ssn',
         type: 'full',
         replacement: (match) => {
-          return '***-**-' + match.replace(/[-\s]/g, '').slice(-4);
+          return `***-**-${match.replace(/[-\s]/g, '').slice(-4)}`;
         }
       },
       {
@@ -119,45 +122,81 @@ class DataMaskingEngine {
   // 脱敏文本
   mask(data, options = {}) {
     const { rules = [], preserveOriginal = false } = options;
-    
+
     if (typeof data === 'string') {
       return this._maskString(data, rules, preserveOriginal);
     }
-    
+
     if (typeof data === 'object' && data !== null) {
       return this._maskObject(data, rules, preserveOriginal);
     }
-    
+
     return data;
   }
 
   _maskString(str, ruleIds, preserveOriginal) {
-    let result = str;
     const masks = [];
 
-    const rulesToApply = ruleIds.length > 0 
-      ? ruleIds.map(id => this.rules.get(id)).filter(Boolean)
+    const rulesToApply = ruleIds.length > 0
+      ? ruleIds.map((id) => this.rules.get(id)).filter(Boolean)
       : Array.from(this.rules.values());
 
+    const allMatches = [];
     for (const rule of rulesToApply) {
       const pattern = this.patterns.get(rule.pattern);
-      if (!pattern) continue;
+      if (!pattern) {continue;}
 
       const regex = new RegExp(pattern.source, pattern.flags);
-      
-      result = result.replace(regex, (match) => {
-        masks.push({
-          rule: rule.id,
-          original: preserveOriginal ? match : undefined,
-          masked: rule.replacement(match),
-          position: arguments[arguments.length - 2]
+      let match;
+      while ((match = regex.exec(str)) !== null) {
+        allMatches.push({
+          rule,
+          match: match[0],
+          index: match.index
         });
-        return rule.replacement(match);
+        if (!regex.global) {break;}
+      }
+    }
+
+    allMatches.sort((a, b) => a.index - b.index);
+
+    const merged = [];
+    for (const m of allMatches) {
+      if (merged.length > 0) {
+        const prev = merged[merged.length - 1];
+        const prevEnd = prev.index + prev.match.length;
+        if (m.index < prevEnd) {
+          if (m.match.length > prev.match.length) {
+            merged[merged.length - 1] = m;
+          }
+          continue;
+        }
+      }
+      merged.push(m);
+    }
+
+    const parts = [];
+    let lastEnd = 0;
+    for (const m of merged) {
+      if (m.index > lastEnd) {
+        parts.push(str.slice(lastEnd, m.index));
+      }
+      const masked = m.rule.replacement(m.match);
+      parts.push(masked);
+      masks.push({
+        rule: m.rule.id,
+        original: preserveOriginal ? m.match : undefined,
+        masked,
+        position: m.index
       });
+      lastEnd = m.index + m.match.length;
+    }
+    if (lastEnd < str.length) {
+      parts.push(str.slice(lastEnd));
     }
 
     return {
-      masked: result,
+      masked: parts.join(''),
       masks
     };
   }
@@ -170,9 +209,11 @@ class DataMaskingEngine {
       if (typeof value === 'string') {
         const result = this._maskString(value, ruleIds, preserveOriginal);
         masked[key] = result.masked;
-        allMasks.push(...result.masks.map(m => ({ ...m, field: key })));
+        allMasks.push(...result.masks.map((m) => ({ ...m, field: key })));
       } else if (typeof value === 'object' && value !== null) {
-        masked[key] = this._maskObject(value, ruleIds, preserveOriginal);
+        const nested = this._maskObject(value, ruleIds, preserveOriginal);
+        masked[key] = nested.masked;
+        allMasks.push(...nested.masks.map((m) => ({ ...m, field: key })));
       } else {
         masked[key] = value;
       }
@@ -184,41 +225,41 @@ class DataMaskingEngine {
   // 上下文感知脱敏
   maskWithContext(data, context) {
     const { userRole, dataSource, regulation = [] } = context;
-    
+
     const appliedRules = [];
-    
+
     // 根据角色应用规则
     if (userRole === 'admin') {
       // 管理员可以看完整数据
       return { masked: data, rulesApplied: [] };
     }
-    
+
     if (userRole === 'analyst') {
       // 分析师可以看到聚合数据
       appliedRules.push(...['pii-email', 'pii-phone']);
     }
-    
+
     // 根据数据来源应用规则
     if (dataSource === 'medical') {
       appliedRules.push('pii-id-card', 'medical-record');
     }
-    
-    // 根据法规应用规则
+
     if (regulation.includes('HIPAA')) {
-      appliedRules.push('medical-record', 'ssn');
+      appliedRules.push('pii-id-card', 'pii-ssn');
     }
-    
+
     if (regulation.includes('GDPR')) {
       appliedRules.push('pii-email', 'pii-phone', 'pii-id-card');
     }
 
-    return this.mask(data, { rules: [...new Set(appliedRules)] });
+    const result = this.mask(data, { rules: [...new Set(appliedRules)] });
+    return { ...result, rulesApplied: [...new Set(appliedRules)] };
   }
 
   // 验证脱敏效果
-  validateMasking(data, originalData) {
+  validateMasking(data, _originalData) {
     const issues = [];
-    
+
     // 检查是否还有原始敏感数据泄露
     const sensitivePatterns = [
       { name: 'email', pattern: this.patterns.get('email') },
@@ -226,7 +267,7 @@ class DataMaskingEngine {
       { name: 'credit-card', pattern: this.patterns.get('credit-card') },
       { name: 'ssn', pattern: this.patterns.get('ssn') }
     ];
-    
+
     for (const { name, pattern } of sensitivePatterns) {
       const matches = data.match(pattern);
       if (matches) {
@@ -239,7 +280,7 @@ class DataMaskingEngine {
         });
       }
     }
-    
+
     return {
       valid: issues.length === 0,
       issues,
@@ -251,12 +292,12 @@ class DataMaskingEngine {
   encrypt(data, key) {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
-    
+
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     const authTag = cipher.getAuthTag();
-    
+
     return {
       encrypted,
       iv: iv.toString('hex'),
@@ -271,21 +312,21 @@ class DataMaskingEngine {
       Buffer.from(key, 'hex'),
       Buffer.from(encryptedData.iv, 'hex')
     );
-    
+
     decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
-    
+
     let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
   }
 
   // 生成脱敏报告
   generateReport(data, options = {}) {
     const { includeSamples = false } = options;
-    
+
     const result = this.mask(data, { preserveOriginal: includeSamples });
-    
+
     const byRule = {};
     for (const mask of result.masks) {
       if (!byRule[mask.rule]) {

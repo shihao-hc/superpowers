@@ -18,7 +18,7 @@ module.exports = {
         PORT: 3000,
         API_KEY: process.env.API_KEY,
         REDIS_URL: 'redis://localhost:6379',
-        ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || '*',
+        ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
         TRUST_PROXY: 'true'
       },
       error_file: '.opencode/logs/error.log',

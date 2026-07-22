@@ -25,12 +25,12 @@ const MESSAGE_TYPES = {
 
 const MAX_MESSAGE_LENGTH = 50000;
 const HEARTBEAT_INTERVAL = 30000;
-const MAX_RECONNECT_ATTEMPTS = 5;
+const _MAX_RECONNECT_ATTEMPTS = 5;
 
 class WebSocketService extends EventEmitter {
   constructor() {
     super();
-    
+
     this.clients = new Map();
     this.sessions = new Map();
     this.rooms = new Map();
@@ -74,7 +74,7 @@ class WebSocketService extends EventEmitter {
 
   unregisterClient(socketId) {
     const client = this.clients.get(socketId);
-    if (!client) return false;
+    if (!client) {return false;}
 
     for (const sessionId of client.sessions) {
       this.leaveRoom(socketId, sessionId);
@@ -100,7 +100,7 @@ class WebSocketService extends EventEmitter {
 
   joinRoom(socketId, roomId) {
     const client = this.clients.get(socketId);
-    if (!client) return false;
+    if (!client) {return false;}
 
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, new Set());
@@ -116,10 +116,10 @@ class WebSocketService extends EventEmitter {
 
   leaveRoom(socketId, roomId) {
     const room = this.rooms.get(roomId);
-    if (!room) return false;
+    if (!room) {return false;}
 
     room.delete(socketId);
-    
+
     const client = this.clients.get(socketId);
     if (client) {
       client.sessions.delete(roomId);
@@ -136,7 +136,7 @@ class WebSocketService extends EventEmitter {
 
   broadcast(roomId, message, excludeSocketId = null) {
     const room = this.rooms.get(roomId);
-    if (!room) return 0;
+    if (!room) {return 0;}
 
     let count = 0;
     for (const socketId of room) {
@@ -151,7 +151,7 @@ class WebSocketService extends EventEmitter {
 
   send(socketId, message) {
     const client = this.clients.get(socketId);
-    if (!client || !client.socket) return false;
+    if (!client || !client.socket) {return false;}
 
     try {
       client.socket.send(JSON.stringify(message));
@@ -170,7 +170,7 @@ class WebSocketService extends EventEmitter {
 
   handleMessage(socketId, rawMessage) {
     const client = this.clients.get(socketId);
-    if (!client) return;
+    if (!client) {return;}
 
     client.lastActivity = Date.now();
     client.messageCount++;
@@ -197,36 +197,36 @@ class WebSocketService extends EventEmitter {
     this.emit('message:received', { socketId, type, data });
 
     switch (type) {
-      case MESSAGE_TYPES.CHAT:
-        this._handleChat(socketId, data, id);
-        break;
+    case MESSAGE_TYPES.CHAT:
+      this._handleChat(socketId, data, id);
+      break;
 
-      case MESSAGE_TYPES.EMOTION_UPDATE:
-        this._handleEmotionUpdate(socketId, data);
-        break;
+    case MESSAGE_TYPES.EMOTION_UPDATE:
+      this._handleEmotionUpdate(socketId, data);
+      break;
 
-      case MESSAGE_TYPES.SKILL_EXECUTE:
-        this._handleSkillExecute(socketId, data, id);
-        break;
+    case MESSAGE_TYPES.SKILL_EXECUTE:
+      this._handleSkillExecute(socketId, data, id);
+      break;
 
-      case MESSAGE_TYPES.HEARTBEAT:
-        this._handleHeartbeat(socketId, data);
-        break;
+    case MESSAGE_TYPES.HEARTBEAT:
+      this._handleHeartbeat(socketId, data);
+      break;
 
-      case 'join_room':
-        this._handleJoinRoom(socketId, data);
-        break;
+    case 'join_room':
+      this._handleJoinRoom(socketId, data);
+      break;
 
-      case 'leave_room':
-        this._handleLeaveRoom(socketId, data);
-        break;
+    case 'leave_room':
+      this._handleLeaveRoom(socketId, data);
+      break;
 
-      case 'authenticate':
-        this._handleAuthenticate(socketId, data);
-        break;
+    case 'authenticate':
+      this._handleAuthenticate(socketId, data);
+      break;
 
-      default:
-        this.emit(`message:${type}`, { socketId, data, id });
+    default:
+      this.emit(`message:${type}`, { socketId, data, id });
     }
   }
 
@@ -308,7 +308,7 @@ class WebSocketService extends EventEmitter {
     });
   }
 
-  _handleHeartbeat(socketId, data) {
+  _handleHeartbeat(socketId, _data) {
     this.send(socketId, {
       type: MESSAGE_TYPES.HEARTBEAT,
       timestamp: Date.now(),
@@ -351,7 +351,7 @@ class WebSocketService extends EventEmitter {
 
   _handleAuthenticate(socketId, data) {
     const client = this.clients.get(socketId);
-    if (!client) return;
+    if (!client) {return;}
 
     const { token, userId } = data;
 
@@ -372,7 +372,7 @@ class WebSocketService extends EventEmitter {
   }
 
   _validateToken(token) {
-    if (!token || typeof token !== 'string') return false;
+    if (!token || typeof token !== 'string') {return false;}
     return token.length >= 10;
   }
 

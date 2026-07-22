@@ -33,7 +33,7 @@ class SessionInjector extends EventEmitter {
 
   injectMessage(sessionId, message) {
     const session = this.sessions.get(sessionId);
-    if (!session) return null;
+    if (!session) {return null;}
 
     if (session.status !== 'active') {
       return null;
@@ -77,12 +77,12 @@ class SessionInjector extends EventEmitter {
 
   _processQueue(sessionId) {
     const queue = this.injectionQueue.get(sessionId);
-    if (!queue || queue.length === 0) return;
+    if (!queue || queue.length === 0) {return;}
 
     const session = this.sessions.get(sessionId);
-    if (!session || session.status !== 'active') return;
+    if (!session || session.status !== 'active') {return;}
 
-    const pending = queue.filter(inj => !inj.delivered);
+    const pending = queue.filter((inj) => !inj.delivered);
 
     for (const injection of pending) {
       injection.delivered = true;
@@ -100,7 +100,7 @@ class SessionInjector extends EventEmitter {
   }
 
   getSessionByAgent(agentId) {
-    for (const [sessionId, session] of this.sessions) {
+    for (const [_sessionId, session] of this.sessions) {
       if (session.agentId === agentId && session.status === 'active') {
         return session;
       }
@@ -110,13 +110,13 @@ class SessionInjector extends EventEmitter {
 
   getContext(sessionId, limit = 20) {
     const session = this.sessions.get(sessionId);
-    if (!session) return [];
+    if (!session) {return [];}
     return session.context.slice(-limit);
   }
 
   getPendingInjections(sessionId) {
     const queue = this.injectionQueue.get(sessionId);
-    return queue ? queue.filter(inj => !inj.delivered) : [];
+    return queue ? queue.filter((inj) => !inj.delivered) : [];
   }
 
   closeSession(sessionId) {
@@ -140,9 +140,8 @@ class SessionInjector extends EventEmitter {
 
     let closed = 0;
     for (const sessionId of toClose) {
-      if (this.closeSession(sessionId)) {
-        closed++;
-      }
+      this.closeSession(sessionId);
+      closed++;
     }
     return closed;
   }
@@ -151,7 +150,7 @@ class SessionInjector extends EventEmitter {
     const sessions = Array.from(this.sessions.values());
     return {
       total: sessions.length,
-      active: sessions.filter(s => s.status === 'active').length,
+      active: sessions.filter((s) => s.status === 'active').length,
       totalInjections: sessions.reduce((sum, s) => sum + s.injectionCount, 0)
     };
   }
@@ -223,13 +222,13 @@ class PeerToPeerCommunicator {
 
   broadcast(fromId, message, excludeIds = []) {
     const from = this.agents.get(fromId);
-    if (!from) return { success: false, error: 'Sender not found' };
+    if (!from) {return { success: false, error: 'Sender not found' };}
 
     const results = [];
 
     for (const [agentId, agent] of this.agents) {
-      if (agentId === fromId || excludeIds.includes(agentId)) continue;
-      if (agent.status !== 'online') continue;
+      if (agentId === fromId || excludeIds.includes(agentId)) {continue;}
+      if (agent.status !== 'online') {continue;}
 
       const result = this.sendDirect(fromId, agentId, message);
       results.push({ agentId, ...result });
@@ -250,7 +249,7 @@ class PeerToPeerCommunicator {
 
   joinChannel(channelId, agentId) {
     const channel = this.channels.get(channelId);
-    if (!channel) return { success: false, error: 'Channel not found' };
+    if (!channel) {return { success: false, error: 'Channel not found' };}
 
     channel.add(agentId);
     return { success: true };
@@ -268,14 +267,14 @@ class PeerToPeerCommunicator {
     const from = this.agents.get(fromId);
     const channel = this.channels.get(channelId);
 
-    if (!from) return { success: false, error: 'Sender not found' };
-    if (!channel) return { success: false, error: 'Channel not found' };
-    if (!channel.has(fromId)) return { success: false, error: 'Not in channel' };
+    if (!from) {return { success: false, error: 'Sender not found' };}
+    if (!channel) {return { success: false, error: 'Channel not found' };}
+    if (!channel.has(fromId)) {return { success: false, error: 'Not in channel' };}
 
     const results = [];
 
     for (const agentId of channel) {
-      if (agentId === fromId) continue;
+      if (agentId === fromId) {continue;}
 
       const envelope = {
         id: `ch_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`,
@@ -298,7 +297,6 @@ class PeerToPeerCommunicator {
 
   _addToHistory(agentId, envelope) {
     const history = this.messageHistory.get(agentId);
-    if (!history) return;
 
     history.push(envelope);
     if (history.length > this.maxHistory) {
@@ -316,7 +314,7 @@ class PeerToPeerCommunicator {
   }
 
   getOnlineAgents() {
-    return Array.from(this.agents.values()).filter(a => a.status === 'online');
+    return Array.from(this.agents.values()).filter((a) => a.status === 'online');
   }
 
   getChannelMembers(channelId) {

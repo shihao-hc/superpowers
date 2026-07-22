@@ -7,8 +7,8 @@ class DataMaskService {
   }
 
   maskUserData(user) {
-    if (!user) return null;
-    if (!this.config.enabled) return { ...user };
+    if (!user) {return null;}
+    if (!this.config.enabled) {return { ...user };}
     const maskedUser = { ...user };
     const fields = this.config.fields;
     for (const field of fields) {
@@ -35,15 +35,15 @@ class DataMaskService {
   }
 
   unmaskField(value, fieldType, authKey) {
-    if (!value || !fieldType || !authKey) return value;
+    if (!value || !fieldType || !authKey) {return value;}
     const validFieldTypes = ['email', 'phone', 'idCard', 'bankCard', 'ip', 'deviceFingerprint'];
-    if (!validFieldTypes.includes(fieldType)) return value;
+    if (!validFieldTypes.includes(fieldType)) {return value;}
     return dataMask.reversibleUnmask(value, fieldType, authKey);
   }
 
   batchMask(dataArray, fields) {
-    if (!Array.isArray(dataArray)) return dataArray;
-    return dataArray.map(item => {
+    if (!Array.isArray(dataArray)) {return dataArray;}
+    return dataArray.map((item) => {
       if (typeof item === 'object' && item !== null) {
         return dataMask.maskObject(item, fields);
       }
@@ -52,7 +52,7 @@ class DataMaskService {
   }
 
   getMaskedLogEntry(log) {
-    if (!log || typeof log !== 'object') return log;
+    if (!log || typeof log !== 'object') {return log;}
     const maskedLog = { ...log };
     const sensitiveFields = ['email', 'phone', 'ip', 'deviceFingerprint'];
     for (const field of sensitiveFields) {

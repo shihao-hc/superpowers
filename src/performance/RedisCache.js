@@ -15,7 +15,7 @@ class RedisCacheAdapter extends EventEmitter {
       enableOfflineQueue: options.enableOfflineQueue !== false,
       ...options
     };
-    
+
     this.client = null;
     this.connected = false;
     this.localCache = new Map();
@@ -33,7 +33,7 @@ class RedisCacheAdapter extends EventEmitter {
     try {
       const redis = await import('redis');
       const { createClient } = redis;
-      
+
       this.client = createClient({
         socket: {
           host: this.options.host,
@@ -89,7 +89,7 @@ class RedisCacheAdapter extends EventEmitter {
 
   async get(key) {
     const fullKey = this._makeKey(key);
-    
+
     if (this._fallbackMode || !this.connected) {
       const local = this.localCache.get(fullKey);
       if (local && Date.now() - local.timestamp < this.options.ttl) {
@@ -113,9 +113,9 @@ class RedisCacheAdapter extends EventEmitter {
     } catch (error) {
       console.error('[RedisCache] Get error:', error.message);
       this.stats.errors++;
-      
+
       const local = this.localCache.get(fullKey);
-      if (local) return local.value;
+      if (local) {return local.value;}
       return null;
     }
   }
@@ -123,9 +123,9 @@ class RedisCacheAdapter extends EventEmitter {
   async set(key, value, ttl = null) {
     const fullKey = this._makeKey(key);
     const expiry = ttl || this.options.ttl;
-    
+
     this.localCache.set(fullKey, { value, timestamp: Date.now() });
-    
+
     if (this._fallbackMode || !this.connected) {
       this.stats.sets++;
       return true;
@@ -146,7 +146,7 @@ class RedisCacheAdapter extends EventEmitter {
     const fullKey = this._makeKey(key);
     this.localCache.delete(fullKey);
     this.stats.deletes++;
-    
+
     if (this._fallbackMode || !this.connected) {
       return true;
     }
@@ -163,7 +163,7 @@ class RedisCacheAdapter extends EventEmitter {
 
   async clear() {
     this.localCache.clear();
-    
+
     if (this._fallbackMode || !this.connected) {
       return true;
     }
@@ -200,7 +200,7 @@ class RedisCacheAdapter extends EventEmitter {
     const total = this.stats.hits + this.stats.misses;
     return {
       ...this.stats,
-      hitRate: total > 0 ? (this.stats.hits / total * 100).toFixed(2) + '%' : '0%',
+      hitRate: total > 0 ? `${(this.stats.hits / total * 100).toFixed(2)}%` : '0%',
       localCacheSize: this.localCache.size,
       connected: this.connected,
       fallbackMode: this._fallbackMode
@@ -230,17 +230,17 @@ class DistributedCacheManager {
   }
 
   async get(key) {
-    if (!this.adapter) return null;
+    if (!this.adapter) {return null;}
     return await this.adapter.get(key);
   }
 
   async set(key, value, ttl) {
-    if (!this.adapter) return false;
+    if (!this.adapter) {return false;}
     return await this.adapter.set(key, value, ttl);
   }
 
   async delete(key) {
-    if (!this.adapter) return false;
+    if (!this.adapter) {return false;}
     return await this.adapter.delete(key);
   }
 

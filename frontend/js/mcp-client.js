@@ -10,14 +10,14 @@ class MCPClient {
     this.tools = [];
     this.resources = [];
     this.roots = [];
-    
+
     // 性能优化：缓存配置
     this.cache = {
       tools: { data: null, timestamp: 0, ttl: 60000 }, // 1分钟缓存
       annotations: { data: null, timestamp: 0, ttl: 300000 }, // 5分钟缓存
-      roots: { data: null, timestamp: 0, ttl: 30000 }, // 30秒缓存
+      roots: { data: null, timestamp: 0, ttl: 30000 } // 30秒缓存
     };
-    
+
     // 性能优化：去抖动
     this.debounceTimers = {};
   }
@@ -42,11 +42,11 @@ class MCPClient {
     try {
       const response = await fetch(url, config);
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
-      
+
       return data;
     } catch (error) {
       console.error(`MCP Request Error: ${endpoint}`, error);
@@ -61,8 +61,8 @@ class MCPClient {
    */
   getCached(key) {
     const cache = this.cache[key];
-    if (!cache || !cache.data) return null;
-    if (Date.now() - cache.timestamp > cache.ttl) return null;
+    if (!cache || !cache.data) {return null;}
+    if (Date.now() - cache.timestamp > cache.ttl) {return null;}
     return cache.data;
   }
 
@@ -83,7 +83,7 @@ class MCPClient {
     if (key) {
       this.cache[key] = { data: null, timestamp: 0 };
     } else {
-      Object.keys(this.cache).forEach(k => {
+      Object.keys(this.cache).forEach((k) => {
         this.cache[k] = { data: null, timestamp: 0 };
       });
     }
@@ -133,14 +133,14 @@ class MCPClient {
     }
 
     const params = new URLSearchParams();
-    if (options.server) params.set('server', options.server);
-    if (options.tags) params.set('tags', options.tags.join(','));
-    if (options.search) params.set('search', options.search);
-    
+    if (options.server) {params.set('server', options.server);}
+    if (options.tags) {params.set('tags', options.tags.join(','));}
+    if (options.search) {params.set('search', options.search);}
+
     const query = params.toString();
-    const data = await this.request(`/tools${query ? '?' + query : ''}`);
+    const data = await this.request(`/tools${query ? `?${query}` : ''}`);
     this.tools = data.tools || [];
-    
+
     // 更新缓存
     this.setCached(cacheKey, this.tools);
     return this.tools;
@@ -150,11 +150,11 @@ class MCPClient {
    * 获取工具定义 (MCP Protocol: tools/get)
    */
   async getTool(toolName) {
-    const tool = this.tools.find(t => t.name === toolName);
-    if (tool) return tool;
-    
+    const tool = this.tools.find((t) => t.name === toolName);
+    if (tool) {return tool;}
+
     await this.listTools();
-    return this.tools.find(t => t.name === toolName);
+    return this.tools.find((t) => t.name === toolName);
   }
 
   /**
@@ -181,7 +181,7 @@ class MCPClient {
    * 批量执行工具 (MCP Protocol: tools/batch)
    */
   async batchCall(calls = [], options = {}) {
-    const requests = calls.map(call => ({
+    const requests = calls.map((call) => ({
       toolFullName: call.name,
       params: {
         ...call.params,
@@ -413,9 +413,9 @@ class MCPClient {
    * 计算风险等级
    */
   getRiskLevel(annotations) {
-    if (annotations.readOnlyHint) return 'safe';
-    if (annotations.destructiveHint) return 'critical';
-    if (!annotations.idempotentHint) return 'medium';
+    if (annotations.readOnlyHint) {return 'safe';}
+    if (annotations.destructiveHint) {return 'critical';}
+    if (!annotations.idempotentHint) {return 'medium';}
     return 'low';
   }
 
@@ -454,8 +454,8 @@ class MCPClient {
    */
   parsePreview(result) {
     const meta = result._meta || {};
-    const content = result.content?.[0]?.text || '';
-    
+    const _content = result.content?.[0]?.text || '';
+
     return {
       isPreview: meta.dryRun || meta.preview,
       tool: meta.tool,
@@ -521,9 +521,9 @@ class MCPClient {
    * 根据标签筛选工具
    */
   filterByTags(tags) {
-    return this.tools.filter(tool => {
+    return this.tools.filter((tool) => {
       const toolTags = tool.tags || [];
-      return tags.some(tag => toolTags.includes(tag));
+      return tags.some((tag) => toolTags.includes(tag));
     });
   }
 
@@ -532,7 +532,7 @@ class MCPClient {
    */
   searchTools(query) {
     const lowerQuery = query.toLowerCase();
-    return this.tools.filter(tool => 
+    return this.tools.filter((tool) =>
       tool.name.toLowerCase().includes(lowerQuery) ||
       tool.description?.toLowerCase().includes(lowerQuery)
     );
@@ -542,7 +542,7 @@ class MCPClient {
    * 获取只读工具
    */
   getReadOnlyTools() {
-    return this.tools.filter(tool => {
+    return this.tools.filter((tool) => {
       const ann = this.parseAnnotations(tool);
       return ann.readOnlyHint;
     });
@@ -552,7 +552,7 @@ class MCPClient {
    * 获取可写工具
    */
   getWritableTools() {
-    return this.tools.filter(tool => {
+    return this.tools.filter((tool) => {
       const ann = this.parseAnnotations(tool);
       return !ann.readOnlyHint;
     });
@@ -562,7 +562,7 @@ class MCPClient {
    * 获取破坏性工具
    */
   getDestructiveTools() {
-    return this.tools.filter(tool => {
+    return this.tools.filter((tool) => {
       const ann = this.parseAnnotations(tool);
       return ann.destructiveHint;
     });
@@ -573,9 +573,9 @@ class MCPClient {
    */
   getToolsByServer() {
     const groups = {};
-    this.tools.forEach(tool => {
+    this.tools.forEach((tool) => {
       const server = tool.server || 'unknown';
-      if (!groups[server]) groups[server] = [];
+      if (!groups[server]) {groups[server] = [];}
       groups[server].push(tool);
     });
     return groups;
@@ -630,8 +630,8 @@ class MCPUIComponents {
         leftContent: preview.oldContent || '',
         rightContent: preview.newContent || '',
         stats: {
-          additions: (preview.diff?.lines || []).filter(l => l.type === 'added').length,
-          deletions: (preview.diff?.lines || []).filter(l => l.type === 'removed').length
+          additions: (preview.diff?.lines || []).filter((l) => l.type === 'added').length,
+          deletions: (preview.diff?.lines || []).filter((l) => l.type === 'removed').length
         }
       };
     }
@@ -650,9 +650,9 @@ class MCPUIComponents {
    */
   renderThinkingChainTree(chain) {
     const nodes = [];
-    
+
     const traverse = (thoughts, parentId = null, depth = 0) => {
-      thoughts.forEach(thought => {
+      thoughts.forEach((thought) => {
         nodes.push({
           id: thought.id,
           thought: thought.thought,
@@ -695,50 +695,50 @@ class MCPFormGenerator {
       const label = prop.title || prop.description || key;
       const description = prop.description !== label ? prop.description : '';
 
-      html += `<div class="form-group">`;
+      html += '<div class="form-group">';
       html += `<label for="${key}">${label}${isRequired ? ' <span style="color:#f87171">*</span>' : ''}</label>`;
-      
+
       if (description) {
         html += `<small style="color:#888;display:block;margin-bottom:0.25rem;">${description}</small>`;
       }
 
       switch (prop.type) {
-        case 'string':
-          if (prop.enum) {
-            html += `<select class="form-input" name="${fieldName}" id="${key}">`;
-            prop.enum.forEach(opt => {
-              html += `<option value="${opt}">${opt}</option>`;
-            });
-            html += `</select>`;
-          } else if (prop.maxLength > 100) {
-            html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
+      case 'string':
+        if (prop.enum) {
+          html += `<select class="form-input" name="${fieldName}" id="${key}">`;
+          prop.enum.forEach((opt) => {
+            html += `<option value="${opt}">${opt}</option>`;
+          });
+          html += '</select>';
+        } else if (prop.maxLength > 100) {
+          html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
                      rows="${Math.min(10, Math.ceil(prop.maxLength / 50))}"></textarea>`;
-          } else {
-            html += `<input type="text" class="form-input" name="${fieldName}" id="${key}">`;
-          }
-          break;
-        case 'number':
-        case 'integer':
-          html += `<input type="number" class="form-input" name="${fieldName}" id="${key}"
+        } else {
+          html += `<input type="text" class="form-input" name="${fieldName}" id="${key}">`;
+        }
+        break;
+      case 'number':
+      case 'integer':
+        html += `<input type="number" class="form-input" name="${fieldName}" id="${key}"
                    ${prop.min !== undefined ? `min="${prop.min}"` : ''}
                    ${prop.max !== undefined ? `max="${prop.max}"` : ''}>`;
-          break;
-        case 'boolean':
-          html += `<input type="checkbox" name="${fieldName}" id="${key}" value="true">`;
-          break;
-        case 'array':
-          html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
+        break;
+      case 'boolean':
+        html += `<input type="checkbox" name="${fieldName}" id="${key}" value="true">`;
+        break;
+      case 'array':
+        html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
                    placeholder="JSON array, e.g. [1, 2, 3]" rows="3"></textarea>`;
-          break;
-        case 'object':
-          html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
+        break;
+      case 'object':
+        html += `<textarea class="form-input" name="${fieldName}" id="${key}" 
                    placeholder="JSON object" rows="3"></textarea>`;
-          break;
-        default:
-          html += `<input type="text" class="form-input" name="${fieldName}" id="${key}">`;
+        break;
+      default:
+        html += `<input type="text" class="form-input" name="${fieldName}" id="${key}">`;
       }
 
-      html += `</div>`;
+      html += '</div>';
     }
 
     return html;
@@ -754,26 +754,26 @@ class MCPFormGenerator {
 
     for (const [key, prop] of Object.entries(properties)) {
       const value = formData.get(key);
-      if (value === null || value === '') continue;
+      if (value === null || value === '') {continue;}
 
       switch (prop.type) {
-        case 'number':
-        case 'integer':
-          params[key] = parseFloat(value);
-          break;
-        case 'boolean':
-          params[key] = value === 'true';
-          break;
-        case 'array':
-        case 'object':
-          try {
-            params[key] = JSON.parse(value);
-          } catch (e) {
-            params[key] = value;
-          }
-          break;
-        default:
+      case 'number':
+      case 'integer':
+        params[key] = parseFloat(value);
+        break;
+      case 'boolean':
+        params[key] = value === 'true';
+        break;
+      case 'array':
+      case 'object':
+        try {
+          params[key] = JSON.parse(value);
+        } catch (e) {
           params[key] = value;
+        }
+        break;
+      default:
+        params[key] = value;
       }
     }
 

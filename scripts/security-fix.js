@@ -1,5 +1,13 @@
 require('./auto-fix/crypto-fix');
 require('./auto-fix/hash-fix');
+require('./auto-fix/body-limit-fix');
+require('./auto-fix/helmet-fix');
+require('./auto-fix/security-header-fix');
+require('./auto-fix/trust-proxy-fix');
+require('./auto-fix/node-env-fix');
+require('./auto-fix/empty-catch-fix');
+require('./auto-fix/cookie-fix');
+require('./auto-fix/var-declaration-fix');
 const { canFix, fixAll } = require('./auto-fix');
 const { scanFiles } = require('./security-scan');
 

@@ -1,13 +1,53 @@
 const fs = require('fs');
 const path = require('path');
 const { SkillNodeDefinitions } = require('../SkillNodeDefinitions');
+const { SkillSecurityValidator } = require('../security/SkillSecurityValidator');
+
+const ALLOWED_COMMANDS = new Set([
+  'node', 'npm', 'npx', 'python', 'python3', 'pip', 'git'
+]);
 
 /**
  * Generates MCP server scripts for skills
+ * Integrates security validation from learn-eval best practices
  */
 class SkillMCPGenerator {
-  constructor() {
-    this.generatedServers = new Map(); // skillName -> server config
+  constructor(options = {}) {
+    this.generatedServers = new Map();
+    this.securityValidator = options.securityValidator || new SkillSecurityValidator();
+    this.allowedCommands = options.allowedCommands || ALLOWED_COMMANDS;
+  }
+
+  /**
+   * 验证 MCP 命令 (基于 learn-eval 安全最佳实践)
+   */
+  validateMCPCommand(command, args = []) {
+    if (!this.allowedCommands.has(command)) {
+      return {
+        valid: false,
+        error: `Command "${command}" not in whitelist`,
+        allowed: Array.from(this.allowedCommands)
+      };
+    }
+
+    return this.securityValidator.validateMCPCommand(command, args);
+  }
+
+  /**
+   * 安全的命令执行配置
+   * 使用数组形式避免 shell 注入
+   */
+  createSecureCommandConfig(command, args) {
+    const validation = this.validateMCPCommand(command, args);
+    if (!validation.valid) {
+      throw new Error(`Invalid MCP command: ${validation.error}`);
+    }
+
+    return {
+      command,
+      args: args.map((arg) => this.securityValidator.sanitizeInput(arg)),
+      stdio: ['pipe', 'pipe', 'pipe']
+    };
   }
 
   /**
@@ -17,10 +57,10 @@ class SkillMCPGenerator {
    */
   generateMCPConfig(skill) {
     const nodeDefinition = SkillNodeDefinitions.getNodeDefinition(skill.name);
-    
+
     // Create server script
     const scriptPath = this.createServerScript(skill, nodeDefinition);
-    
+
     // Create MCP configuration
     const config = {
       name: `skill-${skill.name}`,
@@ -36,14 +76,14 @@ class SkillMCPGenerator {
       retryDelay: 1000,
       heartbeatInterval: 30000
     };
-    
+
     this.generatedServers.set(skill.name, {
       config,
       scriptPath,
       nodeDefinition,
       skill
     });
-    
+
     return config;
   }
 
@@ -58,9 +98,9 @@ class SkillMCPGenerator {
     if (!fs.existsSync(scriptDir)) {
       fs.mkdirSync(scriptDir, { recursive: true });
     }
-    
+
     const scriptPath = path.join(scriptDir, `${skill.name}-mcp-server.js`);
-    
+
     // Get actions from node definition or create default ones
     const actions = nodeDefinition && nodeDefinition.actions ? nodeDefinition.actions : [
       {
@@ -76,33 +116,33 @@ class SkillMCPGenerator {
         }
       }
     ];
-    
+
     // Generate tool definitions
-    const toolDefinitions = actions.map(action => {
+    const toolDefinitions = actions.map((action) => {
       const properties = {};
       const required = [];
-      
+
       if (action.inputs) {
         for (const [name, definition] of Object.entries(action.inputs)) {
           properties[name] = {
             type: this.mapTypeToJSONSchema(definition.type),
             description: definition.description || ''
           };
-          
+
           if (definition.enum) {
             properties[name].enum = definition.enum;
           }
-          
+
           if (definition.default !== undefined) {
             properties[name].default = definition.default;
           }
-          
+
           if (definition.required) {
             required.push(name);
           }
         }
       }
-      
+
       return {
         name: action.name,
         description: action.description || `${action.label || action.name} action for ${skill.name}`,
@@ -113,7 +153,7 @@ class SkillMCPGenerator {
         }
       };
     });
-    
+
     // Generate the MCP server script
     const scriptContent = `#!/usr/bin/env node
 
@@ -320,16 +360,16 @@ class SkillMCPServer {
 // Start the server
 const server = new SkillMCPServer();
 `;
-    
+
     fs.writeFileSync(scriptPath, scriptContent, 'utf8');
-    
+
     // Make the script executable on Unix systems
     try {
       fs.chmodSync(scriptPath, '755');
     } catch (e) {
       // Ignore on Windows
     }
-    
+
     return scriptPath;
   }
 
@@ -340,7 +380,7 @@ const server = new SkillMCPServer();
    */
   extractInputsFromSkill(skill) {
     const inputs = {};
-    
+
     if (skill.inputs && Array.isArray(skill.inputs)) {
       for (const input of skill.inputs) {
         inputs[input.name] = {
@@ -348,17 +388,17 @@ const server = new SkillMCPServer();
           description: input.description || input.name,
           required: input.required || false
         };
-        
+
         if (input.enum) {
           inputs[input.name].enum = input.enum;
         }
-        
+
         if (input.default !== undefined) {
           inputs[input.name].default = input.default;
         }
       }
     }
-    
+
     return inputs;
   }
 
@@ -368,8 +408,8 @@ const server = new SkillMCPServer();
    * @returns {string} JSON Schema type
    */
   mapTypeToJSONSchema(type) {
-    if (!type) return 'string';
-    
+    if (!type) {return 'string';}
+
     const typeMap = {
       'string': 'string',
       'number': 'number',
@@ -386,7 +426,7 @@ const server = new SkillMCPServer();
       'boolean|string': 'boolean',
       'object|array': 'object'
     };
-    
+
     return typeMap[type] || 'string';
   }
 

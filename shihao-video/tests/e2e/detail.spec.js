@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('详情页功能测试', () => {
   let videoId;
-  
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('.video-card', { timeout: 15000 });
@@ -19,7 +19,7 @@ test.describe('详情页功能测试', () => {
     if (videoId) {
       await page.goto(`/detail.html?id=${videoId}`);
       await page.waitForLoadState('networkidle');
-      
+
       const detailPage = page.locator('.detail-page');
       await expect(detailPage).toBeVisible();
     }
@@ -29,7 +29,7 @@ test.describe('详情页功能测试', () => {
     if (videoId) {
       await page.goto(`/detail.html?id=${videoId}`);
       await page.waitForSelector('#videoTitle', { timeout: 15000 });
-      
+
       const title = page.locator('#videoTitle');
       await expect(title).toBeVisible();
       const text = await title.textContent();
@@ -41,7 +41,7 @@ test.describe('详情页功能测试', () => {
     if (videoId) {
       await page.goto(`/detail.html?id=${videoId}`);
       await page.waitForSelector('.btn-primary', { timeout: 15000 });
-      
+
       const playBtn = page.locator('.btn-primary').first();
       await expect(playBtn).toBeEnabled();
     }
@@ -51,12 +51,12 @@ test.describe('详情页功能测试', () => {
     if (videoId) {
       await page.goto(`/detail.html?id=${videoId}`);
       await page.waitForSelector('#favBtn', { timeout: 15000 });
-      
+
       const favBtn = page.locator('#favBtn');
       await favBtn.click();
       await page.waitForTimeout(500);
-      
-      const isFavorited = await favBtn.evaluate(el => el.classList.contains('favorited'));
+
+      const isFavorited = await favBtn.evaluate((el) => el.classList.contains('favorited'));
       expect(isFavorited).toBeTruthy();
     }
   });
@@ -65,7 +65,7 @@ test.describe('详情页功能测试', () => {
     if (videoId) {
       await page.goto(`/detail.html?id=${videoId}`);
       await page.waitForLoadState('networkidle');
-      
+
       const backLink = page.locator('.navbar-brand');
       await expect(backLink).toBeVisible();
     }
@@ -78,11 +78,11 @@ test.describe('详情页播放源测试', () => {
     await page.waitForSelector('.video-card', { timeout: 15000 });
     const firstCard = page.locator('.video-card').first();
     await firstCard.click();
-    
+
     await page.waitForSelector('#sourceTabs', { timeout: 15000 });
     const tabs = page.locator('.source-tab');
     const tabCount = await tabs.count();
-    
+
     if (tabCount > 1) {
       await tabs.nth(1).click();
       await page.waitForTimeout(500);
@@ -95,7 +95,7 @@ test.describe('详情页播放源测试', () => {
     await page.waitForSelector('.video-card', { timeout: 15000 });
     const firstCard = page.locator('.video-card').first();
     await firstCard.click();
-    
+
     await page.waitForSelector('.episode-btn', { timeout: 15000 });
     const episodeBtn = page.locator('.episode-btn').first();
     await expect(episodeBtn).toBeVisible();

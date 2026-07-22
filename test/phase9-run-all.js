@@ -9,7 +9,6 @@
   for (const t of tests) {
     try {
       console.log('Running:', t);
-      // eslint-disable-next-line no-eval
       await new Function('require', 'console', `return require('${t}')`)(require, console);
     } catch (e) {
       console.error('Phase9-run-all error:', e.message);

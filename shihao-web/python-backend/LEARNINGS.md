@@ -961,3 +961,147 @@ class PermissionSystem:
 | 上下文压缩 | 5层级联 | 基本缓存 | 🟡 P2 |
 
 ---
+
+## 📋 模块十一：拾号-爬虫 v1.3.0 迭代开发总结 (2026-04-15)
+
+### 核心思想
+
+**学习的本质不是获取知识，而是成为一种存在方式**
+
+### 关键原则
+1. 学习是持续性的，不是任务驱动
+2. 每次实践后提炼规律，形成模式
+3. 边界情况决定系统健壮性
+4. 错误是最好的学习素材
+5. 文档化是巩固学习的方式
+
+---
+
+### 本次技能提炼
+
+#### 1. 自然语言意图解析
+```
+用户输入 → IntentParser → 意图分类 + 实体提取 + 置信度
+```
+- 模式匹配可以覆盖80%场景
+- 边界情况处理决定系统健壮性
+- 置信度计算提供不确定性表达
+
+**关键代码模式**:
+```python
+def _is_valid_url(self, url: str) -> bool:
+    if not url or len(url) < 10:
+        return False
+    return True
+
+def _is_meaningful_text(self, text: str) -> bool:
+    chinese = re.findall(r'[\u4e00-\u9fff]', text)
+    english = re.findall(r'[a-zA-Z]', text)
+    meaningful = len(set(chinese)) + len(english)
+    return meaningful >= 2
+```
+
+#### 2. 防御性编程模式
+```python
+# ✅ 资源管理
+async with httpx.AsyncClient() as client:
+    return await client.get(url)
+
+# ✅ 空引用防护
+parent = element.getparent()
+if parent is not None:
+    parent.remove(element)
+
+# ✅ 输入验证优先
+if self._is_valid_url(url):
+    entities["urls"] = [url]
+```
+
+#### 3. 跨平台兼容性
+```python
+import sys
+
+if sys.platform == "win32":
+    cmd_path = "dir"  # Windows
+    ALLOWED = {**UNIX_CMDS, **WINDOWS_CMDS}
+else:
+    cmd_path = "/bin/ls"  # Unix
+    ALLOWED = UNIX_CMDS
+```
+
+#### 4. 测试设计原则
+- Mock外部依赖避免网络请求
+- 边界测试防止异常崩溃
+- 平台感知测试（Unix vs Windows）
+- 断言失败时输出期望值和实际值
+
+```python
+@pytest.mark.asyncio
+async def test_explicit_strategy_overrides_rules(self):
+    with patch.object(ScraplingAdapter, 'crawl', new_callable=AsyncMock) as mock:
+        mock.return_value = {"success": True, "content": "...", ...}
+        result = await router.route(url, strategy=...)
+        assert result["strategy_used"] == "scrapling"
+```
+
+#### 5. 迭代开发循环
+```
+发现问题 → 分析根因 → 修复 → 测试验证 → 文档更新 → 下一轮
+```
+
+---
+
+### 版本演进
+
+| 版本 | 日期 | 主要内容 |
+|------|------|----------|
+| v1.3.0 | 2026-04-15 | 自然语言驱动：smart_crawl 一句话自动爬取 |
+| v1.2.2 | 2026-04-15 | 修复：类型验证、轮询优化、空引用防护 |
+| v1.2.1 | 2026-04-15 | 安全修复：超时参数、URL验证、敏感信息处理 |
+| v1.2.0 | 2026-04-15 | Phase 5-6：自动化工作流、结构化数据提取 |
+| v1.1.0 | 2026-04-15 | Phase 1-4：多模态提取、平台适配器、AI分析、反爬虫 |
+| v1.0.0 | 2026-04-14 | 初始版本：核心爬虫引擎 |
+
+---
+
+### 测试结果
+
+| 测试类型 | 通过率 |
+|----------|--------|
+| 单元测试 | 173/173 ✅ |
+| 安全测试 | 16/16 ✅ |
+| 自然语言测试 | 全部通过 ✅ |
+
+---
+
+### 核心代码规范提醒
+
+| 场景 | 规范 |
+|------|------|
+| 资源获取 | 必须使用 with 或 async with |
+| 空引用 | 先验证再使用 |
+| 平台差异 | 检测 sys.platform |
+| 输入验证 | 白名单优先于黑名单 |
+| 测试隔离 | Mock 外部依赖 |
+
+---
+
+### 自我检查清单
+
+每次任务后自问：
+- [ ] 边界情况处理了吗？
+- [ ] 资源正确释放了吗？
+- [ ] 跨平台兼容吗？
+- [ ] 有哪些可以模式化的经验？
+- [ ] 需要更新技能库吗？
+
+---
+
+### 后续迭代方向
+
+1. **意图识别** → 引入轻量ML模型
+2. **上下文记忆** → 多轮对话支持
+3. **主动推荐** → 基于历史学习用户偏好
+4. **自动化工作流** → 一键完成复杂任务
+
+---

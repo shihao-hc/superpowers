@@ -49,7 +49,7 @@ class NotificationService {
 
     for (const channelId of record.channels) {
       const channel = this.channels.get(channelId);
-      if (!channel || !channel.enabled) continue;
+      if (!channel || !channel.enabled) {continue;}
 
       try {
         const result = await this._sendToChannel(channel, record);
@@ -60,7 +60,7 @@ class NotificationService {
       }
     }
 
-    record.status = results.some(r => r.success) ? 'sent' : 'failed';
+    record.status = results.some((r) => r.success) ? 'sent' : 'failed';
     record.sentAt = Date.now();
 
     this.onSend(record, results);
@@ -70,18 +70,18 @@ class NotificationService {
 
   async _sendToChannel(channel, notification) {
     switch (channel.type) {
-      case 'wechat_work':
-        return await this._sendWechatWork(channel, notification);
-      case 'telegram':
-        return await this._sendTelegram(channel, notification);
-      case 'webhook':
-        return await this._sendWebhook(channel, notification);
-      case 'email':
-        return await this._sendEmail(channel, notification);
-      case 'push':
-        return await this._sendPush(channel, notification);
-      default:
-        throw new Error(`Unknown channel type: ${channel.type}`);
+    case 'wechat_work':
+      return await this._sendWechatWork(channel, notification);
+    case 'telegram':
+      return await this._sendTelegram(channel, notification);
+    case 'webhook':
+      return await this._sendWebhook(channel, notification);
+    case 'email':
+      return await this._sendEmail(channel, notification);
+    case 'push':
+      return await this._sendPush(channel, notification);
+    default:
+      throw new Error(`Unknown channel type: ${channel.type}`);
     }
   }
 
@@ -93,7 +93,7 @@ class NotificationService {
     };
   }
 
-  async _sendTelegram(channel, notification) {
+  async _sendTelegram(_channel, _notification) {
     return {
       platform: 'telegram',
       message_id: Date.now(),
@@ -101,7 +101,7 @@ class NotificationService {
     };
   }
 
-  async _sendWebhook(channel, notification) {
+  async _sendWebhook(channel, _notification) {
     return {
       platform: 'webhook',
       url: channel.config.url,
@@ -109,7 +109,7 @@ class NotificationService {
     };
   }
 
-  async _sendEmail(channel, notification) {
+  async _sendEmail(channel, _notification) {
     return {
       platform: 'email',
       to: channel.config.to,
@@ -117,7 +117,7 @@ class NotificationService {
     };
   }
 
-  async _sendPush(channel, notification) {
+  async _sendPush(channel, _notification) {
     return {
       platform: 'push',
       token: channel.config.token,
@@ -157,7 +157,7 @@ class NotificationService {
       : '0';
 
     return await this.send({
-      title: `📊 价格预测`,
+      title: '📊 价格预测',
       body: `${productName} 预计${trend === 'rising' ? '上涨' : trend === 'falling' ? '下跌' : '持平'} ${Math.abs(change)}%`,
       type: 'prediction',
       priority: 'normal',
@@ -170,7 +170,7 @@ class NotificationService {
     const change = ((newPrice - oldPrice) / oldPrice * 100).toFixed(1);
 
     return await this.send({
-      title: `💰 自动调价`,
+      title: '💰 自动调价',
       body: `${productName} 从 ¥${oldPrice} 调整为 ¥${newPrice} (${change}%)。原因: ${reason}`,
       type: 'adjustment',
       priority: 'high',
@@ -192,11 +192,11 @@ class NotificationService {
   }
 
   getUnreadNotifications() {
-    return this.notifications.filter(n => !n.read);
+    return this.notifications.filter((n) => !n.read);
   }
 
   markAsRead(notificationId) {
-    const notif = this.notifications.find(n => n.id === notificationId);
+    const notif = this.notifications.find((n) => n.id === notificationId);
     if (notif) {
       notif.read = true;
       return true;
@@ -208,12 +208,12 @@ class NotificationService {
     return {
       channels: {
         total: this.channels.size,
-        enabled: Array.from(this.channels.values()).filter(c => c.enabled).length
+        enabled: Array.from(this.channels.values()).filter((c) => c.enabled).length
       },
       notifications: {
         total: this.notifications.length,
-        sent: this.notifications.filter(n => n.status === 'sent').length,
-        failed: this.notifications.filter(n => n.status === 'failed').length
+        sent: this.notifications.filter((n) => n.status === 'sent').length,
+        failed: this.notifications.filter((n) => n.status === 'failed').length
       }
     };
   }

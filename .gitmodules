@@ -1,0 +1,4 @@
+[submodule "EvoAgentX"]
+	path = EvoAgentX
+	url = https://github.com/EvoAgentX/EvoAgentX.git
+

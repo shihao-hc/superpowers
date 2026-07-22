@@ -80,7 +80,7 @@ class EncryptedChannel {
 
   encryptMessage(sessionId, message) {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error('Session not found');
+    if (!session) {throw new Error('Session not found');}
 
     const envelope = {
       id: `enc_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`,
@@ -104,7 +104,7 @@ class EncryptedChannel {
 
   decryptMessage(sessionId, envelope) {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error('Session not found');
+    if (!session) {throw new Error('Session not found');}
 
     const decrypted = this.decrypt(envelope.encrypted, session.key);
 
@@ -190,7 +190,7 @@ class EncryptedChannel {
 
   rotateSessionKey(sessionId) {
     const session = this.sessions.get(sessionId);
-    if (!session) throw new Error('Session not found');
+    if (!session) {throw new Error('Session not found');}
 
     session.key = crypto.randomBytes(32);
     session.rotatedAt = Date.now();
@@ -218,7 +218,7 @@ class EncryptedChannel {
   }
 
   destroy() {
-    for (const [sessionId, session] of this.sessions) {
+    for (const [_sessionId, session] of this.sessions) {
       session.key = null;
     }
     this.sessions.clear();

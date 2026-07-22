@@ -18,15 +18,15 @@ class SecurityHardening {
         recommendation: 'Update to latest version'
       }
     ];
-    
+
     this.scanResults = vulnerabilities;
     return vulnerabilities;
   }
 
   checkPermissions(module, requiredPermissions) {
     const grantedPermissions = module.permissions || [];
-    const missing = requiredPermissions.filter(p => !grantedPermissions.includes(p));
-    
+    const missing = requiredPermissions.filter((p) => !grantedPermissions.includes(p));
+
     return {
       allowed: missing.length === 0,
       missingPermissions: missing

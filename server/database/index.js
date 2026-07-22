@@ -3,7 +3,8 @@
  * 支持MongoDB和PostgreSQL
  */
 
-const config = require('../config');
+const _config = require('../config');
+const logger = require('../utils/logger');
 
 // ============ MongoDB集成 ============
 
@@ -13,42 +14,42 @@ class MongoDBConnection {
     this.db = null;
     this.isConnected = false;
   }
-  
+
   async connect() {
     try {
       // 这里需要安装mongodb驱动
       // npm install mongodb
       const { MongoClient } = require('mongodb');
-      
+
       const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
       const dbName = process.env.MONGODB_DB || 'ultrawork';
-      
+
       this.client = new MongoClient(uri);
       await this.client.connect();
-      
+
       this.db = this.client.db(dbName);
       this.isConnected = true;
-      
-      console.log('[MongoDB] 连接成功');
+
+      logger.info('MongoDB 连接成功');
       return this.db;
     } catch (error) {
-      console.error('[MongoDB] 连接失败:', error.message);
+      logger.error('MongoDB 连接失败', { error: error.message });
       throw error;
     }
   }
-  
+
   async disconnect() {
     if (this.client) {
       await this.client.close();
       this.isConnected = false;
-      console.log('[MongoDB] 连接已关闭');
+      logger.info('MongoDB 连接已关闭');
     }
   }
-  
+
   getDb() {
     return this.db;
   }
-  
+
   getCollection(name) {
     if (!this.db) {
       throw new Error('MongoDB未连接');
@@ -64,13 +65,13 @@ class PostgreSQLConnection {
     this.pool = null;
     this.isConnected = false;
   }
-  
+
   async connect() {
     try {
       // 这里需要安装pg驱动
       // npm install pg
       const { Pool } = require('pg');
-      
+
       this.pool = new Pool({
         host: process.env.PG_HOST || 'localhost',
         port: parseInt(process.env.PG_PORT) || 5432,
@@ -79,35 +80,35 @@ class PostgreSQLConnection {
         password: process.env.PG_PASSWORD || '',
         max: 20,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 2000
       });
-      
+
       // 测试连接
       const client = await this.pool.connect();
       await client.query('SELECT NOW()');
       client.release();
-      
+
       this.isConnected = true;
-      console.log('[PostgreSQL] 连接成功');
+      logger.info('PostgreSQL 连接成功');
       return this.pool;
     } catch (error) {
-      console.error('[PostgreSQL] 连接失败:', error.message);
+      logger.error('PostgreSQL 连接失败', { error: error.message });
       throw error;
     }
   }
-  
+
   async disconnect() {
     if (this.pool) {
       await this.pool.end();
       this.isConnected = false;
-      console.log('[PostgreSQL] 连接已关闭');
+      logger.info('PostgreSQL 连接已关闭');
     }
   }
-  
+
   getPool() {
     return this.pool;
   }
-  
+
   async query(text, params) {
     if (!this.pool) {
       throw new Error('PostgreSQL未连接');
@@ -124,7 +125,7 @@ class DatabaseManager {
     this.postgresql = new PostgreSQLConnection();
     this.activeDB = null;
   }
-  
+
   async initialize(dbType = 'mongodb') {
     try {
       if (dbType === 'mongodb') {
@@ -136,20 +137,20 @@ class DatabaseManager {
       } else {
         throw new Error(`不支持的数据库类型: ${dbType}`);
       }
-      
-      console.log(`[Database] 使用 ${dbType} 数据库`);
+
+      logger.info('Database 初始化', { dbType });
       return this.activeDB;
     } catch (error) {
-      console.error('[Database] 初始化失败:', error.message);
+      logger.error('Database 初始化失败', { error: error.message });
       throw error;
     }
   }
-  
+
   async shutdown() {
     await this.mongodb.disconnect();
     await this.postgresql.disconnect();
   }
-  
+
   getActiveDB() {
     return this.activeDB;
   }
@@ -171,7 +172,7 @@ const MongoModels = {
       updatedAt: 'Date'
     }
   },
-  
+
   // 消息模型
   Message: {
     collection: 'messages',
@@ -185,7 +186,7 @@ const MongoModels = {
       metadata: 'Object'
     }
   },
-  
+
   // 会话模型
   Conversation: {
     collection: 'conversations',

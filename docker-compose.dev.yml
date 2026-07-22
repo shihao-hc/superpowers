@@ -1,0 +1,84 @@
+# OpenCode Local Development Environment
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.multi
+      target: development
+    container_name: opencode-dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DEBUG=opencode:*
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - opencode-network
+
+  opencode-test:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.multi
+      target: development
+    container_name: opencode-test
+    environment:
+      - NODE_ENV=test
+      - PORT=3888
+    command: npm test
+    networks:
+      - opencode-network
+    profiles:
+      - test
+
+  redis:
+    image: redis:7-alpine
+    container_name: opencode-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - opencode-network
+    command: redis-server --appendonly yes
+
+  mongodb:
+    image: mongo:7
+    container_name: opencode-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=opencode
+    volumes:
+      - mongo-data:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - opencode-network
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/skill-python/Dockerfile
+    container_name: opencode-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - opencode-network
+
+networks:
+  opencode-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mongo-data:

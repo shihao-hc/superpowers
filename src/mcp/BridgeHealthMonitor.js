@@ -5,7 +5,7 @@
 
 const { rootsManager } = require('./engines/RootsManager');
 const { thinkingChain } = require('./engines/ThinkingChain');
-const { thinkingChain } = require('./engines/ThinkingChainStorage');
+const { thinkingChainStorage: _thinkingChainStorage } = require('./engines/ThinkingChainStorage');
 
 class BridgeHealthMonitor {
   constructor() {
@@ -30,15 +30,15 @@ class BridgeHealthMonitor {
    */
   recordCall(bridgeName, toolName, duration, success = true) {
     const key = `${bridgeName}:${toolName}`;
-    
+
     if (!this.metrics.calls.has(key)) {
       this.metrics.calls.set(key, { total: 0, success: 0, errors: 0 });
     }
-    
+
     const stats = this.metrics.calls.get(key);
     stats.total++;
-    if (success) stats.success++;
-    else stats.errors++;
+    if (success) {stats.success++;}
+    else {stats.errors++;}
 
     if (!this.metrics.latency.has(key)) {
       this.metrics.latency.set(key, []);
@@ -68,7 +68,7 @@ class BridgeHealthMonitor {
       try {
         const health = await bridge.healthCheck?.() || { status: 'unknown' };
         results.bridges[name] = health;
-        
+
         if (health.status !== 'healthy' && health.status !== 'unknown') {
           unhealthyCount++;
         }
@@ -81,8 +81,8 @@ class BridgeHealthMonitor {
       }
     }
 
-    results.overall = unhealthyCount === 0 ? 'healthy' : 
-                      unhealthyCount < this.bridges.size ? 'degraded' : 'unhealthy';
+    results.overall = unhealthyCount === 0 ? 'healthy' :
+      unhealthyCount < this.bridges.size ? 'degraded' : 'unhealthy';
 
     return results;
   }
@@ -92,7 +92,7 @@ class BridgeHealthMonitor {
    */
   async checkRoots() {
     const roots = rootsManager.getRoots();
-    const rootChecks = roots.map(root => ({
+    const rootChecks = roots.map((root) => ({
       path: root,
       readable: rootsManager.isReadable(root),
       writable: rootsManager.isWritable(root)
@@ -112,7 +112,7 @@ class BridgeHealthMonitor {
     const storageStats = thinkingChain.getStorageStats?.() || {};
 
     return {
-      activeChains: chains.filter(c => c.status === 'in_progress').length,
+      activeChains: chains.filter((c) => c.status === 'in_progress').length,
       totalChains: chains.length,
       storage: storageStats
     };
@@ -124,10 +124,10 @@ class BridgeHealthMonitor {
   checkMemory() {
     const usage = process.memoryUsage();
     return {
-      heapUsed: Math.round(usage.heapUsed / 1024 / 1024) + ' MB',
-      heapTotal: Math.round(usage.heapTotal / 1024 / 1024) + ' MB',
-      external: Math.round(usage.external / 1024 / 1024) + ' MB',
-      rss: Math.round(usage.rss / 1024 / 1024) + ' MB'
+      heapUsed: `${Math.round(usage.heapUsed / 1024 / 1024)} MB`,
+      heapTotal: `${Math.round(usage.heapTotal / 1024 / 1024)} MB`,
+      external: `${Math.round(usage.external / 1024 / 1024)} MB`,
+      rss: `${Math.round(usage.rss / 1024 / 1024)} MB`
     };
   }
 
@@ -142,10 +142,10 @@ class BridgeHealthMonitor {
     };
 
     for (const [key, stats] of this.metrics.calls) {
-      const [bridge, tool] = key.split(':');
+      const [_bridge, _tool] = key.split(':');
       metrics.calls[key] = stats;
-      metrics.errorRate[key] = stats.total > 0 ? 
-        (stats.errors / stats.total * 100).toFixed(1) + '%' : '0%';
+      metrics.errorRate[key] = stats.total > 0 ?
+        `${(stats.errors / stats.total * 100).toFixed(1)}%` : '0%';
     }
 
     for (const [key, values] of this.metrics.latency) {
@@ -154,7 +154,7 @@ class BridgeHealthMonitor {
         const p50 = sorted[Math.floor(sorted.length * 0.5)];
         const p95 = sorted[Math.floor(sorted.length * 0.95)];
         const p99 = sorted[Math.floor(sorted.length * 0.99)];
-        
+
         metrics.latency[key] = {
           count: values.length,
           avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
@@ -172,13 +172,13 @@ class BridgeHealthMonitor {
    * 获取 Dry-run 统计
    */
   getDryRunStats() {
-    const history = new (require('./engines/DryRunHistory'))();
+    const history = new (require('./engines/DryRunHistory').DryRunHistory)();
     const stats = history.getStats();
 
     return {
       ...stats,
-      previewVsExecution: stats.previewOnly > 0 && stats.executed > 0 ? 
-        (stats.previewOnly / stats.executed).toFixed(2) + ':1' : 'N/A'
+      previewVsExecution: stats.previewOnly > 0 && stats.executed > 0 ?
+        `${(stats.previewOnly / stats.executed).toFixed(2)}:1` : 'N/A'
     };
   }
 
@@ -221,13 +221,13 @@ class BridgeHealthMonitor {
   sanitizeParams(params) {
     const sensitive = ['token', 'password', 'secret', 'apiKey', 'authorization'];
     const sanitized = { ...params };
-    
+
     for (const key of Object.keys(sanitized)) {
-      if (sensitive.some(s => key.toLowerCase().includes(s))) {
+      if (sensitive.some((s) => key.toLowerCase().includes(s.toLowerCase()))) {
         sanitized[key] = '[REDACTED]';
       }
     }
-    
+
     return sanitized;
   }
 

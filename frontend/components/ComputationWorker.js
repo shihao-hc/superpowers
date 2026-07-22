@@ -1,6 +1,6 @@
 /**
  * ComputationWorker - 计算密集型任务的Web Worker处理器
- * 
+ *
  * 将CPU密集型任务移至Worker线程
  * 避免阻塞主线程渲染
  */
@@ -13,7 +13,7 @@ class ComputationWorker {
     this.taskId = 0;
     this.workerUrl = options.workerUrl || this._createWorkerBlob();
     this.timeout = options.timeout || 30000;
-    
+
     this.onReady = options.onReady || (() => {});
     this.onerror = options.onerror || (() => {});
   }
@@ -163,7 +163,7 @@ class ComputationWorker {
         return result;
       }
     `;
-    
+
     const blob = new Blob([workerCode], { type: 'application/javascript' });
     return URL.createObjectURL(blob);
   }
@@ -172,15 +172,15 @@ class ComputationWorker {
     return new Promise((resolve, reject) => {
       try {
         this.worker = new Worker(this.workerUrl);
-        
+
         this.worker.onmessage = (e) => {
           const { id, success, result, error } = e.data;
           const task = this.pendingTasks.get(id);
-          
+
           if (task) {
             this.pendingTasks.delete(id);
             clearTimeout(task.timeout);
-            
+
             if (success) {
               task.resolve(result);
             } else {
@@ -188,12 +188,12 @@ class ComputationWorker {
             }
           }
         };
-        
+
         this.worker.onerror = (error) => {
           console.error('[ComputationWorker] Worker error:', error);
           this.onerror(error);
         };
-        
+
         this.isReady = true;
         this.onReady();
         resolve();
@@ -207,17 +207,17 @@ class ComputationWorker {
     if (!this.isReady) {
       return Promise.reject(new Error('Worker not initialized'));
     }
-    
+
     return new Promise((resolve, reject) => {
       const id = ++this.taskId;
-      
+
       const timeoutId = setTimeout(() => {
         this.pendingTasks.delete(id);
         reject(new Error('Task timeout'));
       }, this.timeout);
-      
+
       this.pendingTasks.set(id, { resolve, reject, timeout: timeoutId });
-      
+
       this.worker.postMessage({ id, type, data });
     });
   }

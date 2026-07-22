@@ -1,12 +1,12 @@
-const { MCPBridge } = require('../mcp/MCPBridge');
+const { MCPBridge: _MCPBridge } = require('../mcp/MCPBridge');
 const { SkillMCPGenerator } = require('./mcp/SkillMCPGenerator');
 const { SkillNodeDefinitions } = require('./SkillNodeDefinitions');
-const { execFile } = require('child_process');
+const { safeSpawn, safeExecFile } = require('../utils/SafeExec');
 const { promisify } = require('util');
-const path = require('path');
+const _path = require('path');
 const fs = require('fs');
 
-const execFileAsync = promisify(execFile);
+const _execFileAsync = promisify(safeExecFile);
 
 class SkillToMCP {
   constructor(mcpBridge, skillLoader) {
@@ -26,10 +26,10 @@ class SkillToMCP {
 
     // Generate MCP configuration for the skill
     const mcpConfig = this.mcpGenerator.generateMCPConfig(skill);
-    
+
     // Get enhanced node definition if available
     const nodeDefinition = SkillNodeDefinitions.getNodeDefinition(skillName);
-    
+
     if (nodeDefinition && nodeDefinition.actions && nodeDefinition.actions.length > 0) {
       // Create tools for each action
       for (const action of nodeDefinition.actions) {
@@ -53,16 +53,16 @@ class SkillToMCP {
         await this.createGenericMCPTool(skill, mcpConfig);
       }
     }
-    
+
     this.registeredServers.set(skillName, mcpConfig);
-    
+
     return mcpConfig;
   }
 
   // Create an MCP tool from a skill script
   async createMCPToolFromScript(skill, script, mcpConfig) {
     // Determine the tool name based on skill and action
-    const action = skill.inputs.find(i => i.name === 'action')?.enum?.[0] || 'execute';
+    const action = skill.inputs.find((i) => i.name === 'action')?.enum?.[0] || 'execute';
     const toolName = `${skill.name}:${action}`;
 
     // Check if we've already registered this
@@ -82,7 +82,7 @@ class SkillToMCP {
         inputs: this.extractInputsFromSkill(skill)
       }
     };
-    
+
     this.registeredTools.set(toolName, toolInfo);
 
     return toolName;
@@ -108,7 +108,7 @@ class SkillToMCP {
         inputs: this.extractInputsFromSkill(skill)
       }
     };
-    
+
     this.registeredTools.set(toolName, toolInfo);
 
     return toolName;
@@ -136,14 +136,14 @@ class SkillToMCP {
     // Register the MCP server with the bridge
     try {
       const result = await this.mcpBridge.register(mcpConfig);
-      
+
       // Mark as registered in bridge
       this.registeredTools.set(toolName, {
         ...this.registeredTools.get(toolName),
         registeredInBridge: true,
         bridgeResult: result
       });
-      
+
       return {
         success: true,
         skillName,
@@ -168,7 +168,7 @@ class SkillToMCP {
   async registerAllSkills() {
     const results = [];
     const skills = this.skillLoader.getAllSkills();
-    
+
     for (const skill of skills) {
       try {
         const result = await this.registerAsMCPTool(skill.name);
@@ -186,14 +186,14 @@ class SkillToMCP {
         });
       }
     }
-    
+
     return results;
   }
 
   // Extract inputs from skill definition
   extractInputsFromSkill(skill) {
     const inputs = {};
-    
+
     if (skill.inputs && Array.isArray(skill.inputs)) {
       for (const input of skill.inputs) {
         inputs[input.name] = {
@@ -201,17 +201,17 @@ class SkillToMCP {
           description: input.description || input.name,
           required: input.required || false
         };
-        
+
         if (input.enum) {
           inputs[input.name].enum = input.enum;
         }
-        
+
         if (input.default !== undefined) {
           inputs[input.name].default = input.default;
         }
       }
     }
-    
+
     return inputs;
   }
 
@@ -272,10 +272,10 @@ class SkillToMCP {
     if (!skill) {
       throw new Error(`Skill not found: ${skillName}`);
     }
-    
+
     const nodeDefinition = SkillNodeDefinitions.getNodeDefinition(skillName);
     const scriptPath = this.mcpGenerator.createServerScript(skill, nodeDefinition);
-    
+
     // Read and return the generated script content
     return fs.readFileSync(scriptPath, 'utf8');
   }
@@ -286,23 +286,23 @@ class SkillToMCP {
     if (!config) {
       throw new Error(`MCP server not generated for skill: ${skillName}`);
     }
-    
+
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
       const timeout = 10000; // 10 second timeout
-      
-      const child = require('child_process').spawn(config.command, config.args, {
+
+      const child = safeSpawn(config.command, config.args, {
         env: { ...process.env, ...config.env },
         stdio: ['pipe', 'pipe', 'pipe']
       });
-      
+
       let stdout = '';
       let stderr = '';
       let initialized = false;
-      
+
       child.stdout.on('data', (data) => {
         stdout += data.toString();
-        
+
         // Look for initialize response
         if (!initialized && stdout.includes('"protocolVersion"')) {
           initialized = true;
@@ -316,11 +316,11 @@ class SkillToMCP {
           });
         }
       });
-      
+
       child.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       child.on('error', (error) => {
         reject({
           success: false,
@@ -329,7 +329,7 @@ class SkillToMCP {
           stderr
         });
       });
-      
+
       child.on('exit', (code, signal) => {
         if (!initialized) {
           reject({
@@ -342,7 +342,7 @@ class SkillToMCP {
           });
         }
       });
-      
+
       // Set timeout
       setTimeout(() => {
         if (!initialized) {
@@ -357,7 +357,7 @@ class SkillToMCP {
           });
         }
       }, timeout);
-      
+
       // Send initialize message
       const initMessage = JSON.stringify({
         jsonrpc: '2.0',
@@ -372,8 +372,8 @@ class SkillToMCP {
           }
         }
       });
-      
-      child.stdin.write(initMessage + '\n');
+
+      child.stdin.write(`${initMessage}\n`);
     });
   }
 }

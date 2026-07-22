@@ -66,7 +66,7 @@ class PrometheusMetrics {
 
   inc(name, labels = {}, value = 1) {
     const metric = this.metrics.get(name);
-    if (!metric) return;
+    if (!metric) {return;}
 
     const key = this._labelKey(labels);
     metric.values[key] = (metric.values[key] || 0) + value;
@@ -74,7 +74,7 @@ class PrometheusMetrics {
 
   dec(name, labels = {}, value = 1) {
     const metric = this.metrics.get(name);
-    if (!metric || metric.type !== 'gauge') return;
+    if (!metric || metric.type !== 'gauge') {return;}
 
     const key = this._labelKey(labels);
     metric.values[key] = (metric.values[key] || 0) - value;
@@ -82,7 +82,7 @@ class PrometheusMetrics {
 
   set(name, value, labels = {}) {
     const metric = this.metrics.get(name);
-    if (!metric) return;
+    if (!metric) {return;}
 
     if (Object.keys(labels).length === 0) {
       metric.value = value;
@@ -94,7 +94,7 @@ class PrometheusMetrics {
 
   observe(name, value, labels = {}) {
     const metric = this.metrics.get(name);
-    if (!metric || metric.type !== 'histogram') return;
+    if (!metric || metric.type !== 'histogram') {return;}
 
     metric.sum += value;
     metric.count++;
@@ -129,14 +129,14 @@ class PrometheusMetrics {
   }
 
   _labelKey(labels) {
-    if (Object.keys(labels).length === 0) return '';
+    if (Object.keys(labels).length === 0) {return '';}
     return Object.entries(labels).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => `${k}="${v}"`).join(',');
   }
 
   toPrometheusFormat() {
     let output = '';
 
-    for (const [name, metric] of this.metrics) {
+    for (const [_name, metric] of this.metrics) {
       output += `# HELP ${metric.name} ${metric.help}\n`;
       output += `# TYPE ${metric.name} ${metric.type}\n`;
 
@@ -191,9 +191,9 @@ class PrometheusMetrics {
   }
 
   reset() {
-    for (const [name, metric] of this.metrics) {
+    for (const [_name, metric] of this.metrics) {
       metric.values = {};
-      if (metric.type === 'gauge') metric.value = 0;
+      if (metric.type === 'gauge') {metric.value = 0;}
       if (metric.type === 'histogram') {
         metric.sum = 0;
         metric.count = 0;
@@ -204,9 +204,9 @@ class PrometheusMetrics {
   getStats() {
     return {
       metrics: this.metrics.size,
-      counters: Array.from(this.metrics.values()).filter(m => m.type === 'counter').length,
-      gauges: Array.from(this.metrics.values()).filter(m => m.type === 'gauge').length,
-      histograms: Array.from(this.metrics.values()).filter(m => m.type === 'histogram').length
+      counters: Array.from(this.metrics.values()).filter((m) => m.type === 'counter').length,
+      gauges: Array.from(this.metrics.values()).filter((m) => m.type === 'gauge').length,
+      histograms: Array.from(this.metrics.values()).filter((m) => m.type === 'histogram').length
     };
   }
 }

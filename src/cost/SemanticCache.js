@@ -10,7 +10,7 @@ class SemanticCache {
     this.vectorStore = new Map();
     this.cacheStore = new Map();
     this.embeddings = new Map();
-    
+
     this.config = {
       similarityThreshold: options.similarityThreshold || 0.85,
       maxCacheSize: options.maxCacheSize || 10000,
@@ -32,7 +32,7 @@ class SemanticCache {
     // 这里使用简化的一致性哈希作为文本指纹
     const hash = crypto.createHash('sha256').update(text).digest('hex');
     const vector = this._hashToVector(hash);
-    
+
     return {
       id: `emb_${hash.substring(0, 16)}`,
       vector,
@@ -44,23 +44,23 @@ class SemanticCache {
     // 将哈希转换为固定维度的向量
     const dimensions = 1536; // 与 text-embedding-3-large 一致
     const vector = [];
-    
+
     for (let i = 0; i < dimensions; i++) {
       const charIndex = (i * 2) % hash.length;
       const value = parseInt(hash.substring(charIndex, charIndex + 2), 16) / 255;
       vector.push(value * 2 - 1); // 归一化到 [-1, 1]
     }
-    
+
     return vector;
   }
 
   // 存储缓存
   async set(key, value, options = {}) {
     const { ttl = this.config.defaultTTL, tags = [] } = options;
-    
+
     // 生成嵌入
     const embedding = await this.embed(key);
-    
+
     const cacheEntry = {
       key,
       value,
@@ -94,7 +94,7 @@ class SemanticCache {
   // 获取缓存
   async get(key, options = {}) {
     const { useSemantic = true, exactMatch = false } = options;
-    
+
     const valueKey = crypto.createHash('sha256').update(key).digest('hex');
     const entry = this.cacheStore.get(valueKey);
 
@@ -136,7 +136,7 @@ class SemanticCache {
 
     for (const [id, vector] of this.vectorStore.entries()) {
       const similarity = this._cosineSimilarity(queryEmbedding.vector, vector);
-      
+
       if (similarity > this.config.similarityThreshold && similarity > bestSimilarity) {
         const entry = this._findEntryByEmbeddingId(id);
         if (entry && entry.expiresAt > Date.now()) {
@@ -155,18 +155,18 @@ class SemanticCache {
   }
 
   _cosineSimilarity(a, b) {
-    if (a.length !== b.length) return 0;
-    
+    if (a.length !== b.length) {return 0;}
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    
+
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    
+
     const similarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     return (similarity + 1) / 2; // 归一化到 [0, 1]
   }
@@ -190,14 +190,14 @@ class SemanticCache {
   }
 
   async _evictIfNeeded() {
-    if (this.cacheStore.size < this.config.maxCacheSize) return;
+    if (this.cacheStore.size < this.config.maxCacheSize) {return;}
 
     // LRU 驱逐：删除最旧的条目
     const entries = Array.from(this.cacheStore.values())
       .sort((a, b) => a.createdAt - b.createdAt);
 
     const toDelete = entries.slice(0, Math.floor(this.config.maxCacheSize * 0.1));
-    
+
     for (const entry of toDelete) {
       const valueKey = crypto.createHash('sha256').update(entry.key).digest('hex');
       this._deleteEntry(valueKey);
@@ -242,14 +242,14 @@ class SemanticCache {
   // 删除特定标签的缓存
   invalidateByTags(tags) {
     let invalidated = 0;
-    
+
     for (const [key, entry] of this.cacheStore.entries()) {
-      if (tags.some(tag => entry.tags.includes(tag))) {
+      if (tags.some((tag) => entry.tags.includes(tag))) {
         this._deleteEntry(key);
         invalidated++;
       }
     }
-    
+
     return { invalidated };
   }
 

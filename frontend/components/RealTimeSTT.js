@@ -1,6 +1,6 @@
 /**
  * RealTimeSTT - 实时语音识别系统
- * 
+ *
  * 功能:
  * - 浏览器原生Web Speech API
  * - Whisper API云端识别
@@ -44,7 +44,7 @@ class RealTimeSTT {
     this.recognition = null;
     this.audioContext = null;
     this.analyser = null;
-    
+
     // 统计
     this.stats = {
       totalSegments: 0,
@@ -70,7 +70,7 @@ class RealTimeSTT {
       audioContext: 'AudioContext' in window || 'webkitAudioContext' in window,
       mediaDevices: 'mediaDevices' in navigator
     };
-    
+
     console.log('[RealTimeSTT] Browser support:', this.support);
     return this.support;
   }
@@ -79,26 +79,26 @@ class RealTimeSTT {
    * 开始监听
    */
   async start() {
-    if (this.isListening) return;
+    if (this.isListening) {return;}
 
     try {
       switch (this.options.engine) {
-        case 'webspeech':
-          await this._startWebSpeech();
-          break;
-        case 'whisper':
-          await this._startWhisper();
-          break;
-        default:
-          await this._startWebSpeech();
+      case 'webspeech':
+        await this._startWebSpeech();
+        break;
+      case 'whisper':
+        await this._startWhisper();
+        break;
+      default:
+        await this._startWebSpeech();
       }
-      
+
       this.isListening = true;
-      if (this.options.onStart) this.options.onStart();
-      
+      if (this.options.onStart) {this.options.onStart();}
+
     } catch (error) {
       console.error('[RealTimeSTT] Start error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
       throw error;
     }
   }
@@ -107,7 +107,7 @@ class RealTimeSTT {
    * 停止监听
    */
   stop() {
-    if (!this.isListening) return;
+    if (!this.isListening) {return;}
 
     if (this.recognition) {
       this.recognition.stop();
@@ -120,7 +120,7 @@ class RealTimeSTT {
     }
 
     this.isListening = false;
-    if (this.options.onEnd) this.options.onEnd();
+    if (this.options.onEnd) {this.options.onEnd();}
   }
 
   /**
@@ -145,7 +145,7 @@ class RealTimeSTT {
    */
   async _startWebSpeech() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     this.recognition = new SpeechRecognition();
     this.recognition.lang = this.options.language;
     this.recognition.continuous = this.options.continuous;
@@ -181,7 +181,7 @@ class RealTimeSTT {
     };
 
     this.recognition.start();
-    
+
     // 初始化音频分析(用于VAD)
     if (this.options.vadEnabled) {
       await this._initAudioAnalyser();
@@ -200,7 +200,7 @@ class RealTimeSTT {
       if (result.isFinal) {
         // 最终结果
         this.stats.totalSegments++;
-        
+
         // 唤醒词检测
         if (this.options.wakeWord && !this.wakeWordDetected) {
           if (this._checkWakeWord(transcript)) {
@@ -244,7 +244,7 @@ class RealTimeSTT {
     }
 
     // 获取麦克风流
-    const stream = await navigator.mediaDevices.getUserMedia({ 
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         channelCount: 1,
         sampleRate: 16000,
@@ -255,7 +255,7 @@ class RealTimeSTT {
 
     this.mediaStream = stream;
     this.audioContext = new AudioContext({ sampleRate: 16000 });
-    
+
     const source = this.audioContext.createMediaStreamSource(stream);
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 2048;
@@ -275,7 +275,7 @@ class RealTimeSTT {
     });
 
     const chunks = [];
-    
+
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
         chunks.push(e.data);
@@ -283,11 +283,11 @@ class RealTimeSTT {
     };
 
     recorder.onstop = async () => {
-      if (!this.isListening || this.isPaused) return;
-      
+      if (!this.isListening || this.isPaused) {return;}
+
       const blob = new Blob(chunks, { type: 'audio/webm' });
       chunks.length = 0;
-      
+
       // 发送到Whisper
       try {
         const result = await this._transcribeWithWhisper(blob);
@@ -302,7 +302,7 @@ class RealTimeSTT {
       } catch (error) {
         console.error('[RealTimeSTT] Whisper error:', error);
       }
-      
+
       // 继续录制
       if (this.isListening && !this.isPaused) {
         setTimeout(() => {
@@ -352,15 +352,15 @@ class RealTimeSTT {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.audioContext = new AudioContext();
-      
+
       const source = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       source.connect(this.analyser);
-      
+
       // 开始VAD检测
       this._startVAD();
-      
+
     } catch (e) {
       console.warn('[RealTimeSTT] VAD initialization failed:', e);
     }
@@ -370,26 +370,26 @@ class RealTimeSTT {
    * VAD检测
    */
   _startVAD() {
-    if (!this.analyser) return;
+    if (!this.analyser) {return;}
 
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-    
+
     const checkVAD = () => {
-      if (!this.isListening || !this.analyser) return;
-      
+      if (!this.isListening || !this.analyser) {return;}
+
       this.analyser.getByteFrequencyData(dataArray);
-      
+
       // 计算音量
       const sum = dataArray.reduce((a, b) => a + b, 0);
       const average = sum / dataArray.length;
       const volume = average / 255;
-      
+
       // 静音检测
       this.isSpeaking = volume > this.options.vadSensitivity;
-      
+
       requestAnimationFrame(checkVAD);
     };
-    
+
     checkVAD();
   }
 
@@ -397,11 +397,11 @@ class RealTimeSTT {
    * 检查唤醒词
    */
   _checkWakeWord(transcript) {
-    if (!this.options.wakeWord) return false;
-    
+    if (!this.options.wakeWord) {return false;}
+
     const lowerTranscript = transcript.toLowerCase();
     const wakeWord = this.options.wakeWord.toLowerCase();
-    
+
     return lowerTranscript.includes(wakeWord);
   }
 
@@ -409,8 +409,8 @@ class RealTimeSTT {
    * 获取当前音量
    */
   getVolume() {
-    if (!this.analyser) return 0;
-    
+    if (!this.analyser) {return 0;}
+
     const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
     this.analyser.getByteFrequencyData(dataArray);
     const sum = dataArray.reduce((a, b) => a + b, 0);

@@ -2,11 +2,13 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { SkillToNode } = require('./SkillToNode');
+const { sanitizeFilename } = require('../utils/SafePath');
 const { SkillValidator } = require('./SkillValidator');
 const { SkillMarketplace } = require('./marketplace/SkillMarketplace');
 const { SkillVersionManager } = require('./SkillVersionManager');
 const { createSkillMetricsHandler } = require('./metrics');
 const { getSkillMetrics } = require('./SkillMetrics');
+const { createAuthMiddleware } = require('../middleware/auth');
 
 class SkillsApi {
   constructor(skillManager) {
@@ -16,6 +18,23 @@ class SkillsApi {
     this.versionManager = new SkillVersionManager();
     this.metrics = getSkillMetrics();
     this.router = express.Router();
+
+    // Auth: public GETs, require auth for mutations and sensitive endpoints
+    const auth = createAuthMiddleware({
+      secret: process.env.JWT_SECRET || undefined
+    });
+    this.router.use((req, res, next) => {
+      const publicGetPaths = [
+        '/', '/metrics', '/prometheus', '/custom',
+        '/marketplace', '/startup',
+        '/type/'
+      ];
+      if (req.method === 'GET' && publicGetPaths.some((p) => req.path === p || req.path.startsWith(p))) {
+        return next();
+      }
+      return auth.authenticate(req, res, next);
+    });
+
     this._bindRoutes();
     this._bindMarketplaceRoutes();
     this._bindVersionRoutes();
@@ -58,7 +77,7 @@ class SkillsApi {
       const role = (req.headers && req.headers['x-role']) || 'user';
       const inputs = req.body.inputs || {};
       const startTime = Date.now();
-      
+
       try {
         // Security gate: high risk skills require admin role
         const skillForTest = (m.skillLoader && m.skillLoader.getSkill) ? m.skillLoader.getSkill(skillName) : null;
@@ -66,9 +85,9 @@ class SkillsApi {
           m.metrics.recordExecution(skillName, { success: false, duration: Date.now() - startTime, error: 'permission_denied' });
           return res.status(403).json({ error: 'Forbidden for high-risk skill' });
         }
-        
+
         // Try per-skill executor first
-        const skill = m.skillManager.getSkillInfo(skillName);
+        const _skill = m.skillManager.getSkillInfo(skillName);
         const explicitPath = path.join(process.cwd(), 'src', 'skills', 'executors', `${skillName}Executor.js`);
         let result;
         if (fs.existsSync(explicitPath)) {
@@ -94,7 +113,7 @@ class SkillsApi {
             return res.json({ ok: true, result });
           }
         }
-        
+
         // Fallback to generic test by invoking the node script if exists
         const duration = Date.now() - startTime;
         m.metrics.recordExecution(skillName, { success: true, duration, type: 'fallback' });
@@ -113,7 +132,7 @@ class SkillsApi {
       if (!skill) {
         return res.status(404).json({ error: 'Skill not found' });
       }
-      const action = (skill.inputs && skill.inputs.find(i => i.name === 'action')?.enum?.[0]) || 'execute';
+      const action = (skill.inputs && skill.inputs.find((i) => i.name === 'action')?.enum?.[0]) || 'execute';
       const nodeTypeName = `skill.${skill.name}.${action}`;
       const nodes = [
         { type: nodeTypeName, name: `Skill: ${skill.name} - ${action}`, inputs: skill.inputs, outputs: skill.outputs },
@@ -144,19 +163,19 @@ class SkillsApi {
         // Get Python environment metrics
         const pythonMetrics = SkillToNode.getPythonEnvMetrics();
         const pythonCacheStats = SkillToNode.getPythonEnvCacheStats();
-        
+
         // Get all skills
         const skills = m.skillManager.getAllSkills();
-        
+
         // Calculate per-skill metrics (simplified - in production would track per skill)
-        const skillMetrics = skills.map(skill => ({
+        const skillMetrics = skills.map((skill) => ({
           name: skill.name,
           riskLevel: skill.riskLevel || 'low',
           pure: skill.pure || false,
           dependencies: skill.dependencies || [],
           enabled: skill.enabled !== false // default to true
         }));
-        
+
         res.json({
           python: {
             metrics: pythonMetrics,
@@ -166,7 +185,7 @@ class SkillsApi {
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -176,7 +195,7 @@ class SkillsApi {
         SkillToNode.clearPythonEnvCache();
         res.json({ ok: true, message: 'Python environment cache cleared' });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -188,41 +207,42 @@ class SkillsApi {
       // Check user role - only admin or specific roles can upload initially
       const userRole = req.headers['x-role'] || req.body.role || 'user';
       const allowedRoles = ['admin', 'uploader', 'developer'];
-      
+
       if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Forbidden: Insufficient permissions to upload skills',
           requiredRoles: allowedRoles,
           currentRole: userRole,
           message: 'Initially, only administrators and authorized users can upload skills. This restriction will be relaxed as the system matures.'
         });
       }
-      
-      const { name, payloadBase64, validate = true, autoLoad = false } = req.body;
-      if (!name || !payloadBase64) return res.status(400).json({ error: 'name and payloadBase64 required' });
-      
+
+      const { name: rawName, payloadBase64, validate = true, autoLoad = false } = req.body;
+      const name = sanitizeFilename(rawName);
+      if (!name || !payloadBase64) {return res.status(400).json({ error: 'name and payloadBase64 required' });}
+
       try {
         const buf = Buffer.from(payloadBase64, 'base64');
         const uploadsDir = path.join(process.cwd(), 'uploads', 'skills-custom');
-        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-        
+        if (!fs.existsSync(uploadsDir)) {fs.mkdirSync(uploadsDir, { recursive: true });}
+
         // Validate ZIP if requested
         let validationResult = null;
         if (validate) {
           validationResult = await m.validator.validateZipPackage(buf, name);
-          
+
           if (!validationResult.valid) {
-            return res.status(400).json({ 
+            return res.status(400).json({
               error: 'Skill package validation failed',
               validation: m.validator.generateReport(validationResult)
             });
           }
         }
-        
+
         // Save ZIP file
         const zipPath = path.join(uploadsDir, `${name}.zip`);
         fs.writeFileSync(zipPath, buf);
-        
+
         // If auto-load is enabled, extract and load the skill
         let skillInfo = null;
         if (autoLoad && (!validationResult || validationResult.valid)) {
@@ -230,8 +250,8 @@ class SkillsApi {
             // Extract ZIP to skill directory
             const skillDir = path.join(uploadsDir, name);
             const unzip = require('unzipper');
-            await unzip.Open.buffer(buf).then(d => d.extract({ path: skillDir, concurrency: 5 }));
-            
+            await unzip.Open.buffer(buf).then((d) => d.extract({ path: skillDir, concurrency: 5 }));
+
             // Try to load the skill
             const skillLoader = m.skillManager.skillLoader;
             const skill = skillLoader.loadSkill(name);
@@ -247,11 +267,11 @@ class SkillsApi {
             console.warn('Auto-load failed:', loadError.message);
           }
         }
-        
-        res.json({ 
-          ok: true, 
-          name, 
-          path: zipPath, 
+
+        res.json({
+          ok: true,
+          name,
+          path: zipPath,
           url: `/uploads/skills-custom/${name}.zip`,
           validation: validationResult ? m.validator.generateReport(validationResult) : null,
           skill: skillInfo
@@ -266,65 +286,64 @@ class SkillsApi {
       // Check user role - only admin or specific roles can import Git repositories
       const userRole = req.headers['x-role'] || req.body.role || 'user';
       const allowedRoles = ['admin', 'developer'];
-      
+
       if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Forbidden: Insufficient permissions to import Git repositories',
           requiredRoles: allowedRoles,
           currentRole: userRole,
           message: 'Git repository import is restricted to administrators and developers.'
         });
       }
-      
+
       const { repo, target, validate = true, autoLoad = false } = req.body;
-      if (!repo) return res.status(400).json({ error: 'repo is required' });
-      
+      if (!repo) {return res.status(400).json({ error: 'repo is required' });}
+
       try {
         // Validate Git URL
         let validationResult = null;
         if (validate) {
           validationResult = await m.validator.validateGitRepository(repo, target);
           if (!validationResult.valid) {
-            return res.status(400).json({ 
+            return res.status(400).json({
               error: 'Git repository validation failed',
               validation: m.validator.generateReport(validationResult)
             });
           }
         }
-        
+
         const skillName = target || path.basename(repo, '.git').replace('.git', '');
-        
+
         // Sanitize skill name to prevent path traversal
         const sanitizedSkillName = skillName.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
         if (!sanitizedSkillName) {
           return res.status(400).json({ error: 'Invalid skill name' });
         }
-        
+
         const dest = path.join(process.cwd(), 'uploads', 'skills-custom', sanitizedSkillName);
-        
+
         // Ensure directory exists and is within allowed path
         const allowedBase = path.join(process.cwd(), 'uploads', 'skills-custom');
         if (!dest.startsWith(allowedBase)) {
           return res.status(400).json({ error: 'Invalid destination path' });
         }
         fs.mkdirSync(path.dirname(dest), { recursive: true });
-        
-        // Use spawn instead of exec to avoid shell injection
-        const { spawn } = require('child_process');
-        const gitProcess = spawn('git', ['clone', '--depth', '1', repo, dest], { 
+
+        const { safeSpawn } = require('../utils/SafeExec');
+        const gitProcess = safeSpawn('git', ['clone', '--depth', '1', repo, dest], {
           timeout: 60000,
           shell: false  // Prevent shell injection
         });
-        
+
         let stdout = '';
         let stderr = '';
-        
+
         gitProcess.stdout.on('data', (data) => { stdout += data.toString(); });
         gitProcess.stderr.on('data', (data) => { stderr += data.toString(); });
-        
+
         gitProcess.on('close', (code) => {
-          if (code !== 0) return res.status(500).json({ error: `Git clone failed with code ${code}`, stderr });
-          
+          if (code !== 0) {return res.status(500).json({ error: `Git clone failed with code ${code}`, stderr });}
+
           // If auto-load is enabled, try to load the skill
           let skillInfo = null;
           if (autoLoad) {
@@ -343,18 +362,18 @@ class SkillsApi {
               console.warn('Auto-load failed:', loadError.message);
             }
           }
-          
-          res.json({ 
-            ok: true, 
+
+          res.json({
+            ok: true,
             name: sanitizedSkillName,
-            dest, 
-            stdout, 
+            dest,
+            stdout,
             stderr,
             validation: validationResult ? m.validator.generateReport(validationResult) : null,
             skill: skillInfo
           });
         });
-        
+
         gitProcess.on('error', (err) => {
           return res.status(500).json({ error: err.message, stderr });
         });
@@ -366,13 +385,13 @@ class SkillsApi {
     // Stage C: Skill validation endpoint
     this.router.post('/validate', async (req, res) => {
       const { name, payloadBase64 } = req.body;
-      if (!name || !payloadBase64) return res.status(400).json({ error: 'name and payloadBase64 required' });
-      
+      if (!name || !payloadBase64) {return res.status(400).json({ error: 'name and payloadBase64 required' });}
+
       try {
         const buf = Buffer.from(payloadBase64, 'base64');
         const validationResult = await m.validator.validateZipPackage(buf, name);
         const report = m.validator.generateReport(validationResult);
-        
+
         res.json({ ok: true, report });
       } catch (e) {
         res.status(500).json({ error: e.message });
@@ -386,14 +405,14 @@ class SkillsApi {
         if (!fs.existsSync(uploadsDir)) {
           return res.json({ skills: [] });
         }
-        
+
         const items = fs.readdirSync(uploadsDir);
         const skills = [];
-        
+
         for (const item of items) {
           const itemPath = path.join(uploadsDir, item);
           const stats = fs.statSync(itemPath);
-          
+
           if (stats.isFile() && item.endsWith('.zip')) {
             skills.push({
               name: path.basename(item, '.zip'),
@@ -406,7 +425,7 @@ class SkillsApi {
             // Check if it's a skill directory
             const skillMdPath = path.join(itemPath, 'skill.md');
             const readmePath = path.join(itemPath, 'README.md');
-            
+
             if (fs.existsSync(skillMdPath) || fs.existsSync(readmePath)) {
               skills.push({
                 name: item,
@@ -417,7 +436,7 @@ class SkillsApi {
             }
           }
         }
-        
+
         res.json({ skills });
       } catch (e) {
         res.status(500).json({ error: e.message });
@@ -432,7 +451,7 @@ class SkillsApi {
     this.router.get('/marketplace', async (req, res) => {
       try {
         const { category, author, search, sortBy = 'updatedAt', sortOrder = 'desc', limit = 50, offset = 0 } = req.query;
-        
+
         const result = m.marketplace.listSkills({
           category,
           author,
@@ -442,10 +461,10 @@ class SkillsApi {
           limit: parseInt(limit),
           offset: parseInt(offset)
         });
-        
+
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -454,25 +473,25 @@ class SkillsApi {
       try {
         const { skillId } = req.params;
         const skill = m.marketplace.getSkill(skillId);
-        
+
         if (!skill) {
           return res.status(404).json({ error: 'Skill not found' });
         }
-        
+
         // Record view
         await m.marketplace.recordView(skillId);
-        
+
         // Track view in metrics
         const visitorId = req.headers['x-visitor-id'] || req.ip || 'anonymous';
         m.metrics.recordView(skill.name, visitorId);
-        
+
         // Get stats and reviews
         const stats = m.marketplace.getStats(skillId);
         const reviews = m.marketplace.getReviews(skillId, { limit: 10 });
-        
+
         res.json({ skill, stats, reviews });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -481,26 +500,26 @@ class SkillsApi {
       // Check user role - only authorized users can publish to marketplace
       const userRole = req.headers['x-role'] || req.body.role || 'user';
       const allowedRoles = ['admin', 'developer', 'publisher'];
-      
+
       if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Forbidden: Insufficient permissions to publish skills',
           requiredRoles: allowedRoles,
           currentRole: userRole
         });
       }
-      
+
       try {
         const skillInfo = req.body;
         // Set author from user role if not provided
         if (!skillInfo.author) {
           skillInfo.author = req.headers['x-username'] || 'Anonymous';
         }
-        
+
         const skill = await m.marketplace.publishSkill(skillInfo);
         res.json({ ok: true, skill });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -512,7 +531,7 @@ class SkillsApi {
         const skill = await m.marketplace.updateSkill(skillId, updates);
         res.json({ ok: true, skill });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -524,7 +543,7 @@ class SkillsApi {
         const newReview = await m.marketplace.addReview(skillId, review);
         res.json({ ok: true, review: newReview });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -533,17 +552,17 @@ class SkillsApi {
       try {
         const { skillId } = req.params;
         const { limit = 20, offset = 0, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-        
+
         const result = m.marketplace.getReviews(skillId, {
           limit: parseInt(limit),
           offset: parseInt(offset),
           sortBy,
           sortOrder
         });
-        
+
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -553,16 +572,16 @@ class SkillsApi {
         const { skillId } = req.params;
         const { downloader = 'anonymous' } = req.body;
         await m.marketplace.recordDownload(skillId, downloader);
-        
+
         // Get skill name for metrics
         const skill = m.marketplace.getSkill(skillId);
         if (skill) {
           m.metrics.recordDownload(skill.name, downloader);
         }
-        
+
         res.json({ ok: true, message: 'Download recorded' });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -573,7 +592,7 @@ class SkillsApi {
         const stats = m.marketplace.getStats(skillId);
         res.json(stats);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -581,19 +600,19 @@ class SkillsApi {
     this.router.get('/marketplace/search', async (req, res) => {
       try {
         const { q, limit = 50, offset = 0 } = req.query;
-        
+
         if (!q) {
           return res.status(400).json({ error: 'Search query required' });
         }
-        
+
         const result = m.marketplace.searchSkills(q, {
           limit: parseInt(limit),
           offset: parseInt(offset)
         });
-        
+
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -604,7 +623,7 @@ class SkillsApi {
         const skills = m.marketplace.getFeaturedSkills(parseInt(limit));
         res.json({ skills });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -615,7 +634,7 @@ class SkillsApi {
         const skills = m.marketplace.getPopularSkills(parseInt(limit));
         res.json({ skills });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -625,7 +644,7 @@ class SkillsApi {
         const categories = m.marketplace.getCategories();
         res.json({ categories });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -635,7 +654,7 @@ class SkillsApi {
         const stats = m.marketplace.getMarketplaceStats();
         res.json(stats);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -647,7 +666,7 @@ class SkillsApi {
         const skill = await m.marketplace.deprecateSkill(skillId, reason);
         res.json({ ok: true, skill });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -658,7 +677,7 @@ class SkillsApi {
         const skill = await m.marketplace.archiveSkill(skillId);
         res.json({ ok: true, skill });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
   }
@@ -671,37 +690,37 @@ class SkillsApi {
       // Check user role - only skill owners, developers, or admins can create versions
       const userRole = req.headers['x-role'] || req.body.role || 'user';
       const allowedRoles = ['admin', 'developer', 'maintainer'];
-      
+
       if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Forbidden: Insufficient permissions to create versions',
           requiredRoles: allowedRoles,
           currentRole: userRole
         });
       }
-      
+
       try {
         const { skillName } = req.params;
         const versionInfo = req.body;
-        
+
         // Set author from user if not provided
         if (!versionInfo.author) {
           versionInfo.author = req.headers['x-username'] || 'Anonymous';
         }
-        
+
         // Validate version format (SemVer)
         if (versionInfo.version && !this._isValidSemVer(versionInfo.version)) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'Invalid version format',
             message: 'Version must follow Semantic Versioning (e.g., 1.0.0)',
             providedVersion: versionInfo.version
           });
         }
-        
+
         const version = await m.versionManager.createVersion(skillName, versionInfo);
         res.json({ ok: true, version });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -715,7 +734,7 @@ class SkillsApi {
         }
         res.json(version);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -724,16 +743,16 @@ class SkillsApi {
       try {
         const { skillName } = req.params;
         const { limit = 50, offset = 0, status } = req.query;
-        
+
         const result = m.versionManager.getVersionHistory(skillName, {
           limit: parseInt(limit),
           offset: parseInt(offset),
           status
         });
-        
+
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -747,7 +766,7 @@ class SkillsApi {
         }
         res.json(versionData);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -759,7 +778,7 @@ class SkillsApi {
         const updatedVersion = await m.versionManager.updateVersionStatus(skillName, version, status, reason);
         res.json({ ok: true, version: updatedVersion });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -771,7 +790,7 @@ class SkillsApi {
         const result = await m.versionManager.rollback(skillName, targetVersion);
         res.json({ ok: true, result });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -785,7 +804,7 @@ class SkillsApi {
         }
         res.json(version);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -797,7 +816,7 @@ class SkillsApi {
         const versions = m.versionManager.getCompatibleVersions(skillName, requirements);
         res.json({ versions });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -806,21 +825,21 @@ class SkillsApi {
       try {
         const { skillName } = req.params;
         const { packagePath, version, description, changelog, author } = req.body;
-        
+
         if (!packagePath) {
           return res.status(400).json({ error: 'packagePath required' });
         }
-        
+
         const versionData = await m.versionManager.createVersionFromPackage(skillName, packagePath, {
           version,
           description,
           changelog,
           author
         });
-        
+
         res.json({ ok: true, version: versionData });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -828,7 +847,7 @@ class SkillsApi {
     this.router.get('/versions', async (req, res) => {
       try {
         const { skillName, status, sortBy = 'createdAt', sortOrder = 'desc', limit = 100 } = req.query;
-        
+
         const versions = m.versionManager.getAllVersions({
           skillName,
           status,
@@ -836,10 +855,10 @@ class SkillsApi {
           sortOrder,
           limit: parseInt(limit)
         });
-        
+
         res.json({ versions });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -849,7 +868,7 @@ class SkillsApi {
         const stats = m.versionManager.getStats();
         res.json(stats);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -860,7 +879,7 @@ class SkillsApi {
         const exists = m.versionManager.versionExists(skillName, version);
         res.json({ exists });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
   }
@@ -870,6 +889,7 @@ class SkillsApi {
    */
   _isValidSemVer(version) {
     // Basic SemVer validation: major.minor.patch
+    // eslint-disable-next-line security/detect-unsafe-regex
     return /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/.test(version);
   }
 
@@ -893,13 +913,13 @@ class SkillAutoRouter {
     this.router.post('/auto-detect', async (req, res) => {
       try {
         const { message } = req.body;
-        
+
         if (!message) {
           return res.status(400).json({ error: 'Message is required' });
         }
 
         const result = this.skillAutoLoader.getSkillsForMessage(message);
-        
+
         res.json({
           ok: true,
           taskType: result.taskType,
@@ -908,7 +928,7 @@ class SkillAutoRouter {
           config: this.skillAutoLoader.getConfig()
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -922,7 +942,7 @@ class SkillAutoRouter {
           rules: this.skillAutoLoader.getRules()
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -934,7 +954,7 @@ class SkillAutoRouter {
           skills: this.skillAutoLoader.getConfiguredSkills()
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -943,14 +963,14 @@ class SkillAutoRouter {
       try {
         const { taskType } = req.params;
         const skills = this.skillAutoLoader.getSkillsForTaskType(taskType);
-        
+
         res.json({
           ok: true,
           taskType,
           skills
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
   }

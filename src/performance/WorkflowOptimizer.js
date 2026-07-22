@@ -23,7 +23,7 @@ class WorkflowOptimizer extends EventEmitter {
     this.workflowEngine = engine;
   }
 
-  compileWorkflow(workflowId = null, options = {}) {
+  compileWorkflow(workflowId = null, _options = {}) {
     if (!this.workflowEngine) {
       throw new Error('Workflow engine not set');
     }
@@ -38,7 +38,7 @@ class WorkflowOptimizer extends EventEmitter {
 
     const startTime = Date.now();
     const normalizedId = workflowId || `default_${Date.now()}`;
-    
+
     if (this.enablePreheating && this.compiledPlans.has(normalizedId)) {
       const cached = this.compiledPlans.get(normalizedId);
       this.stats.cacheHits++;
@@ -56,7 +56,7 @@ class WorkflowOptimizer extends EventEmitter {
     }
 
     this.compiledPlans.set(normalizedId, plan);
-    
+
     this.stats.totalOptimizations++;
     this.stats.totalCompilationTime += plan.compilationTime;
     this.stats.avgCompilationTime = this.stats.totalCompilationTime / this.stats.totalOptimizations;
@@ -91,7 +91,7 @@ class WorkflowOptimizer extends EventEmitter {
       }
     }
 
-    const hasSideEffect = plan.sortedNodes.some(nodeId => {
+    const hasSideEffect = plan.sortedNodes.some((nodeId) => {
       const node = this.workflowEngine.getNode(nodeId);
       return node && (
         node.type.startsWith('mcp_write') ||
@@ -139,7 +139,7 @@ class WorkflowOptimizer extends EventEmitter {
     }
 
     this.emit('preheat-complete', { count: this.stats.preheatCount });
-    
+
     return this.hotWorkflows.size;
   }
 
@@ -176,13 +176,13 @@ class WorkflowOptimizer extends EventEmitter {
 
   getExecutionStats(workflowId) {
     const history = this.executionHistory.get(workflowId) || [];
-    
+
     if (history.length === 0) {
       return null;
     }
 
-    const durations = history.map(h => h.duration).sort((a, b) => a - b);
-    const successCount = history.filter(h => h.status === 'completed').length;
+    const durations = history.map((h) => h.duration).sort((a, b) => a - b);
+    const successCount = history.filter((h) => h.status === 'completed').length;
 
     return {
       totalExecutions: history.length,
@@ -199,7 +199,7 @@ class WorkflowOptimizer extends EventEmitter {
   getRecommendations(workflowId) {
     const plan = this.compiledPlans.get(workflowId);
     const stats = this.getExecutionStats(workflowId);
-    
+
     if (!plan && !stats) {
       return [];
     }

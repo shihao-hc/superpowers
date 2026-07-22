@@ -5,6 +5,7 @@
 
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { error: errorLog, warn: warnLog } = require('../../server/utils/logger');
 
 let bcrypt;
 try {
@@ -13,14 +14,40 @@ try {
   bcrypt = null;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+// SECURITY FIX: 强制要求生产环境设置 JWT_SECRET
+function getJWTSecret() {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SECURITY ERROR: JWT_SECRET environment variable must be set in production');
+    }
+
+    // 仅在开发环境警告一次
+    if (!getJWTSecret._warned) {
+      warnLog('[Auth] WARNING: JWT_SECRET not set, using random key (insecure for production)');
+      warnLog('[Auth] Set JWT_SECRET environment variable for production');
+      getJWTSecret._warned = true;
+    }
+    return crypto.randomBytes(64).toString('hex');
+  }
+
+  // 验证密钥长度
+  if (secret.length < 32) {
+    throw new Error('SECURITY ERROR: JWT_SECRET must be at least 32 characters');
+  }
+
+  return secret;
+}
+
+const _JWT_SECRET = getJWTSecret();
 const TOKEN_EXPIRY = process.env.JWT_EXPIRES_IN || 3600;
 const REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRES_IN || 86400 * 7;
 const BCRYPT_ROUNDS = 12;
 
 class JWTManager {
   constructor(options = {}) {
-    this.secret = options.secret || process.env.JWT_SECRET || JWT_SECRET;
+    this.secret = options.secret || getJWTSecret();
     this.expiresIn = options.expiresIn || TOKEN_EXPIRY;
     this.refreshExpiresIn = options.refreshExpiresIn || REFRESH_EXPIRY;
     this.issuer = options.issuer || 'ultrawork-ai';
@@ -47,12 +74,12 @@ class JWTManager {
       return jwt.verify(token, this.secret, { issuer: this.issuer });
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
-        throw new Error('Token expired');
+        throw new Error('Token expired', { cause: error });
       }
       if (error.name === 'JsonWebTokenError') {
-        throw new Error('Invalid token');
+        throw new Error('Invalid token', { cause: error });
       }
-      throw new Error(`Token verification failed: ${error.message}`);
+      throw new Error(`Token verification failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -87,7 +114,7 @@ class JWTManager {
       }
       return payload;
     } catch (error) {
-      throw new Error(`Refresh token verification failed: ${error.message}`);
+      throw new Error(`Refresh token verification failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -153,14 +180,14 @@ function createAuthMiddleware(options = {}) {
    */
   const authenticate = (req, res, next) => {
     // 检查是否在排除路径中
-    if (excludePaths.some(path => req.path.startsWith(path))) {
+    if (excludePaths.some((path) => req.path.startsWith(path))) {
       return next();
     }
 
     // 从header或cookie获取token
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') 
-      ? authHeader.slice(7) 
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
       : req.cookies?.token;
 
     if (!token) {
@@ -184,9 +211,9 @@ function createAuthMiddleware(options = {}) {
       };
       next();
     } catch (error) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Authentication failed',
-        message: error.message 
+        message: error.message
       });
     }
   };
@@ -201,7 +228,7 @@ function createAuthMiddleware(options = {}) {
       }
 
       if (!roles.includes(req.user.role)) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Insufficient permissions',
           required: roles,
           current: req.user.role
@@ -221,12 +248,12 @@ function createAuthMiddleware(options = {}) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const hasPermission = permissions.every(p => 
+      const hasPermission = permissions.every((p) =>
         req.user.permissions.includes(p)
       );
 
       if (!hasPermission) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Permission denied',
           required: permissions
         });
@@ -255,13 +282,13 @@ function createAuthMiddleware(options = {}) {
     }
 
     const users = jwtManager.getUsers ? jwtManager.getUsers() : getEnvUsers();
-    const user = users.find(u => u.username === username);
+    const user = users.find((u) => u.username === username);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isValid = jwtManager.verifyPassword 
+    const isValid = jwtManager.verifyPassword
       ? jwtManager.verifyPassword(username, password)
       : await verifyEnvPassword(user, password);
 
@@ -270,10 +297,10 @@ function createAuthMiddleware(options = {}) {
     }
 
     const token = generateToken(user);
-    const refreshToken = jwtManager.generateRefreshToken 
+    const refreshToken = jwtManager.generateRefreshToken
       ? jwtManager.generateRefreshToken(user.username)
       : null;
-    
+
     res.json({
       ok: true,
       token,
@@ -290,13 +317,13 @@ function createAuthMiddleware(options = {}) {
   function getEnvUsers() {
     const envUsers = process.env.JWT_USERS;
     if (!envUsers) {
-      console.warn('[Auth] No JWT_USERS env configured, auth endpoint disabled');
+      warnLog('[Auth] No JWT_USERS env configured, auth endpoint disabled');
       return [];
     }
     try {
       return JSON.parse(envUsers);
     } catch (e) {
-      console.error('[Auth] Failed to parse JWT_USERS:', e.message);
+      errorLog('[Auth] Failed to parse JWT_USERS:', { error: e.message });
       return [];
     }
   }
@@ -306,11 +333,12 @@ function createAuthMiddleware(options = {}) {
       try {
         return await bcrypt.compare(password, user.bcryptHash);
       } catch (e) {
-        console.error('[Auth] bcrypt compare failed:', e.message);
+        errorLog('[Auth] bcrypt compare failed:', { error: e.message });
         return false;
       }
     }
     if (user.passwordHash) {
+      warnLog('[Auth] WARNING: Legacy SHA-256 password hash detected. Consider migrating to bcrypt/scrypt for better security.');
       const hash = crypto.createHash('sha256').update(password).digest('hex');
       return hash === user.passwordHash;
     }
@@ -324,12 +352,12 @@ function createAuthMiddleware(options = {}) {
     return false;
   }
 
-  async function hashPassword(password) {
+  async function _hashPassword(password) {
     if (bcrypt) {
       return await bcrypt.hash(password, BCRYPT_ROUNDS);
     }
     const salt = crypto.randomBytes(16).toString('hex');
-    return salt + ':' + crypto.scryptSync(password, salt, 64).toString('hex');
+    return `${salt}:${crypto.scryptSync(password, salt, 64).toString('hex')}`;
   }
 
   /**
@@ -355,9 +383,9 @@ function createAuthMiddleware(options = {}) {
   };
 }
 
-module.exports = { 
-  JWTManager, 
-  createAuthMiddleware, 
-  ROLES, 
-  PERMISSIONS 
+module.exports = {
+  JWTManager,
+  createAuthMiddleware,
+  ROLES,
+  PERMISSIONS
 };

@@ -10,7 +10,7 @@ class SkillConsolidator {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'consolidation');
     this.consolidationsFile = path.join(this.dataDir, 'consolidations.json');
-    
+
     // 已知的冗余技能组
     this.redundantGroups = [
       {
@@ -70,10 +70,10 @@ class SkillConsolidator {
         reason: 'Web应用测试和测试生成功能应该合并'
       }
     ];
-    
+
     // 合并历史
     this.consolidations = [];
-    
+
     this._ensureDataDir();
     this._loadData();
   }
@@ -119,12 +119,12 @@ class SkillConsolidator {
 
     // 检查冗余组
     for (const group of this.redundantGroups) {
-      const foundSkills = skills.filter(s => group.skills.includes(s.name || s.id));
-      
+      const foundSkills = skills.filter((s) => group.skills.includes(s.name || s.id));
+
       if (foundSkills.length >= 2) {
         analysis.redundantGroups.push({
           ...group,
-          foundSkills: foundSkills.map(s => ({
+          foundSkills: foundSkills.map((s) => ({
             name: s.name || s.id,
             description: s.description,
             overlap: this._calculateOverlap(s, foundSkills)
@@ -137,14 +137,14 @@ class SkillConsolidator {
     const allDependencies = new Set();
     for (const skill of skills) {
       if (skill.dependencies) {
-        skill.dependencies.forEach(dep => allDependencies.add(dep));
+        skill.dependencies.forEach((dep) => allDependencies.add(dep));
       }
     }
 
-    analysis.orphanedSkills = skills.filter(s => 
-      !allDependencies.has(s.name || s.id) && 
+    analysis.orphanedSkills = skills.filter((s) =>
+      !allDependencies.has(s.name || s.id) &&
       !this._isCoreSkill(s)
-    ).map(s => ({
+    ).map((s) => ({
       name: s.name || s.id,
       reason: '没有被其他技能依赖'
     }));
@@ -161,11 +161,11 @@ class SkillConsolidator {
   _calculateOverlap(skill, groupSkills) {
     // 基于功能描述和依赖计算重叠度
     const skillDeps = skill.dependencies || [];
-    const groupDeps = groupSkills.flatMap(s => s.dependencies || []);
-    
-    const overlap = skillDeps.filter(dep => groupDeps.includes(dep)).length;
+    const groupDeps = groupSkills.flatMap((s) => s.dependencies || []);
+
+    const overlap = skillDeps.filter((dep) => groupDeps.includes(dep)).length;
     const total = new Set([...skillDeps, ...groupDeps]).size;
-    
+
     return total > 0 ? Math.round((overlap / total) * 100) : 0;
   }
 
@@ -192,7 +192,7 @@ class SkillConsolidator {
         recommendations.push({
           type: 'merge',
           priority: 'high',
-          skills: group.foundSkills.map(s => s.name),
+          skills: group.foundSkills.map((s) => s.name),
           target: group.primarySkill,
           reason: group.reason,
           estimatedEffort: 'medium',
@@ -202,7 +202,7 @@ class SkillConsolidator {
         recommendations.push({
           type: 'hierarchy',
           priority: 'medium',
-          skills: group.foundSkills.map(s => s.name),
+          skills: group.foundSkills.map((s) => s.name),
           primary: group.primarySkill,
           reason: group.reason,
           estimatedEffort: 'low',
@@ -216,7 +216,7 @@ class SkillConsolidator {
       recommendations.push({
         type: 'cleanup',
         priority: 'low',
-        skills: analysis.orphanedSkills.map(s => s.name),
+        skills: analysis.orphanedSkills.map((s) => s.name),
         reason: '多个技能未被其他技能依赖，可能需要整合或标记为可选',
         estimatedEffort: 'low',
         benefits: ['减少系统复杂度', '提高可维护性']
@@ -231,7 +231,7 @@ class SkillConsolidator {
    */
   mergeSkills(primarySkill, secondarySkills, options = {}) {
     const { dryRun = false } = options;
-    
+
     const mergeResult = {
       primary: primarySkill.name,
       merged: [],
@@ -242,18 +242,18 @@ class SkillConsolidator {
     // 合并功能
     const mergedFeatures = new Set(primarySkill.features || []);
     const mergedDependencies = new Set(primarySkill.dependencies || []);
-    
+
     for (const secondary of secondarySkills) {
       mergeResult.merged.push(secondary.name);
-      
+
       // 合并功能
       if (secondary.features) {
-        secondary.features.forEach(f => mergedFeatures.add(f));
+        secondary.features.forEach((f) => mergedFeatures.add(f));
       }
-      
+
       // 合并依赖（去重）
       if (secondary.dependencies) {
-        secondary.dependencies.forEach(d => {
+        secondary.dependencies.forEach((d) => {
           if (!mergedDependencies.has(d)) {
             mergeResult.changes.push({
               type: 'dependency_added',
@@ -264,7 +264,7 @@ class SkillConsolidator {
           }
         });
       }
-      
+
       // 合并配置
       if (secondary.config) {
         mergeResult.changes.push({
@@ -282,7 +282,7 @@ class SkillConsolidator {
       dependencies: Array.from(mergedDependencies),
       metadata: {
         ...primarySkill.metadata,
-        mergedFrom: secondarySkills.map(s => s.name),
+        mergedFrom: secondarySkills.map((s) => s.name),
         mergedAt: new Date().toISOString(),
         version: this._incrementVersion(primarySkill.version || '1.0.0', 'minor')
       }
@@ -293,7 +293,7 @@ class SkillConsolidator {
         timestamp: new Date().toISOString(),
         type: 'merge',
         primary: primarySkill.name,
-        merged: secondarySkills.map(s => s.name),
+        merged: secondarySkills.map((s) => s.name),
         result: mergeResult
       });
       this._saveData();
@@ -309,7 +309,7 @@ class SkillConsolidator {
   /**
    * 建立层次结构
    */
-  establishHierarchy(primarySkill, childSkills, options = {}) {
+  establishHierarchy(primarySkill, childSkills, _options = {}) {
     const hierarchyResult = {
       primary: primarySkill.name,
       children: [],
@@ -330,7 +330,7 @@ class SkillConsolidator {
       timestamp: new Date().toISOString(),
       type: 'hierarchy',
       primary: primarySkill.name,
-      children: childSkills.map(s => s.name)
+      children: childSkills.map((s) => s.name)
     });
     this._saveData();
 
@@ -345,10 +345,10 @@ class SkillConsolidator {
    */
   generateUnifiedExecutor(skills, options = {}) {
     const executorName = options.name || 'UnifiedDocumentExecutor';
-    
+
     const executor = {
       name: executorName,
-      supportedSkills: skills.map(s => s.name),
+      supportedSkills: skills.map((s) => s.name),
       supportedActions: [],
       implementations: {}
     };
@@ -382,23 +382,23 @@ class SkillConsolidator {
    */
   _incrementVersion(version, type = 'patch') {
     const parts = version.split('.').map(Number);
-    
+
     switch (type) {
-      case 'major':
-        parts[0] += 1;
-        parts[1] = 0;
-        parts[2] = 0;
-        break;
-      case 'minor':
-        parts[1] += 1;
-        parts[2] = 0;
-        break;
-      case 'patch':
-      default:
-        parts[2] += 1;
-        break;
+    case 'major':
+      parts[0] += 1;
+      parts[1] = 0;
+      parts[2] = 0;
+      break;
+    case 'minor':
+      parts[1] += 1;
+      parts[2] = 0;
+      break;
+    case 'patch':
+    default:
+      parts[2] += 1;
+      break;
     }
-    
+
     return parts.join('.');
   }
 
@@ -421,7 +421,7 @@ class SkillConsolidator {
    */
   generateReport(skills) {
     const analysis = this.analyzeRedundancy(skills);
-    
+
     return {
       timestamp: new Date().toISOString(),
       summary: {

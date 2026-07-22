@@ -1,0 +1,35 @@
+﻿jest-haste-map: Haste module naming collision: ultrawork-ai
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>\package.json
+    * <rootDir>\docker\package.json
+
+node.exe : PASS tests/unit/sandbox-runner.test.js
+At line:1 char:1
++ & "E:\DS/node.exe" "E:\DS/node_modules/npm/bin/npx-cli.js" jest --no- ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS tests/unit/sandbox-runner.test.js:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  SandboxRunner
+    run
+      √ resolves with result on worker success (4 ms)
+      √ rejects when worker returns method-not-found error (22 ms)
+      √ rejects when worker returns runtime error (1 ms)
+      √ rejects with non-string error messages (1 ms)
+      √ rejects on worker error event (1 ms)
+      √ rejects on timeout when worker does not respond (10 ms)
+      √ terminates worker on timeout (13 ms)
+      √ ignores worker error after settled
+      √ passes pluginPath, method and args as workerData (2 ms)
+      √ uses default timeout of 3000ms when not specified (12 ms)
+
+D:\龙虾\src\plugins\SandboxRunner.js:1298
+            reject(new Error('timeout'));
+                   ^
+
+Error: timeout
+    at Timeout._onTimeout (D:\龙虾\src\plugins\SandboxRunner.js:41:20)
+    at listOnTimeout (node:internal/timers:605:17)
+    at processTimers (node:internal/timers:541:7)
+
+Node.js v24.14.0

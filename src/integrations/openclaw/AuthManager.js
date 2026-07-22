@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { exec, spawn } = require('child_process');
+const { safeSpawn } = require('../../utils/SafeExec');
 
 class AuthManager {
   constructor(options = {}) {
@@ -13,13 +13,13 @@ class AuthManager {
     this.authProfilesPath = path.join(this.stateDir, 'agents', 'main', 'agent', 'auth-profiles.json');
     this.authJsonPath = path.join(this.stateDir, 'agents', 'main', 'agent', 'auth.json');
     this.openclawJsonPath = path.join(this.stateDir, 'openclaw.json');
-    
+
     this.profiles = new Map();
     this.providers = new Set();
-    
+
     this._ensureStateDir();
   }
-  
+
   /**
    * 确保状态目录存在
    */
@@ -30,14 +30,14 @@ class AuthManager {
       path.join(this.stateDir, 'agents', 'main'),
       path.join(this.stateDir, 'agents', 'main', 'agent')
     ];
-    
+
     for (const dir of dirs) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
     }
   }
-  
+
   /**
    * 加载认证配置
    */
@@ -53,7 +53,7 @@ class AuthManager {
     }
     return false;
   }
-  
+
   /**
    * 保存认证配置
    */
@@ -70,7 +70,7 @@ class AuthManager {
       return false;
     }
   }
-  
+
   /**
    * 添加认证配置
    */
@@ -84,31 +84,31 @@ class AuthManager {
     this.providers.add(provider);
     return this.saveAuthProfiles();
   }
-  
+
   /**
    * 获取认证配置
    */
   getProfile(provider) {
     const key = `${provider}:default`;
     const profile = this.profiles.get(key);
-    if (!profile) return null;
+    if (!profile) {return null;}
     return profile.key;
   }
-  
+
   /**
    * 获取所有已认证的提供商
    */
   getAuthenticatedProviders() {
     return Array.from(this.providers);
   }
-  
+
   /**
    * 检查提供商是否已认证
    */
   isProviderAuthenticated(provider) {
     return this.providers.has(provider);
   }
-  
+
   /**
    * 移除认证配置
    */
@@ -120,53 +120,53 @@ class AuthManager {
     }
     return false;
   }
-  
+
   /**
    * 启动 Chrome 调试模式
    */
   async startChromeDebug(platforms = []) {
     return new Promise((resolve, reject) => {
       const scriptPath = path.join(process.cwd(), 'start-chrome-debug.sh');
-      
+
       if (!fs.existsSync(scriptPath)) {
         reject(new Error('start-chrome-debug.sh not found'));
         return;
       }
-      
+
       const args = [scriptPath];
       if (platforms.length > 0) {
         args.push(...platforms);
       }
-      
-      const child = spawn('bash', args, {
+
+      const child = safeSpawn('bash', args, {
         detached: true,
         stdio: 'ignore'
       });
-      
+
       child.unref();
-      
+
       setTimeout(() => {
         resolve({ pid: child.pid, message: 'Chrome debug mode started' });
       }, 2000);
     });
   }
-  
+
   /**
    * 运行 onboard 流程
    */
   async runOnboard(provider) {
     return new Promise((resolve, reject) => {
       const scriptPath = path.join(process.cwd(), 'onboard.sh');
-      
+
       if (!fs.existsSync(scriptPath)) {
         reject(new Error('onboard.sh not found'));
         return;
       }
-      
-      const child = spawn('bash', [scriptPath, 'webauth'], {
+
+      const child = safeSpawn('bash', [scriptPath, 'webauth'], {
         stdio: 'inherit'
       });
-      
+
       child.on('close', (code) => {
         if (code === 0) {
           this.loadAuthProfiles();
@@ -175,17 +175,17 @@ class AuthManager {
           reject(new Error(`Onboard failed with code ${code}`));
         }
       });
-      
+
       child.on('error', reject);
     });
   }
-  
+
   /**
    * 获取认证状态摘要
    */
   getStatus() {
     const authenticated = this.getAuthenticatedProviders();
-    
+
     return {
       stateDir: this.stateDir,
       authenticatedProviders: authenticated,
@@ -197,7 +197,7 @@ class AuthManager {
       }))
     };
   }
-  
+
   /**
    * 同步到 auth.json (OpenClaw 内部格式)
    */
@@ -207,14 +207,14 @@ class AuthManager {
         version: '1.0',
         profiles: {}
       };
-      
+
       for (const [key, profile] of this.profiles.entries()) {
         authData.profiles[key] = {
           provider: profile.provider,
           key: profile.key
         };
       }
-      
+
       fs.writeFileSync(this.authJsonPath, JSON.stringify(authData, null, 2));
       return true;
     } catch (error) {
@@ -222,7 +222,7 @@ class AuthManager {
       return false;
     }
   }
-  
+
   /**
    * 导出配置
    */

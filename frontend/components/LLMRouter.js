@@ -1,6 +1,6 @@
 /**
  * LLMRouter - 灵活的LLM路由系统
- * 
+ *
  * 功能:
  * - 支持多种LLM后端
  * - OpenAI兼容端点
@@ -29,13 +29,13 @@ class LLMRouter {
     // 提供商配置
     this.providers = new Map();
     this.providerStats = new Map();
-    
+
     // 默认提供商配置
     this._initDefaultProviders();
-    
+
     // 当前活跃提供商
     this.activeProvider = null;
-    
+
     // 消息历史
     this.conversationHistory = [];
     this.maxHistoryLength = options.maxHistoryLength || 50;
@@ -78,7 +78,7 @@ class LLMRouter {
     // Text Generation WebUI (Oobabooga)
     this.registerProvider('textgen', {
       name: 'Text Generation WebUI',
-      endpoint: options.textgenEndpoint || 'http://localhost:5000/api/v1/chat',
+      endpoint: this.options.textgenEndpoint || 'http://localhost:5000/api/v1/chat',
       model: 'local',
       headers: () => ({
         'Content-Type': 'application/json'
@@ -98,8 +98,8 @@ class LLMRouter {
     // Ollama
     this.registerProvider('ollama', {
       name: 'Ollama',
-      endpoint: options.ollamaEndpoint || 'http://localhost:11434/api/chat',
-      model: options.ollamaModel || 'llama2',
+      endpoint: this.options.ollamaEndpoint || 'http://localhost:11434/api/chat',
+      model: this.options.ollamaModel || 'llama2',
       headers: () => ({
         'Content-Type': 'application/json'
       }),
@@ -120,8 +120,8 @@ class LLMRouter {
     // 兼容OpenAI的其他端点
     this.registerProvider('openai-compatible', {
       name: 'OpenAI Compatible',
-      endpoint: options.compatibleEndpoint || 'http://localhost:8000/v1/chat/completions',
-      model: options.compatibleModel || 'local',
+      endpoint: this.options.compatibleEndpoint || 'http://localhost:8000/v1/chat/completions',
+      model: this.options.compatibleModel || 'local',
       headers: (key) => ({
         'Authorization': `Bearer ${key || 'no-key'}`,
         'Content-Type': 'application/json'
@@ -186,15 +186,15 @@ class LLMRouter {
 
     for (const pName of providersToTry) {
       const p = this.providers.get(pName);
-      if (!p || !p.enabled) continue;
+      if (!p || !p.enabled) {continue;}
 
       for (let retry = 0; retry < this.options.maxRetries; retry++) {
         try {
           const result = await this._callProvider(p, pName, fullMessages, options);
-          
+
           // 更新统计
           this._updateStats(pName, true, Date.now());
-          
+
           // 记录历史
           if (this.options.conversationMemory !== false) {
             this.conversationHistory.push(...fullMessages.slice(-2));
@@ -209,7 +209,7 @@ class LLMRouter {
           console.error(`[LLMRouter] ${pName} error (attempt ${retry + 1}):`, error);
           lastError = error;
           this._updateStats(pName, false);
-          
+
           // 等待后重试
           if (retry < this.options.maxRetries - 1) {
             await this._delay(1000 * (retry + 1));
@@ -258,7 +258,7 @@ class LLMRouter {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {break;}
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -311,7 +311,7 @@ class LLMRouter {
 
       const data = await response.json();
       const parsed = provider.parseResponse(data);
-      
+
       const latency = Date.now() - startTime;
       console.log(`[LLMRouter] ${providerName} responded in ${latency}ms`);
 
@@ -324,7 +324,7 @@ class LLMRouter {
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error(`Timeout after ${this.options.timeout}ms`);
+        throw new Error(`Timeout after ${this.options.timeout}ms`, { cause: error });
       }
       throw error;
     }
@@ -361,13 +361,13 @@ class LLMRouter {
    */
   _getProvidersToTry(primary) {
     const providers = [primary];
-    
+
     // 按优先级添加其他提供商
     const others = Array.from(this.providers.entries())
       .filter(([name, p]) => name !== primary && p.enabled)
       .sort((a, b) => a[1].priority - b[1].priority)
       .map(([name]) => name);
-    
+
     return [...providers, ...others];
   }
 
@@ -376,7 +376,7 @@ class LLMRouter {
    */
   _updateStats(providerName, success, timestamp = null) {
     const stats = this.providerStats.get(providerName);
-    if (!stats) return;
+    if (!stats) {return;}
 
     stats.requests++;
     if (success) {
@@ -472,7 +472,7 @@ class LLMRouter {
    * 延迟工具
    */
   _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

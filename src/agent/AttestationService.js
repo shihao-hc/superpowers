@@ -99,7 +99,7 @@ class AttestationService {
   queryAttestations(filter = {}) {
     const results = [];
 
-    for (const [id, attestation] of this.store) {
+    for (const [_id, attestation] of this.store) {
       let match = true;
 
       if (filter.issuer && attestation.issuer !== filter.issuer) {
@@ -151,14 +151,14 @@ class AttestationService {
   }
 
   generateMerkleRoot(attestationIds) {
-    if (attestationIds.length === 0) return null;
+    if (attestationIds.length === 0) {return null;}
 
-    const hashes = attestationIds.map(id => {
+    const hashes = attestationIds.map((id) => {
       const att = this.store.get(id);
       return att ? att.hash : null;
     }).filter(Boolean);
 
-    if (hashes.length === 0) return null;
+    if (hashes.length === 0) {return null;}
 
     let level = hashes;
     while (level.length > 1) {
@@ -180,7 +180,7 @@ class AttestationService {
 
   exportAttestation(attestationId) {
     const attestation = this.store.get(attestationId);
-    if (!attestation) return null;
+    if (!attestation) {return null;}
 
     return JSON.stringify(attestation, null, 2);
   }
@@ -207,14 +207,14 @@ class AttestationService {
       this.store.set(attestation.id, attestation);
       return attestation.id;
     } catch (e) {
-      throw new Error('Failed to import attestation: ' + e.message);
+      throw new Error(`Failed to import attestation: ${e.message}`, { cause: e });
     }
   }
 
   getStats() {
     return {
       total: this.store.size,
-      signed: Array.from(this.store.values()).filter(a => a.signature).length,
+      signed: Array.from(this.store.values()).filter((a) => a.signature).length,
       chainId: this.chainId
     };
   }

@@ -5,12 +5,16 @@ class JWTAuth {
   constructor(options = {}) {
     this.secret = options.secret || process.env.JWT_SECRET;
     if (!this.secret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('SECURITY ERROR: JWT_SECRET must be set in production');
+      }
       this.secret = crypto.randomBytes(32).toString('hex');
       console.warn('[JWTAuth] No JWT_SECRET set, using random key (tokens invalid on restart)');
     }
     this.expiresIn = options.expiresIn || 86400000;
     this.refreshExpiresIn = options.refreshExpiresIn || (7 * 86400000);
     this.issuer = options.issuer || 'ultrawork';
+    this.cleanupInterval = options.cleanupInterval || 60000;
     this.tokens = new Map();
     this.refreshTokens = new Map();
     this.users = new Map();
@@ -20,6 +24,7 @@ class JWTAuth {
   }
 
   _startCleanup() {
+    const interval = this.cleanupInterval;
     this._cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [token, data] of this.tokens) {
@@ -32,7 +37,7 @@ class JWTAuth {
           this.refreshTokens.delete(token);
         }
       }
-    }, 60000);
+    }, interval);
   }
 
   _setupDefaultRoles() {
@@ -74,12 +79,12 @@ class JWTAuth {
 
   verifyPassword(username, password) {
     const user = this.users.get(username);
-    if (!user || !user.active) return false;
+    if (!user || !user.active) {return false;}
 
     const hash = crypto.scryptSync(password, user.salt, 64).toString('hex');
-    
-    if (hash.length !== user.hash.length) return false;
-    
+
+    if (hash.length !== user.hash.length) {return false;}
+
     try {
       return crypto.timingSafeEqual(
         Buffer.from(hash, 'hex'),
@@ -149,7 +154,7 @@ class JWTAuth {
   }
 
   verify(token) {
-    if (!token) return { valid: false, error: 'No token provided' };
+    if (!token) {return { valid: false, error: 'No token provided' };}
 
     try {
       const payload = jwt.verify(token, this.secret, {
@@ -174,7 +179,7 @@ class JWTAuth {
   }
 
   verifySocketToken(token) {
-    if (!token) return { valid: false, error: 'No token provided' };
+    if (!token) {return { valid: false, error: 'No token provided' };}
 
     try {
       const payload = jwt.verify(token, this.secret, {
@@ -199,10 +204,10 @@ class JWTAuth {
       }
 
       const stored = this.refreshTokens.get(refreshToken);
-      if (!stored) return { error: 'Invalid refresh token' };
+      if (!stored) {return { error: 'Invalid refresh token' };}
 
       const user = this.users.get(stored.username);
-      if (!user || !user.active) return { error: 'User not found' };
+      if (!user || !user.active) {return { error: 'User not found' };}
 
       const newAccessToken = this._generateToken(user.username, user.role);
       const newRefreshToken = this._generateRefreshToken(user.username);
@@ -272,7 +277,7 @@ class JWTAuth {
         }
 
         const hasPermission = userRole.permissions.includes('*') ||
-          userRole.permissions.some(p => {
+          userRole.permissions.some((p) => {
             const [resource, action] = p.split(':');
             const [reqResource, reqAction] = requiredPermission.split(':');
             return (resource === reqResource || resource === '*') &&

@@ -19,6 +19,7 @@ module.exports = {
       }
     }
   },
+  suggest: '将 setTimeout/setInterval 的字符串参数替换为函数引用：setTimeout(() => { ... }, delay)。将 new Function() 替换为预定义函数或策略模式。避免将用户输入作为代码执行。如果需要动态执行代码，使用沙箱（如 vm2）并严格限制权限。',
   references: ['CWE-95'],
   since: '2026-06-28',
 };

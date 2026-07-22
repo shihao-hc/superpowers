@@ -38,7 +38,7 @@ class MultiModelAdapter {
       defaultModel: 'gpt-4o-mini',
       generate: async (prompt, options) => {
         const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+        if (!apiKey) {throw new Error('OPENAI_API_KEY not set');}
 
         const response = await fetch(`${this.providers.get('openai').baseUrl}/chat/completions`, {
           method: 'POST',
@@ -54,7 +54,7 @@ class MultiModelAdapter {
           })
         });
         const data = await response.json();
-        return data.choices[0].message.content;
+        return data.choices?.[0]?.message?.content ?? '';
       }
     });
 
@@ -65,7 +65,7 @@ class MultiModelAdapter {
       defaultModel: 'claude-3-haiku',
       generate: async (prompt, options) => {
         const apiKey = process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+        if (!apiKey) {throw new Error('ANTHROPIC_API_KEY not set');}
 
         const response = await fetch(`${this.providers.get('anthropic').baseUrl}/messages`, {
           method: 'POST',
@@ -81,7 +81,7 @@ class MultiModelAdapter {
           })
         });
         const data = await response.json();
-        return data.content[0].text;
+        return data.content?.[0]?.text ?? '';
       }
     });
 
@@ -92,7 +92,7 @@ class MultiModelAdapter {
       defaultModel: 'deepseek-chat',
       generate: async (prompt, options) => {
         const apiKey = process.env.DEEPSEEK_API_KEY;
-        if (!apiKey) throw new Error('DEEPSEEK_API_KEY not set');
+        if (!apiKey) {throw new Error('DEEPSEEK_API_KEY not set');}
 
         const response = await fetch(`${this.providers.get('deepseek').baseUrl}/chat/completions`, {
           method: 'POST',
@@ -108,7 +108,7 @@ class MultiModelAdapter {
           })
         });
         const data = await response.json();
-        return data.choices[0].message.content;
+        return data.choices?.[0]?.message?.content ?? '';
       }
     });
 
@@ -119,7 +119,7 @@ class MultiModelAdapter {
       defaultModel: 'gemini-pro',
       generate: async (prompt, options) => {
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+        if (!apiKey) {throw new Error('GEMINI_API_KEY not set');}
 
         const model = options.model || 'gemini-pro';
         const response = await fetch(
@@ -134,7 +134,7 @@ class MultiModelAdapter {
           }
         );
         const data = await response.json();
-        return data.candidates[0].content.parts[0].text;
+        return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
       }
     });
   }
@@ -162,20 +162,22 @@ class MultiModelAdapter {
     }
 
     for (let attempt = 0; attempt <= this.retryAttempts; attempt++) {
+      let timeoutHandle;
       try {
         provider.requestCount++;
         const result = await Promise.race([
           provider.generate(prompt, options),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), this.timeout)
-          )
+          new Promise((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error('Timeout')), this.timeout);
+          })
         ]);
-
+        clearTimeout(timeoutHandle);
         provider.available = true;
         provider.lastError = null;
         return result;
 
       } catch (error) {
+        clearTimeout(timeoutHandle);
         provider.errorCount++;
         provider.lastError = error.message;
 
@@ -195,7 +197,7 @@ class MultiModelAdapter {
           throw error;
         }
 
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
       }
     }
   }
@@ -205,7 +207,7 @@ class MultiModelAdapter {
 
     for (const providerName of visionProviders) {
       const provider = this.providers.get(providerName);
-      if (!provider || !provider.available) continue;
+      if (!provider || !provider.available) {continue;}
 
       try {
         if (providerName === 'ollama') {
@@ -243,7 +245,7 @@ class MultiModelAdapter {
             })
           });
           const data = await response.json();
-          return data.choices[0].message.content;
+          return data.choices?.[0]?.message?.content ?? '';
         }
 
         if (providerName === 'gemini') {
@@ -264,7 +266,7 @@ class MultiModelAdapter {
             }
           );
           const data = await response.json();
-          return data.candidates[0].content.parts[0].text;
+          return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
         }
       } catch (error) {
         console.warn(`[MultiModel] Vision failed with ${providerName}:`, error.message);
@@ -307,7 +309,7 @@ class MultiModelAdapter {
         available: provider.available,
         lastError: provider.lastError,
         errorRate: provider.requestCount > 0
-          ? (provider.errorCount / provider.requestCount * 100).toFixed(2) + '%'
+          ? `${(provider.errorCount / provider.requestCount * 100).toFixed(2)}%`
           : '0%'
       };
     }

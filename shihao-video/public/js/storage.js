@@ -80,7 +80,7 @@ const Storage = {
 
   updateSource(id, updates) {
     const sources = this.getSources();
-    const index = sources.findIndex(s => s.id === id);
+    const index = sources.findIndex((s) => s.id === id);
     if (index !== -1) {
       sources[index] = { ...sources[index], ...updates };
       this.saveSources(sources);
@@ -91,7 +91,7 @@ const Storage = {
 
   deleteSource(id) {
     const sources = this.getSources();
-    const filtered = sources.filter(s => s.id !== id);
+    const filtered = sources.filter((s) => s.id !== id);
     this.saveSources(filtered);
     return filtered;
   },
@@ -99,14 +99,14 @@ const Storage = {
   getCurrentSource() {
     const currentId = localStorage.getItem(this.KEYS.CURRENT_SOURCE);
     const sources = this.getSources();
-    
+
     if (currentId) {
-      const source = sources.find(s => s.id === parseInt(currentId));
-      if (source) return source;
+      const source = sources.find((s) => s.id === parseInt(currentId));
+      if (source) {return source;}
     }
-    
+
     // 返回第一个活跃的数据源
-    const active = sources.find(s => s.isActive) || sources[0];
+    const active = sources.find((s) => s.isActive) || sources[0];
     if (active) {
       this.setCurrentSource(active.id);
     }
@@ -117,7 +117,7 @@ const Storage = {
     localStorage.setItem(this.KEYS.CURRENT_SOURCE, id.toString());
     // 更新活跃状态
     const sources = this.getSources();
-    sources.forEach(s => {
+    sources.forEach((s) => {
       s.isActive = s.id === id;
     });
     this.saveSources(sources);
@@ -131,25 +131,25 @@ const Storage = {
 
   addFavorite(video) {
     const favorites = this.getFavorites();
-    if (!favorites.find(f => f.id === video.id && f.sourceId === video.sourceId)) {
+    if (!favorites.find((f) => f.id === video.id && f.sourceId === video.sourceId)) {
       video.addedAt = new Date().toISOString();
       favorites.unshift(video);
       // 限制最多100条
-      if (favorites.length > 100) favorites.pop();
+      if (favorites.length > 100) {favorites.pop();}
       localStorage.setItem(this.KEYS.FAVORITES, JSON.stringify(favorites));
     }
   },
 
   removeFavorite(id, sourceId) {
     const favorites = this.getFavorites();
-    const filtered = favorites.filter(f => !(f.id === id && f.sourceId === sourceId));
+    const filtered = favorites.filter((f) => !(f.id === id && f.sourceId === sourceId));
     localStorage.setItem(this.KEYS.FAVORITES, JSON.stringify(filtered));
     return filtered;
   },
 
   isFavorite(id, sourceId) {
     const favorites = this.getFavorites();
-    return favorites.some(f => f.id === id && f.sourceId === sourceId);
+    return favorites.some((f) => f.id === id && f.sourceId === sourceId);
   },
 
   // 历史记录管理
@@ -161,16 +161,16 @@ const Storage = {
   addHistory(video, episode) {
     const history = this.getHistory();
     const key = `${video.id}_${video.sourceId}`;
-    
+
     // 移除相同记录
-    const filtered = history.filter(h => !(h.id === video.id && h.sourceId === video.sourceId));
-    
+    const filtered = history.filter((h) => !(h.id === video.id && h.sourceId === video.sourceId));
+
     video.watchedAt = new Date().toISOString();
     video.lastEpisode = episode;
     filtered.unshift(video);
-    
+
     // 限制最多200条
-    if (filtered.length > 200) filtered.pop();
+    if (filtered.length > 200) {filtered.pop();}
     localStorage.setItem(this.KEYS.HISTORY, JSON.stringify(filtered));
   },
 
@@ -183,12 +183,12 @@ const Storage = {
     const date = new Date(isoString);
     const now = new Date();
     const diff = now - date;
-    
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
-    if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
-    if (diff < 604800000) return Math.floor(diff / 86400000) + '天前';
-    
+
+    if (diff < 60000) {return '刚刚';}
+    if (diff < 3600000) {return `${Math.floor(diff / 60000)}分钟前`;}
+    if (diff < 86400000) {return `${Math.floor(diff / 3600000)}小时前`;}
+    if (diff < 604800000) {return `${Math.floor(diff / 86400000)}天前`;}
+
     return date.toLocaleDateString('zh-CN');
   }
 };

@@ -59,7 +59,7 @@ class OnChainIdentity {
 
   getIdentity(agentId) {
     const identity = this.identityStore.get(agentId);
-    if (!identity) return null;
+    if (!identity) {return null;}
 
     return {
       agentId: identity.agentId,
@@ -73,7 +73,7 @@ class OnChainIdentity {
 
   signMessage(agentId, message) {
     const identity = this.identityStore.get(agentId);
-    if (!identity) throw new Error('Identity not found');
+    if (!identity) {throw new Error('Identity not found');}
 
     const sign = crypto.createSign('SHA256');
     sign.update(typeof message === 'string' ? message : JSON.stringify(message));
@@ -90,9 +90,9 @@ class OnChainIdentity {
     }
   }
 
-  updateReputation(agentId, success, taskType = 'general') {
+  updateReputation(agentId, success, _taskType = 'general') {
     const identity = this.identityStore.get(agentId);
-    if (!identity) throw new Error('Identity not found');
+    if (!identity) {throw new Error('Identity not found');}
 
     identity.reputation.interactions++;
 
@@ -109,12 +109,12 @@ class OnChainIdentity {
 
   getReputation(agentId) {
     const identity = this.identityStore.get(agentId);
-    if (!identity) return null;
+    if (!identity) {return null;}
 
     return {
       ...identity.reputation,
       successRate: identity.reputation.interactions > 0
-        ? (identity.reputation.successfulTasks / identity.reputation.interactions * 100).toFixed(2) + '%'
+        ? `${(identity.reputation.successfulTasks / identity.reputation.interactions * 100).toFixed(2)}%`
         : '0%'
     };
   }
@@ -143,7 +143,7 @@ class OnChainIdentity {
 
     for (const [agentId, services] of this.serviceRegistry) {
       const identity = this.getIdentity(agentId);
-      if (!identity) continue;
+      if (!identity) {continue;}
 
       for (const svc of services) {
         if (svc.active && (!capability || svc.name.includes(capability))) {
@@ -166,7 +166,7 @@ class OnChainIdentity {
 
   createAttestation(issuerId, subjectId, claim) {
     const issuer = this.identityStore.get(issuerId);
-    if (!issuer) throw new Error('Issuer not found');
+    if (!issuer) {throw new Error('Issuer not found');}
 
     const attestation = {
       id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -183,9 +183,9 @@ class OnChainIdentity {
 
   verifyAttestation(attestation) {
     const issuer = this.getIdentity(attestation.issuer);
-    if (!issuer) return false;
+    if (!issuer) {return false;}
 
-    if (Date.now() > attestation.expiresAt) return false;
+    if (Date.now() > attestation.expiresAt) {return false;}
 
     return this.verifySignature(
       issuer.publicKey,
@@ -196,7 +196,7 @@ class OnChainIdentity {
 
   exportIdentity(agentId, includePrivate = false) {
     const identity = this.identityStore.get(agentId);
-    if (!identity) throw new Error('Identity not found');
+    if (!identity) {throw new Error('Identity not found');}
 
     const exported = {
       agentId: identity.agentId,
@@ -244,7 +244,7 @@ class OnChainIdentity {
 
   generateDid(agentId) {
     const identity = this.getIdentity(agentId);
-    if (!identity) throw new Error('Identity not found');
+    if (!identity) {throw new Error('Identity not found');}
 
     const publicKeyHash = crypto
       .createHash('sha256')

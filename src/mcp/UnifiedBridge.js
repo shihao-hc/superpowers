@@ -21,7 +21,7 @@ class UnifiedBridge {
     this.tools = new Map();
     this.middlewares = [];
     this.bridges = new Map();
-    
+
     this._initDefaultMiddlewares();
   }
 
@@ -63,11 +63,11 @@ class UnifiedBridge {
         }
       }
       const result = await next();
-      
+
       if (this.config.enableThinking && result && !result.error) {
         this._attachThinkingContext(toolName, params, result);
       }
-      
+
       return result;
     });
 
@@ -131,7 +131,7 @@ class UnifiedBridge {
 
     // 构建中间件链
     const chain = this._buildMiddlewareChain(tool, params);
-    
+
     try {
       return await chain();
     } catch (error) {
@@ -149,7 +149,7 @@ class UnifiedBridge {
    */
   _buildMiddlewareChain(tool, params) {
     const middlewares = [...this.middlewares];
-    
+
     const execute = async () => {
       return tool.handler(params, {
         dryRun: dryRunEngine,
@@ -221,7 +221,7 @@ class UnifiedBridge {
    */
   _attachThinkingContext(toolName, params, result) {
     const chain = thinkingChain.getCurrentChain();
-    if (!chain) return;
+    if (!chain) {return;}
 
     const annotation = getAnnotation(toolName);
     if (!annotation.readOnlyHint) {
@@ -236,7 +236,7 @@ class UnifiedBridge {
    * 获取所有工具（含注解）
    */
   getTools() {
-    return Array.from(this.tools.values()).map(tool => ({
+    return Array.from(this.tools.values()).map((tool) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
@@ -255,7 +255,7 @@ class UnifiedBridge {
    * 根据风险等级筛选工具
    */
   getToolsByRiskLevel(level) {
-    return this.getTools().filter(tool => 
+    return this.getTools().filter((tool) =>
       tool.annotations && tool.annotations.riskLevel === level
     );
   }
@@ -264,7 +264,7 @@ class UnifiedBridge {
    * 获取安全操作（只读 + 低风险）
    */
   getSafeTools() {
-    return this.getTools().filter(tool => {
+    return this.getTools().filter((tool) => {
       const ann = tool.annotations;
       return ann.readOnlyHint || (!ann.destructiveHint && ann.idempotentHint);
     });
@@ -274,7 +274,7 @@ class UnifiedBridge {
    * 获取危险操作
    */
   getDangerousTools() {
-    return this.getTools().filter(tool =>
+    return this.getTools().filter((tool) =>
       tool.annotations && tool.annotations.destructiveHint
     );
   }
@@ -298,7 +298,7 @@ class UnifiedBridge {
         allowed: rootsManager.getAllowedPrefixes()
       },
       thinking: {
-        activeChains: thinkingChain.listChains().filter(c => c.status === 'in_progress').length,
+        activeChains: thinkingChain.listChains().filter((c) => c.status === 'in_progress').length,
         totalChains: thinkingChain.listChains().length
       },
       middlewares: {
@@ -321,7 +321,7 @@ class UnifiedBridge {
     return {
       tools: {
         total: this.tools.size,
-        annotated: Array.from(this.tools.values()).filter(t => t.annotation).length
+        annotated: Array.from(this.tools.values()).filter((t) => t.annotation).length
       },
       dryRun: {
         historyCount: dryRunEngine.getHistory().length

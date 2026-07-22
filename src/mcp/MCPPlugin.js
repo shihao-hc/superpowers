@@ -104,7 +104,7 @@ class MCPPlugin extends EventEmitter {
       this.status = 'loaded';
       this.emit('status-change', { status: 'loaded' });
       this.emit('loaded', {
-        serversRegistered: servers.filter(s => s.enabled !== false).length,
+        serversRegistered: servers.filter((s) => s.enabled !== false).length,
         toolsAvailable: this.registry.getTools().length
       });
 
@@ -145,7 +145,7 @@ class MCPPlugin extends EventEmitter {
   }
 
   async onServerStart(serverName) {
-    const server = this.serverConfig?.servers?.find(s => s.name === serverName);
+    const server = this.serverConfig?.servers?.find((s) => s.name === serverName);
     if (!server) {
       throw new Error(`Server ${serverName} not found in config`);
     }
@@ -328,20 +328,23 @@ class MCPPlugin extends EventEmitter {
         };
 
         if (check.connected && check.ready) {
+          let healthTimer;
           try {
             const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('Health check timeout')), 5000);
+              healthTimer = setTimeout(() => reject(new Error('Health check timeout')), 5000);
             });
-            
+
             await Promise.race([
               client.listTools(),
               timeoutPromise
             ]);
-            
+            clearTimeout(healthTimer);
+
             check.listToolsSuccess = true;
             check.status = 'healthy';
             healthyCount++;
           } catch (error) {
+            clearTimeout(healthTimer);
             check.listToolsSuccess = false;
             check.status = 'degraded';
             check.error = error.message;
@@ -371,27 +374,27 @@ class MCPPlugin extends EventEmitter {
         const metrics = this.bridge.getMetrics();
         results.checks.metrics = {
           totalCalls: metrics.totalCalls,
-          successRate: metrics.totalCalls > 0 
-            ? ((metrics.successfulCalls / metrics.totalCalls) * 100).toFixed(2) + '%' 
+          successRate: metrics.totalCalls > 0
+            ? `${((metrics.successfulCalls / metrics.totalCalls) * 100).toFixed(2)}%`
             : 'N/A'
         };
       }
     }
 
     if (results.overall === 'healthy' && results.checks.servers?.status !== 'healthy') {
-      results.overall = results.checks.servers.status;
+      results.overall = results.checks.servers?.status || 'unhealthy';
     }
 
     return results;
   }
 
   getAvailableTools(options = {}) {
-    if (!this.registry) return [];
+    if (!this.registry) {return [];}
     return this.registry.formatForLLM(options);
   }
 
   getToolsForPrompt(options = {}) {
-    if (!this.registry) return 'No MCP tools available.';
+    if (!this.registry) {return 'No MCP tools available.';}
     return this.registry.formatForPrompt(options);
   }
 
@@ -407,7 +410,7 @@ class MCPPlugin extends EventEmitter {
   }
 
   getPermissionAuditLog(options = {}) {
-    if (!this.permissionManager) return [];
+    if (!this.permissionManager) {return [];}
     return this.permissionManager.getAuditLog(options);
   }
 
@@ -425,7 +428,7 @@ class MCPPlugin extends EventEmitter {
 
   async removeServer(serverName) {
     await this.bridge.unregister(serverName);
-    this.serverConfig.servers = this.serverConfig.servers.filter(s => s.name !== serverName);
+    this.serverConfig.servers = this.serverConfig.servers.filter((s) => s.name !== serverName);
     await this.registry.refresh();
 
     this.emit('server-removed', { name: serverName });

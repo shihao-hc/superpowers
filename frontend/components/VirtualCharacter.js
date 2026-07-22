@@ -1,5 +1,5 @@
 class VirtualCharacter {
-  constructor(containerId, options = {}) {
+  constructor(containerId, _options = {}) {
     this.containerId = containerId;
     this.container = null;
     this.canvas = null;
@@ -75,7 +75,7 @@ class VirtualCharacter {
 
   init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.width;
@@ -153,7 +153,7 @@ class VirtualCharacter {
   }
 
   _animateMouthWithText(text) {
-    if (this.speakTimer) clearInterval(this.speakTimer);
+    if (this.speakTimer) {clearInterval(this.speakTimer);}
 
     let charIndex = 0;
     const chars = (text || '').split('');
@@ -226,7 +226,7 @@ class VirtualCharacter {
   }
 
   _updateParticles() {
-    this.particles = this.particles.filter(p => {
+    this.particles = this.particles.filter((p) => {
       if (p.life !== undefined) {
         p.life--;
         p.x += p.vx || 0;
@@ -306,7 +306,7 @@ class VirtualCharacter {
   }
 
   _drawParticles(ctx) {
-    this.particles.forEach(p => {
+    this.particles.forEach((p) => {
       ctx.fillStyle = `rgba(255,255,255,${p.opacity})`;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
@@ -374,7 +374,7 @@ class VirtualCharacter {
   _drawEars(ctx, cx, cy) {
     if (this.currentStyle.accessories?.includes('fox_ears')) {
       ctx.fillStyle = this.colors.hair;
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.beginPath();
         ctx.moveTo(cx + side * 45, cy + 20);
         ctx.lineTo(cx + side * 55, cy - 30);
@@ -401,7 +401,7 @@ class VirtualCharacter {
     ctx.fill();
 
     if (this.currentStyle.hairStyle === 'long' || this.currentStyle.hairStyle === 'twin_tails') {
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.beginPath();
         ctx.moveTo(cx + side * 50, cy);
         ctx.quadraticCurveTo(cx + side * 65, cy + 60, cx + side * 45, cy + 120);
@@ -477,7 +477,7 @@ class VirtualCharacter {
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
 
-    [-1, 1].forEach(side => {
+    [-1, 1].forEach((side) => {
       ctx.beginPath();
       ctx.moveTo(cx + side * 15, cy + mood.eyebrow * 8);
       ctx.quadraticCurveTo(cx + side * 28, cy - 3 + mood.eyebrow * 12, cx + side * 40, cy + mood.eyebrow * 5);
@@ -525,7 +525,7 @@ class VirtualCharacter {
   _drawBlush(ctx, cx, cy, mood) {
     if (mood.blush > 0) {
       ctx.fillStyle = `rgba(255,182,193,${mood.blush})`;
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.beginPath();
         ctx.ellipse(cx + side * 42, cy, 14, 7, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -539,7 +539,7 @@ class VirtualCharacter {
     if (style.accessories?.includes('glasses')) {
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 2;
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.beginPath();
         ctx.arc(cx + side * 30, cy - 45, 16, 0, Math.PI * 2);
         ctx.stroke();
@@ -557,7 +557,7 @@ class VirtualCharacter {
       ctx.arc(cx, cy - 75, 60, Math.PI * 0.8, Math.PI * 0.2, true);
       ctx.stroke();
 
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.fillStyle = '#555';
         this._roundRect(ctx, cx + side * 55 - 10, cy - 40, 20, 30, 5);
         ctx.fill();
@@ -566,7 +566,7 @@ class VirtualCharacter {
 
     if (style.accessories?.includes('ribbon')) {
       ctx.fillStyle = '#FF69B4';
-      [-1, 1].forEach(side => {
+      [-1, 1].forEach((side) => {
         ctx.beginPath();
         ctx.moveTo(cx + side * 50, cy - 60);
         ctx.lineTo(cx + side * 65, cy - 75);
@@ -579,7 +579,7 @@ class VirtualCharacter {
   }
 
   _drawSpeechBubble(ctx, x, y) {
-    if (!this.speechBubble || this.speechBubble.opacity <= 0) return;
+    if (!this.speechBubble || this.speechBubble.opacity <= 0) {return;}
 
     ctx.globalAlpha = this.speechBubble.opacity;
 
@@ -596,7 +596,7 @@ class VirtualCharacter {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const text = this.speechBubble.text.length > 20
-      ? this.speechBubble.text.substring(0, 20) + '...'
+      ? `${this.speechBubble.text.substring(0, 20)}...`
       : this.speechBubble.text;
     ctx.fillText(text, x - 95, y + 5);
 
@@ -642,9 +642,9 @@ class VirtualCharacter {
   }
 
   destroy() {
-    if (this.animationId) cancelAnimationFrame(this.animationId);
-    if (this.blinkTimer) clearTimeout(this.blinkTimer);
-    if (this.speakTimer) clearInterval(this.speakTimer);
+    if (this.animationId) {cancelAnimationFrame(this.animationId);}
+    if (this.blinkTimer) {clearTimeout(this.blinkTimer);}
+    if (this.speakTimer) {clearInterval(this.speakTimer);}
 
     if (this.canvas) {
       if (this._mouseMoveHandler) {

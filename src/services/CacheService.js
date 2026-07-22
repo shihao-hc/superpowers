@@ -83,7 +83,7 @@ class CacheService {
   async set(key, value, ttl) {
     this._setLocal(key, value);
 
-    if (!this.connected) return false;
+    if (!this.connected) {return false;}
 
     try {
       const actualTTL = ttl || this.defaultTTL;
@@ -98,7 +98,7 @@ class CacheService {
   async del(key) {
     this._deleteLocal(key);
 
-    if (!this.connected) return false;
+    if (!this.connected) {return false;}
 
     try {
       await this.client.del(key);
@@ -138,7 +138,7 @@ class CacheService {
   }
 
   async invalidatePattern(pattern) {
-    if (!this.connected) return 0;
+    if (!this.connected) {return 0;}
 
     try {
       const keys = [];
@@ -162,7 +162,7 @@ class CacheService {
   }
 
   _getLocal(key) {
-    if (!this.localCache.has(key)) return null;
+    if (!this.localCache.has(key)) {return null;}
 
     const timestamp = this.localCacheTTL.get(key);
     if (timestamp && Date.now() > timestamp) {
@@ -199,7 +199,7 @@ class CacheService {
     const total = this.stats.hits + this.stats.misses;
     return {
       ...this.stats,
-      hitRate: total > 0 ? (this.stats.hits / total * 100).toFixed(2) + '%' : '0%',
+      hitRate: total > 0 ? `${(this.stats.hits / total * 100).toFixed(2)}%` : '0%',
       localCacheSize: this.localCache.size,
       redisConnected: this.connected
     };
@@ -271,7 +271,7 @@ function asyncMemoize(fn, options = {}) {
       return pending.get(key);
     }
 
-    const promise = fn.apply(this, args).then(result => {
+    const promise = fn.apply(this, args).then((result) => {
       cache.set(key, result);
       cacheTimestamps.set(key, Date.now());
       pending.delete(key);
@@ -283,7 +283,7 @@ function asyncMemoize(fn, options = {}) {
       }
 
       return result;
-    }).catch(error => {
+    }).catch((error) => {
       pending.delete(key);
       throw error;
     });

@@ -5,14 +5,16 @@
 
 const fs = require('fs');
 const path = require('path');
+const { splitLines, readFileLines } = require('../../utils/UltraWorkUtils');
 const { thinkingChain } = require('../engines/ThinkingChain');
+const { sanitizeFilename } = require('../../utils/SafePath');
 
 class Context7Bridge {
   constructor(config = {}) {
     this.apiUrl = config.apiUrl || 'https://mcp.context7.io';
     this.cacheDir = config.cacheDir || path.join(process.cwd(), '.context7-cache');
     this.cache = new Map();
-    
+
     this._ensureCacheDir();
   }
 
@@ -41,7 +43,7 @@ class Context7Bridge {
       this._tool('refresh_docs', '刷新文档', { libraryId: { type: 'string' } }),
       this._tool('invalidate_cache', '清除缓存', { libraryId: { type: 'string' } }),
       this._tool('add_library', '添加库到监控', { libraryId: { type: 'string' }, version: { type: 'string' } }),
-      this._tool('detect_project_version', '检测项目版本', { projectPath: { type: 'string' } }),
+      this._tool('detect_project_version', '检测项目版本', { projectPath: { type: 'string' } })
     ];
   }
 
@@ -58,7 +60,7 @@ class Context7Bridge {
       refresh_docs: this.refreshDocs.bind(this),
       invalidate_cache: this.invalidateCache.bind(this),
       add_library: this.addLibrary.bind(this),
-      detect_project_version: this.detectProjectVersion.bind(this),
+      detect_project_version: this.detectProjectVersion.bind(this)
     };
     return handlers[name];
   }
@@ -91,7 +93,7 @@ class Context7Bridge {
       'prisma': '/prisma/prisma',
       'typescript': '/microsoft/TypeScript',
       'react-native': '/facebook/react-native',
-      'electron': '/electron/electron',
+      'electron': '/electron/electron'
     };
 
     const normalizedName = libraryName?.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -113,7 +115,7 @@ class Context7Bridge {
   /**
    * 查询文档
    */
-  async queryDocs(params, context = {}) {
+  async queryDocs(params, _context = {}) {
     const { libraryId, query, version } = params;
 
     // 尝试从缓存获取
@@ -172,23 +174,32 @@ class Context7Bridge {
           ...pkg.devDependencies
         };
         deps.packageManager = 'npm';
-      } catch {}
+      } catch (e) {
+        this.logger?.debug(`Failed to parse package.json: ${e.message}`);
+      }
     }
 
     // requirements.txt (Python)
     const requirementsPath = path.join(projectPath, 'requirements.txt');
     if (fs.existsSync(requirementsPath)) {
       try {
-        const lines = fs.readFileSync(requirementsPath, 'utf-8').split('\n');
+        const lines = readFileLines(requirementsPath);
         deps.pip = {};
         for (const line of lines) {
-          const match = line.match(/^([a-zA-Z0-9_-]+)(==|>=|<=|~=)?(.+)?/);
-          if (match) {
-            deps.pip[match[1]] = match[3] || 'latest';
+          try {
+            // eslint-disable-next-line security/detect-unsafe-regex
+            const match = line.match(/^([a-zA-Z0-9_-]+)(==|>=|<=|~=)?(.+)?/);
+            if (match) {
+              deps.pip[match[1]] = match[3] || 'latest';
+            }
+          } catch (e) {
+            this.logger?.debug(`Failed to parse requirements line: ${e.message}`);
           }
         }
         deps.packageManager = 'pip';
-      } catch {}
+      } catch (e) {
+        this.logger?.debug(`Failed to parse requirements.txt: ${e.message}`);
+      }
     }
 
     // go.mod (Go)
@@ -197,7 +208,7 @@ class Context7Bridge {
       try {
         const content = fs.readFileSync(goModPath, 'utf-8');
         deps.go = {};
-        const requireLines = content.split('\n').filter(l => l.startsWith('\t'));
+        const requireLines = splitLines(content).filter((l) => l.startsWith('\t'));
         for (const line of requireLines) {
           const match = line.trim().match(/^([^\s]+)\s+v?([^\s]+)/);
           if (match) {
@@ -205,13 +216,15 @@ class Context7Bridge {
           }
         }
         deps.packageManager = 'go';
-      } catch {}
+      } catch (e) {
+        this.logger?.debug(`Failed to parse go.mod: ${e.message}`);
+      }
     }
 
     return {
       projectPath,
       dependencies: deps,
-      detected: Object.keys(deps).filter(k => k !== 'packageManager').length
+      detected: Object.keys(deps).filter((k) => k !== 'packageManager').length
     };
   }
 
@@ -220,8 +233,8 @@ class Context7Bridge {
    */
   async addLibrary(params) {
     const { libraryId, version } = params;
-    const cacheFile = path.join(this.cacheDir, `${libraryId.replace(/\//g, '_')}.json`);
-    
+    const cacheFile = path.join(this.cacheDir, `${sanitizeFilename(libraryId)}.json`);
+
     const entry = {
       libraryId,
       version: version || 'latest',
@@ -237,8 +250,8 @@ class Context7Bridge {
    * 列出缓存的库
    */
   async listCachedLibraries() {
-    const files = fs.readdirSync(this.cacheDir).filter(f => f.endsWith('.json'));
-    const libraries = files.map(file => {
+    const files = fs.readdirSync(this.cacheDir).filter((f) => f.endsWith('.json'));
+    const libraries = files.map((file) => {
       try {
         const content = fs.readFileSync(path.join(this.cacheDir, file), 'utf-8');
         return JSON.parse(content);
@@ -255,7 +268,7 @@ class Context7Bridge {
    */
   async getLibraryInfo(params) {
     const { libraryId } = params;
-    const cacheFile = path.join(this.cacheDir, `${libraryId.replace(/\//g, '_')}.json`);
+    const cacheFile = path.join(this.cacheDir, `${sanitizeFilename(libraryId)}.json`);
 
     if (fs.existsSync(cacheFile)) {
       return JSON.parse(fs.readFileSync(cacheFile, 'utf-8'));
@@ -269,7 +282,7 @@ class Context7Bridge {
    */
   async refreshDocs(params) {
     const { libraryId } = params;
-    
+
     // 清除相关缓存
     const keysToDelete = [];
     for (const [key] of this.cache) {
@@ -277,7 +290,7 @@ class Context7Bridge {
         keysToDelete.push(key);
       }
     }
-    keysToDelete.forEach(k => this.cache.delete(k));
+    keysToDelete.forEach((k) => this.cache.delete(k));
 
     return { success: true, libraryId, clearedCache: keysToDelete.length };
   }
@@ -287,11 +300,13 @@ class Context7Bridge {
    */
   async invalidateCache(params) {
     const { libraryId } = params;
-    const cacheFile = path.join(this.cacheDir, `${libraryId.replace(/\//g, '_')}.json`);
+    const cacheFile = path.join(this.cacheDir, `${sanitizeFilename(libraryId)}.json`);
 
-    if (fs.existsSync(cacheFile)) {
-      fs.unlinkSync(cacheFile);
-    }
+    try {
+      if (fs.existsSync(cacheFile)) {
+        fs.unlinkSync(cacheFile);
+      }
+    } catch {}
 
     return { success: true, libraryId };
   }

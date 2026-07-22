@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router';
 
 const routes = [
   {
@@ -147,16 +147,16 @@ const routes = [
     component: () => import('../views/TestCanvasView.vue'),
     meta: { title: 'Canvas测试' }
   }
-]
+];
 
 const router = createRouter({
   history: createWebHistory(),
   routes
-})
+});
 
 router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || '拾号金融'} - ShiHao Finance`
-  next()
-})
+  document.title = `${to.meta.title || '拾号金融'} - ShiHao Finance`;
+  next();
+});
 
-export default router
+export default router;

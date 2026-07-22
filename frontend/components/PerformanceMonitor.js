@@ -1,6 +1,6 @@
 /**
  * PerformanceMonitor - 实时性能监控系统
- * 
+ *
  * 功能:
  * - FPS监控
  * - GPU/CPU使用率
@@ -16,7 +16,7 @@ class PerformanceMonitor {
     this.historySize = options.historySize || 60;
     this.onMetricsUpdate = options.onMetricsUpdate || (() => {});
     this.onQualityChange = options.onQualityChange || (() => {});
-    
+
     this.metrics = {
       fps: [],
       memory: [],
@@ -25,7 +25,7 @@ class PerformanceMonitor {
       renderTime: [],
       frameTime: []
     };
-    
+
     this.currentMetrics = {
       fps: 0,
       memory: 0,
@@ -34,7 +34,7 @@ class PerformanceMonitor {
       renderTime: 0,
       frameTime: 0
     };
-    
+
     this.qualityLevel = options.qualityLevel || 'auto';
     this.targetFPS = options.targetFPS || 60;
     this.qualityThresholds = {
@@ -42,76 +42,76 @@ class PerformanceMonitor {
       medium: { fps: 30, memory: 800 },
       low: { fps: 15, memory: 1200 }
     };
-    
+
     this.isRunning = false;
     this.intervalId = null;
     this.lastFrameTime = performance.now();
     this.frameCount = 0;
     this.fpsUpdateTime = performance.now();
-    
+
     this.alertCallbacks = [];
   }
 
   start() {
-    if (this.isRunning) return;
-    
+    if (this.isRunning) {return;}
+
     this.isRunning = true;
     this._startFPSCounter();
     this.intervalId = setInterval(() => this._updateMetrics(), this.updateInterval);
-    
+
     if (this.qualityLevel === 'auto') {
       this._startQualityAdjuster();
     }
-    
+
     console.log('[PerformanceMonitor] Started');
   }
 
   stop() {
-    if (!this.isRunning) return;
-    
+    if (!this.isRunning) {return;}
+
     this.isRunning = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     console.log('[PerformanceMonitor] Stopped');
   }
 
   _startFPSCounter() {
     const countFrame = () => {
-      if (!this.isRunning) return;
-      
+      if (!this.isRunning) {return;}
+
       this.frameCount++;
       const now = performance.now();
-      
+
       if (now - this.fpsUpdateTime >= 1000) {
         this.currentMetrics.fps = this.frameCount;
         this.frameCount = 0;
         this.fpsUpdateTime = now;
-        
+
         this._addMetric('fps', this.currentMetrics.fps);
-        
+
         if (this.onMetricsUpdate) {
           this.onMetricsUpdate(this.getCurrentMetrics());
         }
       }
-      
+
       requestAnimationFrame(countFrame);
     };
-    
+
     requestAnimationFrame(countFrame);
   }
 
   _startQualityAdjuster() {
     setInterval(() => {
-      if (this.qualityLevel !== 'auto') return;
-      
+      if (this.qualityLevel !== 'auto') {return;}
+
       const fps = this.currentMetrics.fps;
       const memory = this.currentMetrics.memory;
-      
+
       let newQuality = null;
-      
+
       if (fps < this.qualityThresholds.low.fps || memory > this.qualityThresholds.low.memory) {
         newQuality = 'low';
       } else if (fps < this.qualityThresholds.medium.fps || memory > this.qualityThresholds.medium.memory) {
@@ -119,7 +119,7 @@ class PerformanceMonitor {
       } else if (fps > 55 && memory < 400) {
         newQuality = 'high';
       }
-      
+
       if (newQuality && newQuality !== this._currentQuality) {
         this._setQuality(newQuality);
       }
@@ -129,7 +129,7 @@ class PerformanceMonitor {
   _setQuality(level) {
     this._currentQuality = level;
     console.log(`[PerformanceMonitor] Quality adjusted to: ${level}`);
-    
+
     if (this.onQualityChange) {
       this.onQualityChange(level);
     }
@@ -141,7 +141,7 @@ class PerformanceMonitor {
       this.currentMetrics.memory = memoryMB;
       this._addMetric('memory', memoryMB);
     }
-    
+
     if (this.onMetricsUpdate) {
       this.onMetricsUpdate(this.getCurrentMetrics());
     }
@@ -151,12 +151,12 @@ class PerformanceMonitor {
     if (!this.metrics[type]) {
       this.metrics[type] = [];
     }
-    
+
     this.metrics[type].push({
       value,
       timestamp: Date.now()
     });
-    
+
     if (this.metrics[type].length > this.historySize) {
       this.metrics[type].shift();
     }
@@ -196,29 +196,29 @@ class PerformanceMonitor {
   getAverageMetrics(period = 60) {
     const result = {};
     const now = Date.now() - period * 1000;
-    
+
     for (const [type, data] of Object.entries(this.metrics)) {
-      const filtered = data.filter(m => m.timestamp > now);
+      const filtered = data.filter((m) => m.timestamp > now);
       if (filtered.length > 0) {
         const sum = filtered.reduce((acc, m) => acc + m.value, 0);
         result[type] = {
           average: sum / filtered.length,
-          min: Math.min(...filtered.map(m => m.value)),
-          max: Math.max(...filtered.map(m => m.value)),
+          min: Math.min(...filtered.map((m) => m.value)),
+          max: Math.max(...filtered.map((m) => m.value)),
           current: filtered[filtered.length - 1]?.value || 0
         };
       }
     }
-    
+
     return result;
   }
 
   getHealthStatus() {
     const avg = this.getAverageMetrics(10);
-    
+
     let score = 100;
-    let issues = [];
-    
+    const issues = [];
+
     if (avg.fps?.average < 30) {
       score -= 30;
       issues.push('Low FPS');
@@ -226,24 +226,24 @@ class PerformanceMonitor {
       score -= 15;
       issues.push('Moderate FPS');
     }
-    
+
     if (avg.memory?.average > 800) {
       score -= 20;
       issues.push('High memory usage');
     }
-    
+
     if (avg.latency?.average > 100) {
       score -= 10;
       issues.push('High latency');
     }
-    
+
     if (avg.network?.average > 200) {
       score -= 10;
       issues.push('High network latency');
     }
-    
+
     const status = score >= 80 ? 'healthy' : score >= 50 ? 'warning' : 'critical';
-    
+
     return { score, status, issues };
   }
 
@@ -302,7 +302,7 @@ class PerformanceDashboard {
     this.container = options.container || document.body;
     this.position = options.position || 'bottom-right';
     this.expanded = false;
-    
+
     this.elements = {};
     this.updateInterval = null;
   }
@@ -311,7 +311,7 @@ class PerformanceDashboard {
     const dashboard = document.createElement('div');
     dashboard.id = 'perf-dashboard';
     dashboard.className = `perf-dashboard perf-dashboard-${this.position}`;
-    
+
     dashboard.innerHTML = `
       <div class="perf-header" onclick="window._perfDashboard?.toggle()">
         <span class="perf-title">性能监控</span>
@@ -342,7 +342,7 @@ class PerformanceDashboard {
         </div>
       </div>
     `;
-    
+
     this.elements = {
       dashboard,
       fps: dashboard.querySelector('#perf-fps .metric-value'),
@@ -351,7 +351,7 @@ class PerformanceDashboard {
       chart: dashboard.querySelector('#perf-chart'),
       qualitySelect: dashboard.querySelector('#perf-quality-select')
     };
-    
+
     const style = document.createElement('style');
     style.textContent = `
       .perf-dashboard {
@@ -407,22 +407,22 @@ class PerformanceDashboard {
         border-radius: 4px;
       }
     `;
-    
+
     document.head.appendChild(style);
     this.container.appendChild(dashboard);
-    
+
     this.elements.qualitySelect.addEventListener('change', (e) => {
       this.monitor.setQualityLevel(e.target.value);
     });
-    
+
     window._perfDashboard = this;
-    
+
     return dashboard;
   }
 
   start() {
     this.monitor.start();
-    
+
     this.updateInterval = setInterval(() => {
       this.update();
     }, 500);
@@ -438,14 +438,14 @@ class PerformanceDashboard {
 
   update() {
     const metrics = this.monitor.getCurrentMetrics();
-    const health = this.monitor.getHealthStatus();
-    
+    const _health = this.monitor.getHealthStatus();
+
     this.elements.fps.textContent = metrics.fps;
     this.elements.fps.className = `metric-value ${metrics.fps < 30 ? 'critical' : metrics.fps < 50 ? 'warning' : ''}`;
-    
+
     this.elements.memory.textContent = `${metrics.memory} MB`;
     this.elements.memory.className = `metric-value ${metrics.memory > 800 ? 'critical' : metrics.memory > 500 ? 'warning' : ''}`;
-    
+
     this.elements.latency.textContent = `${Math.round(metrics.latency)} ms`;
     this.elements.latency.className = `metric-value ${metrics.latency > 100 ? 'critical' : metrics.latency > 50 ? 'warning' : ''}`;
   }
@@ -454,7 +454,7 @@ class PerformanceDashboard {
     this.expanded = !this.expanded;
     const content = this.elements.dashboard.querySelector('.perf-content');
     const toggle = this.elements.dashboard.querySelector('.perf-toggle');
-    
+
     content.style.display = this.expanded ? 'block' : 'none';
     toggle.textContent = this.expanded ? '−' : '+';
   }
@@ -480,7 +480,7 @@ class NetworkLatencyTracker {
 
   ping(url = '/api/health') {
     const startTime = performance.now();
-    
+
     return fetch(url, { method: 'HEAD', cache: 'no-cache' })
       .then(() => {
         this.latency = Math.round(performance.now() - startTime);
@@ -498,7 +498,7 @@ class NetworkLatencyTracker {
       latency,
       timestamp: Date.now()
     });
-    
+
     if (this.pings.length > this.maxPings) {
       this.pings.shift();
     }
@@ -506,10 +506,10 @@ class NetworkLatencyTracker {
 
   getAverage(period = 10) {
     const cutoff = Date.now() - period * 1000;
-    const recent = this.pings.filter(p => p.timestamp > cutoff);
-    
-    if (recent.length === 0) return 0;
-    
+    const recent = this.pings.filter((p) => p.timestamp > cutoff);
+
+    if (recent.length === 0) {return 0;}
+
     const sum = recent.reduce((acc, p) => acc + p.latency, 0);
     return Math.round(sum / recent.length);
   }
@@ -518,15 +518,15 @@ class NetworkLatencyTracker {
     if (this.pings.length === 0) {
       return { avg: 0, min: 0, max: 0, jitter: 0 };
     }
-    
-    const latencies = this.pings.map(p => p.latency).filter(l => l > 0);
+
+    const latencies = this.pings.map((p) => p.latency).filter((l) => l > 0);
     const avg = latencies.reduce((a, b) => a + b, 0) / latencies.length;
     const min = Math.min(...latencies);
     const max = Math.max(...latencies);
-    
+
     const variance = latencies.reduce((acc, l) => acc + Math.pow(l - avg, 2), 0) / latencies.length;
     const jitter = Math.round(Math.sqrt(variance));
-    
+
     return {
       avg: Math.round(avg),
       min,

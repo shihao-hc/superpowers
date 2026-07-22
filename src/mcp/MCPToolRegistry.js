@@ -28,7 +28,7 @@ class MCPToolRegistry extends EventEmitter {
 
   initialize(bridge) {
     this.bridge = bridge;
-    
+
     bridge.on('server-registered', () => this.scheduleRefresh());
     bridge.on('server-unregistered', () => this.scheduleRefresh());
     bridge.on('reconnected', () => this.scheduleRefresh());
@@ -49,11 +49,11 @@ class MCPToolRegistry extends EventEmitter {
 
     for (const serverName of servers) {
       const serverTools = this.bridge.getAvailableTools(serverName);
-      
+
       for (const tool of serverTools) {
         const fullName = tool.fullName;
         const tags = this._extractTags(tool);
-        
+
         newTools.set(fullName, {
           ...tool,
           tags,
@@ -74,9 +74,9 @@ class MCPToolRegistry extends EventEmitter {
     this.tags = newTags;
     this.cache.timestamp = Date.now();
 
-    this.emit('refreshed', { 
-      toolsCount: this.tools.size, 
-      serversCount: servers.length 
+    this.emit('refreshed', {
+      toolsCount: this.tools.size,
+      serversCount: servers.length
     });
 
     return this.tools;
@@ -86,9 +86,9 @@ class MCPToolRegistry extends EventEmitter {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
     }
-    
+
     this.refreshTimer = setTimeout(() => {
-      this.refresh().catch(err => {
+      this.refresh().catch((err) => {
         this.emit('refresh-error', { error: err.message });
       });
     }, 100);
@@ -100,7 +100,7 @@ class MCPToolRegistry extends EventEmitter {
     }
 
     this.refreshTimer = setInterval(() => {
-      this.refresh().catch(err => {
+      this.refresh().catch((err) => {
         this.emit('refresh-error', { error: err.message });
       });
     }, this.options.refreshInterval);
@@ -137,7 +137,7 @@ class MCPToolRegistry extends EventEmitter {
       };
 
       for (const [category, keywords] of Object.entries(categoryKeywords)) {
-        if (keywords.some(kw => tool.description.toLowerCase().includes(kw))) {
+        if (keywords.some((kw) => tool.description.toLowerCase().includes(kw))) {
           tags.add(category);
         }
       }
@@ -169,24 +169,24 @@ class MCPToolRegistry extends EventEmitter {
     let result = Array.from(this.tools.values());
 
     if (options.serverName) {
-      result = result.filter(t => t.serverName === options.serverName);
+      result = result.filter((t) => t.serverName === options.serverName);
     }
 
     if (options.tags && options.tags.length > 0) {
-      result = result.filter(t => 
-        options.tags.some(tag => t.tags.includes(tag))
+      result = result.filter((t) =>
+        options.tags.some((tag) => t.tags.includes(tag))
       );
     }
 
     if (options.excludedTags && options.excludedTags.length > 0) {
-      result = result.filter(t =>
-        !options.excludedTags.some(tag => t.tags.includes(tag))
+      result = result.filter((t) =>
+        !options.excludedTags.some((tag) => t.tags.includes(tag))
       );
     }
 
     if (options.search) {
       const search = options.search.toLowerCase();
-      result = result.filter(t =>
+      result = result.filter((t) =>
         t.name.toLowerCase().includes(search) ||
         (t.description && t.description.toLowerCase().includes(search))
       );
@@ -204,7 +204,7 @@ class MCPToolRegistry extends EventEmitter {
   }
 
   getToolsByTag(tag) {
-    return (this.tags.get(tag) || []).map(fullName => this.tools.get(fullName)).filter(Boolean);
+    return (this.tags.get(tag) || []).map((fullName) => this.tools.get(fullName)).filter(Boolean);
   }
 
   getToolsByServer(serverName) {
@@ -212,13 +212,13 @@ class MCPToolRegistry extends EventEmitter {
   }
 
   formatForLLM(options = {}) {
-    const tools = options.serverName 
+    const tools = options.serverName
       ? this.getTools({ serverName: options.serverName })
       : Array.from(this.tools.values());
 
     const includeSchema = options.includeSchema !== false;
 
-    return tools.map(tool => {
+    return tools.map((tool) => {
       const formatted = {
         name: tool.fullName,
         description: tool.description || `Tool from ${tool.serverName}`
@@ -238,7 +238,7 @@ class MCPToolRegistry extends EventEmitter {
 
   formatForPrompt(options = {}) {
     const tools = this.formatForLLM(options);
-    
+
     if (tools.length === 0) {
       return 'No MCP tools available.';
     }
@@ -248,7 +248,7 @@ class MCPToolRegistry extends EventEmitter {
     for (const tool of tools) {
       prompt += `## ${tool.name}\n`;
       prompt += `${tool.description}\n`;
-      
+
       if (tool.parameters && tool.parameters.properties) {
         prompt += 'Parameters:\n';
         for (const [paramName, paramDef] of Object.entries(tool.parameters.properties)) {
@@ -332,7 +332,7 @@ class MCPToolRegistry extends EventEmitter {
   }
 
   isCacheValid() {
-    if (!this.cache.timestamp) return false;
+    if (!this.cache.timestamp) {return false;}
     return Date.now() - this.cache.timestamp < this.cache.ttl;
   }
 

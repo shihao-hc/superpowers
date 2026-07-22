@@ -13,7 +13,7 @@ class AsyncExecutor {
     this.history = [];
     this.listeners = new Map();
     this.cleanupInterval = options.cleanupInterval || 60000; // 1 minute
-    
+
     this._startCleanupTimer();
   }
 
@@ -23,7 +23,7 @@ class AsyncExecutor {
   async execute(skillName, parameters, options = {}) {
     const executionId = options.executionId || this._generateExecutionId();
     const sessionId = options.sessionId || null;
-    
+
     // Check concurrent limit
     if (this.executions.size >= this.maxConcurrent) {
       throw new Error(`Maximum concurrent executions (${this.maxConcurrent}) reached`);
@@ -53,13 +53,13 @@ class AsyncExecutor {
     };
 
     this.executions.set(executionId, execution);
-    
+
     // Emit creation event
     this._emitEvent('created', execution);
-    
+
     // Start execution
     this._executeAsync(execution, options);
-    
+
     return {
       executionId,
       status: 'pending',
@@ -73,22 +73,22 @@ class AsyncExecutor {
    */
   async _executeAsync(execution, options) {
     const startTime = Date.now();
-    
+
     try {
       execution.status = 'running';
       execution.startedAt = startTime;
-      
+
       this._emitEvent('started', execution);
-      
+
       // Get skill executor
       const executor = options.executor || this._getDefaultExecutor();
-      
+
       // Create progress tracker
-      const progressTracker = this._createProgressTracker(execution);
-      
+      const _progressTracker = this._createProgressTracker(execution);
+
       // Update progress
       await this._updateProgress(execution, 10, 'Starting skill execution...');
-      
+
       // Execute skill with progress tracking
       const result = await executor.execute(execution.skillName, execution.parameters, {
         executionId: execution.id,
@@ -98,38 +98,38 @@ class AsyncExecutor {
         },
         signal: execution.abortController?.signal
       });
-      
+
       // Update final progress
       await this._updateProgress(execution, 100, 'Execution completed successfully');
-      
+
       execution.status = 'completed';
       execution.completedAt = Date.now();
       execution.result = result;
       execution.duration = execution.completedAt - execution.startedAt;
-      
+
       // Add to history
       this._addToHistory(execution);
-      
+
       // Emit completion event
       this._emitEvent('completed', execution);
-      
+
       // Call completion callback
       if (execution.callbacks.onComplete) {
         execution.callbacks.onComplete(execution);
       }
-      
+
     } catch (error) {
       execution.status = 'failed';
       execution.completedAt = Date.now();
       execution.error = error.message;
       execution.duration = execution.completedAt - execution.startedAt;
-      
+
       // Add to history
       this._addToHistory(execution);
-      
+
       // Emit error event
       this._emitEvent('failed', execution);
-      
+
       // Call error callback
       if (execution.callbacks.onError) {
         execution.callbacks.onError(execution, error);
@@ -145,7 +145,7 @@ class AsyncExecutor {
       setProgress: (progress, message) => {
         this._updateProgress(execution, progress, message);
       },
-      
+
       addStep: (stepName, description) => {
         const step = {
           name: stepName,
@@ -154,7 +154,7 @@ class AsyncExecutor {
           startedAt: null,
           completedAt: null
         };
-        
+
         execution.steps.push(step);
         return {
           start: () => {
@@ -185,14 +185,14 @@ class AsyncExecutor {
   async _updateProgress(execution, progress, message) {
     execution.progress = Math.min(100, Math.max(0, progress));
     execution.progressMessage = message || `Progress: ${progress}%`;
-    
+
     this._emitEvent('progress', {
       executionId: execution.id,
       progress: execution.progress,
       message: execution.progressMessage,
       timestamp: Date.now()
     });
-    
+
     // Call progress callback
     if (execution.callbacks.onProgress) {
       execution.callbacks.onProgress(execution.progress, execution.progressMessage);
@@ -207,7 +207,7 @@ class AsyncExecutor {
     if (!execution) {
       return null;
     }
-    
+
     return {
       id: execution.id,
       skillName: execution.skillName,
@@ -232,7 +232,7 @@ class AsyncExecutor {
     if (!execution) {
       return null;
     }
-    
+
     return {
       executionId: execution.id,
       progress: execution.progress,
@@ -248,36 +248,36 @@ class AsyncExecutor {
   async waitForCompletion(executionId, options = {}) {
     const timeout = options.timeout || this.executionTimeout;
     const pollInterval = options.pollInterval || 1000;
-    
+
     const startTime = Date.now();
-    
+
     return new Promise((resolve, reject) => {
       const check = () => {
         const execution = this.executions.get(executionId);
-        
+
         if (!execution) {
           reject(new Error(`Execution ${executionId} not found`));
           return;
         }
-        
+
         if (execution.status === 'completed') {
           resolve(execution.result);
           return;
         }
-        
+
         if (execution.status === 'failed') {
           reject(new Error(execution.error));
           return;
         }
-        
+
         if (Date.now() - startTime > timeout) {
           reject(new Error(`Execution timeout after ${timeout}ms`));
           return;
         }
-        
+
         setTimeout(check, pollInterval);
       };
-      
+
       check();
     });
   }
@@ -287,27 +287,27 @@ class AsyncExecutor {
    */
   cancel(executionId) {
     const execution = this.executions.get(executionId);
-    
+
     if (!execution) {
       throw new Error(`Execution ${executionId} not found`);
     }
-    
+
     if (execution.status === 'completed' || execution.status === 'failed' || execution.status === 'cancelled') {
       throw new Error(`Execution ${executionId} is already ${execution.status}`);
     }
-    
+
     execution.status = 'cancelled';
     execution.completedAt = Date.now();
     execution.error = 'Cancelled by user';
-    
+
     // Abort if abort controller exists
     if (execution.abortController) {
       execution.abortController.abort();
     }
-    
+
     this._emitEvent('cancelled', execution);
     this._addToHistory(execution);
-    
+
     return {
       executionId,
       status: 'cancelled',
@@ -322,9 +322,9 @@ class AsyncExecutor {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    
+
     this.listeners.get(event).add(callback);
-    
+
     return () => {
       this.listeners.get(event)?.delete(callback);
     };
@@ -343,7 +343,7 @@ class AsyncExecutor {
   _emitEvent(event, data) {
     const listeners = this.listeners.get(event);
     if (listeners) {
-      listeners.forEach(callback => {
+      listeners.forEach((callback) => {
         try {
           callback(data);
         } catch (error) {
@@ -358,13 +358,13 @@ class AsyncExecutor {
    */
   getActiveExecutions() {
     const active = [];
-    
+
     for (const [id, execution] of this.executions) {
       if (execution.status === 'pending' || execution.status === 'running') {
         active.push(this.getExecution(id));
       }
     }
-    
+
     return active;
   }
 
@@ -373,19 +373,19 @@ class AsyncExecutor {
    */
   getHistory(options = {}) {
     const { limit = 50, offset = 0, skillName = null, status = null } = options;
-    
+
     let history = [...this.history];
-    
+
     if (skillName) {
-      history = history.filter(h => h.skillName === skillName);
+      history = history.filter((h) => h.skillName === skillName);
     }
-    
+
     if (status) {
-      history = history.filter(h => h.status === status);
+      history = history.filter((h) => h.status === status);
     }
-    
+
     history.sort((a, b) => b.createdAt - a.createdAt);
-    
+
     return history.slice(offset, offset + limit);
   }
 
@@ -407,9 +407,9 @@ class AsyncExecutor {
       error: execution.error,
       result: execution.status === 'completed' ? execution.result : null
     };
-    
+
     this.history.unshift(historyEntry);
-    
+
     if (this.history.length > this.maxHistory) {
       this.history = this.history.slice(0, this.maxHistory);
     }
@@ -420,12 +420,12 @@ class AsyncExecutor {
    */
   getStats() {
     const active = this.getActiveExecutions();
-    const completed = this.history.filter(h => h.status === 'completed');
-    const failed = this.history.filter(h => h.status === 'failed');
-    
+    const completed = this.history.filter((h) => h.status === 'completed');
+    const failed = this.history.filter((h) => h.status === 'failed');
+
     const totalDuration = completed.reduce((sum, h) => sum + (h.duration || 0), 0);
     const avgDuration = completed.length > 0 ? totalDuration / completed.length : 0;
-    
+
     return {
       active: active.length,
       total: this.executions.size,
@@ -443,7 +443,7 @@ class AsyncExecutor {
   _cleanupOldExecutions() {
     const now = Date.now();
     const toDelete = [];
-    
+
     for (const [id, execution] of this.executions) {
       if (execution.status === 'completed' || execution.status === 'failed' || execution.status === 'cancelled') {
         const age = now - execution.completedAt;
@@ -459,11 +459,11 @@ class AsyncExecutor {
         toDelete.push(id);
       }
     }
-    
+
     for (const id of toDelete) {
       this.executions.delete(id);
     }
-    
+
     if (toDelete.length > 0) {
       console.log(`[AsyncExecutor] Cleaned up ${toDelete.length} old executions`);
     }
@@ -490,12 +490,12 @@ class AsyncExecutor {
    */
   _getDefaultExecutor() {
     return {
-      execute: async (skillName, parameters, options) => {
-        // This is a placeholder - in real implementation, 
+      execute: async (skillName, parameters, _options) => {
+        // This is a placeholder - in real implementation,
         // this would call the actual skill manager
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, _reject) => {
           const duration = Math.random() * 5000 + 1000; // 1-6 seconds
-          
+
           setTimeout(() => {
             resolve({
               success: true,

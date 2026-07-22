@@ -27,7 +27,7 @@ const MOOD_DESCRIPTIONS = {
 class InferenceService extends EventEmitter {
   constructor() {
     super();
-    
+
     this.config = {
       host: process.env.OLLAMA_HOST || 'localhost',
       port: process.env.OLLAMA_PORT || '11434',
@@ -70,7 +70,7 @@ class InferenceService extends EventEmitter {
     if (!this.connected) {
       await this.checkConnection();
     }
-    return this.models.map(m => ({
+    return this.models.map((m) => ({
       name: m.name,
       size: m.size,
       modified: m.modified_at
@@ -87,7 +87,7 @@ class InferenceService extends EventEmitter {
       throw new Error('Invalid messages array');
     }
 
-    const sanitizedMessages = messages.map(m => ({
+    const sanitizedMessages = messages.map((m) => ({
       role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user',
       content: String(m.content || '').substring(0, MAX_INPUT_LENGTH)
     })).slice(-MAX_MESSAGE_HISTORY);
@@ -141,7 +141,7 @@ class InferenceService extends EventEmitter {
   }
 
   async infer(input, context = {}) {
-    const { 
+    const {
       name = 'AI',
       mood = 'neutral',
       traits = {},
@@ -308,7 +308,7 @@ class InferenceService extends EventEmitter {
       return {
         ok: false,
         error: error.message,
-        description: '图片分析失败: ' + escapeHtml(error.message)
+        description: `图片分析失败: ${escapeHtml(error.message)}`
       };
     }
   }
@@ -345,15 +345,15 @@ class InferenceService extends EventEmitter {
   async listVisionModels() {
     const models = await this.listModels();
     const visionKeywords = ['llava', 'vision', 'bakllava', 'moondream', 'minicpm'];
-    return models.filter(m =>
-      visionKeywords.some(kw => m.name.toLowerCase().includes(kw))
+    return models.filter((m) =>
+      visionKeywords.some((kw) => m.name.toLowerCase().includes(kw))
     );
   }
 
   async _makeRequest(endpoint, method = 'GET', body = null) {
     return new Promise((resolve, reject) => {
       const url = new URL(`${this.config.protocol}://${this.config.host}:${this.config.port}${endpoint}`);
-      
+
       const options = {
         hostname: url.hostname,
         port: url.port,
@@ -419,7 +419,7 @@ class InferenceService extends EventEmitter {
 
   _updateLatencyStats(latency) {
     const total = this.stats.successfulRequests;
-    this.stats.averageLatency = 
+    this.stats.averageLatency =
       ((this.stats.averageLatency * (total - 1)) + latency) / total;
   }
 
@@ -430,7 +430,7 @@ class InferenceService extends EventEmitter {
       models: this.models.length,
       defaultModel: this.config.defaultModel,
       successRate: this.stats.totalRequests > 0
-        ? ((this.stats.successfulRequests / this.stats.totalRequests) * 100).toFixed(2) + '%'
+        ? `${((this.stats.successfulRequests / this.stats.totalRequests) * 100).toFixed(2)}%`
         : '0%'
     };
   }

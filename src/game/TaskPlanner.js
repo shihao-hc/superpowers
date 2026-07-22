@@ -10,7 +10,7 @@ function validateCoord(value) {
 }
 
 function sanitizeActionParam(param) {
-  if (!param) return '';
+  if (!param) {return '';}
   return String(param).substring(0, MAX_VARIABLE_SIZE).replace(/[;\n\r]/g, ' ').trim();
 }
 
@@ -56,7 +56,7 @@ class TaskPlanner {
     const context = `
 当前状态:
 - 位置: x=${pos.x || 0}, y=${pos.y || 0}, z=${pos.z || 0}
-- 背包: ${inventory.map(i => `${i.name} x${i.count}`).join(', ') || '空'}
+- 背包: ${inventory.map((i) => `${i.name} x${i.count}`).join(', ') || '空'}
 - 血量: ${health}/20
 - 饱食度: ${food}/20
 
@@ -90,11 +90,11 @@ STEP_4: chat "任务完成!"
     try {
       const result = await this.chat.respond(context);
       const plan = this._parsePlan(result.reply);
-      
+
       if (plan.length > 0) {
-        this.currentTask = { 
-          request: userRequest, 
-          steps: plan, 
+        this.currentTask = {
+          request: userRequest,
+          steps: plan,
           status: 'planned',
           createdAt: new Date().toISOString()
         };
@@ -117,12 +117,12 @@ STEP_4: chat "任务完成!"
   _parsePlan(text) {
     const steps = [];
     const lines = text.split('\n');
-    let loopStack = [];
+    const loopStack = [];
     let currentLoop = null;
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       if (trimmed.toUpperCase().startsWith('LOOP')) {
         const match = trimmed.match(/LOOP\s+(\d+)\s+TIMES/i);
         if (match) {
@@ -136,7 +136,7 @@ STEP_4: chat "任务完成!"
         }
         continue;
       }
-      
+
       if (trimmed.toUpperCase() === 'END') {
         if (loopStack.length > 0) {
           const loop = loopStack.pop();
@@ -149,7 +149,7 @@ STEP_4: chat "任务完成!"
         }
         continue;
       }
-      
+
       const ifMatch = trimmed.match(/IF\s+(.+?)\s+THEN\s+STEP_?(\d+)\s+ELSE\s+STEP_?(\d+)/i);
       if (ifMatch) {
         const condition = {
@@ -166,13 +166,13 @@ STEP_4: chat "任务完成!"
         }
         continue;
       }
-      
+
       const match = trimmed.match(/STEP_?\d*\s*:\s*(.+)/i);
       if (match) {
         const stepText = match[1].trim();
         const parts = stepText.split(/\s+/);
         const action = parts[0]?.toLowerCase();
-        
+
         if (SAFE_ACTIONS.has(action)) {
           const step = {
             type: 'step',
@@ -181,7 +181,7 @@ STEP_4: chat "任务完成!"
             params: sanitizeActionParam(parts.slice(3).join(' ')),
             raw: sanitizeActionParam(stepText)
           };
-          
+
           if (currentLoop) {
             currentLoop.steps.push(step);
           } else {
@@ -194,7 +194,7 @@ STEP_4: chat "任务完成!"
         }
       }
     }
-    
+
     return steps;
   }
 
@@ -203,7 +203,7 @@ STEP_4: chat "任务完成!"
     const health = status.health || 20;
     const food = status.food || 20;
     const inventory = status.inventory || [];
-    
+
     const ctx = {
       health,
       food,
@@ -212,45 +212,45 @@ STEP_4: chat "任务完成!"
       z: status.position?.z || 0,
       ...this.variables
     };
-    
+
     const hasInventory = (item) => {
       const lowerItem = item.toLowerCase();
-      return inventory.some(i => i.name.toLowerCase().includes(lowerItem));
+      return inventory.some((i) => i.name.toLowerCase().includes(lowerItem));
     };
-    
+
     const parseValue = (token) => {
-      if (/^true$/i.test(token)) return true;
-      if (/^false$/i.test(token)) return false;
-      if (/^null$/i.test(token)) return null;
+      if (/^true$/i.test(token)) {return true;}
+      if (/^false$/i.test(token)) {return false;}
+      if (/^null$/i.test(token)) {return null;}
       const num = parseFloat(token);
-      if (!isNaN(num)) return num;
+      if (!isNaN(num)) {return num;}
       return ctx[token] !== undefined ? ctx[token] : (hasInventory(token) ? true : 0);
     };
-    
-    const safeEval = (expr) => {
+
+    const evaluateCondition = (expr) => {
       const allowedChars = /^[a-zA-Z0-9_<>=!&|().\s]+$/;
       if (!allowedChars.test(expr)) {
         throw new Error('Invalid characters in expression');
       }
-      
+
       for (const [key, value] of Object.entries(ctx)) {
         const regex = new RegExp(`\\b${key}\\b`, 'gi');
         expr = expr.replace(regex, String(value));
       }
-      
+
       expr = expr.replace(/\bhas\("([^"]+)"\)/gi, (_, item) => String(hasInventory(item)));
-      
+
       const tokens = expr.match(/(\d+\.?\d*|[a-zA-Z_]\w*|>=|<=|==|!=|>|<|&&|\|\||!|\(|\))/g) || [];
-      
+
       for (const token of tokens) {
-        if (/^\d+\.?\d*$/.test(token)) continue;
-        if (/^(true|false|null|undefined)$/.test(token)) continue;
-        if (/^(&&|\|\||!|>=|<=|==|!=|>|<|\(|\))$/.test(token)) continue;
-        if (/^[a-zA-Z_]\w*$/.test(token) && !isNaN(parseFloat(token))) continue;
+        if (/^\d+\.?\d*$/.test(token)) {continue;}
+        if (/^(true|false|null|undefined)$/.test(token)) {continue;}
+        if (/^(&&|\|\||!|>=|<=|==|!=|>|<|\(|\))$/.test(token)) {continue;}
+        if (/^[a-zA-Z_]\w*$/.test(token) && !isNaN(parseFloat(token))) {continue;}
         throw new Error(`Unsafe token: ${token}`);
       }
-      
-      const operators = {
+
+      const _operators = {
         '==': (a, b) => a === b,
         '!=': (a, b) => a !== b,
         '>': (a, b) => a > b,
@@ -258,7 +258,7 @@ STEP_4: chat "任务完成!"
         '>=': (a, b) => a >= b,
         '<=': (a, b) => a <= b
       };
-      
+
       const tokenize = (expr) => {
         const tokens = [];
         let i = 0;
@@ -274,7 +274,7 @@ STEP_4: chat "任务完成!"
           if (ch === '&' && expr[i+1] === '&') { tokens.push({ type: 'op', value: '&&' }); i += 2; continue; }
           if (ch === '|' && expr[i+1] === '|') { tokens.push({ type: 'op', value: '||' }); i += 2; continue; }
           if (ch === '<' || ch === '>') {
-            if (expr[i+1] === '=') { tokens.push({ type: 'op', value: ch + '=' }); i += 2; }
+            if (expr[i+1] === '=') { tokens.push({ type: 'op', value: `${ch}=` }); i += 2; }
             else { tokens.push({ type: 'op', value: ch }); i++; }
             continue;
           }
@@ -292,7 +292,7 @@ STEP_4: chat "任务完成!"
         }
         return tokens;
       };
-      
+
       const evaluateTokens = (tokens, start = 0) => {
         const parseOr = (idx) => {
           let [left, i] = parseAnd(idx);
@@ -304,7 +304,7 @@ STEP_4: chat "任务完成!"
           }
           return [left, i];
         };
-        
+
         const parseAnd = (idx) => {
           let [left, i] = parseNot(idx);
           while (i < tokens.length && tokens[i]?.value === '&&') {
@@ -315,7 +315,7 @@ STEP_4: chat "任务完成!"
           }
           return [left, i];
         };
-        
+
         const parseNot = (idx) => {
           if (tokens[idx]?.value === '!') {
             const [result, i] = parseNot(idx + 1);
@@ -323,7 +323,7 @@ STEP_4: chat "任务完成!"
           }
           return parseCompare(idx);
         };
-        
+
         const parseCompare = (idx) => {
           let [left, i] = parsePrimary(idx);
           while (i < tokens.length && ['<', '>', '<=', '>=', '==', '!='].includes(tokens[i]?.value)) {
@@ -332,22 +332,22 @@ STEP_4: chat "任务完成!"
             const [right, newI] = parsePrimary(i);
             const lNum = parseFloat(left);
             const rNum = parseFloat(right);
-            if (op === '<') left = lNum < rNum;
-            else if (op === '>') left = lNum > rNum;
-            else if (op === '<=') left = lNum <= rNum;
-            else if (op === '>=') left = lNum >= rNum;
-            else if (op === '==') left = left == right;
-            else if (op === '!=') left = left != right;
+            if (op === '<') {left = lNum < rNum;}
+            else if (op === '>') {left = lNum > rNum;}
+            else if (op === '<=') {left = lNum <= rNum;}
+            else if (op === '>=') {left = lNum >= rNum;}
+            else if (op === '==') {left = left == right;} // eslint-disable-line eqeqeq
+            else if (op === '!=') {left = left != right;} // eslint-disable-line eqeqeq
             i = newI;
           }
           return [left, i];
         };
-        
+
         const parsePrimary = (idx) => {
           const tok = tokens[idx];
-          if (!tok) return [false, idx];
-          if (tok.type === 'num') return [tok.value, idx + 1];
-          if (tok.type === 'var') return [parseValue(tok.value), idx + 1];
+          if (!tok) {return [false, idx];}
+          if (tok.type === 'num') {return [tok.value, idx + 1];}
+          if (tok.type === 'var') {return [parseValue(tok.value), idx + 1];}
           if (tok.type === 'paren') {
             if (tok.value === '(') {
               const [result, i] = parseOr(idx + 1);
@@ -356,17 +356,17 @@ STEP_4: chat "任务完成!"
           }
           return [false, idx + 1];
         };
-        
+
         const [result] = parseOr(start);
         return !!result;
       };
-      
+
       const tokenObjs = tokenize(expr);
       return evaluateTokens(tokenObjs);
     };
-    
+
     try {
-      return safeEval(condition.toLowerCase());
+      return evaluateCondition(condition.toLowerCase());
     } catch (err) {
       console.warn('[TaskPlanner] Condition eval error:', err.message);
       return false;
@@ -381,31 +381,31 @@ STEP_4: chat "任务完成!"
       errorCount: 0,
       maxErrors: 5
     };
-    
+
     let stepIndex = 0;
-    
+
     while (stepIndex < steps.length) {
       if (this.executionState.loopCount > this.executionState.maxLoopIterations) {
         return { ok: false, error: '循环次数过多，已终止' };
       }
-      
+
       if (this.executionState.errorCount > this.executionState.maxErrors) {
         return { ok: false, error: '错误次数过多，已终止' };
       }
-      
+
       const currentStep = steps[stepIndex];
-      
+
       try {
         let result;
-        
+
         if (currentStep.type === 'step') {
           result = await this._executeStep(currentStep);
           results.push({ index: stepIndex, ...result });
-          
+
           if (!result.ok && currentStep.action !== 'check') {
             this.executionState.errorCount++;
           }
-          
+
           stepIndex++;
         } else if (currentStep.type === 'if') {
           const conditionMet = this._evaluateCondition(currentStep.condition);
@@ -422,11 +422,11 @@ STEP_4: chat "任务完成!"
         } else {
           stepIndex++;
         }
-        
-        this.currentTask = { ...this.currentTask, currentStep: stepIndex, progress: (stepIndex / steps.length * 100).toFixed(0) + '%' };
-        
+
+        this.currentTask = { ...this.currentTask, currentStep: stepIndex, progress: `${(stepIndex / steps.length * 100).toFixed(0)}%` };
+
         if (currentStep.type === 'step' && currentStep.action === 'wait') {
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise((r) => setTimeout(r, 500));
         }
       } catch (err) {
         results.push({ index: stepIndex, error: err.message });
@@ -437,7 +437,7 @@ STEP_4: chat "任务完成!"
 
     this.currentTask = null;
     this._saveToMemory('task_complete', { steps: steps.length, results: results.length });
-    
+
     return { ok: true, results };
   }
 
@@ -463,66 +463,71 @@ STEP_4: chat "任务完成!"
     this._audit('execute', { action: step.action, target: step.target });
 
     switch (step.action) {
-      case 'move':
-        const coords = this._parseCoords(step.target);
-        if (coords) {
-          return await this.game.moveTo(coords.x, coords.y, coords.z);
-        }
-        return { ok: false, error: 'Invalid coordinates' };
-
-      case 'dig':
-        return await this.game.dig(sanitizeActionParam(step.target));
-
-      case 'place':
-        return await this.game.placeBlock(sanitizeActionParam(step.target));
-
-      case 'equip':
-        return await this.game.equip(sanitizeActionParam(step.target));
-
-      case 'craft':
-        return await this.game.craft?.(sanitizeActionParam(step.target)) || { ok: true, message: `合成: ${step.target}` };
-
-      case 'chat':
-        const chatMsg = sanitizeActionParam(step.target);
-        if (chatMsg.length > 256) {
-          return { ok: false, error: 'Message too long (max 256 chars)' };
-        }
-        return await this.game.chat(chatMsg);
-
-      case 'wait':
-        const seconds = Math.min(Math.max(parseInt(step.params) || 1, 1), 60);
-        await new Promise(r => setTimeout(r, seconds * 1000));
-        return { ok: true, waited: seconds };
-
-      case 'find':
-        return { ok: true, message: `寻找目标: ${step.target}` };
-
-      case 'check':
-        const status = this.game.getStatus();
-        return { ok: true, status };
-
-      case 'set': {
-        const parts = step.target.split(/\s+/);
-        const key = sanitizeActionParam(parts[0]);
-        const value = sanitizeActionParam(parts.slice(1).join(' '));
-        if (!key || key.length > 50) {
-          return { ok: false, error: 'Invalid variable name' };
-        }
-        this.variables[key] = value;
-        return { ok: true, message: `设置 ${key} = ${value}` };
+    case 'move': {
+      const coords = this._parseCoords(step.target);
+      if (coords) {
+        return await this.game.moveTo(coords.x, coords.y, coords.z);
       }
+      return { ok: false, error: 'Invalid coordinates' };
+    }
 
-      case 'goto':
-        const targetStep = Math.max(0, Math.min(parseInt(step.target) - 1, MAX_TASK_STEPS));
-        return { ok: true, goto: targetStep };
+    case 'dig':
+      return await this.game.dig(sanitizeActionParam(step.target));
 
-      default:
-        return { ok: false, error: `Unknown action: ${step.action}` };
+    case 'place':
+      return await this.game.placeBlock(sanitizeActionParam(step.target));
+
+    case 'equip':
+      return await this.game.equip(sanitizeActionParam(step.target));
+
+    case 'craft':
+      return await this.game.craft?.(sanitizeActionParam(step.target)) || { ok: true, message: `合成: ${step.target}` };
+
+    case 'chat': {
+      const chatMsg = sanitizeActionParam(step.target);
+      if (chatMsg.length > 256) {
+        return { ok: false, error: 'Message too long (max 256 chars)' };
+      }
+      return await this.game.chat(chatMsg);
+    }
+
+    case 'wait': {
+      const seconds = Math.min(Math.max(parseInt(step.params) || 1, 1), 60);
+      await new Promise((r) => setTimeout(r, seconds * 1000));
+      return { ok: true, waited: seconds };
+    }
+
+    case 'find':
+      return { ok: true, message: `寻找目标: ${step.target}` };
+
+    case 'check': {
+      const status = this.game.getStatus();
+      return { ok: true, status };
+    }
+
+    case 'set': {
+      const parts = step.target.split(/\s+/);
+      const key = sanitizeActionParam(parts[0]);
+      const value = sanitizeActionParam(parts.slice(1).join(' '));
+      if (!key || key.length > 50) {
+        return { ok: false, error: 'Invalid variable name' };
+      }
+      this.variables[key] = value;
+      return { ok: true, message: `设置 ${key} = ${value}` };
+    }
+
+    case 'goto': {
+      const targetStep = Math.max(0, Math.min(parseInt(step.target) - 1, MAX_TASK_STEPS));
+      return { ok: true, goto: targetStep };
+    }
+
+    default:
+      return { ok: false, error: `Unknown action: ${step.action}` };
     }
   }
 
   _parseCoords(text) {
-    if (!text || typeof text !== 'string') return null;
+    if (!text || typeof text !== 'string') {return null;}
     const nums = text.match(/-?\d+/g);
     if (nums && nums.length >= 3) {
       const x = parseInt(nums[0]);

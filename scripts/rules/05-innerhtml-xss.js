@@ -11,6 +11,7 @@ module.exports = {
   context: {
     requireKeywords: [],
   },
+  suggest: '优先使用 textContent（纯文本）或安全的 DOM API 替代 innerHTML。如需插入 HTML，使用 DOMPurify.sanitize() 处理后再赋值。使用前端框架（Vue/React）时，利用其模板自动转义机制。',
   references: ['CWE-79'],
   since: '2026-06-28',
 };

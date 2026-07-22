@@ -61,7 +61,7 @@ class TaskScheduler {
   _sortQueue() {
     this.taskQueue.sort((a, b) => {
       const priorityDiff = (b.priority || 0) - (a.priority || 0);
-      if (priorityDiff !== 0) return priorityDiff;
+      if (priorityDiff !== 0) {return priorityDiff;}
 
       return a.enqueuedAt - b.enqueuedAt;
     });
@@ -73,12 +73,12 @@ class TaskScheduler {
     }
 
     const deps = this.dependencyGraph.get(item.id) || [];
-    if (deps.length === 0) return true;
+    if (deps.length === 0) {return true;}
 
     for (const depId of deps) {
       const depTask = this.activeTasks.get(depId) ||
-        this.completedTasks.find(t => t.id === depId) ||
-        this.taskQueue.find(t => t.id === depId);
+        this.completedTasks.find((t) => t.id === depId) ||
+        this.taskQueue.find((t) => t.id === depId);
 
       if (!depTask || depTask.status !== 'completed') {
         return false;
@@ -97,15 +97,15 @@ class TaskScheduler {
   }
 
   async _processQueue() {
-    if (this._isProcessing) return;
+    if (this._isProcessing) {return;}
     this._isProcessing = true;
 
     this._checkDependencyResolution();
 
     while (this.activeTasks.size < this.maxConcurrent && this.taskQueue.length > 0) {
-      const itemIndex = this.taskQueue.findIndex(item => this._canExecute(item));
+      const itemIndex = this.taskQueue.findIndex((item) => this._canExecute(item));
 
-      if (itemIndex === -1) break;
+      if (itemIndex === -1) {break;}
 
       const item = this.taskQueue.splice(itemIndex, 1)[0];
 
@@ -142,9 +142,9 @@ class TaskScheduler {
     try {
       const result = await this._runTask(item.task);
 
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {clearTimeout(timeoutId);}
 
-      if (item.status === 'timeout') return;
+      if (item.status === 'timeout') {return;}
 
       item.status = 'completed';
       item.completedAt = Date.now();
@@ -155,9 +155,9 @@ class TaskScheduler {
       this._handleTaskComplete(item);
 
     } catch (error) {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {clearTimeout(timeoutId);}
 
-      if (item.status === 'timeout') return;
+      if (item.status === 'timeout') {return;}
 
       if (item.retryCount < item.retries) {
         item.retryCount++;
@@ -247,11 +247,11 @@ class TaskScheduler {
       const value = parseInt(interval);
 
       switch (unit) {
-        case 's': case 'sec': return now + value * 1000;
-        case 'm': case 'min': return now + value * 60000;
-        case 'h': case 'hour': return now + value * 3600000;
-        case 'd': case 'day': return now + value * 86400000;
-        default: return now + 60000;
+      case 's': case 'sec': return now + value * 1000;
+      case 'm': case 'min': return now + value * 60000;
+      case 'h': case 'hour': return now + value * 3600000;
+      case 'd': case 'day': return now + value * 86400000;
+      default: return now + 60000;
       }
     }
 
@@ -275,8 +275,8 @@ class TaskScheduler {
     try {
       const now = Date.now();
 
-      for (const [taskId, scheduled] of this.scheduledTasks) {
-        if (!scheduled.enabled) continue;
+      for (const [_taskId, scheduled] of this.scheduledTasks) {
+        if (!scheduled.enabled) {continue;}
 
         if (now >= scheduled.nextRun) {
           scheduled.lastRun = now;
@@ -331,7 +331,7 @@ class TaskScheduler {
       const now = Date.now();
       const timeout = 30000;
 
-      for (const [nodeId, node] of this._distributedNodes) {
+      for (const [_nodeId, node] of this._distributedNodes) {
         if (now - node.lastHeartbeat > timeout) {
           node.available = false;
 
@@ -372,7 +372,7 @@ class TaskScheduler {
   }
 
   getWaitingTasks() {
-    return this.taskQueue.filter(t => t.status === 'waiting');
+    return this.taskQueue.filter((t) => t.status === 'waiting');
   }
 
   getCompletedTasks(limit = 50) {
@@ -387,7 +387,7 @@ class TaskScheduler {
       return true;
     }
 
-    const queueIndex = this.taskQueue.findIndex(t => t.id === taskId);
+    const queueIndex = this.taskQueue.findIndex((t) => t.id === taskId);
     if (queueIndex > -1) {
       this.taskQueue.splice(queueIndex, 1);
       return true;
@@ -423,17 +423,17 @@ class TaskScheduler {
       nodeId: this.nodeId,
       scheduled: this.scheduledTasks.size,
       active: this.activeTasks.size,
-      queued: this.taskQueue.filter(t => t.status === 'queued').length,
-      waiting: this.taskQueue.filter(t => t.status === 'waiting').length,
+      queued: this.taskQueue.filter((t) => t.status === 'queued').length,
+      waiting: this.taskQueue.filter((t) => t.status === 'waiting').length,
       completed: completed.length,
       successRate: completed.length > 0
-        ? (completed.filter(t => t.status === 'completed').length / completed.length * 100).toFixed(2) + '%'
+        ? `${(completed.filter((t) => t.status === 'completed').length / completed.length * 100).toFixed(2)}%`
         : '0%',
       avgDuration: completed.length > 0
-        ? (completed.reduce((sum, t) => sum + (t.duration || 0), 0) / completed.length).toFixed(0) + 'ms'
+        ? `${(completed.reduce((sum, t) => sum + (t.duration || 0), 0) / completed.length).toFixed(0)}ms`
         : '0ms',
       distributedNodes: this._distributedNodes.size,
-      activeNodes: Array.from(this._distributedNodes.values()).filter(n => n.available).length
+      activeNodes: Array.from(this._distributedNodes.values()).filter((n) => n.available).length
     };
   }
 

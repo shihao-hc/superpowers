@@ -1,7 +1,7 @@
 /**
  * 持续推理循环系统
  * 参考: Neuro-sama 的 Continuous Inference Loops
- * 
+ *
  * 核心特性:
  * - 非prompt响应，持续推理
  * - 实时情感反馈循环
@@ -23,7 +23,7 @@ class ContinuousInferenceSystem {
     this.isRunning = false;
     this.inferenceLoop = null;
     this.thoughtStream = [];
-    
+
     // 人格层
     this.personaLayer = {
       traits: {
@@ -70,8 +70,8 @@ class ContinuousInferenceSystem {
    * 启动持续推理
    */
   start() {
-    if (this.isRunning) return;
-    
+    if (this.isRunning) {return;}
+
     this.isRunning = true;
     this._runInferenceLoop();
     console.log('[InferenceSystem] Started continuous inference loop');
@@ -94,7 +94,7 @@ class ContinuousInferenceSystem {
    */
   _runInferenceLoop() {
     this.inferenceLoop = setInterval(() => {
-      if (!this.isRunning) return;
+      if (!this.isRunning) {return;}
 
       try {
         // 1. 感知环境
@@ -124,11 +124,11 @@ class ContinuousInferenceSystem {
   _perceiveEnvironment() {
     // 分析最近的聊天
     const recentChat = this.environment.chatMessages.slice(-10);
-    
+
     for (const msg of recentChat) {
       // 检测情感
       const sentiment = this._analyzeSentiment(msg.text);
-      
+
       // 更新环境情感氛围
       if (sentiment !== 'neutral') {
         this._absorbEmotion(sentiment, 0.1);
@@ -156,15 +156,15 @@ class ContinuousInferenceSystem {
 
     let score = 0;
     for (const word of positiveWords) {
-      if (text.includes(word)) score += 1;
+      if (text.includes(word)) {score += 1;}
     }
     for (const word of negativeWords) {
-      if (text.includes(word)) score -= 1;
+      if (text.includes(word)) {score -= 1;}
     }
 
-    if (score > 0) return 'positive';
-    if (score < 0) return 'negative';
-    if (questionWords.some(w => text.includes(w))) return 'curious';
+    if (score > 0) {return 'positive';}
+    if (score < 0) {return 'negative';}
+    if (questionWords.some((w) => text.includes(w))) {return 'curious';}
     return 'neutral';
   }
 
@@ -180,7 +180,7 @@ class ContinuousInferenceSystem {
     };
 
     const targetEmotion = emotionMapping[emotion];
-    
+
     if (targetEmotion === this.emotionState.current) {
       // 同向情感增强
       this.emotionState.intensity = Math.min(1, this.emotionState.intensity + intensity);
@@ -251,7 +251,7 @@ class ContinuousInferenceSystem {
     // 连续提问
     const recentQuestions = this.environment.chatMessages
       .slice(-5)
-      .filter(m => this._analyzeSentiment(m.text) === 'curious');
+      .filter((m) => this._analyzeSentiment(m.text) === 'curious');
 
     if (recentQuestions.length >= 3) {
       this._addThought({
@@ -266,10 +266,10 @@ class ContinuousInferenceSystem {
    * 检查涌现行为触发
    */
   _checkEmergence() {
-    if (!this.options.enableEmergence) return;
+    if (!this.options.enableEmergence) {return;}
 
     // 触发条件: 高情感强度 + 静默期 + 特定话题
-    const shouldEmerge = 
+    const shouldEmerge =
       this.emotionState.intensity > 0.7 &&
       this.thoughtStream.length > 0 &&
       Math.random() < 0.01;  // 1%随机触发
@@ -386,13 +386,13 @@ class ContinuousInferenceSystem {
    */
   _decideAction() {
     // 主动发言条件
-    const shouldSpeak = 
+    const shouldSpeak =
       this.emotionState.intensity > 0.6 ||
-      this.thoughtStream.some(t => t.priority > 0.8);
+      this.thoughtStream.some((t) => t.priority > 0.8);
 
     if (shouldSpeak && Math.random() < 0.05) {
       // 5%概率主动发言
-      const thought = this.thoughtStream.find(t => t.priority > 0.7) || 
+      const thought = this.thoughtStream.find((t) => t.priority > 0.7) ||
                       this._generateThought();
 
       this._emit('proactive_speech', {

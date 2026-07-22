@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Simple frontmatter extraction (avoid dependency on skills-core for bootstrap)
 const extractAndStripFrontmatter = (content) => {
   const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, content };
+  if (!match) {return { frontmatter: {}, content };}
 
   const frontmatterStr = match[1];
   const body = match[2];
@@ -35,9 +35,9 @@ const extractAndStripFrontmatter = (content) => {
 
 // Normalize a path: trim whitespace, expand ~, resolve to absolute
 const normalizePath = (p, homeDir) => {
-  if (!p || typeof p !== 'string') return null;
+  if (!p || typeof p !== 'string') {return null;}
   let normalized = p.trim();
-  if (!normalized) return null;
+  if (!normalized) {return null;}
   if (normalized.startsWith('~/')) {
     normalized = path.join(homeDir, normalized.slice(2));
   } else if (normalized === '~') {
@@ -56,7 +56,7 @@ export const SuperpowersPlugin = async ({ client, directory }) => {
   const getBootstrapContent = () => {
     // Try to load using-superpowers skill
     const skillPath = path.join(superpowersSkillsDir, 'using-superpowers', 'SKILL.md');
-    if (!fs.existsSync(skillPath)) return null;
+    if (!fs.existsSync(skillPath)) {return null;}
 
     const fullContent = fs.readFileSync(skillPath, 'utf8');
     const { content } = extractAndStripFrontmatter(fullContent);
@@ -100,11 +100,11 @@ ${toolMapping}
     //   2. Multiple system messages breaking Qwen and other models (#894)
     'experimental.chat.messages.transform': async (_input, output) => {
       const bootstrap = getBootstrapContent();
-      if (!bootstrap || !output.messages.length) return;
-      const firstUser = output.messages.find(m => m.info.role === 'user');
-      if (!firstUser || !firstUser.parts.length) return;
+      if (!bootstrap || !output.messages.length) {return;}
+      const firstUser = output.messages.find((m) => m.info.role === 'user');
+      if (!firstUser || !firstUser.parts.length) {return;}
       // Only inject once
-      if (firstUser.parts.some(p => p.type === 'text' && p.text.includes('EXTREMELY_IMPORTANT'))) return;
+      if (firstUser.parts.some((p) => p.type === 'text' && p.text.includes('EXTREMELY_IMPORTANT'))) {return;}
       const ref = firstUser.parts[0];
       firstUser.parts.unshift({ ...ref, type: 'text', text: bootstrap });
     }

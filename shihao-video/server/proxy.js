@@ -1,7 +1,7 @@
 /**
  * 拾号-影视 CORS代理服务 - 安全加固版
  * 处理跨域请求，代理转发到影视资源站
- * 
+ *
  * 安全改进：
  * 1. URL白名单验证，防止SSRF攻击
  * 2. 请求大小限制，防止内存耗尽
@@ -33,9 +33,9 @@ const SECURITY_CONFIG = {
     /\.tv$/i,       // .tv域名
     /\.io$/i,       // .io域名
     /\.me$/i,       // .me域名
-    /\.vip$/i,      // .vip域名
+    /\.vip$/i      // .vip域名
   ],
-  
+
   // 禁止访问的IP和网段（防止SSRF攻击）
   BLOCKED_IPS: [
     /^127\./,           // 本地回环
@@ -45,18 +45,18 @@ const SECURITY_CONFIG = {
     /^169\.254\./,      // 链路本地
     /^::1$/,            // IPv6本地回环
     /^fc/,              // IPv6唯一本地地址
-    /^fd/,              // IPv6唯一本地地址
+    /^fd/              // IPv6唯一本地地址
   ],
-  
+
   // 请求限制
   MAX_REQUEST_SIZE: 5 * 1024 * 1024,  // 5MB
   MAX_RESPONSE_SIZE: 10 * 1024 * 1024, // 10MB
   REQUEST_TIMEOUT: 15000,              // 15秒
-  
+
   // 速率限制
   RATE_LIMIT: {
     windowMs: 60 * 1000,    // 1分钟
-    max: 100,                // 每分钟最多100个请求
+    max: 100                // 每分钟最多100个请求
   }
 };
 
@@ -77,19 +77,19 @@ setInterval(() => {
 function rateLimit(req, res, next) {
   const clientIP = req.ip || req.connection.remoteAddress;
   const now = Date.now();
-  
+
   if (!requestCounts.has(clientIP)) {
     requestCounts.set(clientIP, { count: 1, startTime: now });
   } else {
     const record = requestCounts.get(clientIP);
-    
+
     if (record.count >= SECURITY_CONFIG.RATE_LIMIT.max) {
       return res.status(429).json({
         error: '请求过于频繁，请稍后再试',
         retryAfter: Math.ceil((record.startTime + SECURITY_CONFIG.RATE_LIMIT.windowMs - now) / 1000)
       });
     }
-    
+
     record.count++;
   }
   next();
@@ -99,22 +99,22 @@ function rateLimit(req, res, next) {
 function validateUrl(targetUrl) {
   try {
     const parsedUrl = new URL(targetUrl);
-    
+
     // 只允许HTTP和HTTPS
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       return { valid: false, reason: '只支持HTTP和HTTPS协议' };
     }
-    
+
     // 检查是否为IP地址
     const hostname = parsedUrl.hostname;
-    
+
     // 检查是否为禁止访问的IP
     for (const blocked of SECURITY_CONFIG.BLOCKED_IPS) {
       if (blocked.test(hostname)) {
         return { valid: false, reason: '不允许访问内部网络' };
       }
     }
-    
+
     // 检查域名白名单
     let isAllowed = false;
     for (const pattern of SECURITY_CONFIG.ALLOWED_HOSTS) {
@@ -123,11 +123,11 @@ function validateUrl(targetUrl) {
         break;
       }
     }
-    
+
     if (!isAllowed) {
       return { valid: false, reason: '域名不在允许列表中' };
     }
-    
+
     return { valid: true, parsedUrl };
   } catch (err) {
     return { valid: false, reason: 'URL格式错误' };
@@ -144,8 +144,8 @@ function sendSafeError(res, statusCode, message) {
     502: '代理请求失败',
     504: '请求超时'
   };
-  
-  res.status(statusCode).json({ 
+
+  res.status(statusCode).json({
     error: safeMessages[statusCode] || message || '未知错误'
   });
 }
@@ -159,21 +159,21 @@ app.use(express.static(path.join(__dirname, '../public')));
 // 安全策略：内容安全策略（CSP）头部
 app.use((req, res, next) => {
   // 基础安全头部
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   // CSP头部
-  res.setHeader("Content-Security-Policy", 
-    "default-src 'self'; " +
-    "img-src 'self' data: https: http:; " +
-    "media-src 'self' https: http: blob:; " +
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "connect-src 'self' https: http:; " +
-    "font-src 'self' data:; " +
-    "frame-ancestors 'none';"
+  res.setHeader('Content-Security-Policy',
+    'default-src \'self\'; ' +
+    'img-src \'self\' data: https: http:; ' +
+    'media-src \'self\' https: http: blob:; ' +
+    'script-src \'self\' \'unsafe-inline\' https://cdn.jsdelivr.net; ' +
+    'style-src \'self\' \'unsafe-inline\'; ' +
+    'connect-src \'self\' https: http:; ' +
+    'font-src \'self\' data:; ' +
+    'frame-ancestors \'none\';'
   );
   next();
 });
@@ -182,7 +182,7 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
   const host = req.headers.host || 'localhost';
-  
+
   // 仅当通过可信代理（x-forwarded-proto）且明确指定为 HTTPS 时才重定向
   // 避免本地开发时强制重定向导致无法访问
   if (proto === 'https' && !req.secure && !host.includes('localhost') && !host.includes('127.0.0.1')) {
@@ -200,7 +200,7 @@ app.use(rateLimit);
 
 // 健康检查端点
 app.get('/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
@@ -210,18 +210,18 @@ app.get('/health', (req, res) => {
 // 测试数据源接口
 app.post('/test-source', async (req, res) => {
   const { apiUrl } = req.body;
-  
+
   if (!apiUrl) {
     return sendSafeError(res, 400, '缺少apiUrl参数');
   }
-  
-  const validation = validateUrl(apiUrl + '?ac=list&pg=1');
+
+  const validation = validateUrl(`${apiUrl}?ac=list&pg=1`);
   if (!validation.valid) {
     return sendSafeError(res, 400, validation.reason);
   }
-  
+
   try {
-    const testUrl = apiUrl + '?ac=list&pg=1';
+    const testUrl = `${apiUrl}?ac=list&pg=1`;
     const data = await proxyRequest(testUrl);
     res.json({
       success: true,
@@ -239,16 +239,16 @@ app.post('/test-source', async (req, res) => {
 // CORS代理接口
 app.get('/proxy', async (req, res) => {
   const targetUrl = req.query.url;
-  
+
   if (!targetUrl) {
     return sendSafeError(res, 400, '缺少url参数');
   }
-  
+
   const validation = validateUrl(targetUrl);
   if (!validation.valid) {
     return sendSafeError(res, 400, validation.reason);
   }
-  
+
   try {
     const data = await proxyRequest(targetUrl);
     res.json(data);
@@ -261,16 +261,16 @@ app.get('/proxy', async (req, res) => {
 // 视频详情代理接口
 app.get('/detail', async (req, res) => {
   const targetUrl = req.query.url;
-  
+
   if (!targetUrl) {
     return sendSafeError(res, 400, '缺少url参数');
   }
-  
+
   const validation = validateUrl(targetUrl);
   if (!validation.valid) {
     return sendSafeError(res, 400, validation.reason);
   }
-  
+
   try {
     const data = await proxyRequest(targetUrl);
     res.json(data);
@@ -283,21 +283,21 @@ app.get('/detail', async (req, res) => {
 // 图片代理接口
 app.get('/image', (req, res) => {
   const imageUrl = req.query.url;
-  
+
   if (!imageUrl) {
     return sendSafeError(res, 400, '缺少图片URL');
   }
-  
+
   // 验证URL
   const validation = validateUrl(imageUrl);
   if (!validation.valid) {
     return sendSafeError(res, 400, '无效的图片URL');
   }
-  
+
   const parsedUrl = validation.parsedUrl;
   const isHttps = parsedUrl.protocol === 'https:';
   const httpModule = isHttps ? https : http;
-  
+
   const options = {
     hostname: parsedUrl.hostname,
     port: parsedUrl.port || (isHttps ? 443 : 80),
@@ -310,7 +310,7 @@ app.get('/image', (req, res) => {
       'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8'
     }
   };
-  
+
   const proxyReq = httpModule.request(options, (proxyRes) => {
     // 转发响应头
     res.writeHead(proxyRes.statusCode, {
@@ -318,20 +318,20 @@ app.get('/image', (req, res) => {
       'Cache-Control': 'public, max-age=86400',
       'Access-Control-Allow-Origin': '*'
     });
-    
+
     proxyRes.pipe(res);
   });
-  
+
   proxyReq.on('error', (err) => {
     console.error('图片代理错误:', err.message);
     sendSafeError(res, 502, '图片加载失败');
   });
-  
+
   proxyReq.on('timeout', () => {
     proxyReq.destroy();
     sendSafeError(res, 504, '图片加载超时');
   });
-  
+
   proxyReq.end();
 });
 
@@ -341,7 +341,7 @@ function proxyRequest(targetUrl) {
     const parsedUrl = new URL(targetUrl);
     const isHttps = parsedUrl.protocol === 'https:';
     const httpModule = isHttps ? https : http;
-    
+
     const options = {
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || (isHttps ? 443 : 80),
@@ -354,13 +354,13 @@ function proxyRequest(targetUrl) {
         'Accept': 'application/json,text/plain,*/*'
       }
     };
-    
+
     const proxyReq = httpModule.request(options, (proxyRes) => {
       let data = '';
-      
+
       // 检查响应大小
       let totalSize = 0;
-      
+
       proxyRes.on('data', (chunk) => {
         totalSize += chunk.length;
         if (totalSize > SECURITY_CONFIG.MAX_RESPONSE_SIZE) {
@@ -370,7 +370,7 @@ function proxyRequest(targetUrl) {
         }
         data += chunk;
       });
-      
+
       proxyRes.on('end', () => {
         try {
           // CMSV10 API 返回的可能是GBK编码，尝试转换
@@ -382,16 +382,16 @@ function proxyRequest(targetUrl) {
         }
       });
     });
-    
+
     proxyReq.on('error', (err) => {
       reject(err);
     });
-    
+
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
       reject(new Error('请求超时'));
     });
-    
+
     proxyReq.end();
   });
 }

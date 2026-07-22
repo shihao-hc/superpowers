@@ -562,7 +562,7 @@ class IndustrySolutions {
   }
 
   getSolutionsByCategory(category) {
-    return this.getAllSolutions().filter(s => s.category === category);
+    return this.getAllSolutions().filter((s) => s.category === category);
   }
 
   getSolutionSkills(solutionId) {
@@ -582,7 +582,7 @@ class IndustrySolutions {
 
   getEndToEndSolution(solutionId, e2eId) {
     const e2eSolutions = this.getEndToEndSolutions(solutionId);
-    return e2eSolutions.find(s => s.id === e2eId) || null;
+    return e2eSolutions.find((s) => s.id === e2eId) || null;
   }
 
   getAllEndToEndSolutions() {
@@ -605,16 +605,16 @@ class IndustrySolutions {
     if (!solutionId || typeof solutionId !== 'string' || !/^[a-z0-9-]+$/.test(solutionId)) {
       return { error: 'Invalid solution ID format' };
     }
-    
+
     if (!workflowId || typeof workflowId !== 'string' || !/^[a-z0-9-]+$/.test(workflowId)) {
       return { error: 'Invalid workflow ID format' };
     }
-    
-    const solution = this.solutions.get(solutionId);
-    if (!solution) return { error: 'Solution not found' };
 
-    const workflow = solution.workflows.find(w => w.id === workflowId);
-    if (!workflow) return { error: 'Workflow not found' };
+    const solution = this.solutions.get(solutionId);
+    if (!solution) {return { error: 'Solution not found' };}
+
+    const workflow = solution.workflows.find((w) => w.id === workflowId);
+    if (!workflow) {return { error: 'Workflow not found' };}
 
     const sanitizedInputs = this._sanitizeInputs(inputs);
 
@@ -627,10 +627,10 @@ class IndustrySolutions {
       inputs: sanitizedInputs
     };
   }
-  
+
   _sanitizeInputs(inputs) {
-    if (!inputs || typeof inputs !== 'object') return {};
-    
+    if (!inputs || typeof inputs !== 'object') {return {};}
+
     const sanitized = {};
     for (const [key, value] of Object.entries(inputs)) {
       if (typeof key === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
@@ -640,7 +640,7 @@ class IndustrySolutions {
           sanitized[key] = value;
         } else if (typeof value === 'boolean') {
           sanitized[key] = value;
-        } else if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+        } else if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
           sanitized[key] = value.slice(0, 100);
         }
       }
@@ -650,7 +650,7 @@ class IndustrySolutions {
 
   generateSolutionReport(solutionId) {
     const solution = this.solutions.get(solutionId);
-    if (!solution) return null;
+    if (!solution) {return null;}
 
     return {
       solution: solution.name,
@@ -662,7 +662,7 @@ class IndustrySolutions {
     };
   }
 
-  _generateImplementationPlan(solution) {
+  _generateImplementationPlan(_solution) {
     return {
       phase1: {
         name: '基础部署',

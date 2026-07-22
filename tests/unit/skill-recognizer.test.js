@@ -1,0 +1,425 @@
+jest.mock('fs');
+
+const fs = require('fs');
+const SkillRecognizer = require('../../src/core/SkillRecognizer');
+
+describe('SkillRecognizer', () => {
+  let recognizer;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(SkillRecognizer.prototype, '_loadSkills').mockReturnValue();
+    recognizer = new SkillRecognizer();
+    recognizer.skills = [
+      { name: 'test-driven-development', description: 'TDD methodology and unit testing', category: '测试', path: '/fake/tdd' },
+      { name: 'security-audit', description: 'Security auditing and vulnerability scanning', category: '安全', path: '/fake/security' },
+      { name: 'browser-automation', description: 'Browser automation with Playwright', category: '浏览器/爬虫', path: '/fake/browser' }
+    ];
+    recognizer.categories = {
+      '测试': [recognizer.skills[0]],
+      '安全': [recognizer.skills[1]],
+      '浏览器/爬虫': [recognizer.skills[2]]
+    };
+  });
+
+  describe('constructor', () => {
+    test('initializes state', () => {
+      const r = new SkillRecognizer();
+      expect(Array.isArray(r.skills)).toBe(true);
+      expect(r.customSystems instanceof Map).toBe(true);
+    });
+  });
+
+  describe('_guessCategory', () => {
+    test('guesses from test path', () => {
+      expect(recognizer._guessCategory('/project/tests/unit/test.js')).toBe('测试');
+    });
+
+    test('defaults to 其他', () => {
+      expect(recognizer._guessCategory('/project/xyz/file.js')).toBe('其他');
+    });
+
+    test('matches security paths', () => {
+      expect(recognizer._guessCategory('/project/security/auth.js')).toBe('安全');
+    });
+  });
+
+  describe('_getCustomModule', () => {
+    test('returns module for DynamicScraper', () => {
+      const mod = recognizer._getCustomModule('DynamicScraper');
+      expect(mod.type).toBe('爬虫系统');
+    });
+
+    test('returns null for unknown module', () => {
+      expect(recognizer._getCustomModule('nonexistent')).toBeNull();
+    });
+  });
+
+  describe('registerSystem / getCustomSystems', () => {
+    test('registers and retrieves', () => {
+      recognizer.registerSystem('my-sys', { keywords: ['test'], features: {} });
+      expect(recognizer.customSystems.has('my-sys')).toBe(true);
+      const systems = recognizer.getCustomSystems();
+      expect(systems.some(s => s.name === 'my-sys')).toBe(true);
+    });
+  });
+
+  describe('recognize', () => {
+    test('keyword match for 测试', () => {
+      const results = recognizer.recognize('测试');
+      expect(results.some(r => r.skill.name === 'test-driven-development' && r.match === 'keyword')).toBe(true);
+    });
+
+    test('keyword match for security', () => {
+      const results = recognizer.recognize('security audit 漏洞');
+      expect(results.some(r => r.skill.name === 'security-audit' && r.match === 'keyword')).toBe(true);
+    });
+
+    test('returns empty for unrelated input', () => {
+      expect(recognizer.recognize('zzzzyyyyxxxx')).toEqual([]);
+    });
+
+    test('deduplicates results', () => {
+      const results = recognizer.recognize('test');
+      const names = results.map(r => r.skill.name);
+      expect(new Set(names).size).toBe(names.length);
+    });
+
+    test('returns at most topN results', () => {
+      const results = recognizer.recognize('test', { topN: 2 });
+      expect(results.length).toBeLessThanOrEqual(2);
+    });
+  });
+
+  describe('_matchCustomSystems', () => {
+    test('returns empty for no matches', () => {
+      const analysis = { isDomestic: false, isVideo: false, isSocial: false };
+      const result = recognizer._matchCustomSystems('zzzz', analysis);
+      expect(result).toEqual([]);
+    });
+
+    test('matches by keyword', () => {
+      const analysis = { isDomestic: false, isVideo: false, isSocial: false };
+      const result = recognizer._matchCustomSystems('爬虫', analysis);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0].name).toBe('DynamicScraper');
+    });
+
+    test('matches by feature', () => {
+      const analysis = { isDomestic: true, isVideo: true, isSocial: true };
+      const result = recognizer._matchCustomSystems('抖音', analysis);
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('_makeDecision', () => {
+    test('returns default for no matches', () => {
+      const result = recognizer._makeDecision([], [], {});
+      expect(result.recommendation).toBeDefined();
+      expect(result.reason).toBeDefined();
+    });
+
+    test('includes matched custom system', () => {
+      const result = recognizer._makeDecision(
+        [{ name: 'DynamicScraper', type: '爬虫系统', score: 3 }],
+        [],
+        {}
+      );
+      expect(result.options.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('decide', () => {
+    test('returns object with expected keys', () => {
+      const result = recognizer.decide('test driven development');
+      expect(result).toHaveProperty('recommendation');
+      expect(result).toHaveProperty('reason');
+      expect(result).toHaveProperty('options');
+      expect(result).toHaveProperty('combine');
+      expect(result).toHaveProperty('analysis');
+    });
+
+    test('recognizes crawler input', () => {
+      const result = recognizer.decide('爬取抖音视频数据');
+      expect(result.options.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('decideCrawler', () => {
+    test('returns object structure', () => {
+      const result = recognizer.decideCrawler('');
+      expect(result).toHaveProperty('recommendation');
+      expect(result).toHaveProperty('reason');
+    });
+
+    test('default recommendation is DynamicScraper', () => {
+      const result = recognizer.decideCrawler('');
+      expect(result.recommendation.name).toBe('DynamicScraper');
+    });
+
+    test('detects domestic platform', () => {
+      const result = recognizer.decideCrawler('抖音爬取');
+      expect(result.analysis.isDomestic).toBe(true);
+    });
+
+    test('detects specific tool', () => {
+      const result = recognizer.decideCrawler('use playwright');
+      expect(result.analysis.isSpecificTool).toBe(true);
+    });
+  });
+
+  describe('loadSkill', () => {
+    test('loads skill by name', () => {
+      fs.readFileSync.mockReturnValueOnce('# content');
+      const result = recognizer.loadSkill('test-driven-development');
+      expect(result).toBeTruthy();
+      expect(result.content).toBe('# content');
+    });
+
+    test('returns null for unknown', () => {
+      expect(recognizer.loadSkill('nonexistent')).toBeNull();
+    });
+  });
+
+  describe('getByCategory / getCategories', () => {
+    test('returns skills for existing category', () => {
+      const skills = recognizer.getByCategory('安全');
+      expect(skills).toHaveLength(1);
+      expect(skills[0].name).toBe('security-audit');
+    });
+
+    test('returns empty for unknown', () => {
+      expect(recognizer.getByCategory('unknown')).toEqual([]);
+    });
+
+    test('returns all categories', () => {
+      const cats = recognizer.getCategories();
+      expect(cats).toContain('测试');
+      expect(cats).toContain('安全');
+    });
+  });
+
+  describe('getStats', () => {
+    test('returns stats structure', () => {
+      const stats = recognizer.getStats();
+      expect(stats.total).toBe(3);
+      expect(stats.categories).toBe(3);
+      expect(stats.byCategory.测试).toBe(1);
+    });
+  });
+
+  describe('_guessCategory additional branches', () => {
+    test('guesses claude-code category', () => {
+      expect(recognizer._guessCategory('/project/claude-code/test.js')).toBe('Claude Code');
+    });
+
+    test('guesses audit path as 安全', () => {
+      expect(recognizer._guessCategory('/project/audit/test.js')).toBe('安全');
+    });
+
+    test('guesses browser/crawl category', () => {
+      expect(recognizer._guessCategory('/project/browser/test.js')).toBe('浏览器/爬虫');
+    });
+
+    test('guesses agent category', () => {
+      expect(recognizer._guessCategory('/project/agent/test.js')).toBe('AI Agent');
+    });
+
+    test('guesses mcp category', () => {
+      expect(recognizer._guessCategory('/project/mcp/test.js')).toBe('MCP');
+    });
+
+    test('guesses deploy category', () => {
+      expect(recognizer._guessCategory('/project/deploy/test.js')).toBe('部署');
+    });
+
+    test('guesses docker category', () => {
+      expect(recognizer._guessCategory('/project/docker/test.js')).toBe('部署');
+    });
+
+    test('guesses frontend category', () => {
+      expect(recognizer._guessCategory('/project/vue/module.js')).toBe('前端');
+    });
+
+    test('guesses llm/voice category', () => {
+      expect(recognizer._guessCategory('/project/tts/module.js')).toBe('LLM/语音');
+    });
+
+    test('guesses vtuber category', () => {
+      expect(recognizer._guessCategory('/project/vrm/module.js')).toBe('VTuber');
+    });
+
+    test('guesses memory category', () => {
+      expect(recognizer._guessCategory('/project/skill/memory.js')).toBe('记忆系统');
+    });
+  });
+
+  describe('_makeDecision additional branches', () => {
+    test('keyword match takes priority over fuzzy', () => {
+      const result = recognizer._makeDecision(
+        [],
+        [{ name: 'test-driven-development', description: 'TDD', category: '测试', score: 0.5, matchType: 'keyword' }],
+        {}
+      );
+      expect(result.recommendation.name).toBe('test-driven-development');
+      expect(result.reason).toBe('推荐: test-driven-development');
+    });
+
+    test('combine option added when customSystems and skills both present with large scale', () => {
+      const result = recognizer._makeDecision(
+        [{ name: 'DynamicScraper', type: '爬虫系统', score: 3, description: '爬虫系统' }],
+        [{ name: 'crawl4ai-patterns', description: 'Crawl4AI', category: '爬虫', score: 1.0, matchType: 'fuzzy' }],
+        { isLargeScale: true, isDeepCrawl: false }
+      );
+      const combineOpt = result.options.find(o => o.combine);
+      expect(combineOpt).toBeDefined();
+      expect(combineOpt.name).toContain('DynamicScraper');
+    });
+
+    // Lines 764-767 (_makeDecision custom-system/combine branches) are structurally unreachable
+    // because customSystems at line 713 always get matchType: 'keyword', which causes
+    // the keywordMatches filter at line 745 to return early. These branches can only
+    // be reached if no customSystems matchType 'keyword' exists in options.
+  });
+
+  describe('_analyzeInput', () => {
+    test('detects isVideo', () => {
+      const result = recognizer._analyzeInput('视频下载');
+      expect(result.isVideo).toBe(true);
+    });
+
+    test('detects isSocial', () => {
+      const result = recognizer._analyzeInput('小红书');
+      expect(result.isSocial).toBe(true);
+    });
+
+    test('detects isEcommerce', () => {
+      const result = recognizer._analyzeInput('淘宝数据');
+      expect(result.isEcommerce).toBe(true);
+    });
+
+    test('detects isLargeScale', () => {
+      const result = recognizer._analyzeInput('批量爬取');
+      expect(result.isLargeScale).toBe(true);
+    });
+
+    test('detects isDeepCrawl', () => {
+      const result = recognizer._analyzeInput('深度递归');
+      expect(result.isDeepCrawl).toBe(true);
+    });
+
+    test('detects isLLMOutput', () => {
+      const result = recognizer._analyzeInput('markdown格式');
+      expect(result.isLLMOutput).toBe(true);
+    });
+
+    test('detects isAntiDetect', () => {
+      const result = recognizer._analyzeInput('反检测模式');
+      expect(result.isAntiDetect).toBe(true);
+    });
+
+    test('detects isAPI', () => {
+      const result = recognizer._analyzeInput('api接口');
+      expect(result.isAPI).toBe(true);
+    });
+
+    test('detects isSimple', () => {
+      const result = recognizer._analyzeInput('简单任务');
+      expect(result.isSimple).toBe(true);
+    });
+
+    test('detects isSpecificTool', () => {
+      const result = recognizer._analyzeInput('crawl4ai');
+      expect(result.isSpecificTool).toBe(true);
+    });
+
+    test('detects isCustomSystem', () => {
+      const result = recognizer._analyzeInput('我的爬虫');
+      expect(result.isCustomSystem).toBe(true);
+    });
+
+    test('detects isAnalysis', () => {
+      const result = recognizer._analyzeInput('数据分析');
+      expect(result.isAnalysis).toBe(true);
+    });
+
+    test('detects isGeneration', () => {
+      const result = recognizer._analyzeInput('创作');
+      expect(result.isGeneration).toBe(true);
+    });
+
+    test('detects isSearch', () => {
+      const result = recognizer._analyzeInput('搜索数据');
+      expect(result.isSearch).toBe(true);
+    });
+  });
+
+  describe('decideCrawler additional branches', () => {
+    test('domestic platform adds option', () => {
+      const result = recognizer.decideCrawler('抖音爬取');
+      expect(result.options.some(o => o.type === '拾号-爬虫')).toBe(true);
+    });
+
+    test('crawl4ai specific tool', () => {
+      const result = recognizer.decideCrawler('use crawl4ai');
+      expect(result.options.some(o => o.name === 'crawl4ai-patterns')).toBe(true);
+    });
+
+    test('scrapling specific tool', () => {
+      const result = recognizer.decideCrawler('use scrapling');
+      expect(result.options.some(o => o.name === 'scrapling')).toBe(true);
+    });
+
+    test('selenium specific tool', () => {
+      const result = recognizer.decideCrawler('use selenium');
+      expect(result.options.some(o => o.name === 'seleniumbase-patterns')).toBe(true);
+    });
+
+    test('playwright specific tool', () => {
+      const result = recognizer.decideCrawler('use playwright');
+      expect(result.options.some(o => o.name === 'browser-automation')).toBe(true);
+    });
+
+    test('easyspider specific tool', () => {
+      const result = recognizer.decideCrawler('use easyspider');
+      expect(result.options.some(o => o.name === 'easyspider-patterns')).toBe(true);
+    });
+
+    test('large scale adds combine option', () => {
+      const result = recognizer.decideCrawler('批量爬取');
+      expect(result.options.some(o => o.combine)).toBe(true);
+    });
+
+    test('simple task adds isSimple option', () => {
+      const result = recognizer.decideCrawler('简单任务');
+      expect(result.options.some(o => o.name === 'DynamicScraper' && o.score === 0.95)).toBe(true);
+    });
+
+    test('deep crawl combine becomes recommendation when no domestic match', () => {
+      const result = recognizer.decideCrawler('深度');
+      expect(result.combine).toBe(true);
+      expect(result.reason).toContain('组合');
+    });
+  });
+
+  describe('loadSkill error handling', () => {
+    test('returns null on read error', () => {
+      fs.readFileSync.mockImplementationOnce(() => { throw new Error('ENOENT'); });
+      const result = recognizer.loadSkill('test-driven-development');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('recognize module matches', () => {
+    test('recognizes DynamicScraper module', () => {
+      const results = recognizer.recognize('拾号爬虫');
+      expect(results.some(r => r.skill.name === 'DynamicScraper' && r.skill.isCustomModule)).toBe(true);
+    });
+
+    test('fuzzy matching adds results when keyword results below topN', () => {
+      const results = recognizer.recognize('methodology', { topN: 5 });
+      const fuzzy = results.filter(r => r.match === 'fuzzy');
+      expect(fuzzy.length).toBeGreaterThan(0);
+    });
+  });
+});

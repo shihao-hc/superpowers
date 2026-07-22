@@ -25,8 +25,8 @@ class PricePredictor {
       return { error: '数据不足，至少需要3个数据点', predictions: [] };
     }
 
-    const prices = points.map(p => p.price);
-    const timestamps = points.map(p => p.timestamp);
+    const prices = points.map((p) => p.price);
+    const timestamps = points.map((p) => p.timestamp);
 
     const linearPrediction = this._linearRegression(prices, timestamps, days);
     const movingAvgPrediction = this._movingAverage(prices, days);
@@ -79,7 +79,7 @@ class PricePredictor {
     return prediction;
   }
 
-  _linearRegression(prices, timestamps, days) {
+  _linearRegression(prices, timestamps, _days) {
     const n = prices.length;
 
     const xMean = timestamps.reduce((a, b) => a + b, 0) / n;
@@ -106,13 +106,13 @@ class PricePredictor {
     };
   }
 
-  _movingAverage(prices, days) {
+  _movingAverage(prices, _days) {
     const windowSize = Math.min(7, prices.length);
     const recentPrices = prices.slice(-windowSize);
     return recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
   }
 
-  _detectSeasonality(prices, days) {
+  _detectSeasonality(prices, _days) {
     if (prices.length < 14) {
       return { predict: () => prices[prices.length - 1] };
     }
@@ -125,7 +125,7 @@ class PricePredictor {
       weeklyAvg.push(weekPrices.reduce((a, b) => a + b, 0) / weekPrices.length);
     }
 
-    const avgWeekly = weeklyAvg.reduce((a, b) => a + b, 0) / weeklyAvg.length;
+    const _avgWeekly = weeklyAvg.reduce((a, b) => a + b, 0) / weeklyAvg.length;
     const lastPrice = prices[prices.length - 1];
 
     return {
@@ -151,7 +151,7 @@ class PricePredictor {
   }
 
   _calculateVolatility(prices) {
-    if (prices.length < 2) return 0;
+    if (prices.length < 2) {return 0;}
 
     const returns = [];
     for (let i = 1; i < prices.length; i++) {
@@ -169,10 +169,10 @@ class PricePredictor {
     const lastPrice = predictions[predictions.length - 1].price;
     const change = ((lastPrice - firstPrice) / firstPrice) * 100;
 
-    if (change > 5) return 'strong_rising';
-    if (change > 1) return 'rising';
-    if (change < -5) return 'strong_falling';
-    if (change < -1) return 'falling';
+    if (change > 5) {return 'strong_rising';}
+    if (change > 1) {return 'rising';}
+    if (change < -5) {return 'strong_falling';}
+    if (change < -1) {return 'falling';}
     return 'stable';
   }
 

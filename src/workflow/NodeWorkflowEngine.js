@@ -39,7 +39,7 @@ class NodeWorkflowEngine {
             current++;
             return Promise.resolve();
           }
-          return new Promise(resolve => {
+          return new Promise((resolve) => {
             queue.push(resolve);
           });
         },
@@ -137,7 +137,7 @@ class NodeWorkflowEngine {
       category: '浏览器',
       inputs: [{ name: 'selector', type: 'string' }],
       outputs: [{ name: 'data', type: 'array' }],
-      execute: async (node, inputs) => {
+      execute: async (_node, _inputs) => {
         return { data: ['item1', 'item2'] };
       }
     });
@@ -159,7 +159,7 @@ class NodeWorkflowEngine {
       category: '电商',
       inputs: [{ name: 'url', type: 'string' }],
       outputs: [{ name: 'price', type: 'number' }, { name: 'alert', type: 'boolean' }],
-      execute: async (node, inputs) => {
+      execute: async (_node, _inputs) => {
         return { price: 99.99, alert: false };
       }
     });
@@ -170,7 +170,7 @@ class NodeWorkflowEngine {
       category: '电商',
       inputs: [{ name: 'productId', type: 'string' }],
       outputs: [{ name: 'predictions', type: 'array' }, { name: 'recommendation', type: 'string' }],
-      execute: async (node, inputs) => {
+      execute: async (_node, _inputs) => {
         return {
           predictions: [{ day: 1, price: 98 }, { day: 7, price: 95 }],
           recommendation: 'wait'
@@ -184,7 +184,7 @@ class NodeWorkflowEngine {
       category: '通知',
       inputs: [{ name: 'title', type: 'string' }, { name: 'body', type: 'string' }],
       outputs: [{ name: 'sent', type: 'boolean' }],
-      execute: async (node, inputs) => {
+      execute: async (_node, _inputs) => {
         return { sent: true };
       }
     });
@@ -218,7 +218,7 @@ class NodeWorkflowEngine {
       category: '逻辑',
       inputs: [{ name: 'items', type: 'array' }, { name: 'template', type: 'any' }],
       outputs: [{ name: 'results', type: 'array' }],
-      execute: async (node, inputs, executeNode) => {
+      execute: async (_node, inputs, _executeNode) => {
         const results = [];
         for (const item of (inputs.items || [])) {
           results.push({ item });
@@ -234,7 +234,7 @@ class NodeWorkflowEngine {
       inputs: [{ name: 'input', type: 'any' }, { name: 'ms', type: 'number' }],
       outputs: [{ name: 'output', type: 'any' }],
       execute: async (node, inputs) => {
-        await new Promise(r => setTimeout(r, inputs.ms || 1000));
+        await new Promise((r) => setTimeout(r, inputs.ms || 1000));
         return { output: inputs.input };
       }
     });
@@ -260,7 +260,7 @@ class NodeWorkflowEngine {
       category: '网络',
       inputs: [{ name: 'url', type: 'string' }, { name: 'method', type: 'string' }, { name: 'body', type: 'string' }],
       outputs: [{ name: 'response', type: 'string' }, { name: 'status', type: 'number' }],
-      execute: async (node, inputs) => {
+      execute: async (_node, _inputs) => {
         return { response: 'OK', status: 200 };
       }
     });
@@ -275,13 +275,14 @@ class NodeWorkflowEngine {
       inputs: config.inputs || [],
       outputs: config.outputs || [],
       execute: config.execute,
-      defaultData: config.defaultData || {}
+      defaultData: config.defaultData || {},
+      metadata: config.metadata || {}
     });
   }
 
   createNode(type, position = { x: 100, y: 100 }, data = {}) {
     const nodeType = this.nodeTypes.get(type);
-    if (!nodeType) throw new Error(`Unknown node type: ${type}`);
+    if (!nodeType) {throw new Error(`Unknown node type: ${type}`);}
 
     const nodeId = `node_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -293,8 +294,8 @@ class NodeWorkflowEngine {
       category: nodeType.category,
       position,
       data: { ...nodeType.defaultData, ...data },
-      inputs: nodeType.inputs.map(i => ({ ...i, value: null })),
-      outputs: nodeType.outputs.map(o => ({ ...o, value: null })),
+      inputs: nodeType.inputs.map((i) => ({ ...i, value: null })),
+      outputs: nodeType.outputs.map((o) => ({ ...o, value: null })),
       status: 'idle'
     };
 
@@ -304,7 +305,7 @@ class NodeWorkflowEngine {
 
   deleteNode(nodeId) {
     this.connections = this.connections.filter(
-      c => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
+      (c) => c.source.nodeId !== nodeId && c.target.nodeId !== nodeId
     );
     return this.nodes.delete(nodeId);
   }
@@ -313,12 +314,12 @@ class NodeWorkflowEngine {
     const source = this.nodes.get(sourceNodeId);
     const target = this.nodes.get(targetNodeId);
 
-    if (!source || !target) throw new Error('Node not found');
+    if (!source || !target) {throw new Error('Node not found');}
 
-    const output = source.outputs.find(o => o.name === sourceOutput);
-    const input = target.inputs.find(i => i.name === targetInput);
+    const output = source.outputs.find((o) => o.name === sourceOutput);
+    const input = target.inputs.find((i) => i.name === targetInput);
 
-    if (!output || !input) throw new Error('Port not found');
+    if (!output || !input) {throw new Error('Port not found');}
 
     const connectionId = `conn_${Date.now().toString(36)}`;
 
@@ -332,7 +333,7 @@ class NodeWorkflowEngine {
   }
 
   disconnect(connectionId) {
-    this.connections = this.connections.filter(c => c.id !== connectionId);
+    this.connections = this.connections.filter((c) => c.id !== connectionId);
   }
 
   async execute(workflowId = null, options = {}) {
@@ -381,7 +382,7 @@ class NodeWorkflowEngine {
 
     for (const nodeId of sorted) {
       const node = this.nodes.get(nodeId);
-      if (!node) continue;
+      if (!node) {continue;}
 
       const result = await this._executeSingleNode(node, execution);
       if (result.error && !this._canContinueOnError(node)) {
@@ -398,15 +399,15 @@ class NodeWorkflowEngine {
 
     const checkAndSchedule = async () => {
       for (const nodeId of pending) {
-        if (nodePromises.has(nodeId)) continue;
+        if (nodePromises.has(nodeId)) {continue;}
 
         const deps = this._getDependencies(nodeId);
-        const depsReady = deps.every(depId => completed.has(depId));
+        const depsReady = deps.every((depId) => completed.has(depId));
 
         if (depsReady) {
           const node = this.nodes.get(nodeId);
           if (node) {
-            nodePromises.set(nodeId, this._executeSingleNode(node, execution, true));
+            nodePromises.set(nodeId, processNode(nodeId));
           }
         }
       }
@@ -418,7 +419,7 @@ class NodeWorkflowEngine {
       await semaphore.acquire();
       try {
         const node = this.nodes.get(nodeId);
-        if (!node) return;
+        if (!node) {return;}
 
         const deps = this._getDependencies(nodeId);
         for (const depId of deps) {
@@ -432,27 +433,27 @@ class NodeWorkflowEngine {
 
         const nodeType = this.nodeTypes.get(node.type);
         if (nodeType && nodeType.execute) {
-          const hasSideEffect = nodeType.metadata?.hasSideEffect || 
+          const hasSideEffect = nodeType.metadata?.hasSideEffect ||
                                node.type.startsWith('mcp_write') ||
                                node.type.startsWith('http_post') ||
                                node.type.startsWith('file_write');
-          
+
           const cacheKey = this.enableParameterCache ? this._getCacheKey(nodeId, inputs) : null;
-          
+
           let result;
           if (!hasSideEffect && cacheKey && this.resultCache.has(cacheKey)) {
             result = this.resultCache.get(cacheKey);
             node.status = 'cached';
           } else {
             result = await nodeType.execute(node, inputs, this._executeNode.bind(this));
-            
+
             if (cacheKey && !hasSideEffect) {
               this.resultCache.set(cacheKey, result);
               this._cleanupResultCache();
             }
           }
 
-          node.outputs.forEach(output => {
+          node.outputs.forEach((output) => {
             if (result[output.name] !== undefined) {
               output.value = result[output.name];
             }
@@ -473,10 +474,10 @@ class NodeWorkflowEngine {
 
     while (completed.size < sorted.length) {
       await checkAndSchedule();
-      
-      const available = Array.from(pending).filter(id => {
+
+      const available = Array.from(pending).filter((id) => {
         const deps = this._getDependencies(id);
-        return deps.every(depId => completed.has(depId)) && !nodePromises.has(id);
+        return deps.every((depId) => completed.has(depId)) && !nodePromises.has(id);
       });
 
       if (available.length === 0 && nodePromises.size > 0) {
@@ -487,7 +488,7 @@ class NodeWorkflowEngine {
         }
       }
 
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     await Promise.all(nodePromises.values());
@@ -517,11 +518,11 @@ class NodeWorkflowEngine {
   }
 
   _canContinueOnError(node) {
-    return node.data?.continueOnError === true || 
+    return node.data?.continueOnError === true ||
            this.nodeTypes.get(node.type)?.metadata?.optional === true;
   }
 
-  async _executeSingleNode(node, execution, parallel = false) {
+  async _executeSingleNode(node, execution, _parallel = false) {
     const inputs = this._getInputs(node.id);
     node.status = 'running';
 
@@ -529,7 +530,7 @@ class NodeWorkflowEngine {
     if (nodeType && nodeType.execute) {
       const result = await nodeType.execute(node, inputs, this._executeNode.bind(this));
 
-      node.outputs.forEach(output => {
+      node.outputs.forEach((output) => {
         if (result[output.name] !== undefined) {
           output.value = result[output.name];
         }
@@ -548,10 +549,10 @@ class NodeWorkflowEngine {
 
   async _executeNode(nodeId, inputs) {
     const node = this.nodes.get(nodeId);
-    if (!node) throw new Error('Node not found');
+    if (!node) {throw new Error('Node not found');}
 
     const nodeType = this.nodeTypes.get(node.type);
-    if (!nodeType) throw new Error('Unknown node type');
+    if (!nodeType) {throw new Error('Unknown node type');}
 
     return await nodeType.execute(node, inputs, this._executeNode.bind(this));
   }
@@ -563,7 +564,7 @@ class NodeWorkflowEngine {
       if (conn.target.nodeId === nodeId) {
         const sourceNode = this.nodes.get(conn.source.nodeId);
         if (sourceNode) {
-          const output = sourceNode.outputs.find(o => o.name === conn.source.output);
+          const output = sourceNode.outputs.find((o) => o.name === conn.source.output);
           if (output) {
             inputs[conn.target.input] = output.value;
           }
@@ -579,7 +580,7 @@ class NodeWorkflowEngine {
     const result = [];
 
     const visit = (nodeId) => {
-      if (visited.has(nodeId)) return;
+      if (visited.has(nodeId)) {return;}
       visited.add(nodeId);
 
       for (const conn of this.connections) {
@@ -598,7 +599,7 @@ class NodeWorkflowEngine {
     return result;
   }
 
-  _archiveExecution(execution) {
+  _archiveExecution(_execution) {
     if (this.executions.size > this.maxExecutions) {
       const entries = Array.from(this.executions.entries());
       const toRemove = entries.slice(0, entries.length - this.maxExecutions);
@@ -618,7 +619,7 @@ class NodeWorkflowEngine {
     const categories = {};
     for (const [type, config] of this.nodeTypes) {
       const cat = config.category || '其他';
-      if (!categories[cat]) categories[cat] = [];
+      if (!categories[cat]) {categories[cat] = [];}
       categories[cat].push({ type, ...config });
     }
     return categories;
@@ -684,10 +685,10 @@ class NodeWorkflowEngine {
     const visited = new Set();
 
     const assignLevel = (nodeId, level) => {
-      if (visited.has(nodeId)) return;
+      if (visited.has(nodeId)) {return;}
       visited.add(nodeId);
 
-      if (!levels.has(level)) levels.set(level, []);
+      if (!levels.has(level)) {levels.set(level, []);}
       levels.get(level).push(nodeId);
 
       const deps = plan.dependencies.get(nodeId) || [];
@@ -734,9 +735,9 @@ class NodeWorkflowEngine {
   getPerformanceStats() {
     const recentExecutions = Array.from(this.executions.values())
       .slice(-100)
-      .filter(e => e.completedAt);
+      .filter((e) => e.completedAt);
 
-    const durations = recentExecutions.map(e => e.completedAt - e.startedAt);
+    const durations = recentExecutions.map((e) => e.completedAt - e.startedAt);
     const sorted = durations.sort((a, b) => a - b);
 
     return {

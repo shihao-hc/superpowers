@@ -1,13 +1,13 @@
 /**
  * AI虚拟人物核心引擎 v2.0 - Enhanced Avatar Engine
- * 
+ *
  * 整合所有新组件:
  * - LatencyOptimizer: 超低延迟响应
  * - ContinuousInferenceSystem: 持续推理 + 涌现行为
  * - SentimentFeedbackLoop: 实时情感反馈
  * - DuckDB WASM: 本地数据库
  * - WebGPU Inference: 本地AI推理
- * 
+ *
  * 目标: 达到 Neuro-sama 级别的交互体验
  */
 
@@ -18,24 +18,24 @@ class EnhancedAvatarEngine {
       renderMode: options.renderMode || 'canvas2d',
       personality: options.personality || 'playful',
       language: options.language || 'zh-CN',
-      
+
       // 性能选项
       targetLatency: options.targetLatency || 50,
       enableStreaming: options.enableStreaming !== false,
       enablePrecomputation: options.enablePrecomputation !== false,
-      
+
       // 功能开关
       enableVoice: options.enableVoice !== false,
       enableGesture: options.enableGesture !== false,
       enableMemory: options.enableMemory !== false,
       enableInference: options.enableInference !== false,
       enableLocalDB: options.enableLocalDB !== false,
-      
+
       // Neuro-sama 特性
       enableEmergence: options.enableEmergence !== false,
       enableSentimentFeedback: options.enableSentimentFeedback !== false,
       enableContinuousInference: options.enableContinuousInference !== false,
-      
+
       ...options
     };
 
@@ -88,12 +88,12 @@ class EnhancedAvatarEngine {
     this.voiceSystem = null;
     this.gestureSystem = null;
     this.memorySystem = null;
-    
+
     // Neuro-sama 特性组件
     this.latencyOptimizer = null;
     this.continuousInference = null;
     this.sentimentFeedback = null;
-    
+
     // 本地AI组件
     this.localDatabase = null;
     this.inferenceEngine = null;
@@ -119,39 +119,39 @@ class EnhancedAvatarEngine {
     try {
       // 1. 渲染系统 (必须)
       await this._initRenderSystem();
-      
+
       // 2. 核心交互系统
       await Promise.all([
         this._initVoiceSystem(),
         this._initGestureSystem(),
         this._initMemorySystem()
       ]);
-      
+
       // 3. Neuro-sama 特性系统
       await this._initNeuroSystems();
-      
+
       // 4. 本地AI系统 (可选)
       if (this.options.enableLocalDB || this.options.enableInference) {
         await this._initLocalAI();
       }
-      
+
       // 5. 设置事件处理
       this._setupEventHandlers();
-      
+
       // 6. 预计算常见响应
       if (this.options.enablePrecomputation) {
         this._precomputeResponses();
       }
-      
+
       const initTime = performance.now() - initStart;
       console.log(`[EnhancedAvatar] Initialized in ${initTime.toFixed(1)}ms`);
-      
+
       this.state.set('system.isReady', true);
       this.state.set('system.isLoading', false);
       this.state.set('system.uptime', Date.now());
-      
+
       this.eventBus.emit('engine:ready', { initTime });
-      
+
     } catch (error) {
       console.error('[EnhancedAvatar] Init error:', error);
       this.state.set('system.error', error.message);
@@ -181,13 +181,13 @@ class EnhancedAvatarEngine {
     const rendererFactory = renderers[this.options.renderMode] || renderers.canvas2d;
     this.renderSystem = await rendererFactory();
     await this.renderSystem.init();
-    
+
     this.eventBus.emit('render:ready', { mode: this.options.renderMode });
   }
 
   async _initVoiceSystem() {
-    if (!this.options.enableVoice) return;
-    
+    if (!this.options.enableVoice) {return;}
+
     try {
       const { VoiceAvatar } = await import('./VoiceAvatar.js');
       this.voiceSystem = new VoiceAvatar(this.renderSystem, {
@@ -201,8 +201,8 @@ class EnhancedAvatarEngine {
   }
 
   async _initGestureSystem() {
-    if (!this.options.enableGesture) return;
-    
+    if (!this.options.enableGesture) {return;}
+
     try {
       const { GestureRecognitionSystem } = await import('./GestureRecognitionSystem.js');
       this.gestureSystem = new GestureRecognitionSystem({
@@ -215,8 +215,8 @@ class EnhancedAvatarEngine {
   }
 
   async _initMemorySystem() {
-    if (!this.options.enableMemory) return;
-    
+    if (!this.options.enableMemory) {return;}
+
     try {
       const { LongTermMemorySystem } = await import('./LongTermMemorySystem.js');
       this.memorySystem = new LongTermMemorySystem();
@@ -258,12 +258,12 @@ class EnhancedAvatarEngine {
         enableEmergence: this.options.enableEmergence,
         personalityConsistency: 0.8
       });
-      
+
       // 监听涌现行为
       this.continuousInference.on('proactive_speech', (data) => {
         this._handleProactiveSpeech(data);
       });
-      
+
       this.eventBus.emit('inference:continuous:ready');
     }
   }
@@ -336,7 +336,7 @@ class EnhancedAvatarEngine {
   async _handleTextInput(data) {
     const { text, user } = data;
     const startTime = performance.now();
-    
+
     this.stats.totalMessages++;
     this.state.set('avatar.currentAction', 'thinking');
 
@@ -352,7 +352,7 @@ class EnhancedAvatarEngine {
 
       // 3. 生成响应
       let response = optimizedResult.content;
-      
+
       // 如果缓存命中率低，使用LLM生成
       if (optimizedResult.source !== 'cached') {
         response = await this._generateResponse(text, context);
@@ -368,7 +368,7 @@ class EnhancedAvatarEngine {
       const latency = performance.now() - startTime;
       this.stats.totalResponses++;
       this.stats.avgLatency = (this.stats.avgLatency * (this.stats.totalResponses - 1) + latency) / this.stats.totalResponses;
-      
+
       this.state.set('avatar.latency', latency);
       this.state.set('avatar.currentAction', 'speaking');
 
@@ -418,25 +418,25 @@ class EnhancedAvatarEngine {
    * 处理涌现行为 - 主动发言
    */
   _handleProactiveSpeech(data) {
-    if (!data.content) return;
-    
+    if (!data.content) {return;}
+
     this.stats.emergenceTriggers++;
-    
+
     // 应用人格过滤
     const filteredContent = this._applyPersonaFilter(data.content);
-    
+
     // 更新情绪
     if (data.emotion) {
       this.setMood(data.emotion);
     }
-    
+
     // 主动发言
     this.eventBus.emit('avatar:proactive', {
       text: filteredContent,
       emotion: data.emotion,
       type: data.action
     });
-    
+
     this.speak(filteredContent);
   }
 
@@ -474,12 +474,12 @@ class EnhancedAvatarEngine {
     if (this.llmEngine) {
       const messages = [
         { role: 'system', content: `你是${personality.name}，当前情绪: ${emotion.primary}` },
-        ...context.slice(-5).map(c => ({ role: 'user', content: c.content || c })),
+        ...context.slice(-5).map((c) => ({ role: 'user', content: c.content || c })),
         { role: 'user', content: text }
       ];
-      
+
       const result = await this.llmEngine.chat(messages);
-      if (result.success) return result.content;
+      if (result.success) {return result.content;}
     }
 
     // 否则使用预设回复
@@ -489,7 +489,7 @@ class EnhancedAvatarEngine {
   /**
    * 模板响应 (降级方案)
    */
-  _getTemplateResponse(text, personality) {
+  _getTemplateResponse(text, _personality) {
     const templates = {
       greeting: ['你好呀~', '嗨！', '你好！有什么可以帮忙的吗？'],
       question: ['让我想想...', '这是个好问题！', '嗯...我觉得是这样的'],
@@ -498,9 +498,9 @@ class EnhancedAvatarEngine {
     };
 
     let category = 'default';
-    if (/你好|嗨|哈喽/.test(text)) category = 'greeting';
-    else if (/[?？]|什么|怎么/.test(text)) category = 'question';
-    else if (/谢谢|感谢/.test(text)) category = 'thanks';
+    if (/你好|嗨|哈喽/.test(text)) {category = 'greeting';}
+    else if (/[?？]|什么|怎么/.test(text)) {category = 'question';}
+    else if (/谢谢|感谢/.test(text)) {category = 'thanks';}
 
     const list = templates[category];
     return list[Math.floor(Math.random() * list.length)];
@@ -510,11 +510,11 @@ class EnhancedAvatarEngine {
    * 说话
    */
   speak(text) {
-    if (!this.voiceSystem) return;
+    if (!this.voiceSystem) {return;}
 
     const sentiment = this.sentimentFeedback?.getCurrentSentiment();
     const mood = sentiment?.dominantEmotion || this.personality.getEmotion().primary;
-    
+
     this.state.set('avatar.isSpeaking', true);
 
     // 获取情感驱动的语音参数
@@ -547,12 +547,12 @@ class EnhancedAvatarEngine {
   setMood(mood) {
     this.personality.setEmotion(mood);
     this.state.set('avatar.mood', mood);
-    
+
     // 更新情感反馈
     if (this.sentimentFeedback) {
       this.sentimentFeedback.currentSentiment.dominantEmotion = mood;
     }
-    
+
     this.eventBus.emit('mood:changed', { mood });
   }
 
@@ -561,7 +561,7 @@ class EnhancedAvatarEngine {
    */
   _handleGesture(gesture) {
     this.state.set('avatar.currentAction', `gesture:${gesture.name}`);
-    
+
     // 手势映射到情绪
     const gestureEmotionMap = {
       'wave': 'happy',
@@ -585,7 +585,7 @@ class EnhancedAvatarEngine {
   _handleSentimentChange(change) {
     this.state.set('sentiment.current', change.current);
     this.state.set('sentiment.score', change.score);
-    
+
     // 调整人格参数
     if (change.current === 'positive') {
       this.personality.setEmotion('happy', change.score);
@@ -600,11 +600,11 @@ class EnhancedAvatarEngine {
    * 更新情感状态
    */
   _updateSentimentState() {
-    if (!this.sentimentFeedback) return;
-    
+    if (!this.sentimentFeedback) {return;}
+
     const sentiment = this.sentimentFeedback.getCurrentSentiment();
     const trend = this.sentimentFeedback.getTrend();
-    
+
     this.state.set('sentiment.current', sentiment.dominantEmotion);
     this.state.set('sentiment.score', sentiment.score);
     this.state.set('sentiment.trend', trend.trend);
@@ -624,7 +624,7 @@ class EnhancedAvatarEngine {
    */
   _updateExpression(expr) {
     this.state.set('avatar.expression', expr);
-    
+
     // 应用到渲染系统
     if (this.renderSystem?.setExpression) {
       this.renderSystem.setExpression(expr);
@@ -639,13 +639,13 @@ class EnhancedAvatarEngine {
     const filtered = text
       .replace(/讨厌|垃圾|笨蛋/g, '')
       .trim();
-    
+
     // 添加人格特征
     const config = this.personality.getCurrentConfig();
     if (Math.random() < config.speechPatterns.exclamationChance) {
-      return filtered + '！';
+      return `${filtered}！`;
     }
-    
+
     return filtered;
   }
 
@@ -660,7 +660,7 @@ class EnhancedAvatarEngine {
       '你是谁', '你叫什么名字',
       '今天怎么样', '心情如何'
     ];
-    
+
     this.latencyOptimizer?.precomputeResponses(commonInputs);
   }
 
@@ -740,13 +740,13 @@ class EnhancedAvatarEngine {
    */
   setPersonality(id) {
     this.personality.setPersonality(id);
-    
+
     // 更新持续推理系统
     if (this.continuousInference) {
       const config = this.personality.getCurrentConfig();
       this.continuousInference.personaLayer.traits = config.traits || {};
     }
-    
+
     this.eventBus.emit('personality:changed', { personality: id });
   }
 
@@ -775,17 +775,17 @@ class EnhancedAvatarEngine {
    */
   destroy() {
     this.stopInference();
-    
-    if (this.renderSystem) this.renderSystem.destroy?.();
-    if (this.gestureSystem) this.gestureSystem.stop?.();
-    if (this.voiceSystem) this.voiceSystem.disable?.();
-    if (this.memorySystem) this.memorySystem.destroy?.();
-    if (this.localDatabase) this.localDatabase.close?.();
-    if (this.inferenceEngine) this.inferenceEngine.terminate?.();
-    if (this.llmEngine) this.llmEngine.terminate?.();
-    
+
+    if (this.renderSystem) {this.renderSystem.destroy?.();}
+    if (this.gestureSystem) {this.gestureSystem.stop?.();}
+    if (this.voiceSystem) {this.voiceSystem.disable?.();}
+    if (this.memorySystem) {this.memorySystem.destroy?.();}
+    if (this.localDatabase) {this.localDatabase.close?.();}
+    if (this.inferenceEngine) {this.inferenceEngine.terminate?.();}
+    if (this.llmEngine) {this.llmEngine.terminate?.();}
+
     this.eventBus.clear();
-    
+
     console.log('[EnhancedAvatar] Destroyed');
   }
 }
@@ -822,14 +822,14 @@ class LatencyOptimizer {
     };
   }
 
-  _quickGenerate(input, context) {
+  _quickGenerate(input, _context) {
     const patterns = {
       greeting: { test: /你好|嗨|哈喽|hi|hello/i, responses: ['你好呀~', '嗨！', '哈喽！'] },
       thanks: { test: /谢谢|感谢|thanks/i, responses: ['不客气~', '应该的！', '很高兴能帮到你！'] },
       question: { test: /[?？]|什么|怎么|为什么/i, responses: ['嗯...让我想想', '好问题！', '我觉得是这样的...'] }
     };
 
-    for (const [type, pattern] of Object.entries(patterns)) {
+    for (const [_type, pattern] of Object.entries(patterns)) {
       if (pattern.test.test(input)) {
         return pattern.responses[Math.floor(Math.random() * pattern.responses.length)];
       }
@@ -859,11 +859,11 @@ class SentimentFeedbackLoop {
     this.currentSentiment = { dominantEmotion: 'neutral', score: 0 };
   }
 
-  processMessage(text, metadata = {}) {
+  processMessage(text, _metadata = {}) {
     const analysis = this._analyze(text);
     this.sentimentBuffer.push({ ...analysis, timestamp: Date.now() });
-    if (this.sentimentBuffer.length > 100) this.sentimentBuffer.shift();
-    
+    if (this.sentimentBuffer.length > 100) {this.sentimentBuffer.shift();}
+
     const prev = this.currentSentiment.dominantEmotion;
     this.currentSentiment.dominantEmotion = analysis.sentiment;
     this.currentSentiment.score = analysis.score;
@@ -878,13 +878,13 @@ class SentimentFeedbackLoop {
   _analyze(text) {
     const positive = ['好', '棒', '喜欢', '开心', '哈哈', '爱'];
     const negative = ['差', '讨厌', '难过', '垃圾', '烦'];
-    
+
     let score = 0;
-    for (const w of positive) if (text.includes(w)) score += 0.3;
-    for (const w of negative) if (text.includes(w)) score -= 0.3;
-    
+    for (const w of positive) {if (text.includes(w)) {score += 0.3;}}
+    for (const w of negative) {if (text.includes(w)) {score -= 0.3;}}
+
     score = Math.max(-1, Math.min(1, score));
-    
+
     return {
       score,
       sentiment: score > 0.2 ? 'happy' : score < -0.2 ? 'sad' : 'neutral',
@@ -897,11 +897,11 @@ class SentimentFeedbackLoop {
   }
 
   getTrend() {
-    if (this.sentimentBuffer.length < 10) return { trend: 'stable', change: 0 };
-    
+    if (this.sentimentBuffer.length < 10) {return { trend: 'stable', change: 0 };}
+
     const recent = this.sentimentBuffer.slice(-10);
     const avg = recent.reduce((s, m) => s + m.score, 0) / recent.length;
-    
+
     return {
       trend: avg > 0.1 ? 'positive' : avg < -0.1 ? 'negative' : 'stable',
       change: avg
@@ -936,19 +936,19 @@ class ContinuousInferenceSystem {
   }
 
   start() {
-    if (this.isRunning) return;
+    if (this.isRunning) {return;}
     this.isRunning = true;
     this.loop = setInterval(() => this._tick(), this.options.inferenceInterval);
   }
 
   stop() {
     this.isRunning = false;
-    if (this.loop) clearInterval(this.loop);
+    if (this.loop) {clearInterval(this.loop);}
   }
 
   receiveInput(data) {
     this.chatMessages.push({ ...data, timestamp: Date.now() });
-    if (this.chatMessages.length > 100) this.chatMessages.shift();
+    if (this.chatMessages.length > 100) {this.chatMessages.shift();}
   }
 
   _tick() {
@@ -973,19 +973,19 @@ class ContinuousInferenceSystem {
   }
 
   on(event, callback) {
-    if (!this.listeners.has(event)) this.listeners.set(event, []);
+    if (!this.listeners.has(event)) {this.listeners.set(event, []);}
     this.listeners.get(event).push(callback);
   }
 
   _emit(event, data) {
     const callbacks = this.listeners.get(event) || [];
-    for (const cb of callbacks) cb(data);
+    for (const cb of callbacks) {cb(data);}
   }
 
   get personaLayer() {
     return { traits: {} };
   }
-  
+
   set personaLayer(value) {}
 }
 
@@ -995,5 +995,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { EnhancedAvatarEngine };
+  module.exports = { EnhancedAvatarEngine, LatencyOptimizer, SentimentFeedbackLoop, ContinuousInferenceSystem };
 }

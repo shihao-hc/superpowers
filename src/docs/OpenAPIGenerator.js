@@ -396,7 +396,7 @@ class OpenAPIGenerator {
   }
 
   // 添加通用响应
-  addStandardResponses(operationId) {
+  addStandardResponses(_operationId) {
     return {
       '400': { description: 'Bad Request', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
       '401': { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
@@ -428,32 +428,32 @@ class OpenAPIGenerator {
     let md = `# ${this.spec.info.title}\n\n`;
     md += `${this.spec.info.description}\n\n`;
     md += `**Version:** ${this.spec.info.version}\n\n`;
-    md += `---\n\n`;
+    md += '---\n\n';
 
     // 基础URL
-    md += `## Base URL\n\n`;
+    md += '## Base URL\n\n';
     for (const server of this.spec.servers) {
       md += `- **${server.description}**: \`${server.url}\`\n`;
     }
-    md += `\n`;
+    md += '\n';
 
     // 认证
-    md += `## Authentication\n\n`;
+    md += '## Authentication\n\n';
     if (Object.keys(this.spec.components.securitySchemes).length > 0) {
-      md += `All API endpoints require authentication using Bearer token:\n\n`;
-      md += `\`\`\`\nAuthorization: Bearer <your-token>\n\`\`\`\n\n`;
+      md += 'All API endpoints require authentication using Bearer token:\n\n';
+      md += '```\nAuthorization: Bearer <your-token>\n```\n\n';
     }
 
     // 标签
     if (this.spec.tags.length > 0) {
-      md += `## API Categories\n\n`;
+      md += '## API Categories\n\n';
       for (const tag of this.spec.tags) {
         md += `### ${tag.name}\n${tag.description}\n\n`;
       }
     }
 
     // 路径
-    md += `## Endpoints\n\n`;
+    md += '## Endpoints\n\n';
     for (const [path, methods] of Object.entries(this.spec.paths)) {
       for (const [method, details] of Object.entries(methods)) {
         md += `### ${method.toUpperCase()} ${path}\n\n`;
@@ -463,44 +463,44 @@ class OpenAPIGenerator {
         }
 
         if (details.parameters && details.parameters.length > 0) {
-          md += `**Parameters:**\n\n`;
-          md += `| Name | Type | Required | Description |\n`;
-          md += `|------|------|----------|-------------|\n`;
+          md += '**Parameters:**\n\n';
+          md += '| Name | Type | Required | Description |\n';
+          md += '|------|------|----------|-------------|\n';
           for (const param of details.parameters) {
             md += `| ${param.name} | ${param.schema?.type || 'string'} | ${param.required ? 'Yes' : 'No'} | ${param.description || '-'} |\n`;
           }
-          md += `\n`;
+          md += '\n';
         }
 
         if (details.requestBody) {
-          md += `**Request Body:**\n\n`;
+          md += '**Request Body:**\n\n';
           md += `\`\`\`json\n${JSON.stringify(details.requestBody, null, 2)}\n\`\`\`\n\n`;
         }
 
-        md += `**Responses:**\n\n`;
+        md += '**Responses:**\n\n';
         for (const [code, response] of Object.entries(details.responses)) {
           md += `- \`${code}\`: ${response.description}\n`;
         }
-        md += `\n---\n\n`;
+        md += '\n---\n\n';
       }
     }
 
     // Schema
-    md += `## Data Models\n\n`;
+    md += '## Data Models\n\n';
     for (const [name, schema] of Object.entries(this.spec.components.schemas)) {
       md += `### ${name}\n\n`;
       if (schema.description) {
         md += `${schema.description}\n\n`;
       }
       if (schema.properties) {
-        md += `| Property | Type | Required | Description |\n`;
-        md += `|---------|------|---------|-------------|\n`;
+        md += '| Property | Type | Required | Description |\n';
+        md += '|---------|------|---------|-------------|\n';
         for (const [prop, def] of Object.entries(schema.properties)) {
           const type = def.$ref ? def.$ref.split('/').pop() : def.type;
           const required = schema.required?.includes(prop) ? 'Yes' : 'No';
           md += `| ${prop} | ${type} | ${required} | ${def.description || '-'} |\n`;
         }
-        md += `\n`;
+        md += '\n';
       }
     }
 

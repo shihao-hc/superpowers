@@ -10,7 +10,7 @@ class FeedbackCollectionSystem {
     this.recommendationLogs = [];
     this.maxFeedbackPerSkill = options.maxFeedbackPerSkill || 1000;
     this.sessionTimeout = options.sessionTimeout || 3600000;
-    
+
     this.storage = options.storage || null;
     this._loadFeedback();
   }
@@ -20,7 +20,7 @@ class FeedbackCollectionSystem {
    */
   createSession(userId, sessionData = {}) {
     const sessionId = this._generateSessionId();
-    
+
     const session = {
       id: sessionId,
       userId,
@@ -57,7 +57,7 @@ class FeedbackCollectionSystem {
    */
   trackSkillUsage(sessionId, skillData) {
     const session = this.getSession(sessionId);
-    if (!session) return;
+    if (!session) {return;}
 
     const { skillName, action, parameters, result, duration } = skillData;
 
@@ -153,7 +153,7 @@ class FeedbackCollectionSystem {
     }
 
     await this._saveFeedback();
-    
+
     return feedback;
   }
 
@@ -166,7 +166,7 @@ class FeedbackCollectionSystem {
       throw new Error('Session not found');
     }
 
-    const execution = session.interactions.find(i => 
+    const execution = session.interactions.find((i) =>
       i.id === executionId || (i.skillName === skillName && i.action === 'executed')
     );
 
@@ -195,10 +195,10 @@ class FeedbackCollectionSystem {
    */
   getSkillFeedback(skillName, options = {}) {
     const { limit = 50, offset = 0, minRating = 0 } = options;
-    
+
     const skillFeedback = Array.from(this.feedback.values())
-      .filter(f => 
-        f.target === skillName && 
+      .filter((f) =>
+        f.target === skillName &&
         f.type === 'rating' &&
         f.rating >= minRating
       )
@@ -232,11 +232,11 @@ class FeedbackCollectionSystem {
    */
   getRecommendationAccuracy() {
     const total = this.recommendationLogs.length;
-    if (total === 0) return { accuracy: 0, total: 0 };
+    if (total === 0) {return { accuracy: 0, total: 0 };}
 
-    const accepted = this.recommendationLogs.filter(l => l.wasAccepted).length;
-    const highConfidence = this.recommendationLogs.filter(l => l.confidence >= 0.7);
-    const highConfidenceAccepted = highConfidence.filter(l => l.wasAccepted).length;
+    const accepted = this.recommendationLogs.filter((l) => l.wasAccepted).length;
+    const highConfidence = this.recommendationLogs.filter((l) => l.confidence >= 0.7);
+    const highConfidenceAccepted = highConfidence.filter((l) => l.wasAccepted).length;
 
     return {
       total,
@@ -244,8 +244,8 @@ class FeedbackCollectionSystem {
       rejected: total - accepted,
       accuracy: accepted / total,
       highConfidenceTotal: highConfidence.length,
-      highConfidenceAccuracy: highConfidence.length > 0 
-        ? highConfidenceAccepted / highConfidence.length 
+      highConfidenceAccuracy: highConfidence.length > 0
+        ? highConfidenceAccepted / highConfidence.length
         : 0,
       averageConfidence: this.recommendationLogs.reduce((sum, l) => sum + (l.confidence || 0), 0) / total
     };
@@ -293,7 +293,7 @@ class FeedbackCollectionSystem {
     }
 
     // Add ratings from feedback
-    for (const [id, feedback] of this.feedback) {
+    for (const [_id, feedback] of this.feedback) {
       if (feedback.target && feedback.rating) {
         const current = stats.get(feedback.target);
         if (current) {
@@ -310,7 +310,7 @@ class FeedbackCollectionSystem {
     }
 
     // Calculate average ratings
-    for (const [skillName, stat] of stats) {
+    for (const [_skillName, stat] of stats) {
       if (stat.ratings.length > 0) {
         stat.averageRating = stat.ratings.reduce((a, b) => a + b, 0) / stat.ratings.length;
       }
@@ -341,13 +341,13 @@ class FeedbackCollectionSystem {
           avgConfidence: 0,
           confidences: []
         };
-        
+
         catStats.total++;
         if (log.wasAccepted && log.selectedSkill === rec.name) {
           catStats.accepted++;
         }
         catStats.confidences.push(rec.confidence || 0);
-        
+
         patterns.byCategory.set(category, catStats);
       }
 
@@ -368,7 +368,7 @@ class FeedbackCollectionSystem {
     }
 
     // Calculate average confidences
-    for (const [category, catStats] of patterns.byCategory) {
+    for (const [_category, catStats] of patterns.byCategory) {
       catStats.avgConfidence = catStats.confidences.reduce((a, b) => a + b, 0) / catStats.confidences.length;
       catStats.acceptanceRate = catStats.total > 0 ? catStats.accepted / catStats.total : 0;
       delete catStats.confidences;
@@ -444,29 +444,29 @@ class FeedbackCollectionSystem {
    */
   getUserSatisfactionScore(userId) {
     const userFeedback = Array.from(this.feedback.values())
-      .filter(f => f.userId === userId && f.type === 'rating');
+      .filter((f) => f.userId === userId && f.type === 'rating');
 
-    if (userFeedback.length === 0) return null;
+    if (userFeedback.length === 0) {return null;}
 
     const avgRating = userFeedback.reduce((sum, f) => sum + f.rating, 0) / userFeedback.length;
     const recentFeedback = userFeedback
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 5);
-    
+
     const recentAvg = recentFeedback.reduce((sum, f) => sum + f.rating, 0) / recentFeedback.length;
 
     return {
       averageRating: avgRating,
       recentRating: recentAvg,
       totalFeedback: userFeedback.length,
-      trend: recentAvg > avgRating ? 'improving' : recentAvg < avgAvg ? 'declining' : 'stable'
+      trend: recentAvg > avgRating ? 'improving' : recentAvg < avgRating ? 'declining' : 'stable'
     };
   }
 
   /**
    * Update skill feedback index
    */
-  _updateSkillFeedbackIndex(skillName, feedback) {
+  _updateSkillFeedbackIndex(_skillName, _feedback) {
     // This would update an external index for quick lookups
   }
 
@@ -477,7 +477,7 @@ class FeedbackCollectionSystem {
   _generateFeedbackId() { return `fb_${Date.now().toString(36)}_${this._randomId()}`; }
   _generateUsageId() { return `use_${Date.now().toString(36)}_${this._randomId()}`; }
   _generateLogId() { return `log_${Date.now().toString(36)}_${this._randomId()}`; }
-  
+
   _randomId() {
     return Math.random().toString(36).substr(2, 9);
   }

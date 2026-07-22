@@ -12,7 +12,7 @@ const crypto = require('crypto');
  * HTML转义函数 - 防止XSS
  */
 function escapeHtml(str) {
-  if (typeof str !== 'string') return String(str);
+  if (typeof str !== 'string') {return String(str);}
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -35,10 +35,10 @@ function isPathSafe(basePath, targetPath) {
  * 验证对象是否包含原型污染尝试
  */
 function isPrototypePollutionSafe(obj) {
-  if (typeof obj !== 'object' || obj === null) return true;
+  if (typeof obj !== 'object' || obj === null) {return true;}
   const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
   for (const key of Object.keys(obj)) {
-    if (dangerousKeys.includes(key)) return false;
+    if (dangerousKeys.includes(key)) {return false;}
   }
   return true;
 }
@@ -49,11 +49,11 @@ class SkillRenderer {
     this.templatesDir = options.templatesDir || path.join(process.cwd(), 'data', 'templates');
     this.maxPreviewSize = options.maxPreviewSize || 10 * 1024 * 1024;
     this.cacheTTL = options.cacheTTL || 3600000;
-    
+
     this.previewCache = new Map();
     this.templates = new Map();
     this.categories = new Map();
-    
+
     this.supportedFormats = {
       image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'],
       html: ['html', 'htm'],
@@ -62,7 +62,7 @@ class SkillRenderer {
       pdf: ['pdf'],
       code: ['js', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'ts']
     };
-    
+
     this._ensureDirs();
     this._loadTemplates();
     this._initDefaultTemplates();
@@ -101,7 +101,7 @@ class SkillRenderer {
   getPreviewType(filename) {
     const ext = path.extname(filename).toLowerCase().slice(1);
     for (const [type, extensions] of Object.entries(this.supportedFormats)) {
-      if (extensions.includes(ext)) return type;
+      if (extensions.includes(ext)) {return type;}
     }
     return 'unknown';
   }
@@ -113,7 +113,7 @@ class SkillRenderer {
     return hash.digest('hex').slice(0, 32);
   }
 
-  createImagePreview(buffer, filename, options = {}) {
+  createImagePreview(buffer, filename, _options = {}) {
     if (buffer.length > this.maxPreviewSize) {
       throw new Error(`File size exceeds maximum limit: ${this.maxPreviewSize} bytes`);
     }
@@ -158,12 +158,12 @@ class SkillRenderer {
   }
 
   createMarkdownPreview(content, filename, options = {}) {
-    const previewId = this._generatePreviewId(content, filename);
+    const _previewId = this._generatePreviewId(content, filename);
     const htmlContent = this._markdownToHTML(content);
     return this.createHTMLPreview(htmlContent, filename.replace(/\.md$/, '.html'), options);
   }
 
-  createTextPreview(content, filename, options = {}) {
+  createTextPreview(content, filename, _options = {}) {
     const previewId = this._generatePreviewId(content, filename);
     const highlightedContent = this._highlightSyntax(content, filename);
     const safeFilename = escapeHtml(filename);
@@ -197,7 +197,7 @@ class SkillRenderer {
     };
   }
 
-  createPDFPreview(buffer, filename, options = {}) {
+  createPDFPreview(buffer, filename, _options = {}) {
     const previewId = this._generatePreviewId(buffer.toString('base64'), filename);
     const previewPath = path.join(this.previewDir, `${previewId}.pdf`);
     fs.writeFileSync(previewPath, buffer);
@@ -220,19 +220,19 @@ class SkillRenderer {
   createPreview(data, filename, options = {}) {
     const previewType = this.getPreviewType(filename);
     switch (previewType) {
-      case 'image':
-        return this.createImagePreview(Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'), filename, options);
-      case 'html':
-        return this.createHTMLPreview(typeof data === 'string' ? data : data.toString(), filename, options);
-      case 'markdown':
-        return this.createMarkdownPreview(typeof data === 'string' ? data : data.toString(), filename, options);
-      case 'text':
-      case 'code':
-        return this.createTextPreview(typeof data === 'string' ? data : data.toString(), filename, options);
-      case 'pdf':
-        return this.createPDFPreview(Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'), filename, options);
-      default:
-        return this.createTextPreview(typeof data === 'string' ? data : data.toString(), filename, options);
+    case 'image':
+      return this.createImagePreview(Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'), filename, options);
+    case 'html':
+      return this.createHTMLPreview(typeof data === 'string' ? data : data.toString(), filename, options);
+    case 'markdown':
+      return this.createMarkdownPreview(typeof data === 'string' ? data : data.toString(), filename, options);
+    case 'text':
+    case 'code':
+      return this.createTextPreview(typeof data === 'string' ? data : data.toString(), filename, options);
+    case 'pdf':
+      return this.createPDFPreview(Buffer.isBuffer(data) ? data : Buffer.from(data, 'base64'), filename, options);
+    default:
+      return this.createTextPreview(typeof data === 'string' ? data : data.toString(), filename, options);
     }
   }
 
@@ -245,8 +245,8 @@ class SkillRenderer {
       return cached.preview;
     }
     const files = fs.readdirSync(this.previewDir);
-    const previewFile = files.find(f => f.startsWith(previewId));
-    if (!previewFile) return null;
+    const previewFile = files.find((f) => f.startsWith(previewId));
+    if (!previewFile) {return null;}
     const filePath = path.join(this.previewDir, previewFile);
     if (!isPathSafe(this.previewDir, filePath)) {
       console.warn('Path traversal attempt detected:', previewId);
@@ -268,7 +268,7 @@ class SkillRenderer {
       throw new Error('Invalid preview ID');
     }
     const files = fs.readdirSync(this.previewDir);
-    const previewFiles = files.filter(f => f.startsWith(previewId));
+    const previewFiles = files.filter((f) => f.startsWith(previewId));
     for (const file of previewFiles) {
       const filePath = path.join(this.previewDir, file);
       if (!isPathSafe(this.previewDir, filePath)) {
@@ -287,7 +287,7 @@ class SkillRenderer {
     let deletedCount = 0;
     for (const file of files) {
       const filePath = path.join(this.previewDir, file);
-      if (!isPathSafe(this.previewDir, filePath)) continue;
+      if (!isPathSafe(this.previewDir, filePath)) {continue;}
       const stats = fs.statSync(filePath);
       if (now - stats.mtime.getTime() > maxAge) {
         fs.unlinkSync(filePath);
@@ -328,7 +328,7 @@ class SkillRenderer {
   }
 
   _initDefaultTemplates() {
-    if (this.templates.size > 0) return;
+    if (this.templates.size > 0) {return;}
     const defaultTemplates = [
       {
         id: 'weekly-report',
@@ -343,7 +343,7 @@ class SkillRenderer {
           { name: 'completedTasks', label: '本周完成', type: 'textarea', required: true },
           { name: 'nextWeekPlan', label: '下周计划', type: 'textarea', required: true }
         ],
-        template: `# 工作周报\n\n## 基本信息\n- **周次**: {{week}}\n- **姓名**: {{author}}\n\n## 本周完成工作\n{{completedTasks}}\n\n## 下周工作计划\n{{nextWeekPlan}}\n\n---\n*报告生成时间: {{generatedAt}}*`
+        template: '# 工作周报\n\n## 基本信息\n- **周次**: {{week}}\n- **姓名**: {{author}}\n\n## 本周完成工作\n{{completedTasks}}\n\n## 下周工作计划\n{{nextWeekPlan}}\n\n---\n*报告生成时间: {{generatedAt}}*'
       },
       {
         id: 'meeting-minutes',
@@ -358,7 +358,7 @@ class SkillRenderer {
           { name: 'attendees', label: '参会人员', type: 'textarea', required: true },
           { name: 'decisions', label: '决议事项', type: 'textarea', required: true }
         ],
-        template: `# 会议纪要\n\n## 会议信息\n- **主题**: {{title}}\n- **日期**: {{date}}\n\n## 参会人员\n{{attendees}}\n\n## 决议事项\n{{decisions}}\n\n---\n*整理时间: {{generatedAt}}*`
+        template: '# 会议纪要\n\n## 会议信息\n- **主题**: {{title}}\n- **日期**: {{date}}\n\n## 参会人员\n{{attendees}}\n\n## 决议事项\n{{decisions}}\n\n---\n*整理时间: {{generatedAt}}*'
       },
       {
         id: 'leave-request',
@@ -374,7 +374,7 @@ class SkillRenderer {
           { name: 'endDate', label: '结束日期', type: 'date', required: true },
           { name: 'reason', label: '请假原因', type: 'textarea', required: true }
         ],
-        template: `# 请假申请\n\n## 申请人信息\n| 项目 | 内容 |\n|------|------|\n| 姓名 | {{applicant}} |\n| 请假类型 | {{leaveType}} |\n| 开始日期 | {{startDate}} |\n| 结束日期 | {{endDate}} |\n\n## 请假原因\n{{reason}}\n\n---\n\n**申请人签字**: ________________  **日期**: {{date}}`
+        template: '# 请假申请\n\n## 申请人信息\n| 项目 | 内容 |\n|------|------|\n| 姓名 | {{applicant}} |\n| 请假类型 | {{leaveType}} |\n| 开始日期 | {{startDate}} |\n| 结束日期 | {{endDate}} |\n\n## 请假原因\n{{reason}}\n\n---\n\n**申请人签字**: ________________  **日期**: {{date}}'
       }
     ];
     const defaultCategories = [
@@ -394,14 +394,14 @@ class SkillRenderer {
   }
 
   listTemplates(options = {}) {
-    const { category, search, tags, limit = 50, offset = 0 } = options;
+    const { category, search, tags: _tags, limit = 50, offset = 0 } = options;
     let templates = Array.from(this.templates.values());
     if (category) {
-      templates = templates.filter(t => t.category === category);
+      templates = templates.filter((t) => t.category === category);
     }
     if (search) {
       const searchLower = search.toLowerCase();
-      templates = templates.filter(t =>
+      templates = templates.filter((t) =>
         t.name.toLowerCase().includes(searchLower) ||
         t.description.toLowerCase().includes(searchLower)
       );
@@ -448,7 +448,7 @@ class SkillRenderer {
     const allowedFields = ['name', 'description', 'category', 'type', 'tags', 'fields', 'template'];
     const safeUpdates = {};
     for (const field of allowedFields) {
-      if (updates.hasOwnProperty(field)) {
+      if (Object.hasOwn(updates, field)) {
         safeUpdates[field] = updates[field];
       }
     }
@@ -518,8 +518,9 @@ class SkillRenderer {
   // ============ Helper Methods ============
 
   _sanitizeHTML(html) {
-    if (!html || typeof html !== 'string') return '';
+    if (!html || typeof html !== 'string') {return '';}
     let sanitized = html
+      // eslint-disable-next-line security/detect-unsafe-regex
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '<!-- script removed -->')
       .replace(/<script[^>]*>/gi, '<!-- script tag removed -->')
       .replace(/<\/script>/gi, '');

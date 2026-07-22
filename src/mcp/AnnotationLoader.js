@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 class AnnotationLoader {
   constructor(annotationsDir = null) {
@@ -22,8 +23,8 @@ class AnnotationLoader {
       return {};
     }
 
-    const files = fs.readdirSync(this.annotationsDir).filter(f => f.endsWith('.yaml') || f.endsWith('.yml'));
-    
+    const files = fs.readdirSync(this.annotationsDir).filter((f) => f.endsWith('.yaml') || f.endsWith('.yml'));
+
     for (const file of files) {
       const mcpName = path.basename(file, path.extname(file));
       const annotations = this._loadYamlFile(path.join(this.annotationsDir, file));
@@ -57,10 +58,10 @@ class AnnotationLoader {
    */
   getToolAnnotation(mcpName, toolName) {
     const mcpAnnotations = this.loadMcpAnnotations(mcpName);
-    if (!mcpAnnotations) return null;
+    if (!mcpAnnotations) {return null;}
 
     const mcpTools = Object.values(mcpAnnotations)[0];
-    if (!mcpTools) return null;
+    if (!mcpTools) {return null;}
 
     return mcpTools[toolName] || null;
   }
@@ -70,7 +71,7 @@ class AnnotationLoader {
    */
   getMcpTools(mcpName) {
     const mcpAnnotations = this.loadMcpAnnotations(mcpName);
-    if (!mcpAnnotations) return [];
+    if (!mcpAnnotations) {return [];}
 
     const tools = Object.values(mcpAnnotations)[0] || {};
     return Object.entries(tools).map(([name, annotation]) => ({
@@ -84,8 +85,8 @@ class AnnotationLoader {
    */
   getAllAnnotations() {
     const result = {};
-    
-    for (const [mcpName, annotations] of this.allAnnotations) {
+
+    for (const [_mcpName, annotations] of this.allAnnotations) {
       const tools = Object.values(annotations)[0] || {};
       for (const [toolName, annotation] of Object.entries(tools)) {
         result[toolName] = annotation;
@@ -100,7 +101,7 @@ class AnnotationLoader {
    */
   mergeWithCodeAnnotations(codeAnnotations) {
     const yamlAnnotations = this.getAllAnnotations();
-    
+
     const merged = { ...codeAnnotations };
     for (const [toolName, yamlAnn] of Object.entries(yamlAnnotations)) {
       if (merged[toolName]) {
@@ -134,11 +135,11 @@ class AnnotationLoader {
     let currentMcp = null;
     let currentSection = null;
     let currentTool = null;
-    let indentLevel = 0;
+    const _indentLevel = 0;
 
-    const lines = content.split('\n');
+    const lines = splitLines(content);
     for (const line of lines) {
-      if (line.trim() === '' || line.trim().startsWith('#')) continue;
+      if (line.trim() === '' || line.trim().startsWith('#')) {continue;}
 
       const indent = line.search(/\S/);
       const trimmed = line.trim();
@@ -157,7 +158,7 @@ class AnnotationLoader {
           destructiveHint: false
         };
       } else if (indent === 6 && trimmed.includes(':')) {
-        const [key, value] = trimmed.split(':').map(s => s.trim());
+        const [key, value] = trimmed.split(':').map((s) => s.trim());
         if (currentTool && result[currentMcp][currentSection]) {
           if (!result[currentMcp][currentSection][currentTool]) {
             result[currentMcp][currentSection][currentTool] = {};
@@ -174,9 +175,9 @@ class AnnotationLoader {
    * 解析 YAML 值
    */
   _parseValue(value) {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    if (!isNaN(value)) return Number(value);
+    if (value === 'true') {return true;}
+    if (value === 'false') {return false;}
+    if (!isNaN(value)) {return Number(value);}
     return value;
   }
 

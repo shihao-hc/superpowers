@@ -76,28 +76,28 @@ class VRMComponent {
   }
 
   shouldUseFallback() {
-    if (!this.options.mobileFallback) return false;
-    if (!VRMComponent.isSupported()) return true;
+    if (!this.options.mobileFallback) {return false;}
+    if (!VRMComponent.isSupported()) {return true;}
     return VRMComponent.isLowPerformance();
   }
 
   _getLODPixelRatio() {
-    if (!this.options.lodEnabled) return this.options.pixelRatio;
-    
+    if (!this.options.lodEnabled) {return this.options.pixelRatio;}
+
     const isMobile = VRMComponent.isMobileDevice();
     const isLowPerf = VRMComponent.isLowPerformance();
-    
-    if (isLowPerf) return 0.75;
-    if (isMobile) return 1.0;
+
+    if (isLowPerf) {return 0.75;}
+    if (isMobile) {return 1.0;}
     return Math.min(this.options.pixelRatio, 2.0);
   }
 
   _setupVisibilityCulling() {
-    if (!this.options.visibilityCulling || !this.container) return;
+    if (!this.options.visibilityCulling || !this.container) {return;}
 
     if ('IntersectionObserver' in window) {
       this._intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
+        entries.forEach((entry) => {
           this._isVisible = entry.isIntersecting;
         });
       }, { threshold: 0.1 });
@@ -106,7 +106,7 @@ class VRMComponent {
   }
 
   _setupResizeObserver() {
-    if (!this.container || typeof ResizeObserver === 'undefined') return;
+    if (!this.container || typeof ResizeObserver === 'undefined') {return;}
 
     this._resizeObserver = new ResizeObserver(() => {
       this.resize();
@@ -202,7 +202,7 @@ class VRMComponent {
   }
 
   _initExpressionSystem() {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     if (typeof BlendShapeExpressionSystem !== 'undefined') {
       this.expressionSystem = new BlendShapeExpressionSystem(this.vrm, this._customBlendMap);
@@ -227,7 +227,7 @@ class VRMComponent {
   }
 
   _optimizeMaterials() {
-    if (!this.vrm || !this.vrm.scene) return;
+    if (!this.vrm || !this.vrm.scene) {return;}
 
     const isMobile = VRMComponent.isMobileDevice();
 
@@ -240,7 +240,7 @@ class VRMComponent {
 
         if (child.material) {
           if (Array.isArray(child.material)) {
-            child.material.forEach(mat => {
+            child.material.forEach((mat) => {
               if (mat.transparent && mat.opacity > 0.99) {
                 mat.transparent = false;
               }
@@ -274,7 +274,7 @@ class VRMComponent {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
-    
+
     if (this.options.frustumCulling) {
       this.renderer.frustumCulled = true;
     }
@@ -317,7 +317,7 @@ class VRMComponent {
   }
 
   _setupMouseTracking() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this._mouseMoveHandler = (event) => {
       const rect = this.container.getBoundingClientRect();
@@ -329,7 +329,7 @@ class VRMComponent {
   }
 
   _updateLookAt() {
-    if (!this.vrm || !this.options.enableLookAt) return;
+    if (!this.vrm || !this.options.enableLookAt) {return;}
 
     try {
       if (this.vrm.lookAt) {
@@ -342,7 +342,7 @@ class VRMComponent {
         if (this.vrm.lookAt.applyer) {
           const yaw = this._currentRotationY * 30;
           const pitch = this._currentRotationX * 20;
-          
+
           if (typeof this.vrm.lookAt.applyer === 'function') {
             this.vrm.lookAt.applyer(yaw, pitch);
           }
@@ -399,10 +399,10 @@ class VRMComponent {
     const targetFrameTime = 1000 / this.options.targetFPS;
 
     const animate = (timestamp) => {
-      if (!this.isInitialized) return;
-      
+      if (!this.isInitialized) {return;}
+
       this._frameCount++;
-      
+
       if (!this._isVisible && this.options.visibilityCulling) {
         this._throttleTimer = setTimeout(() => {
           if (this.isInitialized) {
@@ -421,9 +421,9 @@ class VRMComponent {
 
       if (this.vrm) {
         const delta = this.clock ? this.clock.getDelta() : 0.016;
-        
+
         this._updateLookAt();
-        
+
         if (this.vrm.update) {
           this.vrm.update(delta);
         }
@@ -432,10 +432,10 @@ class VRMComponent {
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
       }
-      
+
       this.animationId = requestAnimationFrame(animate);
     };
-    
+
     this._lastRenderTime = performance.now();
     this.animationId = requestAnimationFrame(animate);
   }
@@ -499,7 +499,7 @@ class VRMComponent {
       return;
     }
 
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     if (this.expressionSystem) {
       if (useTransition) {
@@ -511,7 +511,7 @@ class VRMComponent {
   }
 
   _setExpressionValue(name, value) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     if (this.expressionSystem) {
       this.expressionSystem.setValue(name, value);
@@ -560,7 +560,7 @@ class VRMComponent {
   }
 
   _setMouthOpen(isOpen) {
-    if (!this.vrm) return;
+    if (!this.vrm) {return;}
 
     if (this.expressionSystem) {
       this.expressionSystem.setValue('aa', isOpen ? 0.8 : 0);
@@ -581,7 +581,7 @@ class VRMComponent {
   }
 
   setLipSyncValue(value) {
-    if (!this.vrm || this.useFallback) return;
+    if (!this.vrm || this.useFallback) {return;}
 
     const clampedValue = Math.max(0, Math.min(1, value));
 
@@ -604,7 +604,7 @@ class VRMComponent {
   }
 
   setLipSyncPhoneme(phoneme, value) {
-    if (!this.vrm || this.useFallback) return;
+    if (!this.vrm || this.useFallback) {return;}
 
     if (this.expressionSystem) {
       this.expressionSystem.setLipSyncPhoneme(phoneme, value);
@@ -613,12 +613,12 @@ class VRMComponent {
 
   _startFallbackSpeakingAnimation() {
     const avatar = document.getElementById('vrm-fallback-avatar');
-    if (avatar) avatar.classList.add('speaking');
+    if (avatar) {avatar.classList.add('speaking');}
   }
 
   _stopFallbackSpeakingAnimation() {
     const avatar = document.getElementById('vrm-fallback-avatar');
-    if (avatar) avatar.classList.remove('speaking');
+    if (avatar) {avatar.classList.remove('speaking');}
   }
 
   _updateFallbackGlow(mood) {
@@ -635,7 +635,7 @@ class VRMComponent {
   }
 
   resize() {
-    if (!this.container || !this.camera || !this.renderer) return;
+    if (!this.container || !this.camera || !this.renderer) {return;}
 
     const width = this.container.clientWidth || 300;
     const height = this.container.clientHeight || 400;
@@ -647,7 +647,7 @@ class VRMComponent {
 
   destroy() {
     this.isInitialized = false;
-    
+
     this._stopIdleAnimation();
 
     if (this.animationId) {

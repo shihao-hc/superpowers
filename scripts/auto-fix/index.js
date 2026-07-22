@@ -4,6 +4,21 @@ function register(fixer) {
   fixers.push(fixer);
 }
 
+// Pre-export register so sub-modules can access it via require() before we finish loading
+module.exports = { register };
+
+// Load all fix modules so they register themselves
+require('./body-limit-fix');
+require('./cookie-fix');
+require('./crypto-fix');
+require('./empty-catch-fix');
+require('./hash-fix');
+require('./helmet-fix');
+require('./node-env-fix');
+require('./security-header-fix');
+require('./trust-proxy-fix');
+require('./var-declaration-fix');
+
 function canFix(ruleId) {
   return fixers.some(f => f.ruleIds.includes(ruleId));
 }

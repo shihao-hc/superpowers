@@ -1,7 +1,7 @@
 /**
  * 实时响应延迟优化器
  * 目标: 输入到响应 < 50ms
- * 
+ *
  * 参考: Neuro-sama 的超低延迟交互
  */
 
@@ -18,11 +18,13 @@ class LatencyOptimizer {
     // 延迟追踪
     this.latencyHistory = [];
     this.inputTimestamp = 0;
-    
+
     // 预计算缓存
     this.responseCache = new Map();
     this.commonResponses = new Map();
-    
+    this._cacheHits = 0;
+    this._totalRequests = 0;
+
     // 流式处理
     this.streamBuffer = '';
     this.isStreaming = false;
@@ -33,13 +35,15 @@ class LatencyOptimizer {
    */
   async processInput(input, context = {}) {
     this.inputTimestamp = performance.now();
+    this._totalRequests = (this._totalRequests || 0) + 1;
 
     // 1. 快速分类
-    const inputType = this._classifyInput(input);
-    
+    const _inputType = this._classifyInput(input);
+
     // 2. 检查缓存
     const cachedResponse = this._getCachedResponse(input);
     if (cachedResponse) {
+      this._cacheHits = (this._cacheHits || 0) + 1;
       return this._wrapResponse(cachedResponse, 'cached');
     }
 
@@ -74,7 +78,7 @@ class LatencyOptimizer {
 
     // 流式生成
     const stream = this._streamGenerate(input, context);
-    
+
     for await (const chunk of stream) {
       this.streamBuffer += chunk;
       yield {
@@ -93,6 +97,17 @@ class LatencyOptimizer {
     };
 
     this.isStreaming = false;
+  }
+
+  /**
+   * 流式生成响应（内部方法）
+   */
+  async *_streamGenerate(input, context) {
+    const fullResponse = this._generateBasicResponse(input);
+    const chunkSize = 5;
+    for (let i = 0; i < fullResponse.length; i += chunkSize) {
+      yield fullResponse.slice(i, i + chunkSize);
+    }
   }
 
   /**
@@ -115,7 +130,7 @@ class LatencyOptimizer {
     };
 
     for (const [type, pattern] of Object.entries(patterns)) {
-      if (pattern.test(input)) return type;
+      if (pattern.test(input)) {return type;}
     }
     return 'chat';
   }
@@ -136,13 +151,13 @@ class LatencyOptimizer {
     // 快速情感分析
     const positiveWords = ['好', '棒', '喜欢', '开心', 'happy', 'love'];
     const negativeWords = ['坏', '讨厌', '难过', 'sad', 'angry'];
-    
+
     let score = 0;
     for (const word of positiveWords) {
-      if (input.includes(word)) score += 1;
+      if (input.includes(word)) {score += 1;}
     }
     for (const word of negativeWords) {
-      if (input.includes(word)) score -= 1;
+      if (input.includes(word)) {score -= 1;}
     }
 
     return {
@@ -170,7 +185,7 @@ class LatencyOptimizer {
     return entities;
   }
 
-  async _generateResponse({ input, intent, emotion, entity, context }) {
+  async _generateResponse({ input, intent, emotion, _entity, _context }) {
     // 根据意图和情感生成响应
     const templates = {
       answer: `关于${input}，让我想想...`,
@@ -202,6 +217,14 @@ class LatencyOptimizer {
     return '嗯，我理解~';
   }
 
+  _generateBasicResponse(input) {
+    const greeting = this._classifyInput(input) === 'greeting';
+    if (greeting) {
+      return this._getGreeting({ sentiment: 'neutral' });
+    }
+    return `回应: ${input}`;
+  }
+
   _getCachedResponse(input) {
     // 精确匹配或模糊匹配
     return this.responseCache.get(input) || this.commonResponses.get(input);
@@ -219,7 +242,7 @@ class LatencyOptimizer {
   _wrapResponse(content, source) {
     const latency = performance.now() - this.inputTimestamp;
     this.latencyHistory.push(latency);
-    
+
     if (this.latencyHistory.length > 100) {
       this.latencyHistory.shift();
     }
@@ -235,12 +258,12 @@ class LatencyOptimizer {
   getMetrics() {
     const avg = this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length;
     const p95 = this.latencyHistory.sort((a, b) => a - b)[Math.floor(this.latencyHistory.length * 0.95)];
-    
+
     return {
       average: avg,
       p95: p95,
       target: this.options.targetLatency,
-      cacheHitRate: this.responseCache.size > 0 ? 
+      cacheHitRate: this.responseCache.size > 0 ?
         (this._cacheHits || 0) / (this._totalRequests || 1) : 0
     };
   }

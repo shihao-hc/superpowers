@@ -23,7 +23,7 @@ class AutoScaler {
   }
 
   start() {
-    if (this._checkTimer) return;
+    if (this._checkTimer) {return;}
 
     this._checkTimer = setInterval(() => {
       this._checkAndScale();
@@ -133,7 +133,7 @@ class AutoScaler {
     const target = Math.max(this.minInstances, Math.min(this.maxInstances, targetInstances));
     const previous = this.currentInstances;
 
-    if (target === previous) return false;
+    if (target === previous) {return false;}
 
     this.currentInstances = target;
     this._lastScaleAction = Date.now();

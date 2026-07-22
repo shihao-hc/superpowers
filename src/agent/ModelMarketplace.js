@@ -8,6 +8,8 @@ class ModelMarketplace {
     this.revenue = new Map();
     this.defaultPrice = options.defaultPrice || 100;
     this.platformFee = options.platformFee || 0.1;
+    this._destroyed = false;
+    this._trainingTimers = new Set();
   }
 
   registerModel(modelId, config) {
@@ -41,7 +43,7 @@ class ModelMarketplace {
 
   async subscribe(modelId, subscriberId, options = {}) {
     const model = this.models.get(modelId);
-    if (!model) throw new Error('Model not found');
+    if (!model) {throw new Error('Model not found');}
 
     if (model.status !== 'available') {
       throw new Error('Model not available');
@@ -85,10 +87,10 @@ class ModelMarketplace {
   _calculatePrice(model, plan) {
     const basePrice = model.price;
     switch (plan) {
-      case 'basic': return basePrice;
-      case 'pro': return basePrice * 3;
-      case 'enterprise': return basePrice * 10;
-      default: return basePrice;
+    case 'basic': return basePrice;
+    case 'pro': return basePrice * 3;
+    case 'enterprise': return basePrice * 10;
+    default: return basePrice;
     }
   }
 
@@ -123,7 +125,14 @@ class ModelMarketplace {
     job.status = 'training';
 
     for (let round = 1; round <= job.maxRounds; round++) {
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => {
+        const handle = setTimeout(r, 500);
+        this._trainingTimers.add(handle);
+        job._timeoutHandle = handle;
+      });
+
+      this._trainingTimers.delete(job._timeoutHandle);
+      if (this._destroyed) { return; }
 
       job.currentRound = round;
 
@@ -163,11 +172,11 @@ class ModelMarketplace {
     });
   }
 
-  async submitTrainingUpdate(jobId, participantId, update) {
+  async submitTrainingUpdate(jobId, participantId, _update) {
     const job = this.trainingJobs.get(jobId);
-    if (!job) throw new Error('Training job not found');
+    if (!job) {throw new Error('Training job not found');}
 
-    if (!job.participants.find(p => p.id === participantId)) {
+    if (!job.participants.find((p) => p.id === participantId)) {
       throw new Error('Not a participant');
     }
 
@@ -180,9 +189,9 @@ class ModelMarketplace {
 
   async rateModel(modelId, userId, rating, review = '') {
     const model = this.models.get(modelId);
-    if (!model) throw new Error('Model not found');
+    if (!model) {throw new Error('Model not found');}
 
-    const existingReview = model.reviews.findIndex(r => r.userId === userId);
+    const existingReview = model.reviews.findIndex((r) => r.userId === userId);
     if (existingReview > -1) {
       model.reviews[existingReview] = { userId, rating, review, date: Date.now() };
     } else {
@@ -198,24 +207,24 @@ class ModelMarketplace {
     let results = Array.from(this.models.values());
 
     if (query.industry) {
-      results = results.filter(m => m.industry === query.industry);
+      results = results.filter((m) => m.industry === query.industry);
     }
 
     if (query.type) {
-      results = results.filter(m => m.type === query.type);
+      results = results.filter((m) => m.type === query.type);
     }
 
     if (query.minRating) {
-      results = results.filter(m => m.rating >= query.minRating);
+      results = results.filter((m) => m.rating >= query.minRating);
     }
 
     if (query.maxPrice) {
-      results = results.filter(m => m.price <= query.maxPrice);
+      results = results.filter((m) => m.price <= query.maxPrice);
     }
 
     if (query.keyword) {
       const kw = query.keyword.toLowerCase();
-      results = results.filter(m =>
+      results = results.filter((m) =>
         m.name.toLowerCase().includes(kw) ||
         m.description.toLowerCase().includes(kw)
       );
@@ -223,18 +232,18 @@ class ModelMarketplace {
 
     if (query.sortBy) {
       switch (query.sortBy) {
-        case 'rating':
-          results.sort((a, b) => b.rating - a.rating);
-          break;
-        case 'downloads':
-          results.sort((a, b) => b.downloadCount - a.downloadCount);
-          break;
-        case 'price':
-          results.sort((a, b) => a.price - b.price);
-          break;
-        case 'newest':
-          results.sort((a, b) => b.createdAt - a.createdAt);
-          break;
+      case 'rating':
+        results.sort((a, b) => b.rating - a.rating);
+        break;
+      case 'downloads':
+        results.sort((a, b) => b.downloadCount - a.downloadCount);
+        break;
+      case 'price':
+        results.sort((a, b) => a.price - b.price);
+        break;
+      case 'newest':
+        results.sort((a, b) => b.createdAt - a.createdAt);
+        break;
       }
     }
 
@@ -273,17 +282,17 @@ class ModelMarketplace {
     return {
       models: {
         total: models.length,
-        federated: models.filter(m => m.type === 'federated').length,
+        federated: models.filter((m) => m.type === 'federated').length,
         totalDownloads: models.reduce((sum, m) => sum + m.downloadCount, 0)
       },
       subscriptions: {
         total: subscriptions.length,
-        active: subscriptions.filter(s => s.status === 'active').length
+        active: subscriptions.filter((s) => s.status === 'active').length
       },
       training: {
         total: jobs.length,
-        running: jobs.filter(j => j.status === 'training').length,
-        completed: jobs.filter(j => j.status === 'completed').length
+        running: jobs.filter((j) => j.status === 'training').length,
+        completed: jobs.filter((j) => j.status === 'completed').length
       },
       revenue: {
         total: Array.from(this.revenue.values()).reduce((sum, r) => sum + r.total, 0)
@@ -292,6 +301,9 @@ class ModelMarketplace {
   }
 
   destroy() {
+    this._destroyed = true;
+    this._trainingTimers.forEach((h) => clearTimeout(h));
+    this._trainingTimers.clear();
     this.models.clear();
     this.subscriptions.clear();
     this.trainingJobs.clear();

@@ -14,6 +14,7 @@ class SecurityMiddleware {
     this._cleanupTimer = setInterval(() => {
       this._cleanup();
     }, 60000);
+    if (this._cleanupTimer.unref) { this._cleanupTimer.unref(); }
   }
 
   stop() {
@@ -150,13 +151,13 @@ class SecurityMiddleware {
     let logs = [...this.auditLog];
 
     if (options.ip) {
-      logs = logs.filter(l => l.ip === options.ip);
+      logs = logs.filter((l) => l.ip === options.ip);
     }
     if (options.type) {
-      logs = logs.filter(l => l.type === options.type);
+      logs = logs.filter((l) => l.type === options.type);
     }
     if (options.since) {
-      logs = logs.filter(l => l.timestamp >= options.since);
+      logs = logs.filter((l) => l.timestamp >= options.since);
     }
 
     return logs.slice(-(options.limit || 50));

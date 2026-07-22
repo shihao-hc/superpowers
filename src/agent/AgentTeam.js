@@ -76,7 +76,7 @@ class AgentTeam extends EventEmitter {
 
   setAgentState(agentId, state, mode = 'both') {
     const sm = this._stateMachine.get(agentId);
-    if (!sm) return;
+    if (!sm) {return;}
 
     if (mode === 'both' || mode === 'ui') {
       sm.ui = state;
@@ -91,7 +91,7 @@ class AgentTeam extends EventEmitter {
 
   async spawnChildAgent(parentId, childConfig) {
     const parent = this.agents.get(parentId);
-    if (!parent) throw new Error('Parent agent not found');
+    if (!parent) {throw new Error('Parent agent not found');}
 
     if (!parent.permissions.canSpawn) {
       throw new Error('Agent does not have spawn permission');
@@ -139,7 +139,7 @@ class AgentTeam extends EventEmitter {
 
   canSendMessage(fromId, toId, channel) {
     const from = this.agents.get(fromId);
-    if (!from) return false;
+    if (!from) {return false;}
 
     if (from.role === 'child') {
       if (channel === 'team' && !from.permissions.canAccessTeamChannel) {
@@ -186,7 +186,7 @@ class AgentTeam extends EventEmitter {
 
   async fireAndForget(parentId, task, callback) {
     const parent = this.agents.get(parentId);
-    if (!parent) throw new Error('Parent agent not found');
+    if (!parent) {throw new Error('Parent agent not found');}
 
     const child = await this.spawnChildAgent(parentId, {
       name: `${parent.name}_subtask`,
@@ -222,7 +222,7 @@ class AgentTeam extends EventEmitter {
           content: { taskId, result, status: 'completed' }
         });
 
-        if (callback) callback(null, result);
+        if (callback) {callback(null, result);}
 
         this.emit('task:completed', teamTask);
 
@@ -238,7 +238,7 @@ class AgentTeam extends EventEmitter {
           content: { taskId, error: error.message }
         });
 
-        if (callback) callback(error, null);
+        if (callback) {callback(error, null);}
 
         this.emit('task:failed', teamTask);
       }
@@ -251,7 +251,7 @@ class AgentTeam extends EventEmitter {
 
   _scheduleAutoWake(parentId, context) {
     const parent = this.agents.get(parentId);
-    if (!parent || !this.autoWake) return;
+    if (!parent || !this.autoWake) {return;}
 
     this.emit('agent:wake', {
       agent: parent,
@@ -314,16 +314,16 @@ class AgentTeam extends EventEmitter {
     let bestAgent = null;
     let bestScore = -1;
 
-    for (const [agentId, agent] of this.agents) {
-      if (agent.status !== 'idle' || agent.role === 'child') continue;
+    for (const [_agentId, agent] of this.agents) {
+      if (agent.status !== 'idle' || agent.role === 'child') {continue;}
 
       let score = 0;
 
       if (task.requiredCapabilities.length > 0) {
-        const hasCapabilities = task.requiredCapabilities.every(cap =>
+        const hasCapabilities = task.requiredCapabilities.every((cap) =>
           agent.capabilities.includes(cap)
         );
-        if (!hasCapabilities) continue;
+        if (!hasCapabilities) {continue;}
         score += 10;
       }
 
@@ -341,8 +341,8 @@ class AgentTeam extends EventEmitter {
   async _autoWakeCollaborators(agentId, task) {
     const collaborators = this.getCollaborators(agentId);
     const idleCollaborators = collaborators
-      .map(cId => this.agents.get(cId))
-      .filter(a => a && a.status === 'idle');
+      .map((cId) => this.agents.get(cId))
+      .filter((a) => a && a.status === 'idle');
 
     if (idleCollaborators.length >= this.wakeThreshold) {
       for (const agent of idleCollaborators) {
@@ -353,7 +353,7 @@ class AgentTeam extends EventEmitter {
 
   completeTask(taskId, result) {
     const task = this.tasks.get(taskId);
-    if (!task) return false;
+    if (!task) {return false;}
 
     task.status = 'completed';
     task.completedAt = Date.now();
@@ -374,7 +374,7 @@ class AgentTeam extends EventEmitter {
 
   failTask(taskId, error) {
     const task = this.tasks.get(taskId);
-    if (!task) return false;
+    if (!task) {return false;}
 
     task.status = 'failed';
     task.error = error;
@@ -393,7 +393,7 @@ class AgentTeam extends EventEmitter {
   }
 
   getTeamStatus() {
-    const agents = Array.from(this.agents.values()).filter(a => a.role !== 'child');
+    const agents = Array.from(this.agents.values()).filter((a) => a.role !== 'child');
     const tasks = Array.from(this.tasks.values());
 
     return {
@@ -401,15 +401,15 @@ class AgentTeam extends EventEmitter {
       name: this.name,
       agents: {
         total: agents.length,
-        idle: agents.filter(a => a.status === 'idle').length,
-        busy: agents.filter(a => a.status === 'busy').length
+        idle: agents.filter((a) => a.status === 'idle').length,
+        busy: agents.filter((a) => a.status === 'busy').length
       },
       tasks: {
         total: tasks.length,
-        pending: tasks.filter(t => t.status === 'pending').length,
-        running: tasks.filter(t => t.status === 'running' || t.status === 'assigned').length,
-        completed: tasks.filter(t => t.status === 'completed').length,
-        failed: tasks.filter(t => t.status === 'failed').length
+        pending: tasks.filter((t) => t.status === 'pending').length,
+        running: tasks.filter((t) => t.status === 'running' || t.status === 'assigned').length,
+        completed: tasks.filter((t) => t.status === 'completed').length,
+        failed: tasks.filter((t) => t.status === 'failed').length
       }
     };
   }
@@ -423,7 +423,7 @@ class AgentTeam extends EventEmitter {
   }
 
   getParentAgents() {
-    return Array.from(this.agents.values()).filter(a => a.role !== 'child');
+    return Array.from(this.agents.values()).filter((a) => a.role !== 'child');
   }
 
   getChildAgents(parentId) {
@@ -467,7 +467,7 @@ class AgentTeam extends EventEmitter {
     }
 
     for (const [parentId, children] of this._childAgents) {
-      const remaining = children.filter(cId => this.agents.has(cId));
+      const remaining = children.filter((cId) => this.agents.has(cId));
       if (remaining.length === 0) {
         this._childAgents.delete(parentId);
       } else {

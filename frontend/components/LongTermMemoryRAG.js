@@ -1,6 +1,6 @@
 /**
  * LongTermMemoryRAG - 长期记忆RAG系统
- * 
+ *
  * 功能:
  * - 持久化存储(跨重启)
  * - 向量相似度搜索
@@ -35,14 +35,14 @@ class LongTermMemoryRAG {
     // 存储
     this.memories = [];
     this.embeddings = new Map();
-    
+
     // 索引
     this.typeIndex = new Map();
     this.tagIndex = new Map();
-    
+
     // 嵌入模型
     this.embeddingPipeline = null;
-    
+
     // 统计
     this.stats = {
       totalMemories: 0,
@@ -62,22 +62,22 @@ class LongTermMemoryRAG {
     try {
       // 加载嵌入模型
       await this._loadEmbeddingModel();
-      
+
       // 从本地存储加载记忆
       await this._loadFromStorage();
-      
+
       // 启动自动保存
       this._startAutoSave();
-      
+
       if (this.options.onReady) {
         this.options.onReady(this);
       }
-      
+
       console.log(`[LongTermMemory] Initialized with ${this.memories.length} memories`);
-      
+
     } catch (error) {
       console.error('[LongTermMemory] Init error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
     }
   }
 
@@ -112,7 +112,7 @@ class LongTermMemoryRAG {
         console.warn('[LongTermMemory] Embedding error:', error);
       }
     }
-    
+
     // 降级: 使用简单哈希嵌入
     return this._simpleEmbedding(text);
   }
@@ -123,13 +123,13 @@ class LongTermMemoryRAG {
   _simpleEmbedding(text) {
     const words = text.toLowerCase().split(/\s+/);
     const vector = new Array(this.options.embeddingDim).fill(0);
-    
+
     for (let i = 0; i < words.length; i++) {
       const hash = this._hashCode(words[i]);
       const idx = Math.abs(hash) % this.options.embeddingDim;
       vector[idx] += 1;
     }
-    
+
     // 归一化
     const norm = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
     if (norm > 0) {
@@ -137,7 +137,7 @@ class LongTermMemoryRAG {
         vector[i] /= norm;
       }
     }
-    
+
     return vector;
   }
 
@@ -201,10 +201,10 @@ class LongTermMemoryRAG {
    */
   async addConversation(role, content, metadata = {}) {
     // 只记录重要内容
-    if (content.length < 10) return null;
+    if (content.length < 10) {return null;}
 
     const importance = this._calculateImportance(content);
-    
+
     return await this.add(content, {
       type: 'conversation',
       importance,
@@ -229,25 +229,25 @@ class LongTermMemoryRAG {
     } = options;
 
     const queryEmbedding = await this.getEmbedding(query);
-    
+
     // 计算相似度
-    let results = this.memories.map(memory => ({
+    let results = this.memories.map((memory) => ({
       ...memory,
       similarity: this._cosineSimilarity(queryEmbedding, memory.embedding)
     }));
 
     // 过滤
     if (type) {
-      results = results.filter(m => m.type === type);
+      results = results.filter((m) => m.type === type);
     }
-    
+
     if (minImportance > 0) {
-      results = results.filter(m => m.importance >= minImportance);
+      results = results.filter((m) => m.importance >= minImportance);
     }
-    
+
     if (timeRange) {
       const now = Date.now();
-      results = results.filter(m => 
+      results = results.filter((m) =>
         now - m.createdAt <= timeRange
       );
     }
@@ -261,13 +261,13 @@ class LongTermMemoryRAG {
     });
 
     // 更新访问统计
-    results.slice(0, limit).forEach(memory => {
+    results.slice(0, limit).forEach((memory) => {
       memory.accessCount = (memory.accessCount || 0) + 1;
       memory.lastAccessedAt = Date.now();
     });
 
     this.stats.searchesPerformed++;
-    
+
     return results.slice(0, limit);
   }
 
@@ -276,8 +276,8 @@ class LongTermMemoryRAG {
    */
   async getContext(topic, options = {}) {
     const results = await this.search(topic, { ...options, limit: options.limit || 5 });
-    
-    return results.map(memory => ({
+
+    return results.map((memory) => ({
       content: memory.content,
       type: memory.type,
       relevance: memory.similarity,
@@ -307,11 +307,11 @@ class LongTermMemoryRAG {
    * 更新记忆
    */
   async update(id, updates) {
-    const index = this.memories.findIndex(m => m.id === id);
-    if (index === -1) return null;
+    const index = this.memories.findIndex((m) => m.id === id);
+    if (index === -1) {return null;}
 
     const memory = this.memories[index];
-    
+
     // 如果内容更新,重新生成嵌入
     if (updates.content && updates.content !== memory.content) {
       updates.embedding = await this.getEmbedding(updates.content);
@@ -320,10 +320,10 @@ class LongTermMemoryRAG {
 
     // 更新
     Object.assign(memory, updates, { updatedAt: Date.now() });
-    
+
     // 更新索引
     this._updateIndex(memory);
-    
+
     return memory;
   }
 
@@ -331,21 +331,21 @@ class LongTermMemoryRAG {
    * 删除记忆
    */
   delete(id) {
-    const index = this.memories.findIndex(m => m.id === id);
-    if (index === -1) return false;
+    const index = this.memories.findIndex((m) => m.id === id);
+    if (index === -1) {return false;}
 
     this.memories.splice(index, 1);
     this.embeddings.delete(id);
-    
+
     // 清理索引
-    for (const [type, memories] of this.typeIndex) {
-      const idx = memories.findIndex(m => m.id === id);
-      if (idx !== -1) memories.splice(idx, 1);
+    for (const [_type, memories] of this.typeIndex) {
+      const idx = memories.findIndex((m) => m.id === id);
+      if (idx !== -1) {memories.splice(idx, 1);}
     }
-    
-    for (const [tag, memories] of this.tagIndex) {
-      const idx = memories.findIndex(m => m.id === id);
-      if (idx !== -1) memories.splice(idx, 1);
+
+    for (const [_tag, memories] of this.tagIndex) {
+      const idx = memories.findIndex((m) => m.id === id);
+      if (idx !== -1) {memories.splice(idx, 1);}
     }
 
     this.stats.totalMemories--;
@@ -357,11 +357,11 @@ class LongTermMemoryRAG {
    */
   _calculateImportance(text) {
     let importance = 0.5;
-    
+
     // 长度因素
-    if (text.length > 100) importance += 0.1;
-    if (text.length > 500) importance += 0.1;
-    
+    if (text.length > 100) {importance += 0.1;}
+    if (text.length > 500) {importance += 0.1;}
+
     // 关键词因素
     const importantKeywords = ['重要', '关键', '记住', '喜欢', '讨厌', 'important', 'remember'];
     for (const keyword of importantKeywords) {
@@ -370,7 +370,7 @@ class LongTermMemoryRAG {
         break;
       }
     }
-    
+
     // 情感因素
     const emotionalKeywords = ['爱', '恨', '喜欢', '讨厌', 'love', 'hate', 'amazing'];
     for (const keyword of emotionalKeywords) {
@@ -387,18 +387,18 @@ class LongTermMemoryRAG {
    * 余弦相似度
    */
   _cosineSimilarity(a, b) {
-    if (!a || !b || a.length !== b.length) return 0;
-    
+    if (!a || !b || a.length !== b.length) {return 0;}
+
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    
+
     for (let i = 0; i < a.length; i++) {
       dotProduct += a[i] * b[i];
       normA += a[i] * a[i];
       normB += b[i] * b[i];
     }
-    
+
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
   }
 
@@ -411,7 +411,7 @@ class LongTermMemoryRAG {
       this.typeIndex.set(memory.type, []);
     }
     const typeList = this.typeIndex.get(memory.type);
-    if (!typeList.find(m => m.id === memory.id)) {
+    if (!typeList.find((m) => m.id === memory.id)) {
       typeList.push(memory);
     }
 
@@ -421,7 +421,7 @@ class LongTermMemoryRAG {
         this.tagIndex.set(tag, []);
       }
       const tagList = this.tagIndex.get(tag);
-      if (!tagList.find(m => m.id === memory.id)) {
+      if (!tagList.find((m) => m.id === memory.id)) {
         tagList.push(memory);
       }
     }
@@ -432,7 +432,7 @@ class LongTermMemoryRAG {
    */
   _pruneMemories() {
     // 计算记忆价值分数
-    const scored = this.memories.map(memory => {
+    const scored = this.memories.map((memory) => {
       const age = Date.now() - memory.createdAt;
       const decay = Math.pow(this.options.decayRate, age / (24 * 60 * 60 * 1000));
       const score = memory.importance * decay * (1 + memory.accessCount * 0.1);
@@ -441,7 +441,7 @@ class LongTermMemoryRAG {
 
     // 按分数排序,删除最低分的
     scored.sort((a, b) => a.score - b.score);
-    
+
     const toRemove = Math.floor(this.memories.length * 0.1);
     for (let i = 0; i < toRemove; i++) {
       this.delete(scored[i].memory.id);
@@ -468,7 +468,7 @@ class LongTermMemoryRAG {
     try {
       // 使用localStorage
       const data = {
-        memories: this.memories.map(m => ({
+        memories: this.memories.map((m) => ({
           ...m,
           embedding: undefined // 不保存嵌入向量
         })),
@@ -496,13 +496,13 @@ class LongTermMemoryRAG {
   async _loadFromStorage() {
     try {
       const stored = localStorage.getItem(this.options.storageDir);
-      if (!stored) return;
+      if (!stored) {return;}
 
       const data = JSON.parse(stored);
-      
+
       if (data.memories) {
         this.memories = data.memories;
-        
+
         // 重新生成索引
         this.typeIndex.clear();
         this.tagIndex.clear();
@@ -539,7 +539,7 @@ class LongTermMemoryRAG {
   async importMemories(json) {
     try {
       const data = JSON.parse(json);
-      
+
       if (data.memories) {
         for (const memory of data.memories) {
           // 重新生成嵌入
@@ -552,7 +552,7 @@ class LongTermMemoryRAG {
 
       this.stats.totalMemories = this.memories.length;
       console.log(`[LongTermMemory] Imported ${data.memories.length} memories`);
-      
+
     } catch (error) {
       console.error('[LongTermMemory] Import error:', error);
     }

@@ -12,7 +12,7 @@ class MFAManager {
   generateSecret(username) {
     const secret = crypto.randomBytes(20).toString('hex');
     const tempId = crypto.randomBytes(8).toString('hex');
-    
+
     this.tempSecrets.set(tempId, {
       username,
       secret,
@@ -75,7 +75,7 @@ class MFAManager {
   _generateTOTP(secret, time) {
     const buffer = Buffer.alloc(8);
     buffer.writeBigInt64BE(BigInt(time), 0);
-    
+
     const hmac = crypto.createHmac('sha1', Buffer.from(secret, 'hex'));
     hmac.update(buffer);
     const hmacResult = hmac.digest();
@@ -92,7 +92,7 @@ class MFAManager {
   }
 
   _timingSafeEqual(a, b) {
-    if (a.length !== b.length) return false;
+    if (a.length !== b.length) {return false;}
     const bufA = Buffer.from(a);
     const bufB = Buffer.from(b);
     return crypto.timingSafeEqual(bufA, bufB);
@@ -133,21 +133,21 @@ class MFAManager {
 
   getBackupCodes(username) {
     const codes = this.backupCodes.get(username);
-    if (!codes) return [];
-    return codes.filter(c => !c.used).map(c => c.code);
+    if (!codes) {return [];}
+    return codes.filter((c) => !c.used).map((c) => c.code);
   }
 
   _verifyBackupCode(username, code) {
     const codes = this.backupCodes.get(username);
-    if (!codes) return { valid: false, error: 'No backup codes' };
+    if (!codes) {return { valid: false, error: 'No backup codes' };}
 
-    const index = codes.findIndex(c => c.code === code && !c.used);
+    const index = codes.findIndex((c) => c.code === code && !c.used);
     if (index === -1) {
       return { valid: false, error: 'Invalid backup code' };
     }
 
     codes[index] = { code: codes[index].code, used: true, usedAt: Date.now() };
-    return { valid: true, remainingCodes: codes.filter(c => !c.used).length };
+    return { valid: true, remainingCodes: codes.filter((c) => !c.used).length };
   }
 
   isEnabled(username) {
@@ -166,7 +166,7 @@ class MFAManager {
     return {
       enabled: userMFA?.enabled || false,
       enabledAt: userMFA?.enabledAt || null,
-      backupCodesRemaining: this.backupCodes.get(username)?.filter(c => !c.used).length || 0
+      backupCodesRemaining: this.backupCodes.get(username)?.filter((c) => !c.used).length || 0
     };
   }
 }

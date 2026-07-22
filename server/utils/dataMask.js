@@ -1,49 +1,53 @@
 const crypto = require('crypto');
+const { warn: warnLog } = require('./logger');
 
-const SALT = process.env.MASK_SALT || crypto.createHash('sha256').update('default-salt').digest('hex').slice(0, 16);
+const SALT = process.env.MASK_SALT || (() => {
+  warnLog('[DataMask] MASK_SALT not set, using random session salt (masking will NOT survive restarts)');
+  return crypto.randomBytes(16).toString('hex');
+})();
 
 function maskEmail(email) {
-  if (!email || typeof email !== 'string') return email;
+  if (!email || typeof email !== 'string') {return email;}
   const [local, domain] = email.split('@');
-  if (!local || !domain) return email;
+  if (!local || !domain) {return email;}
   return `${local[0]}***@${domain}`;
 }
 
 function maskPhone(phone) {
-  if (!phone || typeof phone !== 'string') return phone;
+  if (!phone || typeof phone !== 'string') {return phone;}
   const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length !== 11) return phone;
+  if (cleaned.length !== 11) {return phone;}
   return `${cleaned.slice(0, 3)}****${cleaned.slice(-4)}`;
 }
 
 function maskIdCard(idCard) {
-  if (!idCard || typeof idCard !== 'string') return idCard;
-  if (idCard.length < 8) return idCard;
+  if (!idCard || typeof idCard !== 'string') {return idCard;}
+  if (idCard.length < 8) {return idCard;}
   return `${idCard.slice(0, 6)}********${idCard.slice(-4)}`;
 }
 
 function maskBankCard(bankCard) {
-  if (!bankCard || typeof bankCard !== 'string') return bankCard;
+  if (!bankCard || typeof bankCard !== 'string') {return bankCard;}
   const cleaned = bankCard.replace(/\s/g, '');
-  if (cleaned.length < 8) return bankCard;
+  if (cleaned.length < 8) {return bankCard;}
   return `${cleaned.slice(0, 6)}****${cleaned.slice(-5)}`;
 }
 
 function maskIP(ip) {
-  if (!ip || typeof ip !== 'string') return ip;
+  if (!ip || typeof ip !== 'string') {return ip;}
   const parts = ip.split('.');
-  if (parts.length !== 4) return ip;
+  if (parts.length !== 4) {return ip;}
   return `${parts[0]}.${parts[1]}.**.**`;
 }
 
 function maskDeviceFingerprint(fp) {
-  if (!fp || typeof fp !== 'string') return fp;
-  if (fp.length < 8) return fp;
+  if (!fp || typeof fp !== 'string') {return fp;}
+  if (fp.length < 8) {return fp;}
   return `${fp.slice(0, 3)}******${fp.slice(-4)}`;
 }
 
 function maskObject(obj, fields) {
-  if (!obj || typeof obj !== 'object') return obj;
+  if (!obj || typeof obj !== 'object') {return obj;}
   const masked = { ...obj };
   const maskingFunctions = {
     email: maskEmail,
@@ -62,7 +66,7 @@ function maskObject(obj, fields) {
 }
 
 function reversibleMask(value, fieldType, authKey) {
-  if (!value || !authKey) return value;
+  if (!value || !authKey) {return value;}
   const key = crypto.scryptSync(authKey, SALT, 32);
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
@@ -73,12 +77,12 @@ function reversibleMask(value, fieldType, authKey) {
 }
 
 function reversibleUnmask(maskedValue, fieldType, authKey) {
-  if (!maskedValue || !maskedValue.startsWith('rm:') || !authKey) return maskedValue;
+  if (!maskedValue || !maskedValue.startsWith('rm:') || !authKey) {return maskedValue;}
   const validFieldTypes = ['email', 'phone', 'idCard', 'bankCard', 'ip', 'deviceFingerprint'];
-  if (!fieldType || !validFieldTypes.includes(fieldType)) return maskedValue;
+  if (!fieldType || !validFieldTypes.includes(fieldType)) {return maskedValue;}
   try {
     const parts = maskedValue.split(':');
-    if (parts.length !== 4) return maskedValue;
+    if (parts.length !== 4) {return maskedValue;}
     const iv = Buffer.from(parts[1], 'hex');
     const authTag = Buffer.from(parts[2], 'hex');
     const encrypted = parts[3];
@@ -88,7 +92,7 @@ function reversibleUnmask(maskedValue, fieldType, authKey) {
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     const { value, fieldType: storedType } = JSON.parse(decrypted);
-    if (storedType !== fieldType) return maskedValue;
+    if (storedType !== fieldType) {return maskedValue;}
     return value;
   } catch {
     return maskedValue;

@@ -33,7 +33,7 @@ test.describe('设置页面功能测试', () => {
   test('添加数据源表单显示', async ({ page }) => {
     const nameInput = page.locator('#sourceName');
     const urlInput = page.locator('#sourceUrl');
-    
+
     await expect(nameInput).toBeVisible();
     await expect(urlInput).toBeVisible();
   });
@@ -60,7 +60,7 @@ test.describe('设置页面交互测试', () => {
   test('使用数据源按钮可点击', async ({ page }) => {
     await page.goto('/setting.html');
     await page.waitForSelector('.source-item', { timeout: 5000 });
-    
+
     const useBtn = page.locator('.btn-small').filter({ hasText: '使用' }).first();
     if (await useBtn.isVisible()) {
       await expect(useBtn).toBeEnabled();

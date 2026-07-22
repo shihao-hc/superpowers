@@ -63,7 +63,7 @@ describe('ResponseCache', () => {
   });
 
   describe('TTL 过期', () => {
-    test('缓存应该在 TTL 后过期', async () => {
+    test('缓存应该在 TTL 后过期', () => {
       const shortCache = new ResponseCache({
         maxSize: 10,
         defaultTTL: 100,
@@ -71,25 +71,28 @@ describe('ResponseCache', () => {
       });
 
       const params = { model: 'test', messages: [{ role: 'user', content: 'Hi' }] };
-      shortCache.set(params, { result: 'test' });
+      const origDateNow = Date.now.bind(Date);
 
+      shortCache.set(params, { result: 'test' });
       expect(shortCache.get(params)).toEqual({ result: 'test' });
 
-      await new Promise(resolve => setTimeout(resolve, 150));
+      Date.now = () => origDateNow() + 200;
       expect(shortCache.get(params)).toBeNull();
+      Date.now = origDateNow;
 
       shortCache.destroy();
     });
 
-    test('自定义 TTL 应该生效', async () => {
+    test('自定义 TTL 应该生效', () => {
       const params = { model: 'test', messages: [{ role: 'user', content: 'Hi' }] };
-      cache.set(params, { result: 'test' }, 50);
+      const origDateNow = Date.now.bind(Date);
 
-      await new Promise(resolve => setTimeout(resolve, 30));
+      cache.set(params, { result: 'test' }, 100);
       expect(cache.get(params)).toEqual({ result: 'test' });
 
-      await new Promise(resolve => setTimeout(resolve, 30));
+      Date.now = () => origDateNow() + 200;
       expect(cache.get(params)).toBeNull();
+      Date.now = origDateNow;
     });
   });
 
@@ -151,7 +154,7 @@ describe('ResponseCache', () => {
 
     test('应该正确计算命中率', () => {
       cache.set({ model: 'test', messages: [] }, { data: 'test' });
-      
+
       for (let i = 0; i < 3; i++) {
         cache.get({ model: 'test', messages: [] });
       }

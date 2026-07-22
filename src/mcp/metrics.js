@@ -5,7 +5,7 @@
  */
 
 const crypto = require('crypto');
-const fs = require('fs');
+const _fs = require('fs');
 const path = require('path');
 
 function createMCPMetricsHandler(mcpPlugin) {
@@ -23,7 +23,7 @@ function createMCPMetricsHandler(mcpPlugin) {
     lines.push('# HELP mcp_calls_total Total number of MCP calls');
     lines.push('# TYPE mcp_calls_total counter');
     lines.push(`mcp_calls_total ${metrics.totalCalls}`);
-    
+
     if (metrics.callsByServer) {
       for (const [server, data] of Object.entries(metrics.callsByServer)) {
         lines.push(`mcp_calls_total{server="${server}"} ${data.total}`);
@@ -43,8 +43,8 @@ function createMCPMetricsHandler(mcpPlugin) {
     lines.push('');
     lines.push('# HELP mcp_servers_connected Number of connected MCP servers');
     lines.push('# TYPE mcp_servers_connected gauge');
-    const connectedServers = status.servers ? 
-      Object.values(status.servers).filter(s => s.connected).length : 0;
+    const connectedServers = status.servers ?
+      Object.values(status.servers).filter((s) => s.connected).length : 0;
     lines.push(`mcp_servers_connected ${connectedServers}`);
 
     lines.push('');
@@ -126,15 +126,15 @@ class MCPAuditLogger {
     this.currentDate = this._getDateStr();
     this.encryptionKey = options.encryptionKey || null;
     this.enableEncryption = options.enableEncryption || false;
-    
+
     if (this.enableFileLogging) {
       this._initFileLogging();
     }
-    
+
     if (this.rotationConfig.enabled) {
       this._startRotationCheck();
     }
-    
+
     if (this.enableEncryption && !this.encryptionKey) {
       this.encryptionKey = process.env.MCP_AUDIT_KEY || crypto.randomBytes(32).toString('hex');
       console.warn('[MCPAudit] Using auto-generated encryption key. Set MCP_AUDIT_KEY env var for persistence.');
@@ -162,21 +162,21 @@ class MCPAuditLogger {
   _openNewLogFile() {
     const dateStr = this._getDateStr();
     const logFile = `${this.logPath}-${dateStr}.jsonl`;
-    
+
     try {
       if (this.writeStream) {
         this.writeStream.end();
       }
-      
+
       const fs = require('fs');
       this.writeStream = fs.createWriteStream(logFile, { flags: 'a', encoding: 'utf8' });
       this.currentFileSize = 0;
       this.currentDate = dateStr;
-      
+
       this.writeStream.on('error', (err) => {
         console.error('[MCPAudit] Write error:', err.message);
       });
-      
+
       console.log(`[MCPAudit] Rotated to new log file: ${logFile}`);
     } catch (e) {
       console.warn('[MCPAudit] Failed to open log file:', e.message);
@@ -190,17 +190,17 @@ class MCPAuditLogger {
   }
 
   _checkRotation() {
-    const now = new Date();
+    const _now = new Date();
     const dateStr = this._getDateStr();
-    
+
     if (dateStr !== this.currentDate) {
       this._openNewLogFile();
     }
-    
+
     if (this.currentFileSize >= this.rotationConfig.maxSize) {
       this._openNewLogFile();
     }
-    
+
     this._cleanupOldFiles();
   }
 
@@ -209,25 +209,25 @@ class MCPAuditLogger {
       const fs = require('fs');
       const dir = path.dirname(this.logPath);
       const baseName = path.basename(this.logPath);
-      
-      if (!fs.existsSync(dir)) return;
-      
+
+      if (!fs.existsSync(dir)) {return;}
+
       const files = fs.readdirSync(dir)
-        .filter(f => f.startsWith(baseName) && f.endsWith('.jsonl'))
-        .map(f => ({
+        .filter((f) => f.startsWith(baseName) && f.endsWith('.jsonl'))
+        .map((f) => ({
           name: f,
           path: path.join(dir, f),
           mtime: fs.statSync(path.join(dir, f)).mtime
         }))
         .sort((a, b) => b.mtime - a.mtime);
-      
+
       const maxAge = Date.now() - this.rotationConfig.maxAge;
-      
+
       for (let i = this.rotationConfig.maxFiles; i < files.length; i++) {
         fs.unlinkSync(files[i].path);
         console.log(`[MCPAudit] Deleted old log file: ${files[i].name}`);
       }
-      
+
       for (const file of files) {
         if (file.mtime.getTime() < maxAge) {
           fs.unlinkSync(file.path);
@@ -240,15 +240,15 @@ class MCPAuditLogger {
   }
 
   _encrypt(data) {
-    if (!this.enableEncryption || !this.encryptionKey) return data;
-    
+    if (!this.enableEncryption || !this.encryptionKey) {return data;}
+
     const iv = crypto.randomBytes(16);
     const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+
     let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    
+
     return {
       iv: iv.toString('hex'),
       data: encrypted,
@@ -257,17 +257,17 @@ class MCPAuditLogger {
   }
 
   _decrypt(record) {
-    if (!record.iv || !record.data || !record.tag) return record;
-    
+    if (!record.iv || !record.data || !record.tag) {return record;}
+
     try {
       const iv = Buffer.from(record.iv, 'hex');
       const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
-      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
       decipher.setAuthTag(Buffer.from(record.tag, 'hex'));
-      
+
       let decrypted = decipher.update(record.data, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return JSON.parse(decrypted);
     } catch (e) {
       return record;
@@ -310,7 +310,7 @@ class MCPAuditLogger {
     if (this.writeStream) {
       try {
         const record = this.enableEncryption ? this._encrypt(entry) : entry;
-        const line = JSON.stringify(record) + '\n';
+        const line = `${JSON.stringify(record)}\n`;
         this.writeStream.write(line);
         this.currentFileSize += Buffer.byteLength(line, 'utf8');
       } catch (e) {
@@ -330,16 +330,16 @@ class MCPAuditLogger {
   }
 
   _sanitizeParams(params) {
-    if (!params) return {};
+    if (!params) {return {};}
     const sanitized = {};
     const sensitive = ['password', 'token', 'secret', 'key', 'auth', 'credential', 'authorization'];
-    
+
     for (const [key, value] of Object.entries(params)) {
       const lowerKey = key.toLowerCase();
-      if (sensitive.some(s => lowerKey.includes(s))) {
+      if (sensitive.some((s) => lowerKey.includes(s))) {
         sanitized[key] = '[REDACTED]';
       } else if (typeof value === 'string' && value.length > 1000) {
-        sanitized[key] = value.substring(0, 1000) + '...[truncated]';
+        sanitized[key] = `${value.substring(0, 1000)}...[truncated]`;
       } else {
         sanitized[key] = value;
       }
@@ -354,7 +354,7 @@ class MCPAuditLogger {
       msg: `MCP Call: ${entry.toolFullName}`,
       ...entry
     };
-    
+
     if (logLevel === 'error') {
       console.error(JSON.stringify(logEntry));
     } else {
@@ -364,51 +364,51 @@ class MCPAuditLogger {
 
   getEntries(options = {}) {
     let entries = [...this.entries];
-    
+
     if (options.since) {
       const sinceTs = typeof options.since === 'string' ? new Date(options.since).getTime() : options.since;
-      entries = entries.filter(e => e.timestamp >= sinceTs);
+      entries = entries.filter((e) => e.timestamp >= sinceTs);
     }
-    
+
     if (options.until) {
       const untilTs = typeof options.until === 'string' ? new Date(options.until).getTime() : options.until;
-      entries = entries.filter(e => e.timestamp <= untilTs);
+      entries = entries.filter((e) => e.timestamp <= untilTs);
     }
-    
+
     if (options.toolFullName) {
-      entries = entries.filter(e => e.toolFullName === options.toolFullName);
+      entries = entries.filter((e) => e.toolFullName === options.toolFullName);
     }
-    
+
     if (options.server) {
-      entries = entries.filter(e => e.server === options.server);
+      entries = entries.filter((e) => e.server === options.server);
     }
-    
+
     if (options.role) {
-      entries = entries.filter(e => e.user.role === options.role);
+      entries = entries.filter((e) => e.user.role === options.role);
     }
-    
+
     if (options.username) {
-      entries = entries.filter(e => e.user.username === options.username);
+      entries = entries.filter((e) => e.user.username === options.username);
     }
-    
+
     if (options.success !== undefined) {
-      entries = entries.filter(e => e.result.success === options.success);
+      entries = entries.filter((e) => e.result.success === options.success);
     }
-    
+
     if (options.traceId) {
-      entries = entries.filter(e => e.traceId === options.traceId);
+      entries = entries.filter((e) => e.traceId === options.traceId);
     }
-    
+
     if (options.limit) {
       entries = entries.slice(-options.limit);
     }
-    
+
     return entries;
   }
 
   getStats(options = {}) {
     const entries = options.since ? this.getEntries({ since: options.since }) : this.entries;
-    
+
     const byRole = {};
     const byTool = {};
     const byServer = {};
@@ -417,34 +417,34 @@ class MCPAuditLogger {
     let failedCount = 0;
     let totalDuration = 0;
     let cachedCount = 0;
-    
+
     for (const entry of entries) {
       if (entry.result.success) {
         successCount++;
       } else {
         failedCount++;
       }
-      
+
       if (entry.result.cached) {
         cachedCount++;
       }
-      
+
       totalDuration += entry.result.duration || 0;
-      
+
       byRole[entry.user.role] = (byRole[entry.user.role] || 0) + 1;
       byTool[entry.toolFullName] = (byTool[entry.toolFullName] || 0) + 1;
       byServer[entry.server] = (byServer[entry.server] || 0) + 1;
-      
+
       const hour = new Date(entry.timestamp).toISOString().substring(0, 13);
       byHour[hour] = (byHour[hour] || 0) + 1;
     }
-    
+
     return {
       total: entries.length,
       success: successCount,
       failed: failedCount,
       cached: cachedCount,
-      cacheRate: entries.length > 0 ? ((cachedCount / entries.length) * 100).toFixed(2) + '%' : '0%',
+      cacheRate: entries.length > 0 ? `${((cachedCount / entries.length) * 100).toFixed(2)}%` : '0%',
       avgDuration: entries.length > 0 ? Math.round(totalDuration / entries.length) : 0,
       byRole,
       byTool,
@@ -458,11 +458,11 @@ class MCPAuditLogger {
   }
 
   export(format = 'json', options = {}) {
-    let entries = this.getEntries(options);
-    
+    const entries = this.getEntries(options);
+
     if (format === 'csv') {
       const headers = ['timestamp', 'iso', 'traceId', 'toolFullName', 'server', 'user.role', 'user.username', 'result.success', 'result.duration', 'result.cached', 'result.error'];
-      const rows = entries.map(e => [
+      const rows = entries.map((e) => [
         e.timestamp,
         e.iso,
         e.traceId,
@@ -477,7 +477,7 @@ class MCPAuditLogger {
       ].join(','));
       return [headers.join(','), ...rows].join('\n');
     }
-    
+
     return JSON.stringify(entries, null, 2);
   }
 

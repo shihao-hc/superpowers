@@ -15,13 +15,13 @@ class ThinkingChain {
    */
   createChain(initialThought, metadata = {}) {
     const chainId = `chain_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const chain = {
       id: chainId,
       createdAt: new Date().toISOString(),
       metadata,
       thoughts: [{
-        id: `step_1`,
+        id: 'step_1',
         thought: initialThought,
         thoughtNumber: 1,
         totalThoughts: 1,
@@ -78,13 +78,13 @@ class ThinkingChain {
       throw new Error(`Chain not found: ${chainId}`);
     }
 
-    const parentThought = chain.thoughts.find(t => t.id === fromThoughtId);
+    const parentThought = chain.thoughts.find((t) => t.id === fromThoughtId);
     if (!parentThought) {
       throw new Error(`Thought not found: ${fromThoughtId}`);
     }
 
     const branchId = `branch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const branch = {
       id: branchId,
       name: branchName || `Branch ${chain.branches.length + 1}`,
@@ -111,7 +111,7 @@ class ThinkingChain {
       throw new Error(`Chain not found: ${chainId}`);
     }
 
-    const branch = chain.branches.find(b => b.id === branchId);
+    const branch = chain.branches.find((b) => b.id === branchId);
     if (!branch) {
       throw new Error(`Branch not found: ${branchId}`);
     }
@@ -142,7 +142,7 @@ class ThinkingChain {
       throw new Error(`Chain not found: ${chainId}`);
     }
 
-    const originalThought = chain.thoughts.find(t => t.id === thoughtId);
+    const originalThought = chain.thoughts.find((t) => t.id === thoughtId);
     if (!originalThought) {
       throw new Error(`Thought not found: ${thoughtId}`);
     }
@@ -167,14 +167,14 @@ class ThinkingChain {
    */
   getChain(chainId) {
     const chain = this.chains.get(chainId);
-    if (!chain) return null;
+    if (!chain) {return null;}
 
     return {
       ...chain,
-      serialized: chain.thoughts.map(t => {
+      serialized: chain.thoughts.map((t) => {
         let prefix = `[${t.thoughtNumber}]`;
         if (t.branchId) {
-          const branch = chain.branches.find(b => b.id === t.branchId);
+          const branch = chain.branches.find((b) => b.id === t.branchId);
           prefix += ` (${branch?.name || 'unknown'})`;
         }
         if (t.reflectionOf) {
@@ -190,13 +190,13 @@ class ThinkingChain {
    * 获取所有思维链
    */
   getAllChains() {
-    return Array.from(this.chains.values()).map(chain => ({
+    return Array.from(this.chains.values()).map((chain) => ({
       id: chain.id,
-      initialThought: chain.initialThought,
+      initialThought: chain.thoughts[0]?.thought || '',
       createdAt: chain.createdAt,
       updatedAt: chain.updatedAt,
       thoughtCount: chain.thoughts.length,
-      branches: chain.branches.map(b => ({ id: b.id, name: b.name }))
+      branches: chain.branches.map((b) => ({ id: b.id, name: b.name }))
     }));
   }
 
@@ -208,8 +208,8 @@ class ThinkingChain {
     if (!chain) {
       throw new Error(`Chain not found: ${chainId}`);
     }
-    
-    const thought = chain.thoughts.find(t => t.id === thoughtId);
+
+    const thought = chain.thoughts.find((t) => t.id === thoughtId);
     if (!thought) {
       throw new Error(`Thought not found: ${thoughtId}`);
     }
@@ -217,7 +217,7 @@ class ThinkingChain {
     thought.reflection = criticism;
     thought.reflectionOf = thoughtId;
     thought.reflectedAt = new Date().toISOString();
-    
+
     chain.updatedAt = new Date().toISOString();
     return this.getChain(chainId);
   }
@@ -227,7 +227,7 @@ class ThinkingChain {
    */
   getBranches(chainId) {
     const chain = this.chains.get(chainId);
-    if (!chain) return [];
+    if (!chain) {return [];}
     return chain.branches;
   }
 
@@ -236,8 +236,8 @@ class ThinkingChain {
    */
   getBranchThoughts(chainId, branchId) {
     const chain = this.chains.get(chainId);
-    if (!chain) return [];
-    return chain.thoughts.filter(t => t.branchId === branchId);
+    if (!chain) {return [];}
+    return chain.thoughts.filter((t) => t.branchId === branchId);
   }
 
   /**
@@ -245,7 +245,7 @@ class ThinkingChain {
    */
   toResource(chainId) {
     const chain = this.getChain(chainId);
-    if (!chain) return null;
+    if (!chain) {return null;}
 
     return {
       uri: `thinking://${chainId}`,
@@ -261,20 +261,20 @@ class ThinkingChain {
    */
   serialize(chainId) {
     const chain = this.getChain(chainId);
-    if (!chain) return null;
+    if (!chain) {return null;}
 
     return {
       id: chain.id,
       createdAt: chain.createdAt,
       metadata: chain.metadata,
-      steps: chain.thoughts.map(t => ({
+      steps: chain.thoughts.map((t) => ({
         number: t.thoughtNumber,
         thought: t.thought,
         reasoning: t.reasoning,
         hasReflection: !!t.reflectionOf,
-        branch: t.branchId ? chain.branches.find(b => b.id === t.branchId)?.name : null
+        branch: t.branchId ? chain.branches.find((b) => b.id === t.branchId)?.name : null
       })),
-      branches: chain.branches.map(b => ({
+      branches: chain.branches.map((b) => ({
         id: b.id,
         name: b.name,
         direction: b.direction
@@ -289,8 +289,8 @@ class ThinkingChain {
   generateSummary(chain) {
     const totalSteps = chain.thoughts.length;
     const branches = chain.branches.length;
-    const reflections = chain.thoughts.filter(t => t.reflectionOf).length;
-    
+    const reflections = chain.thoughts.filter((t) => t.reflectionOf).length;
+
     return {
       totalSteps,
       branches,
@@ -305,14 +305,14 @@ class ThinkingChain {
    * 计算持续时间
    */
   calculateDuration(chain) {
-    if (chain.thoughts.length < 2) return null;
-    
+    if (chain.thoughts.length < 2) {return null;}
+
     const first = new Date(chain.thoughts[0].timestamp);
     const last = new Date(chain.thoughts[chain.thoughts.length - 1].timestamp);
     const ms = last - first;
-    
-    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-    if (ms < 3600000) return `${Math.round(ms / 60000)}m`;
+
+    if (ms < 60000) {return `${Math.round(ms / 1000)}s`;}
+    if (ms < 3600000) {return `${Math.round(ms / 60000)}m`;}
     return `${Math.round(ms / 3600000)}h`;
   }
 
@@ -337,12 +337,12 @@ class ThinkingChain {
    */
   deleteChain(chainId) {
     const chain = this.chains.get(chainId);
-    if (!chain) return false;
+    if (!chain) {return false;}
 
     for (const branch of chain.branches) {
       this.branches.delete(branch.id);
     }
-    
+
     this.chains.delete(chainId);
     if (this.currentChainId === chainId) {
       this.currentChainId = null;
@@ -354,7 +354,7 @@ class ThinkingChain {
    * 获取当前思维链
    */
   getCurrentChain() {
-    if (!this.currentChainId) return null;
+    if (!this.currentChainId) {return null;}
     return this.getChain(this.currentChainId);
   }
 
@@ -362,7 +362,7 @@ class ThinkingChain {
    * 列出所有思维链
    */
   listChains() {
-    return Array.from(this.chains.values()).map(chain => ({
+    return Array.from(this.chains.values()).map((chain) => ({
       id: chain.id,
       createdAt: chain.createdAt,
       status: chain.status,

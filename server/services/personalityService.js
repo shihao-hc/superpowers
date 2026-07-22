@@ -90,7 +90,7 @@ const SENTIMENT_LEXICON = {
     '开心': 0.9, '高兴': 0.9, '快乐': 0.8, '优秀': 0.7, '赞': 0.8,
     '666': 0.7, 'awesome': 0.8, 'love': 0.9, 'great': 0.8, 'nice': 0.7,
     '哈哈哈': 0.8, '哈哈': 0.6, '嘿嘿': 0.6, '嘻嘻': 0.7,
-    '太好了': 0.9, '真棒': 0.9, '完美': 0.9, '优秀': 0.8, '点赞': 0.8
+    '太好了': 0.9, '真棒': 0.9, '完美': 0.9, '卓越': 0.8, '点赞': 0.8
   },
   negative: {
     '差': -0.7, '垃圾': -0.9, '无聊': -0.6, '讨厌': -0.8, '烂': -0.8,
@@ -206,8 +206,8 @@ class PersonalityService extends EventEmitter {
     }
 
     let score = 0;
-    let hasPositive = false;
-    let hasNegative = false;
+    let _hasPositive = false;
+    let _hasNegative = false;
     let intensifier = 1;
     let isNegated = false;
 
@@ -229,7 +229,7 @@ class PersonalityService extends EventEmitter {
       if (SENTIMENT_LEXICON.positive[word]) {
         const wordScore = SENTIMENT_LEXICON.positive[word] * intensifier;
         score += isNegated ? -wordScore : wordScore;
-        hasPositive = true;
+        _hasPositive = true;
         intensifier = 1;
         isNegated = false;
       }
@@ -237,7 +237,7 @@ class PersonalityService extends EventEmitter {
       if (SENTIMENT_LEXICON.negative[word]) {
         const wordScore = SENTIMENT_LEXICON.negative[word] * intensifier;
         score += isNegated ? -wordScore : wordScore;
-        hasNegative = true;
+        _hasNegative = true;
         intensifier = 1;
         isNegated = false;
       }
@@ -410,13 +410,13 @@ class PersonalityService extends EventEmitter {
     let results = [...this.emotionMemory];
 
     if (startTime) {
-      results = results.filter(m => m.timestamp >= startTime);
+      results = results.filter((m) => m.timestamp >= startTime);
     }
     if (endTime) {
-      results = results.filter(m => m.timestamp <= endTime);
+      results = results.filter((m) => m.timestamp <= endTime);
     }
     if (mood) {
-      results = results.filter(m => m.emotionState.mood === mood);
+      results = results.filter((m) => m.emotionState.mood === mood);
     }
 
     return results.slice(-limit);

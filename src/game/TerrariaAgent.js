@@ -15,16 +15,16 @@ class TerrariaAgent {
   async connect() {
     return new Promise((resolve, reject) => {
       this.socket = new net.Socket();
-      
+
       const connectOptions = { host: this.host, port: this.port };
-      
+
       this.socket.connect(connectOptions, () => {
         console.log('[Terraria] Connected to server');
-        
+
         if (this.password) {
           this.socket.write(`${this.password}\n`);
         }
-        
+
         this.socket.write(`login ${this.name}\n`);
         this.connected = true;
         resolve({ ok: true });
@@ -43,7 +43,7 @@ class TerrariaAgent {
         console.error('[Terraria] Error:', err.message);
         reject(err);
       });
-      
+
       this.socket.setTimeout(10000, () => {
         this.socket.destroy();
         reject(new Error('Connection timeout'));
@@ -53,7 +53,7 @@ class TerrariaAgent {
 
   _handleData(data) {
     const lines = data.split('\n');
-    
+
     for (const line of lines) {
       if (line.includes('Player has joined')) {
         this._handlePlayerJoin(line);
@@ -93,27 +93,27 @@ class TerrariaAgent {
   }
 
   _validateCommand(command) {
-    if (!command || typeof command !== 'string') return false;
-    if (command.length > 200) return false;
-    
+    if (!command || typeof command !== 'string') {return false;}
+    if (command.length > 200) {return false;}
+
     const allowedCommands = ['players', 'world', 'list', 'version', 'status'];
-    
+
     const trimmed = command.trim().toLowerCase();
     for (const allowed of allowedCommands) {
-      if (trimmed === allowed || trimmed.startsWith(allowed + ' ')) {
+      if (trimmed === allowed || trimmed.startsWith(`${allowed} `)) {
         return true;
       }
     }
-    
-    if (/^(tp|teleport)\s+[\w.]+\s+[\d.-]+\s+[\d.-]+$/i.test(trimmed)) return true;
-    if (/^give\s+\w+\s+\w+\s*\d*$/i.test(trimmed)) return true;
-    if (/^(kick|mute|ban)\s+\w+/i.test(trimmed)) return true;
-    
+
+    if (/^(tp|teleport)\s+[\w.]+\s+[\d.-]+\s+[\d.-]+$/i.test(trimmed)) {return true;}
+    if (/^give\s+\w+\s+\w+\s*\d*$/i.test(trimmed)) {return true;}
+    if (/^(kick|mute|ban)\s+\w+/i.test(trimmed)) {return true;}
+
     const dangerous = [';', '&&', '||', '|', '`', '$(', '\n', '\r', '\0', '>', '<'];
     for (const char of dangerous) {
-      if (command.includes(char)) return false;
+      if (command.includes(char)) {return false;}
     }
-    
+
     return true;
   }
 
@@ -121,22 +121,22 @@ class TerrariaAgent {
     if (!this.connected) {
       return Promise.reject(new Error('Not connected'));
     }
-    
+
     if (!this._validateCommand(command)) {
       return Promise.reject(new Error('Command not allowed'));
     }
-    
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Command timeout'));
       }, 5000);
-      
+
       const handler = (data) => {
         clearTimeout(timeout);
         this.socket.removeListener('data', handler);
         resolve(data.toString());
       };
-      
+
       this.socket.on('data', handler);
       this.socket.write(`${command}\n`);
     });
@@ -185,7 +185,7 @@ class TerrariaAgent {
   }
 
   _sanitizeName(name) {
-    if (!name || typeof name !== 'string') return 'Unknown';
+    if (!name || typeof name !== 'string') {return 'Unknown';}
     return name.replace(/[^a-zA-Z0-9._-]/g, '').substring(0, 30);
   }
 
@@ -227,11 +227,11 @@ class TerrariaWorld {
     return tiles;
   }
 
-  async findChest(x, y, radius = 100) {
+  async findChest(x, y, _radius = 100) {
     return [];
   }
 
-  async findNPC(name) {
+  async findNPC(_name) {
     return null;
   }
 }

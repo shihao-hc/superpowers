@@ -18,7 +18,7 @@ class PerformanceOptimizer {
         value,
         timestamp: new Date().toISOString()
       });
-      
+
       // Keep last 1000 metrics
       if (this.metrics[type].length > 1000) {
         this.metrics[type].shift();
@@ -32,8 +32,8 @@ class PerformanceOptimizer {
 
   getAverage(type) {
     const data = this.metrics[type];
-    if (!data || data.length === 0) return 0;
-    
+    if (!data || data.length === 0) {return 0;}
+
     const sum = data.reduce((acc, m) => acc + m.value, 0);
     return sum / data.length;
   }
@@ -49,7 +49,7 @@ class PerformanceOptimizer {
     const avg = this.getAverage(type);
     const p95 = this.getPercentile(type, 95);
     const threshold = avg * 1.5;
-    
+
     return {
       average: avg,
       p95,

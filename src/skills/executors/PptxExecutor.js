@@ -17,30 +17,30 @@ class PptxExecutor {
    */
   async execute(inputs = {}) {
     const { action = 'create', ...params } = inputs;
-    
+
     if (!this.supportedActions.includes(action)) {
       throw new Error(`Unsupported action: ${action}. Supported: ${this.supportedActions.join(', ')}`);
     }
 
     try {
       switch (action) {
-        case 'create':
-          return await this.createPresentation(params);
-        case 'addSlide':
-          return await this.addSlide(params);
-        case 'addText':
-          return await this.addText(params);
-        case 'addImage':
-          return await this.addImage(params);
-        case 'addTable':
-          return await this.addTable(params);
-        case 'save':
-          return await this.savePresentation(params);
-        default:
-          throw new Error(`Unknown action: ${action}`);
+      case 'create':
+        return await this.createPresentation(params);
+      case 'addSlide':
+        return await this.addSlide(params);
+      case 'addText':
+        return await this.addText(params);
+      case 'addImage':
+        return await this.addImage(params);
+      case 'addTable':
+        return await this.addTable(params);
+      case 'save':
+        return await this.savePresentation(params);
+      default:
+        throw new Error(`Unknown action: ${action}`);
       }
     } catch (error) {
-      throw new Error(`PPTX execution failed: ${error.message}`);
+      throw new Error(`PPTX execution failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -49,7 +49,7 @@ class PptxExecutor {
    */
   async createPresentation(params) {
     const { title = 'Presentation', author = 'UltraWork AI', layout = 'widescreen' } = params;
-    
+
     // Placeholder implementation - would use pptx library in production
     const presentation = {
       id: `pptx-${Date.now()}`,
@@ -75,7 +75,7 @@ class PptxExecutor {
    */
   async addSlide(params) {
     const { presentation, layout = 'titleAndContent', title = '', content = '' } = params;
-    
+
     const slide = {
       id: `slide-${Date.now()}`,
       slideNumber: (presentation?.slides?.length || 0) + 1,
@@ -102,7 +102,7 @@ class PptxExecutor {
    */
   async addText(params) {
     const { slide, text, x = 0, y = 0, width = '100%', fontSize = 18, color = '#000000' } = params;
-    
+
     const textElement = {
       type: 'text',
       text,
@@ -131,7 +131,7 @@ class PptxExecutor {
    */
   async addImage(params) {
     const { slide, imagePath, x = 0, y = 0, width = 300, height = 200 } = params;
-    
+
     const imageElement = {
       type: 'image',
       path: imagePath,
@@ -159,7 +159,7 @@ class PptxExecutor {
    */
   async addTable(params) {
     const { slide, rows = [], columns = [], x = 0, y = 0 } = params;
-    
+
     const tableElement = {
       type: 'table',
       rows,
@@ -186,13 +186,13 @@ class PptxExecutor {
    */
   async savePresentation(params) {
     const { presentation, outputPath } = params;
-    
+
     if (!presentation) {
       throw new Error('No presentation to save');
     }
 
     const output = outputPath || path.join(process.cwd(), 'uploads', 'skills', 'pptx', `${presentation.id}.pptx`);
-    
+
     // Ensure directory exists
     const dir = path.dirname(output);
     if (!fs.existsSync(dir)) {
@@ -201,11 +201,11 @@ class PptxExecutor {
 
     // In production, would use pptx library to create actual file
     // For now, save as JSON representation
-    fs.writeFileSync(output + '.json', JSON.stringify(presentation, null, 2));
+    fs.writeFileSync(`${output}.json`, JSON.stringify(presentation, null, 2));
 
     return {
       success: true,
-      path: output + '.json',
+      path: `${output}.json`,
       slideCount: presentation.slides?.length || 0,
       message: `Saved presentation: ${presentation.title}`
     };

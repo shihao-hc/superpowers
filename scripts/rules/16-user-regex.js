@@ -16,6 +16,7 @@ module.exports = {
       report('MEDIUM', 'USER_REGEX', `行 ${i + 1}: ${lines[i].trim().substring(0, 100)}`, '动态创建 RegExp，需验证/限制输入防止 ReDoS');
     }
   },
+  suggest: '限制用户输入的 RegExp 长度和复杂度和超时。使用 regex 长度限制（最多 50 字符），避免嵌套量词。对用户输入先进行 escapeRegex（转义特殊字符），再用于 RegExp 构造。考虑使用 indexOf/includes 替代动态正则。',
   references: ['CWE-1333'],
   since: '2026-06-28',
 };

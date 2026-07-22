@@ -12,7 +12,7 @@ class IntentUnderstanding {
     this.skillBindings = new Map();
     this.contextWindow = [];
     this.conversationHistory = new Map();
-    
+
     this._initIntentPatterns();
     this._initSkillBindings();
   }
@@ -142,7 +142,7 @@ class IntentUnderstanding {
 
   // 理解用户意图
   async understand(message, context = {}) {
-    const { userId, history = [], attachments = [] } = context;
+    const { userId, history: _history = [], attachments = [] } = context;
 
     // 1. 意图识别
     const intent = this._recognizeIntent(message);
@@ -184,7 +184,7 @@ class IntentUnderstanding {
       for (const p of pattern.patterns) {
         if (lowerMessage.includes(p.toLowerCase())) {
           const confidence = this._calculateConfidence(lowerMessage, p);
-          if (confidence > bestMatch.confidence || 
+          if (confidence > bestMatch.confidence ||
               (confidence === bestMatch.confidence && pattern.priority < bestMatch.priority)) {
             bestMatch = { name, confidence, priority: pattern.priority, pattern: p };
           }
@@ -198,19 +198,19 @@ class IntentUnderstanding {
   _calculateConfidence(message, pattern) {
     const patternLen = pattern.length;
     const matchLen = message.split(pattern.toLowerCase())[0]?.length || 0;
-    
+
     // 越靠前的匹配置信度越高
     const positionBonus = 1 - (matchLen / message.length) * 0.3;
-    
+
     // 模式长度越长置信度越高
     const lengthBonus = Math.min(patternLen / 10, 0.3);
-    
+
     return Math.min(0.5 + positionBonus + lengthBonus, 1);
   }
 
   _extractSlots(message, intent) {
     const slots = {};
-    const pattern = intent.pattern || '';
+    const _pattern = intent.pattern || '';
 
     // 基于关键词提取槽位
     const slotExtractors = {
@@ -228,7 +228,7 @@ class IntentUnderstanding {
     for (const [slotName, extractor] of Object.entries(slotExtractors)) {
       const matches = message.match(extractor);
       if (matches) {
-        slots[slotName] = matches.map(m => m.trim()).filter(Boolean);
+        slots[slotName] = matches.map((m) => m.trim()).filter(Boolean);
       }
     }
 
@@ -253,7 +253,7 @@ class IntentUnderstanding {
     // 从历史中补全缺失的槽位
     if (history.length > 0) {
       const lastInteraction = history[history.length - 1];
-      
+
       if (!completed.period && lastInteraction.slots?.period) {
         completed.period = lastInteraction.slots.period;
         completed._fromContext = 'period';
@@ -269,15 +269,15 @@ class IntentUnderstanding {
 
   _matchSkills(intent, slots, attachments) {
     const bindings = this.skillBindings.get(intent.name);
-    if (!bindings) return [];
+    if (!bindings) {return [];}
 
     const skills = [];
 
     // 基于槽位匹配
     for (const [key, skillList] of Object.entries(bindings)) {
-      if (slots.target?.some(t => t.toLowerCase().includes(key)) ||
-          slots.content_type?.some(c => c.toLowerCase().includes(key)) ||
-          slots.topic?.some(t => t.toLowerCase().includes(key))) {
+      if (slots.target?.some((t) => t.toLowerCase().includes(key)) ||
+          slots.content_type?.some((c) => c.toLowerCase().includes(key)) ||
+          slots.topic?.some((t) => t.toLowerCase().includes(key))) {
         skills.push(...skillList);
       }
     }
@@ -304,31 +304,31 @@ class IntentUnderstanding {
 
     // 根据意图类型生成参数
     switch (intent.name) {
-      case 'analyze':
-        parameters.target = slots.target?.[0] || 'document';
-        parameters.scope = slots.scope?.[0] || 'full';
-        parameters.depth = slots.target?.includes('详细') ? 'deep' : 'standard';
-        break;
+    case 'analyze':
+      parameters.target = slots.target?.[0] || 'document';
+      parameters.scope = slots.scope?.[0] || 'full';
+      parameters.depth = slots.target?.includes('详细') ? 'deep' : 'standard';
+      break;
 
-      case 'generate':
-        parameters.format = slots.format?.[0] || slots.content_type?.[0] || 'pdf';
-        parameters.template = slots.topic?.[0] || 'standard';
-        parameters.includeCharts = true;
-        break;
+    case 'generate':
+      parameters.format = slots.format?.[0] || slots.content_type?.[0] || 'pdf';
+      parameters.template = slots.topic?.[0] || 'standard';
+      parameters.includeCharts = true;
+      break;
 
-      case 'predict':
-        parameters.timeframe = slots.timeframe?.[0] || 'next_week';
-        parameters.confidenceLevel = 0.95;
-        break;
+    case 'predict':
+      parameters.timeframe = slots.timeframe?.[0] || 'next_week';
+      parameters.confidenceLevel = 0.95;
+      break;
 
-      case 'report':
-        parameters.period = slots.period?.[0] || 'current_week';
-        parameters.format = slots.format?.[0] || 'pdf';
-        parameters.includeSummary = true;
-        break;
+    case 'report':
+      parameters.period = slots.period?.[0] || 'current_week';
+      parameters.format = slots.format?.[0] || 'pdf';
+      parameters.includeSummary = true;
+      break;
 
-      default:
-        parameters.rawInput = slots;
+    default:
+      parameters.rawInput = slots;
     }
 
     // 从技能要求推断参数
@@ -389,8 +389,8 @@ class IntentUnderstanding {
     };
 
     const base = suggestions[intent.name] || '请提供更多详细信息';
-    const skillInfo = skills.length > 0 
-      ? `将使用: ${skills.slice(0, 2).join(', ')}` 
+    const skillInfo = skills.length > 0
+      ? `将使用: ${skills.slice(0, 2).join(', ')}`
       : '';
 
     return [base, skillInfo].filter(Boolean).join('。');
@@ -412,7 +412,7 @@ class IntentUnderstanding {
   }
 
   // 多模态理解
-  async understandMultimodal(content, context = {}) {
+  async understandMultimodal(content, _context = {}) {
     const { type, data, caption } = content;
 
     let intent = { name: 'unknown', confidence: 0 };
@@ -420,33 +420,37 @@ class IntentUnderstanding {
     let parameters = {};
 
     switch (type) {
-      case 'image':
-        const imageAnalysis = await this._analyzeImage(data);
-        intent = imageAnalysis.intent;
-        matchedSkills = imageAnalysis.skills;
-        parameters = { imageData: data, ...imageAnalysis.details };
-        break;
+    case 'image': {
+      const imageAnalysis = await this._analyzeImage(data);
+      intent = imageAnalysis.intent;
+      matchedSkills = imageAnalysis.skills;
+      parameters = { imageData: data, ...imageAnalysis.details };
+      break;
+    }
 
-      case 'audio':
-        const speechResult = await this._transcribeAndUnderstand(data);
-        intent = speechResult.intent;
-        matchedSkills = speechResult.skills;
-        parameters = { transcript: speechResult.text, ...speechResult.parameters };
-        break;
+    case 'audio': {
+      const speechResult = await this._transcribeAndUnderstand(data);
+      intent = speechResult.intent;
+      matchedSkills = speechResult.skills;
+      parameters = { transcript: speechResult.text, ...speechResult.parameters };
+      break;
+    }
 
-      case 'video':
-        const videoAnalysis = await this._analyzeVideo(data);
-        intent = videoAnalysis.intent;
-        matchedSkills = videoAnalysis.skills;
-        parameters = { videoFrames: videoAnalysis.frames, ...videoAnalysis.details };
-        break;
+    case 'video': {
+      const videoAnalysis = await this._analyzeVideo(data);
+      intent = videoAnalysis.intent;
+      matchedSkills = videoAnalysis.skills;
+      parameters = { videoFrames: videoAnalysis.frames, ...videoAnalysis.details };
+      break;
+    }
 
-      case 'document':
-        const docResult = await this._understandDocument(data);
-        intent = docResult.intent;
-        matchedSkills = docResult.skills;
-        parameters = { document: data, ...docResult.details };
-        break;
+    case 'document': {
+      const docResult = await this._understandDocument(data);
+      intent = docResult.intent;
+      matchedSkills = docResult.skills;
+      parameters = { document: data, ...docResult.details };
+      break;
+    }
     }
 
     // 合并caption信息
@@ -467,7 +471,7 @@ class IntentUnderstanding {
     };
   }
 
-  async _analyzeImage(imageData) {
+  async _analyzeImage(_imageData) {
     // 模拟图像分析
     const analysis = {
       xray: { intent: 'analyze', skills: ['medical-image-analysis'], details: { modality: 'x-ray' } },
@@ -481,7 +485,7 @@ class IntentUnderstanding {
     return analysis.document;
   }
 
-  async _transcribeAndUnderstand(audioData) {
+  async _transcribeAndUnderstand(_audioData) {
     // 模拟语音转文字和理解
     return {
       text: '分析本周销售数据并生成报告',
@@ -578,12 +582,12 @@ class SkillChainExecutor {
 
       // 执行步骤
       let currentOutput = initialInput;
-      
+
       for (const stepGroup of executionPlan) {
         if (chain.parallel) {
           // 并行执行
           const results = await Promise.all(
-            stepGroup.map(step => this._executeStep(step, currentOutput, context))
+            stepGroup.map((step) => this._executeStep(step, currentOutput, context))
           );
           currentOutput = results;
         } else {
@@ -591,7 +595,7 @@ class SkillChainExecutor {
           for (const step of stepGroup) {
             const result = await this._executeStep(step, currentOutput, context);
             currentOutput = result.output;
-            
+
             execution.steps.push({
               stepId: step.id,
               skill: step.skill,
@@ -627,17 +631,17 @@ class SkillChainExecutor {
   _buildExecutionPlan(steps) {
     const plan = [];
     const executed = new Set();
-    
+
     // 简单的拓扑排序
     while (executed.size < steps.length) {
       const currentBatch = [];
-      
+
       for (const step of steps) {
-        if (executed.has(step.id)) continue;
-        
+        if (executed.has(step.id)) {continue;}
+
         // 检查依赖是否都已执行
-        const depsSatisfied = step.dependsOn.every(dep => executed.has(dep));
-        
+        const depsSatisfied = step.dependsOn.every((dep) => executed.has(dep));
+
         if (depsSatisfied) {
           currentBatch.push(step);
         }
@@ -648,7 +652,7 @@ class SkillChainExecutor {
       }
 
       plan.push(currentBatch);
-      currentBatch.forEach(step => executed.add(step.id));
+      currentBatch.forEach((step) => executed.add(step.id));
     }
 
     return plan;
@@ -676,7 +680,7 @@ class SkillChainExecutor {
       } catch (error) {
         lastError = error;
         attempts++;
-        
+
         if (attempts < step.retry) {
           await this._delay(1000 * attempts); // 指数退避
         }
@@ -698,7 +702,7 @@ class SkillChainExecutor {
     if (typeof condition === 'function') {
       return condition(data);
     }
-    
+
     if (typeof condition === 'string') {
       try {
         return this._safeEvaluate(condition, data);
@@ -717,60 +721,64 @@ class SkillChainExecutor {
     }
 
     const valueMap = new Map(Object.entries(data));
-    
+
     const resolveValue = (token) => {
       if (valueMap.has(token)) {
         return valueMap.get(token);
       }
-      if (token === 'true') return true;
-      if (token === 'false') return false;
-      if (token === 'null') return null;
-      if (token === 'undefined') return undefined;
+      // eslint-disable-next-line security/detect-possible-timing-attacks
+      if (token === 'true') {return true;}
+      // eslint-disable-next-line security/detect-possible-timing-attacks
+      if (token === 'false') {return false;}
+      // eslint-disable-next-line security/detect-possible-timing-attacks
+      if (token === 'null') {return null;}
+      // eslint-disable-next-line security/detect-possible-timing-attacks
+      if (token === 'undefined') {return undefined;}
       const num = Number(token);
-      if (!isNaN(num) && token.trim() !== '') return num;
+      if (!isNaN(num) && token.trim() !== '') {return num;}
       return token;
     };
 
     const tokens = expression.match(/(\w+|\d+\.?\d*|[<>=!&|()]+)/g) || [];
-    
+
     let result = resolveValue(tokens[0]);
     for (let i = 1; i < tokens.length; i += 2) {
       const op = tokens[i];
       const nextVal = resolveValue(tokens[i + 1]);
-      
+
       switch (op) {
-        case '==': result = result == nextVal; break;
-        case '===': result = result === nextVal; break;
-        case '!=': result = result != nextVal; break;
-        case '!==': result = result !== nextVal; break;
-        case '>': result = result > nextVal; break;
-        case '>=': result = result >= nextVal; break;
-        case '<': result = result < nextVal; break;
-        case '<=': result = result <= nextVal; break;
-        case '&&': result = result && nextVal; break;
-        case '||': result = result || nextVal; break;
-        case '&': result = result & nextVal; break;
-        case '|': result = result | nextVal; break;
-        default: break;
+      case '==': result = result == nextVal; break; // eslint-disable-line eqeqeq
+      case '===': result = result === nextVal; break;
+      case '!=': result = result != nextVal; break; // eslint-disable-line eqeqeq
+      case '!==': result = result !== nextVal; break;
+      case '>': result = result > nextVal; break;
+      case '>=': result = result >= nextVal; break;
+      case '<': result = result < nextVal; break;
+      case '<=': result = result <= nextVal; break;
+      case '&&': result = result && nextVal; break;
+      case '||': result = result || nextVal; break;
+      case '&': result = result & nextVal; break;
+      case '|': result = result | nextVal; break;
+      default: break;
       }
     }
-    
+
     return !!result;
   }
 
   _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   _saveExecution(execution) {
     const history = this.executionHistory.get(execution.chainId) || [];
     history.push(execution);
-    
+
     // 保持最近100条
     if (history.length > 100) {
       history.shift();
     }
-    
+
     this.executionHistory.set(execution.chainId, history);
   }
 

@@ -10,7 +10,7 @@ class PriceMonitorPanel {
 
   async init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     await this.loadData();
     this.render();
@@ -24,15 +24,15 @@ class PriceMonitorPanel {
         fetch('/api/price-monitor/alerts')
       ]);
 
-      if (prodRes.ok) this.products = await prodRes.json();
-      if (alertRes.ok) this.alerts = await alertRes.json();
+      if (prodRes.ok) {this.products = await prodRes.json();}
+      if (alertRes.ok) {this.alerts = await alertRes.json();}
     } catch (e) {
       console.warn('[PriceMonitorPanel] Load failed:', e);
     }
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.container.innerHTML = `
       <div class="price-monitor-panel">
@@ -63,18 +63,18 @@ class PriceMonitorPanel {
 
   renderAlerts() {
     const list = document.getElementById('alerts-list');
-    if (!list) return;
+    if (!list) {return;}
 
     list.innerHTML = '';
 
-    const unreadAlerts = this.alerts.filter(a => !a.read).slice(0, 5);
+    const unreadAlerts = this.alerts.filter((a) => !a.read).slice(0, 5);
 
     if (unreadAlerts.length === 0) {
       list.innerHTML = '<div class="empty-state">暂无新告警</div>';
       return;
     }
 
-    unreadAlerts.forEach(alert => {
+    unreadAlerts.forEach((alert) => {
       const item = document.createElement('div');
       item.className = `alert-item alert-${alert.type}`;
 
@@ -106,7 +106,7 @@ class PriceMonitorPanel {
 
   renderProducts() {
     const grid = document.getElementById('products-grid');
-    if (!grid) return;
+    if (!grid) {return;}
 
     grid.innerHTML = '';
 
@@ -115,7 +115,7 @@ class PriceMonitorPanel {
       return;
     }
 
-    this.products.forEach(product => {
+    this.products.forEach((product) => {
       const card = this.createProductCard(product);
       grid.appendChild(card);
     });
@@ -175,7 +175,7 @@ class PriceMonitorPanel {
 
   async recordPrice(productId) {
     const price = prompt('输入当前价格:');
-    if (!price) return;
+    if (!price) {return;}
 
     try {
       await fetch(`/api/price-monitor/products/${productId}/price`, {
@@ -187,7 +187,7 @@ class PriceMonitorPanel {
       await this.loadData();
       this.render();
     } catch (e) {
-      alert('记录价格失败: ' + e.message);
+      alert(`记录价格失败: ${e.message}`);
     }
   }
 
@@ -216,13 +216,13 @@ class PriceMonitorPanel {
           </div>
         </div>
         <div class="history-chart" id="history-chart">
-          ${(product.priceHistory || []).slice(-20).map(h => {
-            const safePrice = typeof h.price === 'number' ? h.price.toFixed(2) : '0';
-            const safeHeight = Math.min(100, (h.price || 0) / (product.highestPrice || 100) * 100);
-            return `<div class="history-bar" style="height: ${safeHeight}%">
+          ${(product.priceHistory || []).slice(-20).map((h) => {
+    const safePrice = typeof h.price === 'number' ? h.price.toFixed(2) : '0';
+    const safeHeight = Math.min(100, (h.price || 0) / (product.highestPrice || 100) * 100);
+    return `<div class="history-bar" style="height: ${safeHeight}%">
               <span class="bar-price">¥${this.escapeHtml(safePrice)}</span>
             </div>`;
-          }).join('')}
+  }).join('')}
         </div>
         <div class="form-actions">
           <button class="btn-cancel" id="close-history">关闭</button>
@@ -234,7 +234,7 @@ class PriceMonitorPanel {
 
     modal.querySelector('#close-history')?.addEventListener('click', () => modal.remove());
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 
@@ -310,12 +310,12 @@ class PriceMonitorPanel {
         await this.loadData();
         this.render();
       } catch (e) {
-        alert('添加失败: ' + e.message);
+        alert(`添加失败: ${e.message}`);
       }
     });
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 
@@ -339,9 +339,9 @@ class PriceMonitorPanel {
     if (typeof window !== 'undefined' && window.UltraWorkUtils && window.UltraWorkUtils.escapeHtml) {
       return window.UltraWorkUtils.escapeHtml(str);
     }
-    
+
     // 备用实现
-    if (!str) return '';
+    if (!str) {return '';}
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;

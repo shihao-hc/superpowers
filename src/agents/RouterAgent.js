@@ -3,14 +3,18 @@ const path = require('path');
 let skillAutoLoader = null;
 
 class RouterAgent {
-  constructor(pm, chatAgent, memoryAgent, mediaAgent, gameAgent) {
+  constructor(pm, chatAgent, memoryAgent, mediaAgent, gameAgent, options = {}) {
     this.pm = pm;
     this.chat = chatAgent;
     this.memory = memoryAgent;
     this.media = mediaAgent;
     this.game = gameAgent;
     this.loadedSkills = new Set();
-    
+
+    // 新模块注入
+    this.hooksManager = options.hooksManager || null;
+    this.suggestionPipeline = options.suggestionPipeline || null;
+
     this._initSkillAutoLoader();
   }
 
@@ -30,7 +34,7 @@ class RouterAgent {
 
   _matchKeywords(text, keywords) {
     const lower = (text || '').toLowerCase();
-    return keywords.some(kw => lower.includes(kw.toLowerCase()));
+    return keywords.some((kw) => lower.includes(kw.toLowerCase()));
   }
 
   /**
@@ -43,7 +47,7 @@ class RouterAgent {
 
     try {
       const result = skillAutoLoader.getSkillsForMessage(message);
-      
+
       // 加载尚未加载的技能
       const newSkills = [];
       for (const skillName of result.skills) {
@@ -69,30 +73,68 @@ class RouterAgent {
   }
 
   async routeMessage(message, contextHistory = []) {
-    // 自动加载技能
+    // 1. HooksManager 前置检查
+    if (this.hooksManager) {
+      const hookResult = await this.hooksManager.preAgent({
+        message,
+        contextHistory
+      });
+      if (!hookResult.allowed) {
+        return {
+          reply: hookResult.message || '[Blocked by hook]',
+          routing: { target: 'hook-blocked' },
+          mood: this.pm?.getMood() || 'neutral',
+          blocked: true
+        };
+      }
+      // 如果 hook 修改了消息
+      if (hookResult.modified) {
+        message = hookResult.modified;
+      }
+    }
+
+    // 2. 自动加载技能
     const skillInfo = await this._autoLoadSkills(message);
-    
+
+    // 3. SuggestionPipeline 建议生成
+    let suggestions = [];
+    if (this.suggestionPipeline) {
+      try {
+        const suggestionResult = await this.suggestionPipeline.execute({
+          message,
+          skills: skillInfo.skills
+        });
+        if (suggestionResult.suggestions) {
+          suggestions = suggestionResult.suggestions;
+        }
+      } catch (e) {
+        console.warn('[RouterAgent] SuggestionPipeline error:', e.message);
+      }
+    }
+
     // 将技能信息传递给上下文
     const enhancedContext = {
       ...contextHistory,
       skills: skillInfo.skills,
       taskType: skillInfo.taskType,
-      autoLoaded: skillInfo.newSkills || []
+      autoLoaded: skillInfo.newSkills || [],
+      suggestions
     };
 
     const mediaKw = this.pm.getRoutingKeywords('media');
     const gameKw = this.pm.getRoutingKeywords('game');
     const memoryKw = this.pm.getRoutingKeywords('memory');
-    
+
     if (this.memory) {
-      this.memory.remember('last_user_message', { 
-        text: message, 
+      this.memory.remember('last_user_message', {
+        text: message,
         at: new Date().toISOString(),
         skills: skillInfo.skills,
-        taskType: skillInfo.taskType
+        taskType: skillInfo.taskType,
+        suggestions
       });
     }
-    
+
     if (this.media && this._matchKeywords(message, mediaKw) && !this._matchKeywords(message, memoryKw)) {
       const res = this.media.processMedia({ action: 'query', text: message });
       return {
@@ -100,7 +142,8 @@ class RouterAgent {
         routing: { target: 'MediaAgent' },
         mood: this.pm.getMood(),
         skills: skillInfo.skills,
-        taskType: skillInfo.taskType
+        taskType: skillInfo.taskType,
+        suggestions
       };
     }
 
@@ -111,18 +154,30 @@ class RouterAgent {
         routing: { target: 'GameAgent' },
         mood: this.pm.getMood(),
         skills: skillInfo.skills,
-        taskType: skillInfo.taskType
+        taskType: skillInfo.taskType,
+        suggestions
       };
     }
 
     const result = await this.chat.respond(message, enhancedContext);
+
+    // 4. HooksManager 后置处理
+    if (this.hooksManager) {
+      this.hooksManager.postAgent({
+        message,
+        response: result.reply,
+        context: enhancedContext
+      }).catch(() => {});
+    }
+
     return {
       reply: result.reply,
       routing: { target: result.source || 'ChatAgent', mode: 'default' },
       mood: result.mood,
       skills: skillInfo.skills,
       taskType: skillInfo.taskType,
-      autoLoaded: skillInfo.newSkills || []
+      autoLoaded: skillInfo.newSkills || [],
+      suggestions
     };
   }
 

@@ -16,23 +16,23 @@ class GameEventHandler {
     };
     this.lastMoodChange = {};
     this.eventHistory = [];
-    
+
     this.ALLOWED_COMMANDS = ['/status', '/goto', '/inventory', '/inv', '/say', '/whisper', '/follow'];
     this.MAX_COORD = 30000000;
     this.MIN_COORD = -30000000;
     this.MAX_MESSAGE_LENGTH = 500;
-    this.FORBIDDEN_PATTERNS = [/^http/i, /^ftp/i, /\x00/, /<script/i, /javascript:/i];
+    this.FORBIDDEN_PATTERNS = [/^http/i, /^ftp/i, /\x00/, /<script/i, /javascript:/i]; // eslint-disable-line no-control-regex
   }
 
   sanitizeMessage(message) {
-    if (!message || typeof message !== 'string') return '';
+    if (!message || typeof message !== 'string') {return '';}
     let sanitized = message.substring(0, this.MAX_MESSAGE_LENGTH);
     for (const pattern of this.FORBIDDEN_PATTERNS) {
       if (pattern.test(sanitized)) {
         sanitized = sanitized.replace(pattern, '█');
       }
     }
-    return sanitized.replace(/[\x00-\x1F\x7F]/g, '');
+    return sanitized.replace(/[\x00-\x1F\x7F]/g, ''); // eslint-disable-line no-control-regex
   }
 
   validateCoordinates(x, y, z) {
@@ -50,11 +50,11 @@ class GameEventHandler {
   }
 
   isCommandInjection(text) {
-    if (!text) return false;
+    if (!text) {return false;}
     const lower = text.toLowerCase();
     return (
       lower.startsWith('/') &&
-      !this.ALLOWED_COMMANDS.some(cmd => lower.startsWith(cmd))
+      !this.ALLOWED_COMMANDS.some((cmd) => lower.startsWith(cmd))
     );
   }
 
@@ -143,7 +143,7 @@ class GameEventHandler {
 
   _triggerMoodChange(trigger, customWeight) {
     const config = this.moodTriggers[trigger];
-    if (!config) return;
+    if (!config) {return;}
 
     const weight = customWeight ?? config.weight;
     const now = Date.now();
@@ -189,7 +189,7 @@ class GameEventHandler {
     if (!command || typeof command !== 'string') {
       return { error: '无效命令' };
     }
-    
+
     const sanitized = this.sanitizeMessage(command);
     const lower = sanitized.toLowerCase();
 
@@ -254,7 +254,7 @@ class GameEventHandler {
         connected: gameStatus.connected
       },
       mood: mood,
-      recentEvents: this.eventHistory.slice(-5).map(e => ({
+      recentEvents: this.eventHistory.slice(-5).map((e) => ({
         type: e.type,
         time: new Date(e.time).toLocaleTimeString()
       }))

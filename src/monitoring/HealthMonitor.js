@@ -32,14 +32,16 @@ class HealthMonitor {
     let hasCriticalFailure = false;
 
     for (const [name, check] of this.checks) {
+      let timeoutHandle;
       try {
         const startTime = Date.now();
         const checkResult = await Promise.race([
           check.checkFn(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), check.timeout)
-          )
+          new Promise((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error('Timeout')), check.timeout);
+          })
         ]);
+        clearTimeout(timeoutHandle);
 
         const duration = Date.now() - startTime;
 
@@ -54,6 +56,7 @@ class HealthMonitor {
         check.failures = 0;
 
       } catch (error) {
+        clearTimeout(timeoutHandle);
         check.failures++;
 
         results.checks[name] = {
@@ -94,13 +97,13 @@ class HealthMonitor {
   }
 
   start() {
-    if (this._timer) return;
+    if (this._timer) {return;}
 
     this._timer = setInterval(() => {
-      this.runChecks().catch(console.error);
+      this.runChecks();
     }, this.checkInterval);
 
-    this.runChecks().catch(console.error);
+    this.runChecks();
   }
 
   stop() {
@@ -119,10 +122,10 @@ class HealthMonitor {
   }
 
   getUptime() {
-    if (this.history.length === 0) return 100;
+    if (this.history.length === 0) {return 100;}
 
     const recent = this.history.slice(-20);
-    const healthy = recent.filter(h => h.status === 'healthy').length;
+    const healthy = recent.filter((h) => h.status === 'healthy').length;
     return (healthy / recent.length * 100).toFixed(2);
   }
 
@@ -130,7 +133,7 @@ class HealthMonitor {
     return {
       checks: this.checks.size,
       consecutiveFailures: this.consecutiveFailures,
-      uptime: this.getUptime() + '%',
+      uptime: `${this.getUptime()}%`,
       historySize: this.history.length
     };
   }

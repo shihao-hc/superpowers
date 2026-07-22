@@ -13,7 +13,7 @@ class MCPWebSocketHandler extends EventEmitter {
     this.bufferSize = options.bufferSize || 100;
     this.logBuffer = [];
     this.filters = new Map();
-    
+
     this._startCleanup();
   }
 
@@ -72,8 +72,8 @@ class MCPWebSocketHandler extends EventEmitter {
 
   updateClientFilters(clientId, filters) {
     const client = this.clients.get(clientId);
-    if (!client) return { error: 'Client not found' };
-    
+    if (!client) {return { error: 'Client not found' };}
+
     client.filters = filters;
     client.lastActivity = Date.now();
     return { success: true };
@@ -81,30 +81,39 @@ class MCPWebSocketHandler extends EventEmitter {
 
   subscribeToEvents(clientId, events) {
     const client = this.clients.get(clientId);
-    if (!client) return { error: 'Client not found' };
-    
+    if (!client) {return { error: 'Client not found' };}
+
     client.subscribedEvents = [...new Set([...client.subscribedEvents, ...events])];
     return { success: true, events: client.subscribedEvents };
   }
 
   unsubscribeFromEvents(clientId, events) {
     const client = this.clients.get(clientId);
-    if (!client) return { error: 'Client not found' };
-    
-    client.subscribedEvents = client.subscribedEvents.filter(e => !events.includes(e));
+    if (!client) {return { error: 'Client not found' };}
+
+    client.subscribedEvents = client.subscribedEvents.filter((e) => !events.includes(e));
     return { success: true, events: client.subscribedEvents };
   }
 
   _matchFilters(event, filters) {
-    if (!filters || Object.keys(filters).length === 0) return true;
+    if (!filters || Object.keys(filters).length === 0) {return true;}
 
-    if (filters.role && event.user?.role !== filters.role) return false;
-    if (filters.server && event.server !== filters.server) return false;
-    if (filters.success !== undefined && event.result?.success !== filters.success) return false;
-    if (filters.minSeverity && this._getSeverityLevel(event.severity) < this._getSeverityLevel(filters.minSeverity)) return false;
-    if (filters.toolPattern && !new RegExp(filters.toolPattern).test(event.toolFullName || '')) return false;
+    if (filters.role && event.user?.role !== filters.role) {return false;}
+    if (filters.server && event.server !== filters.server) {return false;}
+    if (filters.success !== undefined && event.result?.success !== filters.success) {return false;}
+    if (filters.minSeverity && this._getSeverityLevel(event.severity) < this._getSeverityLevel(filters.minSeverity)) {return false;}
+    if (filters.toolPattern && typeof filters.toolPattern === 'string' && filters.toolPattern.length <= 200 && !this._hasReDoSPattern(filters.toolPattern)) {
+      try {
+        if (!new RegExp(filters.toolPattern).test(event.toolFullName || '')) {return false;}
+      } catch {return false;}
+    }
 
     return true;
+  }
+
+  _hasReDoSPattern(pattern) {
+    if (pattern.length > 200) {return true;}
+    return /\([^)]*[+*][^)]*\)[+*?]/.test(pattern);
   }
 
   _getSeverityLevel(severity) {
@@ -119,11 +128,11 @@ class MCPWebSocketHandler extends EventEmitter {
     }
 
     const eventType = event.type || 'mcp-call';
-    
+
     for (const [clientId, client] of this.clients) {
-      if (!client.subscribedEvents.includes(eventType)) continue;
-      if (!this._matchFilters(event, client.filters)) continue;
-      
+      if (!client.subscribedEvents.includes(eventType)) {continue;}
+      if (!this._matchFilters(event, client.filters)) {continue;}
+
       this._sendToClient(clientId, event);
     }
   }
@@ -179,7 +188,7 @@ class MCPWebSocketHandler extends EventEmitter {
       totalClients: this.clients.size,
       maxClients: this.maxClients,
       bufferSize: this.logBuffer.length,
-      clients: Array.from(this.clients.values()).map(c => ({
+      clients: Array.from(this.clients.values()).map((c) => ({
         id: c.id,
         subscribedEvents: c.subscribedEvents,
         lastActivity: c.lastActivity
@@ -190,19 +199,19 @@ class MCPWebSocketHandler extends EventEmitter {
   getRecentLogs(options = {}) {
     const limit = options.limit || 50;
     const filter = options.filter || {};
-    
+
     let logs = this.logBuffer.slice(-limit * 2);
-    
+
     if (filter.server) {
-      logs = logs.filter(l => l.server === filter.server);
+      logs = logs.filter((l) => l.server === filter.server);
     }
     if (filter.role) {
-      logs = logs.filter(l => l.user?.role === filter.role);
+      logs = logs.filter((l) => l.user?.role === filter.role);
     }
     if (filter.success !== undefined) {
-      logs = logs.filter(l => l.result?.success === filter.success);
+      logs = logs.filter((l) => l.result?.success === filter.success);
     }
-    
+
     return logs.slice(-limit);
   }
 
@@ -210,15 +219,15 @@ class MCPWebSocketHandler extends EventEmitter {
     if (this._cleanupInterval) {
       clearInterval(this._cleanupInterval);
     }
-    
-    for (const [clientId, client] of this.clients) {
+
+    for (const [_clientId, client] of this.clients) {
       try {
         if (client.ws && client.ws.close) {
           client.ws.close(1000, 'Server shutdown');
         }
       } catch (e) {}
     }
-    
+
     this.clients.clear();
     this.logBuffer = [];
   }
@@ -235,54 +244,55 @@ function getMCPWebSocketHandler() {
 
 function setupMCPWebSocket(ws, req) {
   const WebSocket = require('ws');
-  
+
   if (!(ws instanceof WebSocket)) {
     ws = new WebSocket(req);
   }
-  
+
   const clientId = `mcp_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 6)}`;
   const handler = getMCPWebSocketHandler();
-  
+
   ws.on('open', () => {
     handler.addClient(clientId, ws);
     ws.send(JSON.stringify({ type: 'connected', clientId }));
   });
-  
+
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
-      
+
       switch (msg.action) {
-        case 'subscribe':
-          handler.subscribeToEvents(clientId, msg.events);
-          break;
-        case 'unsubscribe':
-          handler.unsubscribeFromEvents(clientId, msg.events);
-          break;
-        case 'filter':
-          handler.updateClientFilters(clientId, msg.filters);
-          break;
-        case 'get-logs':
-          const logs = handler.getRecentLogs(msg.options);
-          ws.send(JSON.stringify({ type: 'logs', logs }));
-          break;
-        case 'ping':
-          ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
-          break;
+      case 'subscribe':
+        handler.subscribeToEvents(clientId, msg.events);
+        break;
+      case 'unsubscribe':
+        handler.unsubscribeFromEvents(clientId, msg.events);
+        break;
+      case 'filter':
+        handler.updateClientFilters(clientId, msg.filters);
+        break;
+      case 'get-logs': {
+        const logs = handler.getRecentLogs(msg.options);
+        ws.send(JSON.stringify({ type: 'logs', logs }));
+        break;
+      }
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        break;
       }
     } catch (e) {
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
     }
   });
-  
+
   ws.on('close', () => {
     handler.removeClient(clientId);
   });
-  
-  ws.on('error', (error) => {
+
+  ws.on('error', (_error) => {
     handler.removeClient(clientId);
   });
-  
+
   return { clientId, handler };
 }
 

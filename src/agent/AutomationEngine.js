@@ -71,10 +71,10 @@ class AutomationEngine {
     const value = parseInt(match[1]);
     const unit = match[2];
     switch (unit) {
-      case '秒': return value * 1000;
-      case '分钟': return value * 60000;
-      case '小时': return value * 3600000;
-      default: return 60000;
+    case '秒': return value * 1000;
+    case '分钟': return value * 60000;
+    case '小时': return value * 3600000;
+    default: return 60000;
     }
   }
 
@@ -205,7 +205,7 @@ class AutomationEngine {
 
     for (const command of commands) {
       if (this.activeTasks.size >= this.maxConcurrent) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 1000));
       }
 
       const result = await this.execute(command, context);
@@ -217,7 +217,7 @@ class AutomationEngine {
 
   getTaskStatus(taskId) {
     return this.activeTasks.get(taskId) ||
-      this.completedTasks.find(t => t.id === taskId);
+      this.completedTasks.find((t) => t.id === taskId);
   }
 
   getActiveTasks() {
@@ -252,7 +252,7 @@ class AutomationEngine {
       active: this.activeTasks.size,
       completed: this.completedTasks.length,
       successRate: this.completedTasks.length > 0
-        ? (this.completedTasks.filter(t => t.status === 'completed').length / this.completedTasks.length * 100).toFixed(2) + '%'
+        ? `${(this.completedTasks.filter((t) => t.status === 'completed').length / this.completedTasks.length * 100).toFixed(2)}%`
         : '0%',
       templates: Array.from(this.taskTemplates.keys())
     };

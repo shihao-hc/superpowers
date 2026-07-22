@@ -672,7 +672,7 @@ class EnhancedNodeEditor {
     ctx.fill();
   }
 
-  _drawTempConnection(ctx, from) {
+  _drawTempConnection(_ctx, _from) {
     // Simplified for space
   }
 
@@ -954,7 +954,7 @@ class EnhancedNodeEditor {
   registerPlugin(name, plugin) {
     this.plugins.set(name, plugin);
     if (plugin.nodeTypes) {
-      for (const [type, config] of Object.entries(plugin.nodeTypes)) {
+      for (const [_type, _config] of Object.entries(plugin.nodeTypes)) {
         // Register custom node types
       }
     }

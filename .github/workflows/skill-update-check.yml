@@ -1,0 +1,106 @@
+name: Skill Auto Update (方案C)
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # 每天下午 1 点检查
+  workflow_dispatch:
+  repository_dispatch:
+    types: [check_updates]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  auto-update:
+    name: Auto Update Skills
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check and Update Skills
+        id: update
+        run: |
+          OUTPUT=$(node scripts/check-all-updates.js --update 2>&1)
+          echo "$OUTPUT"
+          echo "output=$OUTPUT" >> $GITHUB_OUTPUT
+          
+          if echo "$OUTPUT" | grep -q "新版本"; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.update.outputs.has_update == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync(process.env.GITHUB_OUTPUT, 'utf8');
+            const hasUpdate = output.includes('has_update=true');
+            
+            if (!hasUpdate) {
+              console.log('No updates found, skip PR creation');
+              return;
+            }
+
+            const branchName = `skill-auto-update-${new Date().toISOString().slice(0,10)}`;
+            
+            // Check if branch exists and delete
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/heads/${branchName}`
+              });
+            } catch (e) {}
+
+            // Create new branch
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/heads/${branchName}`,
+              sha: context.sha
+            });
+
+            // Push changes
+            const { execSync } = require('child_process');
+            execSync(`git add -A && git commit -m "chore: auto update SKILL.md documents" || true`);
+            execSync(`git push -u origin ${branchName} || true`);
+
+            // Create PR
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Auto Update] SKILL.md 文档自动更新`,
+              body: `## 自动更新\n\n机器人自动检测并更新了以下项目文档：\n\n\`\`\`\n${process.env.GITHUB_WORKFLOW}\n\`\`\`\n\n请审查并合并此 PR。`,
+              head: branchName,
+              base: 'main'
+            });
+
+            console.log(`PR created: ${pr.html_url}`);
+
+      - name: No updates notice
+        if: steps.update.outputs.has_update == 'false'
+        run: echo "所有技能文档已是最新版本，无需更新"

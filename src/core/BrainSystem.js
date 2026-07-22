@@ -6698,7 +6698,6 @@ BrainSystem.connectHooks = function() {
       name: 'brain-guardrail-verify',
       handler: (ctx) => {
         try {
-          const { execSync } = require('child_process');
           const cwd = process.cwd();
           const toolPath = require('path').join(cwd, 'tools', 'guardrail-fix.js');
           if (!require('fs').existsSync(toolPath)) {return ctx;}
@@ -6713,7 +6712,8 @@ BrainSystem.connectHooks = function() {
           const unique = [...new Set(files.filter(Boolean))];
           if (unique.length === 0) {return ctx;}
           try {
-            const result = execSync(`node "${toolPath.replace(/\\/g,'/')}" verify --json ${unique.map((f) => `"${f.replace(/\\/g,'/')}"`).join(' ')}`, { cwd, timeout: 30000, encoding: 'utf8' });
+            const { safeExecSync } = require('../utils/SafeExec');
+            const result = safeExecSync('node', [toolPath.replace(/\\/g, '/'), 'verify', '--json', ...unique.map((f) => f.replace(/\\/g, '/'))], { cwd, timeout: 30000, encoding: 'utf8' });
             ctx._guardrailResult = { files: unique, output: result.trim() };
           } catch (ex) {
             ctx._guardrailResult = { files: unique, output: (ex.stdout || '').trim() || (ex.message || 'verify failed') };

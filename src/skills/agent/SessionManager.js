@@ -3,6 +3,8 @@
  * Manages session state, conversation history, and skill execution context
  */
 
+const crypto = require('crypto');
+
 class SessionManager {
   constructor(options = {}) {
     this.sessions = new Map();
@@ -10,7 +12,7 @@ class SessionManager {
     this.sessionTimeout = options.sessionTimeout || 3600000; // 1 hour
     this.maxHistoryLength = options.maxHistoryLength || 100;
     this.cleanupInterval = options.cleanupInterval || 300000; // 5 minutes
-    
+
     this._startCleanupTimer();
   }
 
@@ -23,11 +25,11 @@ class SessionManager {
     }
 
     let session = this.sessions.get(sessionId);
-    
+
     if (!session) {
       session = this._createSession(sessionId, options);
       this.sessions.set(sessionId, session);
-      
+
       if (this.sessions.size > this.maxSessions) {
         this._cleanupOldSessions();
       }
@@ -35,7 +37,7 @@ class SessionManager {
 
     session.lastAccessed = Date.now();
     session.accessCount++;
-    
+
     return session;
   }
 
@@ -86,7 +88,7 @@ class SessionManager {
    */
   addToHistory(sessionId, entry) {
     const session = this.getSession(sessionId);
-    
+
     const historyEntry = {
       id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
@@ -98,7 +100,7 @@ class SessionManager {
     };
 
     session.history.push(historyEntry);
-    
+
     if (session.history.length > this.maxHistoryLength) {
       session.history = session.history.slice(-this.maxHistoryLength);
     }
@@ -112,16 +114,16 @@ class SessionManager {
   getHistory(sessionId, options = {}) {
     const session = this.getSession(sessionId);
     const { limit = 50, offset = 0, types = null } = options;
-    
+
     let history = session.history;
-    
+
     if (types && types.length > 0) {
-      history = history.filter(entry => types.includes(entry.type));
+      history = history.filter((entry) => types.includes(entry.type));
     }
-    
+
     const start = Math.max(0, history.length - limit - offset);
     const end = history.length - offset;
-    
+
     return history.slice(start, end);
   }
 
@@ -130,7 +132,7 @@ class SessionManager {
    */
   updateSkillState(sessionId, skillName, state) {
     const session = this.getSession(sessionId);
-    
+
     if (!session.skillStates.has(skillName)) {
       session.skillStates.set(skillName, {
         executions: 0,
@@ -145,7 +147,7 @@ class SessionManager {
 
     const skillState = session.skillStates.get(skillName);
     Object.assign(skillState, state);
-    
+
     return skillState;
   }
 
@@ -154,7 +156,7 @@ class SessionManager {
    */
   recordSkillExecution(sessionId, skillName, executionId, result) {
     const session = this.getSession(sessionId);
-    
+
     // Update skill state
     const skillState = this.updateSkillState(sessionId, skillName, {
       lastExecution: Date.now(),
@@ -200,7 +202,7 @@ class SessionManager {
    */
   addToExecutionQueue(sessionId, execution) {
     const session = this.getSession(sessionId);
-    
+
     const queueEntry = {
       id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
@@ -211,7 +213,7 @@ class SessionManager {
     };
 
     session.executionQueue.push(queueEntry);
-    
+
     // Sort by priority
     const priorityOrder = { high: 0, normal: 1, low: 2 };
     session.executionQueue.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
@@ -224,7 +226,7 @@ class SessionManager {
    */
   getNextFromQueue(sessionId) {
     const session = this.getSession(sessionId);
-    
+
     if (session.executionQueue.length === 0) {
       return null;
     }
@@ -241,7 +243,7 @@ class SessionManager {
    */
   markExecutionActive(sessionId, executionId, execution) {
     const session = this.getSession(sessionId);
-    
+
     session.activeExecutions.set(executionId, {
       ...execution,
       startedAt: Date.now(),
@@ -256,14 +258,14 @@ class SessionManager {
    */
   completeExecution(sessionId, executionId, result) {
     const session = this.getSession(sessionId);
-    
+
     const execution = session.activeExecutions.get(executionId);
     if (execution) {
       execution.completedAt = Date.now();
       execution.duration = execution.completedAt - execution.startedAt;
       execution.status = result.success ? 'completed' : 'failed';
       execution.result = result;
-      
+
       session.activeExecutions.delete(executionId);
     }
 
@@ -275,7 +277,7 @@ class SessionManager {
    */
   getSessionStats(sessionId) {
     const session = this.getSession(sessionId);
-    
+
     const skillStats = {};
     for (const [skillName, state] of session.skillStates) {
       skillStats[skillName] = { ...state };
@@ -323,7 +325,7 @@ class SessionManager {
   getActiveSessions() {
     const activeSessions = [];
     const now = Date.now();
-    
+
     for (const [sessionId, session] of this.sessions) {
       if (now - session.lastAccessed < this.sessionTimeout) {
         activeSessions.push({
@@ -344,7 +346,7 @@ class SessionManager {
    */
   exportSession(sessionId) {
     const session = this.getSession(sessionId);
-    
+
     return {
       ...session,
       skillStates: Array.from(session.skillStates.entries()),
@@ -372,7 +374,7 @@ class SessionManager {
    * Generate unique session ID
    */
   _generateSessionId() {
-    return `session_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`;
+    return `session_${Date.now().toString(36)}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /**
@@ -381,7 +383,7 @@ class SessionManager {
   _cleanupOldSessions() {
     const now = Date.now();
     const sessionsToDelete = [];
-    
+
     for (const [sessionId, session] of this.sessions) {
       if (now - session.lastAccessed > this.sessionTimeout) {
         sessionsToDelete.push(sessionId);
@@ -403,9 +405,10 @@ class SessionManager {
    * Start cleanup timer
    */
   _startCleanupTimer() {
-    setInterval(() => {
+    this.cleanupTimer = setInterval(() => {
       this._cleanupOldSessions();
     }, this.cleanupInterval);
+    if (this.cleanupTimer.unref) { this.cleanupTimer.unref(); }
   }
 
   /**

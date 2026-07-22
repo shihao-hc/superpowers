@@ -19,8 +19,7 @@ register({
 
     const hasCryptoRequire = content.includes("require('crypto')") || content.includes('require("crypto")');
     if (!hasCryptoRequire) {
-      const firstLine = lines[0];
-      content.replace(firstLine, `const crypto = require('crypto');\n${firstLine}`);
+      lines.unshift(`const crypto = require('crypto');`);
     }
     lines[lineNum] = replacement;
     fs.writeFileSync(filePath, lines.join('\n'));

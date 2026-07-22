@@ -1,6 +1,6 @@
 /**
  * GestureMLClassifier - 基于机器学习的手势分类器
- * 
+ *
  * 使用TensorFlow.js进行手势分类
  * 替代规则引擎，提供更准确的手势识别
  */
@@ -15,10 +15,10 @@ class GestureMLClassifier {
       'prayer', 'pinch', 'stop', 'love_you', 'call_me',
       'none'
     ];
-    
+
     this.inputShape = [63]; // 21 landmarks * 3 (x,y,z)
     this.confidenceThreshold = options.confidenceThreshold || 0.7;
-    
+
     this.onModelLoaded = options.onModelLoaded || (() => {});
     this.onerror = options.onerror || (() => {});
   }
@@ -51,7 +51,7 @@ class GestureMLClassifier {
         resolve();
         return;
       }
-      
+
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js';
       script.integrity = 'sha384-cDNpofNKuVz3Hxp2s4M3l5au+p0M0pW6lY0JgB3K8Cf3f1o8h3G2Hl5l2O5l2Xk';
@@ -71,13 +71,13 @@ class GestureMLClassifier {
       const input = this._preprocessLandmarks(landmarks);
       const prediction = await this.model.predict(input);
       const probabilities = await prediction.data();
-      
+
       input.dispose();
       prediction.dispose();
 
       let maxProb = 0;
       let maxIndex = 0;
-      
+
       for (let i = 0; i < probabilities.length; i++) {
         if (probabilities[i] > maxProb) {
           maxProb = probabilities[i];
@@ -106,7 +106,7 @@ class GestureMLClassifier {
   _preprocessLandmarks(landmarks) {
     const normalized = [];
     const wrist = landmarks[0];
-    
+
     for (const point of landmarks) {
       normalized.push(point.x - wrist.x);
       normalized.push(point.y - wrist.y);
@@ -120,32 +120,32 @@ class GestureMLClassifier {
   _fallbackPredict(landmarks) {
     const fingerExtended = this._checkFingers(landmarks);
     const thumbUp = landmarks[4].y < landmarks[3].y;
-    
-    if (thumbUp && !fingerExtended.index && !fingerExtended.middle && 
+
+    if (thumbUp && !fingerExtended.index && !fingerExtended.middle &&
         !fingerExtended.ring && !fingerExtended.pinky) {
       return { gesture: 'thumbs_up', confidence: 0.9 };
     }
-    
-    if (fingerExtended.index && fingerExtended.middle && 
+
+    if (fingerExtended.index && fingerExtended.middle &&
         !fingerExtended.ring && !fingerExtended.pinky) {
       return { gesture: 'peace', confidence: 0.85 };
     }
-    
-    if (fingerExtended.index && !fingerExtended.middle && 
+
+    if (fingerExtended.index && !fingerExtended.middle &&
         !fingerExtended.ring && !fingerExtended.pinky) {
       return { gesture: 'point', confidence: 0.85 };
     }
-    
-    if (!fingerExtended.index && !fingerExtended.middle && 
+
+    if (!fingerExtended.index && !fingerExtended.middle &&
         !fingerExtended.ring && !fingerExtended.pinky) {
       return { gesture: 'fist', confidence: 0.9 };
     }
-    
-    if (fingerExtended.index && fingerExtended.middle && 
+
+    if (fingerExtended.index && fingerExtended.middle &&
         fingerExtended.ring && fingerExtended.pinky) {
       return { gesture: 'stop', confidence: 0.85 };
     }
-    
+
     return { gesture: 'none', confidence: 0 };
   }
 
@@ -184,22 +184,22 @@ class GestureMLClassifier {
 
   _createModel() {
     this.model = tf.sequential();
-    
+
     this.model.add(tf.layers.dense({
       inputShape: [this.inputShape[0]],
       units: 128,
       activation: 'relu'
     }));
-    
+
     this.model.add(tf.layers.dropout({ rate: 0.3 }));
-    
+
     this.model.add(tf.layers.dense({
       units: 64,
       activation: 'relu'
     }));
-    
+
     this.model.add(tf.layers.dropout({ rate: 0.2 }));
-    
+
     this.model.add(tf.layers.dense({
       units: this.labels.length,
       activation: 'softmax'

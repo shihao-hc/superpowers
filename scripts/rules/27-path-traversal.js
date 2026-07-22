@@ -17,6 +17,7 @@ module.exports = {
       }
     }
   },
+  suggest: '验证用户输入的文件路径：使用 path.resolve() + path.startsWith() 确保路径在允许的目录内；使用白名单允许的字符（/^[a-zA-Z0-9_-]+$/）；避免将用户输入直接拼入 path.join()。使用唯一 ID 映射到存储路径而非直接使用用户输入。',
   references: ['CWE-22'],
   since: '2026-06-28',
 };

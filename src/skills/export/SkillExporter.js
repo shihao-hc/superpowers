@@ -8,12 +8,13 @@ const path = require('path');
 const crypto = require('crypto');
 const archiver = require('archiver');
 const unzipper = require('unzipper');
+const { warn: warnLog } = require('../../../server/utils/logger');
 
 class SkillExporter {
   constructor(options = {}) {
     this.exportDir = options.exportDir || path.join(process.cwd(), 'data', 'exports', 'skills');
     this.tempDir = options.tempDir || path.join(process.cwd(), 'temp', 'exports');
-    
+
     this._ensureDirectories();
   }
 
@@ -32,14 +33,14 @@ class SkillExporter {
   async exportSkill(skillData, options = {}) {
     const {
       includeVersions = true,
-      includeDependencies = true,
+      includeDependencies: _includeDependencies = true,
       includeMetadata = true,
       format = 'zip'
     } = options;
 
     const skillId = skillData.id || skillData.name;
     const exportId = `export-${skillId}-${Date.now()}`;
-    
+
     // 准备导出数据
     const exportData = {
       format: 'ultrawork-skill-export',
@@ -76,7 +77,7 @@ class SkillExporter {
     try {
       // 创建ZIP文件
       await this._createZipArchive(exportPath, exportData, skillData);
-      
+
       // 计算校验和
       const checksum = await this._calculateChecksum(exportPath);
       const stats = fs.statSync(exportPath);
@@ -91,7 +92,7 @@ class SkillExporter {
         exportedAt: new Date().toISOString()
       };
     } catch (error) {
-      throw new Error(`Export failed: ${error.message}`);
+      throw new Error(`Export failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -104,9 +105,9 @@ class SkillExporter {
 
     // 收集所有技能数据
     for (const skillId of skillIds) {
-      const skillData = skillManager.getSkillInfo ? 
+      const skillData = skillManager.getSkillInfo ?
         skillManager.getSkillInfo(skillId) : null;
-      
+
       if (skillData) {
         skills.push(skillData);
       }
@@ -124,7 +125,7 @@ class SkillExporter {
         name: options.name || 'skill-bundle',
         description: options.description || `Exported ${skills.length} skills`,
         skillCount: skills.length,
-        skills: skills.map(s => ({
+        skills: skills.map((s) => ({
           id: s.id,
           name: s.name,
           version: s.version
@@ -139,7 +140,7 @@ class SkillExporter {
 
     try {
       await this._createZipArchive(exportPath, bundleData, null, true);
-      
+
       const checksum = await this._calculateChecksum(exportPath);
       const stats = fs.statSync(exportPath);
 
@@ -153,7 +154,7 @@ class SkillExporter {
         exportedAt: new Date().toISOString()
       };
     } catch (error) {
-      throw new Error(`Bundle export failed: ${error.message}`);
+      throw new Error(`Bundle export failed: ${error.message}`, { cause: error });
     }
   }
 
@@ -161,15 +162,15 @@ class SkillExporter {
    * 导入技能
    */
   async importSkill(importPath, options = {}) {
-    const { overwrite = false, validateIntegrity = true } = options;
+    const { overwrite: _overwrite = false, validateIntegrity = true } = options;
 
     try {
       // 读取ZIP文件
       const zipData = await unzipper.Open.file(importPath);
-      
+
       // 查找元数据文件
-      const metadataFile = zipData.files.find(f => 
-        f.path === 'export-metadata.json' || 
+      const metadataFile = zipData.files.find((f) =>
+        f.path === 'export-metadata.json' ||
         f.path.endsWith('.json')
       );
 
@@ -214,14 +215,14 @@ class SkillExporter {
         importedAt: new Date().toISOString()
       };
     } catch (error) {
-      throw new Error(`Import failed: ${error.message}`);
+      throw new Error(`Import failed: ${error.message}`, { cause: error });
     }
   }
 
   /**
    * 创建ZIP归档
    */
-  async _createZipArchive(outputPath, data, skillData, isBundle = false) {
+  async _createZipArchive(outputPath, data, skillData, _isBundle = false) {
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(outputPath);
       const archive = archiver('zip', { zlib: { level: 9 } });
@@ -261,8 +262,8 @@ class SkillExporter {
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256');
       const stream = fs.createReadStream(filePath);
-      
-      stream.on('data', data => hash.update(data));
+
+      stream.on('data', (data) => hash.update(data));
       stream.on('end', () => resolve(hash.digest('hex')));
       stream.on('error', reject);
     });
@@ -273,7 +274,7 @@ class SkillExporter {
    */
   async exportToCloud(skillData, storageAdapter, options = {}) {
     const exportResult = await this.exportSkill(skillData, options);
-    
+
     // 上传到云存储
     const fileBuffer = fs.readFileSync(exportResult.path);
     const uploadResult = await storageAdapter.upload(fileBuffer, {
@@ -303,7 +304,7 @@ class SkillExporter {
   async importFromCloud(cloudKey, storageAdapter, options = {}) {
     // 下载文件
     const downloadResult = await storageAdapter.download(cloudKey);
-    
+
     // 保存到临时文件
     const tempPath = path.join(this.tempDir, `import-${Date.now()}.zip`);
     fs.writeFileSync(tempPath, downloadResult.buffer);
@@ -311,10 +312,10 @@ class SkillExporter {
     try {
       // 导入
       const importResult = await this.importSkill(tempPath, options);
-      
+
       // 清理临时文件
       fs.unlinkSync(tempPath);
-      
+
       return importResult;
     } catch (error) {
       // 清理临时文件
@@ -332,9 +333,9 @@ class SkillExporter {
     const skills = skillManager.getAllSkills ? skillManager.getAllSkills() : [];
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupName = `backup-${timestamp}`;
-    
-    const skillIds = skills.map(s => s.id || s.name);
-    
+
+    const skillIds = skills.map((s) => s.id || s.name);
+
     return this.exportBundle(skillIds, skillManager, {
       name: backupName,
       description: `Full backup of ${skills.length} skills`,
@@ -365,8 +366,8 @@ class SkillExporter {
    * 格式化文件大小
    */
   _formatSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024) {return `${bytes} B`;}
+    if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
@@ -376,8 +377,8 @@ class SkillExporter {
   listExports(limit = 50) {
     try {
       const files = fs.readdirSync(this.exportDir)
-        .filter(f => f.endsWith('.zip'))
-        .map(f => {
+        .filter((f) => f.endsWith('.zip'))
+        .map((f) => {
           const filePath = path.join(this.exportDir, f);
           const stats = fs.statSync(filePath);
           return {
@@ -390,7 +391,7 @@ class SkillExporter {
         })
         .sort((a, b) => b.modifiedAt - a.modifiedAt)
         .slice(0, limit);
-      
+
       return files;
     } catch (error) {
       return [];
@@ -402,11 +403,15 @@ class SkillExporter {
    */
   deleteExport(filename) {
     const filePath = path.join(this.exportDir, filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return { deleted: true };
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        return { deleted: true };
+      }
+    } catch (err) {
+      warnLog(`SkillExporter.deleteExport failed: ${err.message}`, { filename, filePath });
     }
-    return { deleted: false, error: 'File not found' };
+    return { deleted: false, error: 'Delete failed' };
   }
 
   /**

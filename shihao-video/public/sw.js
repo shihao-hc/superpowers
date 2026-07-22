@@ -47,8 +47,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   // API请求不缓存
-  if (url.pathname.startsWith('/proxy') || 
-      url.pathname.startsWith('/detail') || 
+  if (url.pathname.startsWith('/proxy') ||
+      url.pathname.startsWith('/detail') ||
       url.pathname.startsWith('/image') ||
       url.pathname.startsWith('/test-source')) {
     return;

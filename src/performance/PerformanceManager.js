@@ -86,9 +86,9 @@ class PerformanceManager {
     this.watchInterval = null;
     this.lastModified = null;
     this._configSchema = this._buildSchema();
-    
+
     this._loadConfig();
-    
+
     if (this.config.hotReload.enabled) {
       this._startWatching();
     }
@@ -166,9 +166,9 @@ class PerformanceManager {
     for (const [key, schemaDef] of Object.entries(schema)) {
       const fullPath = path ? `${path}.${key}` : key;
       const value = config[key];
-      
-      if (value === undefined) continue;
-      
+
+      if (value === undefined) {continue;}
+
       if (typeof schemaDef === 'object' && !schemaDef.type) {
         if (typeof value !== 'object' || value === null) {
           console.warn(`[PerformanceManager] Invalid config ${fullPath}: expected object`);
@@ -200,7 +200,7 @@ class PerformanceManager {
         const loaded = yaml.load(content);
         this._validateConfig(loaded || {}, this._configSchema);
         this.config = this._deepMerge(DEFAULT_CONFIG, loaded || {});
-        
+
         const stats = fs.statSync(this.configPath);
         this.lastModified = stats.mtime.getTime();
       }
@@ -211,23 +211,23 @@ class PerformanceManager {
 
   _startWatching() {
     const interval = this.config.hotReload?.checkInterval || 30000;
-    
+
     this.watchInterval = setInterval(() => {
       this._checkAndReload();
     }, interval);
-    
+
     this.watchInterval.unref();
   }
 
   _checkAndReload() {
     try {
-      if (!fs.existsSync(this.configPath)) return;
-      
+      if (!fs.existsSync(this.configPath)) {return;}
+
       const stats = fs.statSync(this.configPath);
       if (stats.mtime.getTime() !== this.lastModified) {
         const oldConfig = { ...this.config };
         this._loadConfig();
-        
+
         const changes = this._detectChanges(oldConfig, this.config);
         if (changes.length > 0) {
           this._notifyListeners('configChanged', { changes, newConfig: this.config });
@@ -240,21 +240,21 @@ class PerformanceManager {
 
   _detectChanges(oldConfig, newConfig, prefix = '') {
     const changes = [];
-    
+
     for (const key of Object.keys(newConfig)) {
       const fullKey = prefix ? `${prefix}.${key}` : key;
-      
-      if (this.config.hotReload.excludePatterns.some(p => new RegExp(p).test(fullKey))) {
+
+      if (this.config.hotReload.excludePatterns.some((p) => new RegExp(p).test(fullKey))) {
         continue;
       }
-      
+
       if (typeof newConfig[key] === 'object' && !Array.isArray(newConfig[key])) {
         changes.push(...this._detectChanges(oldConfig[key] || {}, newConfig[key], fullKey));
       } else if (JSON.stringify(oldConfig[key]) !== JSON.stringify(newConfig[key])) {
         changes.push({ key: fullKey, oldValue: oldConfig[key], newValue: newConfig[key] });
       }
     }
-    
+
     return changes;
   }
 
@@ -270,11 +270,11 @@ class PerformanceManager {
   }
 
   get(path = null) {
-    if (!path) return this.config;
-    
+    if (!path) {return this.config;}
+
     const keys = path.split('.');
     let value = this.config;
-    
+
     for (const key of keys) {
       if (value && typeof value === 'object' && key in value) {
         value = value[key];
@@ -282,14 +282,14 @@ class PerformanceManager {
         return undefined;
       }
     }
-    
+
     return value;
   }
 
   set(path, value) {
     const keys = path.split('.');
     let current = this.config;
-    
+
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
       if (!(key in current) || typeof current[key] !== 'object') {
@@ -297,13 +297,13 @@ class PerformanceManager {
       }
       current = current[key];
     }
-    
+
     const lastKey = keys[keys.length - 1];
     const oldValue = current[lastKey];
     current[lastKey] = value;
-    
+
     this._notifyListeners('valueChanged', { path, oldValue, newValue: value });
-    
+
     return oldValue;
   }
 
@@ -312,7 +312,7 @@ class PerformanceManager {
       this.listeners.set(event, []);
     }
     this.listeners.get(event).push(handler);
-    
+
     return () => this.off(event, handler);
   }
 
@@ -351,7 +351,7 @@ class PerformanceManager {
   checkAlerts(metrics) {
     const thresholds = this.config.monitoring.alerts;
     const alerts = [];
-    
+
     if (metrics.workflowP95Latency > thresholds.workflowP95Latency) {
       alerts.push({
         type: 'WORKFLOW_SLOW',
@@ -359,7 +359,7 @@ class PerformanceManager {
         severity: 'warning'
       });
     }
-    
+
     if (metrics.mcpSuccessRate < thresholds.mcpSuccessRate) {
       alerts.push({
         type: 'MCP_LOW_SUCCESS_RATE',
@@ -367,7 +367,7 @@ class PerformanceManager {
         severity: 'critical'
       });
     }
-    
+
     if (metrics.cacheHitRate !== undefined && metrics.cacheHitRate < thresholds.cacheHitRate) {
       alerts.push({
         type: 'LOW_CACHE_HIT_RATE',
@@ -375,7 +375,7 @@ class PerformanceManager {
         severity: 'warning'
       });
     }
-    
+
     if (metrics.nodeQueueLength > thresholds.nodeQueueLength) {
       alerts.push({
         type: 'QUEUE_OVERFLOW',
@@ -383,7 +383,7 @@ class PerformanceManager {
         severity: 'warning'
       });
     }
-    
+
     return alerts;
   }
 

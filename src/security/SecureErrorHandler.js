@@ -16,7 +16,7 @@ class SecureErrorHandler {
       EXTERNAL: { code: 'EXTERNAL_ERROR', status: 502, expose: true },
       SERVICE_UNAVAILABLE: { code: 'SERVICE_UNAVAILABLE', status: 503, expose: true }
     };
-    
+
     // 敏感字段
     this.sensitiveFields = new Set([
       'password', 'secret', 'token', 'key', 'apiKey', 'apikey',
@@ -24,16 +24,16 @@ class SecureErrorHandler {
       'privateKey', 'publicKey', 'cert', 'signature',
       'ssn', 'creditCard', 'cardNumber', 'cvv'
     ]);
-    
+
     // 错误日志
     this.errorLog = [];
     this.maxLogSize = 1000;
   }
-  
+
   // 处理错误
   handle(error, context = {}) {
     const errorInfo = this.classifyError(error);
-    
+
     // 构建安全响应
     const response = {
       success: false,
@@ -45,37 +45,37 @@ class SecureErrorHandler {
       requestId: context.requestId || this.generateRequestId(),
       timestamp: new Date().toISOString()
     };
-    
+
     // 记录错误
     this.logError(error, context, errorInfo);
-    
+
     return {
       status: errorInfo.status,
       body: response
     };
   }
-  
+
   // 分类错误
   classifyError(error) {
     const type = error.type || 'INTERNAL';
     const errorType = this.errorTypes[type] || this.errorTypes.INTERNAL;
-    
+
     return {
       ...errorType,
       type
     };
   }
-  
+
   // 过滤敏感数据
   filterSensitiveData(data, depth = 0) {
-    if (depth > 5) return '[Max Depth]';
-    
-    if (data === null || data === undefined) return data;
-    
+    if (depth > 5) {return '[Max Depth]';}
+
+    if (data === null || data === undefined) {return data;}
+
     if (typeof data === 'string') {
       return this.maskSensitiveValue(data);
     }
-    
+
     if (typeof data === 'object') {
       const filtered = {};
       for (const [key, value] of Object.entries(data)) {
@@ -89,28 +89,28 @@ class SecureErrorHandler {
       }
       return filtered;
     }
-    
+
     return data;
   }
-  
+
   // 检查敏感字段
   isSensitiveField(field) {
     const lower = field.toLowerCase();
-    return this.sensitiveFields.has(lower) || 
+    return this.sensitiveFields.has(lower) ||
            this.sensitiveFields.has(field) ||
            lower.includes('secret') ||
            lower.includes('password');
   }
-  
+
   // 脱敏敏感值
   maskSensitiveValue(value) {
-    if (typeof value !== 'string') return value;
-    
-    if (value.length <= 4) return '****';
-    
+    if (typeof value !== 'string') {return value;}
+
+    if (value.length <= 4) {return '****';}
+
     return value.substring(0, 2) + '*'.repeat(Math.min(value.length - 4, 20)) + value.substring(value.length - 2);
   }
-  
+
   // 记录错误
   logError(error, context, errorInfo) {
     const logEntry = {
@@ -126,71 +126,71 @@ class SecureErrorHandler {
       ip: this.maskIP(context.ip),
       stack: process.env.NODE_ENV === 'development' ? error.stack : null
     };
-    
+
     this.errorLog.push(logEntry);
-    
+
     // 限制日志大小
     if (this.errorLog.length > this.maxLogSize) {
       this.errorLog = this.errorLog.slice(-this.maxLogSize);
     }
-    
+
     // 控制台输出
     const level = errorInfo.status >= 500 ? 'error' : 'warn';
     console[level](`[SecureError] ${errorInfo.code}: ${error.message}`);
   }
-  
+
   // 脱敏 IP
   maskIP(ip) {
-    if (!ip) return null;
-    
+    if (!ip) {return null;}
+
     // IPv4 脱敏
     if (ip.includes('.')) {
       const parts = ip.split('.');
       return `${parts[0]}.xxx.xxx.${parts[3]}`;
     }
-    
+
     // IPv6 简略
     if (ip.includes(':')) {
-      return ip.substring(0, 8) + '...';
+      return `${ip.substring(0, 8)}...`;
     }
-    
+
     return 'xxx.xxx.xxx.xxx';
   }
-  
+
   // 生成请求 ID
   generateRequestId() {
     return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   // 获取错误日志
   getErrorLog(filter = {}) {
     let logs = [...this.errorLog];
-    
+
     if (filter.type) {
-      logs = logs.filter(l => l.type === filter.type);
+      logs = logs.filter((l) => l.type === filter.type);
     }
-    
+
     if (filter.since) {
-      logs = logs.filter(l => new Date(l.timestamp) > new Date(filter.since));
+      logs = logs.filter((l) => new Date(l.timestamp) > new Date(filter.since));
     }
-    
+
     return logs;
   }
-  
+
   // 获取错误统计
   getErrorStats() {
     const stats = {};
-    
+
     for (const entry of this.errorLog) {
       stats[entry.type] = (stats[entry.type] || 0) + 1;
     }
-    
+
     return stats;
   }
-  
+
   // 创建错误中间件
   createMiddleware() {
-    return (err, req, res, next) => {
+    return (err, req, res, _next) => {
       const { status, body } = this.handle(err, {
         requestId: req.id,
         userId: req.user?.id,
@@ -199,11 +199,11 @@ class SecureErrorHandler {
         userAgent: req.headers['user-agent'],
         ip: req.ip
       });
-      
+
       res.status(status).json(body);
     };
   }
-  
+
   // 自定义错误类
   createError(type, message, details = {}) {
     const error = new Error(message);

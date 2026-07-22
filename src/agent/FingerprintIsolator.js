@@ -15,15 +15,15 @@ class FingerprintIsolator {
   }
 
   apply() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
 
-    if (this.canvasNoise) this._hookCanvas();
-    if (this.webglNoise) this._hookWebGL();
-    if (this.audioNoise) this._hookAudio();
-    if (this.webrtcBlock) this._blockWebRTC();
-    if (this.timezoneSpoof) this._spoofTimezone();
-    if (this.languageSpoof) this._spoofLanguage();
-    if (this.platformSpoof) this._spoofPlatform();
+    if (this.canvasNoise) {this._hookCanvas();}
+    if (this.webglNoise) {this._hookWebGL();}
+    if (this.audioNoise) {this._hookAudio();}
+    if (this.webrtcBlock) {this._blockWebRTC();}
+    if (this.timezoneSpoof) {this._spoofTimezone();}
+    if (this.languageSpoof) {this._spoofLanguage();}
+    if (this.platformSpoof) {this._spoofPlatform();}
 
     console.log('[FingerprintIsolator] Applied with seed:', this._seed);
   }
@@ -80,7 +80,7 @@ class FingerprintIsolator {
     });
   }
 
-  static _addCanvasNoise(imageData, width, height) {
+  static _addCanvasNoise(imageData, _width, _height) {
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
       const noise = (Math.random() - 0.5) * 2;
@@ -92,7 +92,7 @@ class FingerprintIsolator {
 
   _hookWebGL() {
     const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-    const originalGetExtension = WebGLRenderingContext.prototype.getExtension;
+    const _originalGetExtension = WebGLRenderingContext.prototype.getExtension;
 
     const noiseParams = {
       37445: () => 'NVIDIA Corporation',
@@ -146,7 +146,7 @@ class FingerprintIsolator {
   _blockWebRTC() {
     const originalRTCPeerConnection = window.RTCPeerConnection;
 
-    window.RTCPeerConnection = function(...args) {
+    window.RTCPeerConnection = function(..._args) {
       console.warn('[FingerprintIsolator] WebRTC blocked');
       throw new Error('WebRTC is disabled for privacy');
     };
@@ -227,7 +227,7 @@ class FingerprintIsolator {
 
   remove() {
     for (const hook of this._hooks) {
-      try { hook(); } catch (e) {}
+      try { hook(); } catch (e) { /* 忽略错误 */ }
     }
     this._hooks = [];
   }

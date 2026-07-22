@@ -12,7 +12,7 @@ class MemosBridge {
     this.token = config.token || process.env.MEMOS_TOKEN;
     this.currentInstance = config.defaultInstance || 'default';
     this.instances = new Map();
-    
+
     this.localMemos = [];
   }
 
@@ -45,7 +45,7 @@ class MemosBridge {
       // 实例管理
       this._tool('connect_instance', '连接实例', { name: { type: 'string' }, url: { type: 'string' }, token: { type: 'string' } }),
       this._tool('switch_instance', '切换实例', { name: { type: 'string' } }),
-      
+
       // 标签
       this._tool('create_tag', '创建标签', { name: { type: 'string' } }),
       this._tool('delete_tag', '删除标签', { name: { type: 'string' } }),
@@ -55,7 +55,7 @@ class MemosBridge {
       this._tool('upload_attachment', '上传附件', { file: { type: 'string' }, memo_id: { type: 'string' } }),
 
       // 思维链保存
-      this._tool('save_thinking_to_memo', '保存思维链到笔记', { chain_id: { type: 'string' }, visibility: { type: 'string' } }),
+      this._tool('save_thinking_to_memo', '保存思维链到笔记', { chain_id: { type: 'string' }, visibility: { type: 'string' } })
     ];
   }
 
@@ -81,7 +81,7 @@ class MemosBridge {
       delete_tag: this.deleteTag.bind(this),
       auto_tag: this.autoTag.bind(this),
       upload_attachment: this.uploadAttachment.bind(this),
-      save_thinking_to_memo: this.saveThinkingToMemo.bind(this),
+      save_thinking_to_memo: this.saveThinkingToMemo.bind(this)
     };
     return handlers[name];
   }
@@ -131,9 +131,9 @@ class MemosBridge {
     const { query, limit = 10 } = params;
 
     // 简单的关键词匹配（实际应用中应使用向量嵌入）
-    const results = this.localMemos.filter(memo => {
+    const results = this.localMemos.filter((memo) => {
       const text = `${memo.content} ${memo.tags.join(' ')}`.toLowerCase();
-      return query.toLowerCase().split(' ').some(term => text.includes(term));
+      return query.toLowerCase().split(' ').some((term) => text.includes(term));
     }).slice(0, limit);
 
     return {
@@ -164,7 +164,7 @@ class MemosBridge {
    */
   async getMemo(params) {
     const { id } = params;
-    const memo = this.localMemos.find(m => m.id === id);
+    const memo = this.localMemos.find((m) => m.id === id);
 
     if (!memo) {
       return { error: 'Memo not found', id };
@@ -180,7 +180,7 @@ class MemosBridge {
     const { id, content, visibility, pinned } = params;
 
     if (params.dry_run || params.dryRun) {
-      const memo = this.localMemos.find(m => m.id === id);
+      const memo = this.localMemos.find((m) => m.id === id);
       return {
         _meta: { dryRun: true, tool: 'update_memo' },
         preview: { before: memo, after: { content, visibility, pinned } },
@@ -188,11 +188,11 @@ class MemosBridge {
       };
     }
 
-    const memo = this.localMemos.find(m => m.id === id);
+    const memo = this.localMemos.find((m) => m.id === id);
     if (memo) {
-      if (content !== undefined) memo.content = content;
-      if (visibility !== undefined) memo.visibility = visibility;
-      if (pinned !== undefined) memo.pinned = pinned;
+      if (content !== undefined) {memo.content = content;}
+      if (visibility !== undefined) {memo.visibility = visibility;}
+      if (pinned !== undefined) {memo.pinned = pinned;}
       memo.updatedAt = new Date().toISOString();
     }
 
@@ -206,11 +206,11 @@ class MemosBridge {
     const { id } = params;
 
     if (params.dry_run || params.dryRun) {
-      const memo = this.localMemos.find(m => m.id === id);
+      const memo = this.localMemos.find((m) => m.id === id);
       return dryRunEngine.previewDeleteMemo(id, memo?.content);
     }
 
-    const index = this.localMemos.findIndex(m => m.id === id);
+    const index = this.localMemos.findIndex((m) => m.id === id);
     if (index !== -1) {
       const deleted = this.localMemos.splice(index, 1)[0];
       return { success: true, deleted };
@@ -224,7 +224,7 @@ class MemosBridge {
    */
   async pinMemo(params) {
     const { id, pinned = true } = params;
-    const memo = this.localMemos.find(m => m.id === id);
+    const memo = this.localMemos.find((m) => m.id === id);
 
     if (memo) {
       memo.pinned = pinned;
@@ -237,7 +237,7 @@ class MemosBridge {
   /**
    * 列出标签
    */
-  async listTags(params) {
+  async listTags(_params) {
     const tags = new Set();
     for (const memo of this.localMemos) {
       for (const tag of memo.tags || []) {
@@ -277,11 +277,11 @@ class MemosBridge {
     const keywords = [];
     const lowerContent = content.toLowerCase();
 
-    if (lowerContent.includes('bug') || lowerContent.includes('fix')) keywords.push('bug');
-    if (lowerContent.includes('feature')) keywords.push('feature');
-    if (lowerContent.includes('docs') || lowerContent.includes('document')) keywords.push('docs');
-    if (lowerContent.includes('test')) keywords.push('testing');
-    if (lowerContent.includes('refactor')) keywords.push('refactor');
+    if (lowerContent.includes('bug') || lowerContent.includes('fix')) {keywords.push('bug');}
+    if (lowerContent.includes('feature')) {keywords.push('feature');}
+    if (lowerContent.includes('docs') || lowerContent.includes('document')) {keywords.push('docs');}
+    if (lowerContent.includes('test')) {keywords.push('testing');}
+    if (lowerContent.includes('refactor')) {keywords.push('refactor');}
 
     return {
       content: content.substring(0, 100),
@@ -328,7 +328,7 @@ class MemosBridge {
   /**
    * 列出实例
    */
-  async listInstances(params) {
+  async listInstances(_params) {
     return {
       instances: Array.from(this.instances.entries()).map(([name, config]) => ({
         name,
@@ -342,7 +342,7 @@ class MemosBridge {
   /**
    * 列出快捷方式
    */
-  async listShortcuts(params) {
+  async listShortcuts(_params) {
     return {
       shortcuts: [],
       count: 0

@@ -3,10 +3,10 @@
  * Scans system configuration and data flows, generates compliance gap reports
  */
 
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 class ComplianceScanner {
-  constructor(options = {}) {
+  constructor(_options = {}) {
     this.scanResults = [];
     this.lastScan = null;
     this.scheduledScans = new Map();
@@ -257,7 +257,7 @@ class ComplianceScanner {
   async runFullScan(options = {}) {
     const regulations = options.regulations || ['gdpr', 'ccpa', 'hipaa', 'lgpd', 'pipeda', 'au_privacy'];
     const scanId = `scan_${Date.now()}`;
-    
+
     const scanResult = {
       id: scanId,
       timestamp: Date.now(),
@@ -279,9 +279,9 @@ class ComplianceScanner {
       const regulationResult = await this._scanRegulation(regulation, checks);
       scanResult.regulations.push(regulationResult);
       scanResult.summary.totalChecks += regulationResult.results.length;
-      scanResult.summary.passed += regulationResult.results.filter(r => r.status === 'pass').length;
-      scanResult.summary.failed += regulationResult.results.filter(r => r.status === 'fail').length;
-      scanResult.summary.warnings += regulationResult.results.filter(r => r.status === 'warning').length;
+      scanResult.summary.passed += regulationResult.results.filter((r) => r.status === 'pass').length;
+      scanResult.summary.failed += regulationResult.results.filter((r) => r.status === 'fail').length;
+      scanResult.summary.warnings += regulationResult.results.filter((r) => r.status === 'warning').length;
       scanResult.issues.push(...regulationResult.issues);
       scanResult.recommendations.push(...regulationResult.recommendations);
     }
@@ -289,9 +289,9 @@ class ComplianceScanner {
     scanResult.complianceScore = Math.round(
       (scanResult.summary.passed / scanResult.summary.totalChecks) * 100
     );
-    
+
     scanResult.complianceLevel = this._getComplianceLevel(scanResult.complianceScore);
-    
+
     this.scanResults.push(scanResult);
     this.lastScan = scanResult;
 
@@ -305,7 +305,7 @@ class ComplianceScanner {
 
     for (const check of checks) {
       const result = await check.check();
-      
+
       const checkResult = {
         checkId: check.id,
         title: check.title,
@@ -344,15 +344,15 @@ class ComplianceScanner {
       results,
       issues,
       recommendations,
-      score: Math.round((results.filter(r => r.status === 'pass').length / results.length) * 100)
+      score: Math.round((results.filter((r) => r.status === 'pass').length / results.length) * 100)
     };
   }
 
   _getComplianceLevel(score) {
-    if (score >= 95) return 'excellent';
-    if (score >= 85) return 'good';
-    if (score >= 70) return 'fair';
-    if (score >= 50) return 'poor';
+    if (score >= 95) {return 'excellent';}
+    if (score >= 85) {return 'good';}
+    if (score >= 70) {return 'fair';}
+    if (score >= 50) {return 'poor';}
     return 'critical';
   }
 
@@ -615,7 +615,7 @@ class ComplianceScanner {
     }, intervals[interval] || intervals.weekly);
 
     this.scheduledScans.set(regulation, scanTask);
-    
+
     return { regulation, interval, nextRun: Date.now() + intervals[interval] };
   }
 
@@ -677,9 +677,9 @@ class ComplianceScanner {
 
   _generateRemediationRoadmap(gaps) {
     const roadmap = {
-      immediate: gaps.critical.map(g => ({ issue: g.title, action: g.description })),
-      shortTerm: gaps.high.map(g => ({ issue: g.title, action: g.description })),
-      mediumTerm: gaps.medium.map(g => ({ issue: g.title, action: g.description }))
+      immediate: gaps.critical.map((g) => ({ issue: g.title, action: g.description })),
+      shortTerm: gaps.high.map((g) => ({ issue: g.title, action: g.description })),
+      mediumTerm: gaps.medium.map((g) => ({ issue: g.title, action: g.description }))
     };
 
     return roadmap;
@@ -736,7 +736,7 @@ class ComplianceScanner {
       }
     }
 
-    return [headers, ...rows].map(r => r.join(',')).join('\n');
+    return [headers, ...rows].map((r) => r.join(',')).join('\n');
   }
 
   _exportToPDF(scan) {
@@ -764,17 +764,17 @@ Warnings: ${scan.summary.warnings}
 
 ISSUES SUMMARY
 Critical: ${scan.summary.criticalIssues}
-High: ${scan.issues.filter(i => i.severity === 'high').length}
-Medium: ${scan.issues.filter(i => i.severity === 'medium').length}
-Low: ${scan.issues.filter(i => i.severity === 'low').length}
+High: ${scan.issues.filter((i) => i.severity === 'high').length}
+Medium: ${scan.issues.filter((i) => i.severity === 'medium').length}
+Low: ${scan.issues.filter((i) => i.severity === 'low').length}
 
 RECOMMENDATIONS
-${scan.recommendations.map(r => `- [${r.priority.toUpperCase()}] ${r.checkId}: ${r.action}`).join('\n')}
+${scan.recommendations.map((r) => `- [${r.priority.toUpperCase()}] ${r.checkId}: ${r.action}`).join('\n')}
     `.trim();
   }
 
   getScanHistory() {
-    return this.scanResults.map(s => ({
+    return this.scanResults.map((s) => ({
       id: s.id,
       timestamp: s.timestamp,
       score: s.complianceScore,

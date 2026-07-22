@@ -9,7 +9,7 @@ class AttestationViewer {
 
   async init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     await this.loadAttestations();
     this.render();
@@ -28,7 +28,7 @@ class AttestationViewer {
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.container.innerHTML = `
       <div class="attestation-viewer">
@@ -36,7 +36,7 @@ class AttestationViewer {
           <h4>🔗 链上存证</h4>
           <div class="attestation-stats">
             <span class="stat" id="att-stat-total">总计: ${this.attestations.length}</span>
-            <span class="stat success" id="att-stat-verified">已验证: ${this.attestations.filter(a => a.verified).length}</span>
+            <span class="stat success" id="att-stat-verified">已验证: ${this.attestations.filter((a) => a.verified).length}</span>
           </div>
           <div class="attestation-actions">
             <button class="btn-small" id="btn-create-attestation">+ 创建存证</button>
@@ -53,7 +53,7 @@ class AttestationViewer {
 
   renderAttestations() {
     const list = document.getElementById('attestation-list');
-    if (!list) return;
+    if (!list) {return;}
 
     list.innerHTML = '';
 
@@ -62,7 +62,7 @@ class AttestationViewer {
       return;
     }
 
-    this.attestations.slice().reverse().forEach(att => {
+    this.attestations.slice().reverse().forEach((att) => {
       const card = this.createCard(att);
       list.appendChild(card);
     });
@@ -73,7 +73,7 @@ class AttestationViewer {
     card.className = `attestation-card ${attestation.verified ? 'verified' : ''}`;
 
     const time = new Date(attestation.metadata?.createdAt || Date.now()).toLocaleString();
-    const hash = attestation.hash ? attestation.hash.substring(0, 16) + '...' : '-';
+    const hash = attestation.hash ? `${attestation.hash.substring(0, 16)}...` : '-';
     const type = attestation.metadata?.description || attestation.data?.type || '未知类型';
 
     card.innerHTML = `
@@ -109,7 +109,7 @@ class AttestationViewer {
       </div>
     `;
 
-    card.querySelectorAll('.btn-action').forEach(btn => {
+    card.querySelectorAll('.btn-action').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const action = e.target.dataset.action;
         const id = e.target.dataset.id;
@@ -117,7 +117,7 @@ class AttestationViewer {
       });
     });
 
-    card.querySelectorAll('.btn-copy').forEach(btn => {
+    card.querySelectorAll('.btn-copy').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const hash = e.target.dataset.hash;
         navigator.clipboard?.writeText(hash);
@@ -131,15 +131,15 @@ class AttestationViewer {
 
   async handleAction(action, attestationId) {
     switch (action) {
-      case 'verify':
-        await this.verifyAttestation(attestationId);
-        break;
-      case 'details':
-        this.showDetails(attestationId);
-        break;
-      case 'export':
-        await this.exportAttestation(attestationId);
-        break;
+    case 'verify':
+      await this.verifyAttestation(attestationId);
+      break;
+    case 'details':
+      this.showDetails(attestationId);
+      break;
+    case 'export':
+      await this.exportAttestation(attestationId);
+      break;
     }
   }
 
@@ -151,7 +151,7 @@ class AttestationViewer {
 
       const result = await response.json();
 
-      const att = this.attestations.find(a => a.id === attestationId);
+      const att = this.attestations.find((a) => a.id === attestationId);
       if (att) {
         att.verified = result.valid;
       }
@@ -166,8 +166,8 @@ class AttestationViewer {
   }
 
   showDetails(attestationId) {
-    const att = this.attestations.find(a => a.id === attestationId);
-    if (!att) return;
+    const att = this.attestations.find((a) => a.id === attestationId);
+    if (!att) {return;}
 
     const modal = document.createElement('div');
     modal.className = 'modal-overlay show';
@@ -209,7 +209,7 @@ class AttestationViewer {
     });
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 
@@ -292,12 +292,12 @@ class AttestationViewer {
         this.renderAttestations();
         modal.remove();
       } catch (e) {
-        alert('创建失败: ' + e.message);
+        alert(`创建失败: ${e.message}`);
       }
     });
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 

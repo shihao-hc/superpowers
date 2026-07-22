@@ -6,14 +6,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { splitLines } = require('../../utils/UltraWorkUtils');
+const { safeExecSync } = require('../../utils/SafeExec');
 
 class StaticAnalyzer {
   constructor(options = {}) {
     this.tempDir = options.tempDir || path.join(process.cwd(), 'temp', 'analysis');
     this.eslintConfig = options.eslintConfig || this._getDefaultESLintConfig();
     this.banditConfig = options.banditConfig || this._getDefaultBanditConfig();
-    
+
     this._ensureTempDir();
   }
 
@@ -88,7 +89,7 @@ class StaticAnalyzer {
       // 内置模式检测
       const patterns = this._getJavaScriptPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
@@ -103,7 +104,7 @@ class StaticAnalyzer {
 
       // 计算分数和风险等级
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -134,7 +135,7 @@ class StaticAnalyzer {
       // 内置模式检测
       const patterns = this._getPythonPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
@@ -149,7 +150,7 @@ class StaticAnalyzer {
 
       // 计算分数和风险等级
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -179,14 +180,14 @@ class StaticAnalyzer {
     try {
       const patterns = this._getShellPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
       results.suggestions.push(...findings.suggestions);
 
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -216,14 +217,14 @@ class StaticAnalyzer {
     try {
       const patterns = this._getJavaPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
       results.suggestions.push(...findings.suggestions);
 
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -253,14 +254,14 @@ class StaticAnalyzer {
     try {
       const patterns = this._getGoPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
       results.suggestions.push(...findings.suggestions);
 
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -290,14 +291,14 @@ class StaticAnalyzer {
     try {
       const patterns = this._getRustPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
       results.suggestions.push(...findings.suggestions);
 
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -327,14 +328,14 @@ class StaticAnalyzer {
     try {
       const patterns = this._getCppPatterns();
       const findings = this._detectPatterns(code, patterns);
-      
+
       results.errors.push(...findings.errors);
       results.warnings.push(...findings.warnings);
       results.info.push(...findings.info);
       results.suggestions.push(...findings.suggestions);
 
       this._calculateScore(results);
-      
+
     } catch (error) {
       results.errors.push({
         rule: 'ANALYSIS_ERROR',
@@ -935,14 +936,14 @@ class StaticAnalyzer {
    */
   _detectPatterns(code, patterns) {
     const results = { errors: [], warnings: [], info: [], suggestions: [] };
-    const lines = code.split('\n');
+    const lines = splitLines(code);
 
     for (const [severity, rules] of Object.entries(patterns)) {
       for (const rule of rules) {
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const matches = line.match(rule.pattern);
-          
+
           if (matches) {
             results[severity].push({
               rule: rule.rule,
@@ -993,7 +994,7 @@ class StaticAnalyzer {
    */
   _isESLintAvailable() {
     try {
-      execSync('eslint --version', { stdio: 'ignore' });
+      safeExecSync('eslint', ['--version'], { stdio: 'ignore' });
       return true;
     } catch {
       return false;
@@ -1005,7 +1006,7 @@ class StaticAnalyzer {
    */
   _isBanditAvailable() {
     try {
-      execSync('bandit --version', { stdio: 'ignore' });
+      safeExecSync('bandit', ['--version'], { stdio: 'ignore' });
       return true;
     } catch {
       return false;
@@ -1017,21 +1018,23 @@ class StaticAnalyzer {
    */
   async _runESLint(code, filename) {
     const results = { errors: [], warnings: [] };
-    
+
     try {
       const tempFile = path.join(this.tempDir, filename);
       fs.writeFileSync(tempFile, code, 'utf8');
-      
+
       const configPath = path.join(this.tempDir, '.eslintrc.json');
       fs.writeFileSync(configPath, JSON.stringify(this.eslintConfig), 'utf8');
-      
-      const output = execSync(`eslint -f json --config "${configPath}" "${tempFile}"`, {
+
+      // ✅ 使用数组形式避免注入风险
+      const output = safeExecSync('eslint', ['-f', 'json', '--config', configPath, tempFile], {
         encoding: 'utf8',
-        timeout: 30000
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
-      
+
       const eslintResults = JSON.parse(output);
-      
+
       for (const fileResult of eslintResults) {
         for (const message of fileResult.messages) {
           const result = {
@@ -1041,7 +1044,7 @@ class StaticAnalyzer {
             line: message.line,
             column: message.column
           };
-          
+
           if (message.severity === 2) {
             results.errors.push(result);
           } else {
@@ -1049,15 +1052,15 @@ class StaticAnalyzer {
           }
         }
       }
-      
+
       // 清理临时文件
       fs.unlinkSync(tempFile);
       fs.unlinkSync(configPath);
-      
+
     } catch (error) {
       // ESLint可能返回非零退出码，忽略错误
     }
-    
+
     return results;
   }
 
@@ -1066,18 +1069,20 @@ class StaticAnalyzer {
    */
   async _runBandit(code, filename) {
     const results = { errors: [], warnings: [] };
-    
+
     try {
       const tempFile = path.join(this.tempDir, filename);
       fs.writeFileSync(tempFile, code, 'utf8');
-      
-      const output = execSync(`bandit -f json "${tempFile}"`, {
+
+      // ✅ 使用数组形式避免注入风险
+      const output = safeExecSync('bandit', ['-f', 'json', tempFile], {
         encoding: 'utf8',
-        timeout: 30000
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
-      
+
       const banditResults = JSON.parse(output);
-      
+
       for (const result of banditResults.results || []) {
         const finding = {
           rule: result.test_id || 'BANDIT',
@@ -1086,21 +1091,21 @@ class StaticAnalyzer {
           line: result.line_number,
           confidence: result.issue_confidence
         };
-        
+
         if (result.issue_severity === 'HIGH') {
           results.errors.push(finding);
         } else {
           results.warnings.push(finding);
         }
       }
-      
+
       // 清理临时文件
       fs.unlinkSync(tempFile);
-      
+
     } catch (error) {
       // Bandit可能返回非零退出码，忽略错误
     }
-    
+
     return results;
   }
 
@@ -1123,55 +1128,55 @@ class StaticAnalyzer {
 
     try {
       const files = fs.readdirSync(skillPath);
-      
+
       for (const file of files) {
         const filePath = path.join(skillPath, file);
         const stat = fs.statSync(filePath);
-        
+
         if (stat.isFile()) {
           const ext = path.extname(file).toLowerCase();
           const code = fs.readFileSync(filePath, 'utf8');
-          
+
           let analysis = null;
-          
+
           switch (ext) {
-            case '.js':
-            case '.ts':
-            case '.jsx':
-            case '.tsx':
-              analysis = await this.analyzeJavaScript(code, file);
-              break;
-            case '.py':
-            case '.pyw':
-              analysis = await this.analyzePython(code, file);
-              break;
-            case '.sh':
-            case '.bash':
-              analysis = await this.analyzeShell(code, file);
-              break;
-            case '.java':
-              analysis = await this.analyzeJava(code, file);
-              break;
-            case '.go':
-              analysis = await this.analyzeGo(code, file);
-              break;
-            case '.rs':
-              analysis = await this.analyzeRust(code, file);
-              break;
-            case '.cpp':
-            case '.cc':
-            case '.cxx':
-            case '.c++':
-            case '.h':
-            case '.hpp':
-              analysis = await this.analyzeCpp(code, file);
-              break;
-            case '.c':
-              // C代码使用C++分析器的一部分
-              analysis = await this.analyzeCpp(code, file);
-              break;
+          case '.js':
+          case '.ts':
+          case '.jsx':
+          case '.tsx':
+            analysis = await this.analyzeJavaScript(code, file);
+            break;
+          case '.py':
+          case '.pyw':
+            analysis = await this.analyzePython(code, file);
+            break;
+          case '.sh':
+          case '.bash':
+            analysis = await this.analyzeShell(code, file);
+            break;
+          case '.java':
+            analysis = await this.analyzeJava(code, file);
+            break;
+          case '.go':
+            analysis = await this.analyzeGo(code, file);
+            break;
+          case '.rs':
+            analysis = await this.analyzeRust(code, file);
+            break;
+          case '.cpp':
+          case '.cc':
+          case '.cxx':
+          case '.c++':
+          case '.h':
+          case '.hpp':
+            analysis = await this.analyzeCpp(code, file);
+            break;
+          case '.c':
+            // C代码使用C++分析器的一部分
+            analysis = await this.analyzeCpp(code, file);
+            break;
           }
-          
+
           if (analysis) {
             report.files.push(analysis);
             report.summary.filesAnalyzed++;
@@ -1184,8 +1189,8 @@ class StaticAnalyzer {
 
       // 计算总体分数（取最低分）
       if (report.files.length > 0) {
-        report.overallScore = Math.min(...report.files.map(f => f.score));
-        
+        report.overallScore = Math.min(...report.files.map((f) => f.score));
+
         if (report.overallScore < 50) {
           report.riskLevel = 'high';
         } else if (report.overallScore < 70) {

@@ -92,7 +92,7 @@ const ANNOTATIONS = {
   // ==================== 通用 ====================
   'exec_cmd': { readOnlyHint: false, idempotentHint: false, destructiveHint: true },
   'read_url': { readOnlyHint: true, idempotentHint: true, destructiveHint: false },
-  'get_current_time': { readOnlyHint: true, idempotentHint: true, destructiveHint: false },
+  'get_current_time': { readOnlyHint: true, idempotentHint: true, destructiveHint: false }
 };
 
 /**
@@ -128,10 +128,10 @@ function isDestructive(toolName) {
  */
 function getRiskLevel(toolName) {
   const annotation = getAnnotation(toolName);
-  
-  if (annotation.readOnlyHint) return 'safe';
-  if (annotation.destructiveHint) return 'critical';
-  if (!annotation.idempotentHint) return 'medium';
+
+  if (annotation.readOnlyHint) {return 'safe';}
+  if (annotation.destructiveHint) {return 'critical';}
+  if (!annotation.idempotentHint) {return 'medium';}
   return 'low';
 }
 
@@ -150,7 +150,7 @@ function annotateTool(toolDef, toolName) {
  * 为工具列表批量添加注解
  */
 function annotateTools(tools) {
-  return tools.map(tool => annotateTool(tool, tool.name));
+  return tools.map((tool) => annotateTool(tool, tool.name));
 }
 
 module.exports = {

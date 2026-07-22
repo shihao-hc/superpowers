@@ -57,14 +57,14 @@ const logger = winston.createLogger({
       maxsize: 5242880, // 5MB
       maxFiles: 5
     }),
-    
+
     // 所有日志
     new winston.transports.File({
       filename: path.join(logDir, 'combined.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5
     }),
-    
+
     // HTTP日志
     new winston.transports.File({
       filename: path.join(logDir, 'http.log'),
@@ -83,42 +83,69 @@ if (process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// HTML转义函数（防XSS）
+const escapeHtml = (str) => {
+  if (typeof str !== 'string') {return String(str);}
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 // 添加颜色
 winston.addColors(LOG_COLORS);
 
 // 导出便捷方法
 module.exports = {
   logger,
-  
+  escapeHtml,
+
   // 错误日志
   error: (message, meta = {}) => {
     logger.error(message, meta);
   },
-  
+
+  // 错误日志别名（兼容现有导入）
+  errorLog: (message, meta = {}) => {
+    logger.error(message, meta);
+  },
+
   // 警告日志
   warn: (message, meta = {}) => {
     logger.warn(message, meta);
   },
-  
+
+  // 警告日志别名（兼容现有导入）
+  warnLog: (message, meta = {}) => {
+    logger.warn(message, meta);
+  },
+
   // 信息日志
   info: (message, meta = {}) => {
     logger.info(message, meta);
   },
-  
+
+  // 信息日志别名（兼容现有导入）
+  infoLog: (message, meta = {}) => {
+    logger.info(message, meta);
+  },
+
   // HTTP日志
   http: (message, meta = {}) => {
     logger.http(message, meta);
   },
-  
+
   // 调试日志
   debug: (message, meta = {}) => {
     logger.debug(message, meta);
   },
-  
+
   // 请求日志中间件
   requestLogger: (req, res, next) => {
     const start = Date.now();
-    
+
     res.on('finish', () => {
       const duration = Date.now() - start;
       const logData = {
@@ -129,7 +156,7 @@ module.exports = {
         ip: req.ip,
         userAgent: req.get('user-agent')
       };
-      
+
       if (res.statusCode >= 400) {
         logger.warn('Request failed', logData);
       } else if (duration > 1000) {
@@ -138,20 +165,25 @@ module.exports = {
         logger.http('Request completed', logData);
       }
     });
-    
+
     next();
   },
-  
+
   // 错误日志中间件
   errorLogger: (err, req, res, next) => {
-    logger.error('Error occurred', {
+    const logData = {
       error: err.message,
-      stack: err.stack,
       method: req.method,
       url: req.originalUrl || req.url,
       ip: req.ip
-    });
-    
+    };
+
+    // 开发环境记录完整栈追踪，生产环境仅记录错误摘要
+    if (process.env.NODE_ENV !== 'production') {
+      logData.stack = err.stack;
+    }
+
+    logger.error('Error occurred', logData);
     next(err);
   }
 };

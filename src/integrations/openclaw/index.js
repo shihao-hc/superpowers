@@ -1,7 +1,7 @@
 /**
  * OpenClaw 集成模块
  * 免费使用各种大模型
- * 
+ *
  * 支持的模型:
  * - DeepSeek, Claude, ChatGPT, Gemini, Qwen
  * - Kimi, Doubao, Grok, GLM, Manus
@@ -22,17 +22,17 @@ module.exports = {
   ModelServiceAdapter,
   OpenClawRouter,
   ResponseCache,
-  
+
   // 创建方法
   createModelService,
   getModelService,
   createOpenClawRouter,
   createResponseCache,
-  
+
   // 常量
   DEFAULT_PROVIDERS: require('./MultiModelManager').DEFAULT_PROVIDERS,
   MODEL_ALIASES: require('./MultiModelManager').MODEL_ALIASES,
-  
+
   /**
    * 创建默认实例
    */
@@ -44,21 +44,21 @@ module.exports = {
       service: new ModelServiceAdapter(options)
     };
   },
-  
+
   /**
    * 快速开始 - 初始化模型服务
    */
   async quickStart(options = {}) {
     const { gatewayUrl = 'http://127.0.0.1:3002' } = options;
-    
+
     const client = new OpenClawClient({ gatewayUrl });
     const manager = new MultiModelManager({ client });
     const service = new ModelServiceAdapter({ gatewayUrl });
-    
+
     try {
       await manager.initialize();
       await service.initialize();
-      
+
       return {
         success: true,
         client,
@@ -75,7 +75,7 @@ module.exports = {
       };
     }
   },
-  
+
   /**
    * 一问多答
    */
@@ -84,7 +84,7 @@ module.exports = {
     await manager.initialize();
     return manager.askOnce(prompt, models, options);
   },
-  
+
   /**
    * 启动路由服务
    */
@@ -93,7 +93,7 @@ module.exports = {
     await router.start();
     return router;
   },
-  
+
   /**
    * 创建模型服务（OpenAI 兼容）
    */

@@ -16,6 +16,7 @@ module.exports = {
       }
     }
   },
+  suggest: '对重定向 URL 进行白名单验证：维护允许的重定向域名列表，仅允许匹配的 URL 通过。使用 URL 解析提取 hostname 并与 allowlist 比较。避免将用户输入直接作为重定向目标，改用 key-value 映射表。',
   references: ['CWE-601'],
   since: '2026-06-28',
 };

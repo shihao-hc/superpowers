@@ -15,6 +15,7 @@ module.exports = {
       }
     }
   },
+  suggest: '避免使用 document.write()、insertAdjacentHTML() 和 outerHTML 赋值。改用安全的 DOM API：textContent（替代 innerHTML）、createElement() + appendChild()、或使用前端框架的模板机制（Vue/React 的自动转义）。如果必须插入 HTML，使用 DOMPurify 进行消毒。',
   references: ['CWE-79'],
   since: '2026-06-28',
 };

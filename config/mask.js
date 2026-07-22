@@ -1,5 +1,3 @@
-const crypto = require('crypto');
-
 const secretKey = process.env.MASK_SECRET_KEY;
 if (!secretKey) {
   console.warn('[WARN] MASK_SECRET_KEY not set - reversible masking will be disabled');
@@ -13,4 +11,4 @@ module.exports = {
   algorithm: 'aes-256-gcm',
   ivLength: 16,
   authTagLength: 16
-}
+};

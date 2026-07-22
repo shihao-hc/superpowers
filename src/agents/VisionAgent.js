@@ -82,7 +82,7 @@ class VisionAgent {
     return this.analyze(screenshotBase64, gamePrompt, context);
   }
 
-  async chatWithImage(imageData, messages, context = {}) {
+  async chatWithImage(imageData, messages, _context = {}) {
     const startTime = Date.now();
 
     try {
@@ -130,7 +130,7 @@ class VisionAgent {
       return {
         ok: false,
         error: error.message,
-        text: '图片对话失败: ' + error.message
+        text: `图片对话失败: ${error.message}`
       };
     }
   }
@@ -185,7 +185,7 @@ class VisionAgent {
     };
 
     for (const [mood, patterns] of Object.entries(moodPatterns)) {
-      if (patterns.some(p => text.includes(p))) {
+      if (patterns.some((p) => text.includes(p))) {
         return mood;
       }
     }
@@ -196,13 +196,13 @@ class VisionAgent {
   async listAvailableModels() {
     try {
       const response = await fetch(`${this.ollamaEndpoint}/api/tags`);
-      if (!response.ok) return [];
+      if (!response.ok) {return [];}
 
       const data = await response.json();
       const visionKeywords = ['llava', 'vision', 'bakllava', 'moondream', 'minicpm', 'glm'];
 
-      return (data.models || []).filter(m =>
-        visionKeywords.some(kw => m.name.toLowerCase().includes(kw))
+      return (data.models || []).filter((m) =>
+        visionKeywords.some((kw) => m.name.toLowerCase().includes(kw))
       );
     } catch (error) {
       return [];

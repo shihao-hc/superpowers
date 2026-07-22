@@ -6,7 +6,7 @@ class AvatarComponent {
     this.isSpeaking = false;
     this.avatarConfig = null;
     this.speakAnimation = null;
-    
+
     this.options = {
       size: options.size || 120,
       moodAnimationDuration: options.moodAnimationDuration || 300,
@@ -15,7 +15,7 @@ class AvatarComponent {
       enableStatusDot: options.enableStatusDot !== false,
       ...options
     };
-    
+
     this.init();
   }
 
@@ -27,46 +27,46 @@ class AvatarComponent {
 
     this.container.innerHTML = '';
     this.container.className = 'avatar-container';
-    
+
     const wrapper = document.createElement('div');
     wrapper.className = 'avatar-wrapper';
     wrapper.style.width = `${this.options.size}px`;
     wrapper.style.height = `${this.options.size}px`;
-    
+
     const img = document.createElement('img');
     img.className = 'avatar-image';
     img.alt = 'Avatar';
     img.style.width = '100%';
     img.style.height = '100%';
-    
+
     if (this.options.enableGlow) {
       const glow = document.createElement('div');
       glow.className = 'avatar-glow';
       wrapper.appendChild(glow);
     }
-    
+
     wrapper.appendChild(img);
-    
+
     if (this.options.enableStatusDot) {
       const status = document.createElement('div');
       status.className = 'avatar-status';
       status.innerHTML = '🟢';
-      status.id = this.container.id + '-status';
+      status.id = `${this.container.id}-status`;
       wrapper.appendChild(status);
     }
-    
+
     this.container.appendChild(wrapper);
-    
+
     this.avatarImg = img;
     this.avatarWrapper = wrapper;
-    this.statusDot = document.getElementById(this.container.id + '-status');
-    
+    this.statusDot = document.getElementById(`${this.container.id}-status`);
+
     this.applyDefaultStyle();
   }
 
   setPersonality(personality) {
     this.currentPersonality = personality;
-    
+
     if (personality.avatar) {
       this.avatarConfig = personality.avatar;
       const avatarUrl = personality.avatar.default || this.getDefaultAvatar();
@@ -86,18 +86,18 @@ class AvatarComponent {
   }
 
   setMood(mood) {
-    if (this.currentMood === mood) return;
-    
+    if (this.currentMood === mood) {return;}
+
     const prevMood = this.currentMood;
     this.currentMood = mood;
-    
+
     this.avatarWrapper.classList.remove(`mood-${prevMood}`);
     this.avatarWrapper.classList.add(`mood-${mood}`);
-    
+
     if (this.avatarConfig?.moods?.[mood]) {
       this.setAvatar(this.avatarConfig.moods[mood]);
     }
-    
+
     this.triggerMoodAnimation(mood);
   }
 
@@ -153,18 +153,18 @@ class AvatarComponent {
   }
 
   speak() {
-    if (this.isSpeaking) return;
-    
+    if (this.isSpeaking) {return;}
+
     this.isSpeaking = true;
     this.avatarWrapper.classList.add('speaking');
-    
+
     if (this.statusDot) {
       this.statusDot.classList.add('speaking');
       this.statusDot.textContent = '🔵';
     }
-    
+
     this.avatarImg.style.animation = 'pulse-speak 0.3s ease infinite';
-    
+
     clearTimeout(this.speakAnimation);
     this.speakAnimation = setTimeout(() => {
       this.stopSpeaking();
@@ -174,12 +174,12 @@ class AvatarComponent {
   stopSpeaking() {
     this.isSpeaking = false;
     this.avatarWrapper.classList.remove('speaking');
-    
+
     if (this.statusDot) {
       this.statusDot.classList.remove('speaking');
       this.statusDot.textContent = '🟢';
     }
-    
+
     this.avatarImg.style.animation = '';
   }
 
@@ -301,7 +301,7 @@ class AvatarComponent {
         50% { transform: scale(1.2); }
       }
     `;
-    
+
     if (!document.getElementById('avatar-component-styles')) {
       style.id = 'avatar-component-styles';
       document.head.appendChild(style);

@@ -13,13 +13,13 @@ class IntegrationTestRunner {
 
   async runAll() {
     console.log(`Running ${this.tests.length} integration tests...`);
-    
+
     for (const test of this.tests) {
       try {
         const start = Date.now();
         await test.fn();
         const duration = Date.now() - start;
-        
+
         this.results.push({
           name: test.name,
           status: 'passed',
@@ -42,9 +42,9 @@ class IntegrationTestRunner {
   }
 
   generateReport() {
-    const passed = this.results.filter(r => r.status === 'passed').length;
-    const failed = this.results.filter(r => r.status === 'failed').length;
-    
+    const passed = this.results.filter((r) => r.status === 'passed').length;
+    const failed = this.results.filter((r) => r.status === 'failed').length;
+
     return {
       total: this.tests.length,
       passed,
@@ -64,7 +64,7 @@ runner.registerTest('Plugin Governance', async () => {
   const gov = new PluginGovernance();
   gov.registerPolicy('test-plugin', { allowedActions: ['read', 'write'] });
   const policy = gov.getPolicy('test-plugin');
-  if (!policy) throw new Error('Policy not registered');
+  if (!policy) {throw new Error('Policy not registered');}
 });
 
 // Test 2: Auto Update
@@ -72,7 +72,7 @@ runner.registerTest('Auto Update System', async () => {
   const { AutoUpdateSystem } = require('../auto-update/AutoUpdater');
   const updater = new AutoUpdateSystem({ autoApply: false });
   const update = await updater.checkForUpdates();
-  if (!update) throw new Error('Update check failed');
+  if (!update) {throw new Error('Update check failed');}
 });
 
 // Test 3: Distributed Coordination
@@ -81,7 +81,7 @@ runner.registerTest('Distributed Coordinator', async () => {
   const coord = new DistributedCoordinator();
   coord.registerNode('node-1', { name: 'Test Node' });
   const nodes = coord.getActiveNodes();
-  if (nodes.length !== 1) throw new Error('Node registration failed');
+  if (nodes.length !== 1) {throw new Error('Node registration failed');}
 });
 
 // Test 4: Security
@@ -89,7 +89,7 @@ runner.registerTest('Security Hardening', async () => {
   const { SecurityHardening } = require('../security/SecurityHardening');
   const sec = new SecurityHardening();
   const vulns = await sec.scanDependencies();
-  if (!Array.isArray(vulns)) throw new Error('Security scan failed');
+  if (!Array.isArray(vulns)) {throw new Error('Security scan failed');}
 });
 
 // Test 5: Performance
@@ -98,7 +98,7 @@ runner.registerTest('Performance Optimizer', async () => {
   const perf = new PerformanceOptimizer();
   perf.recordMetric('latency', 100);
   const avg = perf.getAverage('latency');
-  if (avg !== 100) throw new Error('Metric recording failed');
+  if (avg !== 100) {throw new Error('Metric recording failed');}
 });
 
 // Export for CLI usage

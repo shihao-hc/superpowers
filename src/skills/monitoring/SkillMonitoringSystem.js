@@ -28,7 +28,7 @@ class SkillMonitoringSystem {
 
     this.storage = options.storage || null;
     this._loadMetrics();
-    
+
     // Start periodic cleanup
     this._startPeriodicTasks();
   }
@@ -37,9 +37,9 @@ class SkillMonitoringSystem {
    * Record skill call
    */
   recordSkillCall(skillName, callData = {}) {
-    const { 
-      success = true, 
-      duration = 0, 
+    const {
+      success = true,
+      duration = 0,
       userId = null,
       sessionId = null,
       domain = null,
@@ -70,7 +70,7 @@ class SkillMonitoringSystem {
     const stats = this.metrics.skillCalls.get(skillName);
     stats.total++;
     stats.lastCall = timestamp;
-    if (!stats.firstCall) stats.firstCall = timestamp;
+    if (!stats.firstCall) {stats.firstCall = timestamp;}
 
     if (success) {
       stats.successful++;
@@ -109,7 +109,7 @@ class SkillMonitoringSystem {
    */
   _updatePercentiles(skillName, duration) {
     const stats = this.metrics.skillCalls.get(skillName);
-    if (!stats) return;
+    if (!stats) {return;}
 
     // Maintain a small sample for percentile calculation
     if (!stats.durationSamples) {
@@ -189,7 +189,7 @@ class SkillMonitoringSystem {
    */
   _updateRetention(userId) {
     const userStats = this.metrics.userSessions.get(userId);
-    if (!userStats) return;
+    if (!userStats) {return;}
 
     const now = Date.now();
 
@@ -203,14 +203,14 @@ class SkillMonitoringSystem {
 
       // Check if user was active in this window
       let wasActive = false;
-      
+
       // Check last activity
       if (userStats.lastSeen >= windowStart) {
         wasActive = true;
       }
 
       // Check sessions
-      for (const [sessionId, session] of userStats.sessions) {
+      for (const [_sessionId, session] of userStats.sessions) {
         if (session.lastActivity >= windowStart) {
           wasActive = true;
           break;
@@ -279,9 +279,9 @@ class SkillMonitoringSystem {
     // Add new alerts
     for (const alert of alerts) {
       // Avoid duplicate alerts within 5 minutes
-      const isDuplicate = this.alerts.some(a => 
-        a.skill === alert.skill && 
-        a.type === alert.type && 
+      const isDuplicate = this.alerts.some((a) =>
+        a.skill === alert.skill &&
+        a.type === alert.type &&
         alert.timestamp - a.timestamp < 300000
       );
 
@@ -297,15 +297,15 @@ class SkillMonitoringSystem {
   /**
    * Get skill metrics
    */
-  getSkillMetrics(skillName, options = {}) {
+  getSkillMetrics(skillName, _options = {}) {
     const stats = this.metrics.skillCalls.get(skillName);
-    if (!stats) return null;
+    if (!stats) {return null;}
 
-    const { 
-      successRate = 0, 
-      total = 0, 
+    const {
+      successRate: _successRate = 0,
+      total = 0,
       avgDuration = 0,
-      p95Duration = 0 
+      p95Duration = 0
     } = stats;
 
     return {
@@ -336,9 +336,9 @@ class SkillMonitoringSystem {
     const { domain = null, sortBy = 'totalCalls' } = options;
 
     const results = [];
-    
+
     for (const [skillName, stats] of this.metrics.skillCalls) {
-      if (domain && stats.domain !== domain) continue;
+      if (domain && stats.domain !== domain) {continue;}
 
       results.push({
         skillName,
@@ -353,15 +353,15 @@ class SkillMonitoringSystem {
 
     // Sort
     switch (sortBy) {
-      case 'totalCalls':
-        results.sort((a, b) => b.totalCalls - a.totalCalls);
-        break;
-      case 'successRate':
-        results.sort((a, b) => b.successRate - a.successRate);
-        break;
-      case 'responseTime':
-        results.sort((a, b) => b.p95ResponseTime - a.p95ResponseTime);
-        break;
+    case 'totalCalls':
+      results.sort((a, b) => b.totalCalls - a.totalCalls);
+      break;
+    case 'successRate':
+      results.sort((a, b) => b.successRate - a.successRate);
+      break;
+    case 'responseTime':
+      results.sort((a, b) => b.p95ResponseTime - a.p95ResponseTime);
+      break;
     }
 
     return results;
@@ -373,7 +373,7 @@ class SkillMonitoringSystem {
   getRetentionMetrics(options = {}) {
     const { window = 'weekly' } = options;
     const retentionMap = this.metrics.retention.get(window);
-    
+
     if (!retentionMap) {
       return { window, activeUsers: 0, retention: {} };
     }
@@ -385,10 +385,10 @@ class SkillMonitoringSystem {
     const now = Date.now();
 
     for (const [cohortDate, cohortData] of retentionMap) {
-      if (cohortDate === 'activeUsers') continue;
-      
+      if (cohortDate === 'activeUsers') {continue;}
+
       const cohortRetention = Array.from(cohortData.values())
-        .filter(userId => {
+        .filter((userId) => {
           const userStats = this.metrics.userSessions.get(userId);
           return userStats && userStats.lastSeen >= now - 86400000;
         }).length;
@@ -415,7 +415,7 @@ class SkillMonitoringSystem {
     const { limit = 50, sortBy = 'lastSeen' } = options;
 
     const users = Array.from(this.metrics.userSessions.values())
-      .map(user => ({
+      .map((user) => ({
         userId: user.userId,
         firstSeen: user.firstSeen,
         lastSeen: user.lastSeen,
@@ -431,20 +431,20 @@ class SkillMonitoringSystem {
 
     // Sort
     switch (sortBy) {
-      case 'totalCalls':
-        users.sort((a, b) => b.totalCalls - a.totalCalls);
-        break;
-      case 'lastSeen':
-        users.sort((a, b) => b.lastSeen - a.lastSeen);
-        break;
-      case 'engagement':
-        users.sort((a, b) => b.avgCallsPerDay - a.avgCallsPerDay);
-        break;
+    case 'totalCalls':
+      users.sort((a, b) => b.totalCalls - a.totalCalls);
+      break;
+    case 'lastSeen':
+      users.sort((a, b) => b.lastSeen - a.lastSeen);
+      break;
+    case 'engagement':
+      users.sort((a, b) => b.avgCallsPerDay - a.avgCallsPerDay);
+      break;
     }
 
     return {
       totalUsers: users.length,
-      activeUsers: users.filter(u => Date.now() - u.lastSeen < 86400000).length,
+      activeUsers: users.filter((u) => Date.now() - u.lastSeen < 86400000).length,
       users: users.slice(0, limit)
     };
   }
@@ -455,7 +455,7 @@ class SkillMonitoringSystem {
   getDashboardSummary() {
     const now = Date.now();
     const oneHourAgo = now - 3600000;
-    const oneDayAgo = now - 86400000;
+    const _oneDayAgo = now - 86400000;
 
     let totalCalls = 0;
     let successfulCalls = 0;
@@ -463,7 +463,7 @@ class SkillMonitoringSystem {
     let recentCalls = 0;
     let recentSuccessful = 0;
 
-    for (const [skillName, stats] of this.metrics.skillCalls) {
+    for (const [_skillName, stats] of this.metrics.skillCalls) {
       totalCalls += stats.total;
       successfulCalls += stats.successful;
       totalDuration += stats.totalDuration;
@@ -498,11 +498,11 @@ class SkillMonitoringSystem {
       },
       skills: {
         total: this.metrics.skillCalls.size,
-        withErrors: this.alerts.filter(a => a.severity === 'critical').length
+        withErrors: this.alerts.filter((a) => a.severity === 'critical').length
       },
       alerts: {
-        critical: this.alerts.filter(a => a.severity === 'critical').length,
-        warning: this.alerts.filter(a => a.severity === 'warning').length,
+        critical: this.alerts.filter((a) => a.severity === 'critical').length,
+        warning: this.alerts.filter((a) => a.severity === 'warning').length,
         total: this.alerts.length
       }
     };
@@ -517,11 +517,11 @@ class SkillMonitoringSystem {
     let alerts = [...this.alerts];
 
     if (severity) {
-      alerts = alerts.filter(a => a.severity === severity);
+      alerts = alerts.filter((a) => a.severity === severity);
     }
 
     if (skill) {
-      alerts = alerts.filter(a => a.skill === skill);
+      alerts = alerts.filter((a) => a.skill === skill);
     }
 
     return alerts.slice(0, limit);
@@ -547,7 +547,7 @@ class SkillMonitoringSystem {
     // Overall metrics
     lines.push('# HELP ultrawork_skill_calls_total Total skill calls');
     lines.push('# TYPE ultrawork_skill_calls_total counter');
-    
+
     for (const [skillName, stats] of this.metrics.skillCalls) {
       lines.push(`ultrawork_skill_calls_total{skill="${skillName}"} ${stats.total}`);
     }
@@ -555,7 +555,7 @@ class SkillMonitoringSystem {
     // Success rate
     lines.push('\n# HELP ultrawork_skill_success_rate Skill success rate');
     lines.push('# TYPE ultrawork_skill_success_rate gauge');
-    
+
     for (const [skillName, stats] of this.metrics.skillCalls) {
       const rate = stats.total > 0 ? stats.successful / stats.total : 0;
       lines.push(`ultrawork_skill_success_rate{skill="${skillName}"} ${rate}`);
@@ -564,7 +564,7 @@ class SkillMonitoringSystem {
     // Response time
     lines.push('\n# HELP ultrawork_skill_response_time_ms Skill response time (ms)');
     lines.push('# TYPE ultrawork_skill_response_time_ms gauge');
-    
+
     for (const [skillName, stats] of this.metrics.skillCalls) {
       lines.push(`ultrawork_skill_response_time_ms_avg{skill="${skillName}"} ${stats.avgDuration}`);
       lines.push(`ultrawork_skill_response_time_ms_p95{skill="${skillName}"} ${stats.p95Duration}`);
@@ -588,7 +588,7 @@ class SkillMonitoringSystem {
     for (const [skillName, stats] of this.metrics.skillCalls) {
       if (stats.total >= 10) {
         const successRate = stats.successful / stats.total;
-        
+
         if (successRate < 0.8) {
           recommendations.push({
             priority: 'high',
@@ -628,7 +628,7 @@ class SkillMonitoringSystem {
     const retention = this.getRetentionMetrics();
     if (retention.totalUsers > 0) {
       const churnRate = 1 - (retention.activeUsers / retention.totalUsers);
-      
+
       if (churnRate > 0.3) {
         recommendations.push({
           priority: 'high',
@@ -660,7 +660,7 @@ class SkillMonitoringSystem {
     // Cleanup old alerts every hour
     setInterval(() => {
       const oneDayAgo = Date.now() - 86400000;
-      this.alerts = this.alerts.filter(a => a.timestamp > oneDayAgo);
+      this.alerts = this.alerts.filter((a) => a.timestamp > oneDayAgo);
     }, 3600000);
 
     // Save metrics periodically

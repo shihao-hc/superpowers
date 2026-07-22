@@ -11,7 +11,7 @@ class TTSSystem {
     this.onStart = options.onStart || (() => {});
     this.onEnd = options.onEnd || (() => {});
     this.onError = options.onError || ((e) => console.error('TTS Error:', e));
-    
+
     this.phonemeMap = {
       'a': 0.8, 'e': 0.7, 'i': 0.5, 'o': 0.6, 'u': 0.4,
       'b': 0.3, 'd': 0.4, 'g': 0.3, 'k': 0.3, 'l': 0.2,
@@ -21,7 +21,7 @@ class TTSSystem {
       'ao': 0.7, 'ou': 0.6, 'an': 0.5, 'en': 0.5, 'ang': 0.6,
       'eng': 0.5, 'ong': 0.6
     };
-    
+
     this.mouthShapes = {
       closed: 0,
       slightlyOpen: 0.3,
@@ -29,7 +29,7 @@ class TTSSystem {
       open: 0.7,
       wideOpen: 1.0
     };
-    
+
     this.phonemeMouthMap = {
       'a': 'open', 'e': 'halfOpen', 'i': 'slightlyOpen',
       'o': 'open', 'u': 'slightlyOpen', 'ai': 'halfOpen',
@@ -41,7 +41,7 @@ class TTSSystem {
       'd': 'halfOpen', 'g': 'halfOpen', 'k': 'halfOpen',
       'default': 'slightlyOpen'
     };
-    
+
     this.initVoices();
   }
 
@@ -50,11 +50,11 @@ class TTSSystem {
       const loadVoices = () => {
         const voices = speechSynthesis.getVoices();
         this.voices = voices;
-        this.voice = voices.find(v => v.lang.includes('zh')) || 
-                     voices.find(v => v.lang.includes('en')) ||
+        this.voice = voices.find((v) => v.lang.includes('zh')) ||
+                     voices.find((v) => v.lang.includes('en')) ||
                      voices[0] || null;
       };
-      
+
       loadVoices();
       if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = loadVoices;
@@ -68,7 +68,7 @@ class TTSSystem {
 
   setVoice(voiceName) {
     if (this.voices) {
-      this.voice = this.voices.find(v => v.name === voiceName) || this.voice;
+      this.voice = this.voices.find((v) => v.name === voiceName) || this.voice;
     }
   }
 
@@ -84,13 +84,13 @@ class TTSSystem {
     }
 
     this.stop();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = options.lang || this.lang;
     utterance.rate = options.rate || this.rate;
     utterance.pitch = options.pitch || this.pitch;
     utterance.volume = options.volume || this.volume;
-    
+
     if (this.voice) {
       utterance.voice = this.voice;
     }
@@ -148,26 +148,26 @@ class TTSSystem {
   }
 
   getMouthValue(text, charIndex) {
-    if (charIndex >= text.length) return 0;
-    
+    if (charIndex >= text.length) {return 0;}
+
     const char = text[charIndex].toLowerCase();
-    
+
     if (/[aeiou]/.test(char)) {
       const shape = this.phonemeMouthMap[char] || 'default';
       return this.mouthShapes[shape];
     }
-    
+
     return this.mouthShapes.closed;
   }
 
   estimatePhonemeSequence(text) {
     const phonemes = [];
-    const chinesePattern = /[\u4e00-\u9fa5]/g;
+    const _chinesePattern = /[\u4e00-\u9fa5]/g;
     const englishPattern = /[a-zA-Z]+/g;
-    
+
     let match;
     let lastIndex = 0;
-    
+
     while ((match = englishPattern.exec(text)) !== null) {
       if (match.index > lastIndex) {
         const chinesePart = text.slice(lastIndex, match.index);
@@ -175,7 +175,7 @@ class TTSSystem {
           phonemes.push({ char, mouth: 0.3, duration: 150 });
         }
       }
-      
+
       const word = match[0];
       for (const char of word) {
         const mouthVal = this.getMouthValue(word, word.indexOf(char));
@@ -183,14 +183,14 @@ class TTSSystem {
       }
       lastIndex = match.index + word.length;
     }
-    
+
     if (lastIndex < text.length) {
       const remaining = text.slice(lastIndex);
       for (const char of remaining) {
         phonemes.push({ char, mouth: 0.3, duration: 150 });
       }
     }
-    
+
     return phonemes;
   }
 }
@@ -207,8 +207,8 @@ class LipSyncAnimator {
   }
 
   start(text) {
-    if (!this.live2d) return;
-    
+    if (!this.live2d) {return;}
+
     this.stop();
     this.phonemes = this.estimatePhonemeSequence(text);
     this.currentPhonemeIndex = 0;
@@ -228,10 +228,10 @@ class LipSyncAnimator {
   estimatePhonemeSequence(text) {
     const phonemes = [];
     const chars = text.split('');
-    
-    chars.forEach((char, i) => {
+
+    chars.forEach((char, _i) => {
       let mouthValue = 0.2;
-      
+
       if (/[aeiouAEIOU]/.test(char)) {
         mouthValue = 0.6;
       } else if (/[bpmf]/.test(char.toLowerCase())) {
@@ -239,26 +239,26 @@ class LipSyncAnimator {
       } else if (/[gkh]/.test(char.toLowerCase())) {
         mouthValue = 0.3;
       }
-      
+
       phonemes.push({
         char,
         mouthValue,
         duration: 80 + Math.random() * 40
       });
     });
-    
+
     return phonemes;
   }
 
   animate() {
-    if (!this.isAnimating) return;
-    
+    if (!this.isAnimating) {return;}
+
     if (this.currentPhonemeIndex < this.phonemes.length) {
       const phoneme = this.phonemes[this.currentPhonemeIndex];
-      
+
       this.updateLive2DMouth(phoneme.mouthValue);
       this.onLipSyncUpdate(phoneme);
-      
+
       this.animationTimer = setTimeout(() => {
         this.currentPhonemeIndex++;
         this.animate();
@@ -301,18 +301,18 @@ class VoiceAvatar {
   }
 
   speak(text, moodConfig = {}) {
-    if (!text || !text.trim()) return;
-    
+    if (!text || !text.trim()) {return;}
+
     this.stop();
-    
+
     this.tts.setMoodRatePitch(
       moodConfig.mood,
       moodConfig.rateVariants,
       moodConfig.pitchVariants
     );
-    
+
     this.tts.speak(text);
-    
+
     if (this.moodLipSync) {
       this.lipSync.start(text);
     }
@@ -334,7 +334,7 @@ class VoiceAvatar {
       shy: { rate: 0.9, pitch: 1.1 },
       proud: { rate: 1.0, pitch: 1.1 }
     };
-    
+
     const config = moodConfigs[mood] || moodConfigs.calm;
     this.tts.rate = config.rate;
     this.tts.pitch = config.pitch;

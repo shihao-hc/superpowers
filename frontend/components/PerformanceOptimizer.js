@@ -31,7 +31,7 @@ class PerformanceOptimizer {
   }
 
   getCacheKey(prefix, params) {
-    const sorted = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
+    const sorted = Object.keys(params).sort().map((k) => `${k}=${params[k]}`).join('&');
     return `${prefix}:${sorted}`;
   }
 
@@ -97,7 +97,7 @@ class PerformanceOptimizer {
       }
 
       const timeoutId = setTimeout(() => {
-        const index = this.requestQueue.findIndex(r => r.timeoutId === timeoutId);
+        const index = this.requestQueue.findIndex((r) => r.timeoutId === timeoutId);
         if (index > -1) {
           this.requestQueue.splice(index, 1);
           this.metrics.requestsTimeout++;
@@ -148,7 +148,7 @@ class PerformanceOptimizer {
   debounce(fn, delay) {
     let timeoutId = null;
     return (...args) => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {clearTimeout(timeoutId);}
       timeoutId = setTimeout(() => fn(...args), delay || this.options.debounceDelay);
     };
   }
@@ -168,7 +168,7 @@ class PerformanceOptimizer {
     const cacheTotal = this.metrics.cacheHits + this.metrics.cacheMisses;
     return {
       ...this.metrics,
-      cacheHitRate: cacheTotal > 0 ? (this.metrics.cacheHits / cacheTotal * 100).toFixed(2) + '%' : '0%',
+      cacheHitRate: cacheTotal > 0 ? `${(this.metrics.cacheHits / cacheTotal * 100).toFixed(2)}%` : '0%',
       queueLength: this.requestQueue.length,
       activeRequests: this.activeRequests,
       cacheSize: this.cache.size
@@ -220,7 +220,7 @@ class MemoryOptimizer {
   }
 
   _checkMemory() {
-    if (!performance.memory) return;
+    if (!performance.memory) {return;}
 
     const used = performance.memory.usedJSHeapSize;
     const limit = performance.memory.jsHeapSizeLimit;

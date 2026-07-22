@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 class RecoveryManager {
   constructor(options = {}) {
@@ -13,7 +13,7 @@ class RecoveryManager {
   }
 
   _sanitizeId(id) {
-    if (!id || typeof id !== 'string') return null;
+    if (!id || typeof id !== 'string') {return null;}
     return id.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 64);
   }
 
@@ -34,7 +34,7 @@ class RecoveryManager {
 
   saveAgentState(agentId, state) {
     const safeId = this._sanitizeId(agentId);
-    if (!safeId) return null;
+    if (!safeId) {return null;}
 
     const stateData = {
       agentId: safeId,
@@ -58,7 +58,7 @@ class RecoveryManager {
 
   loadAgentState(agentId) {
     const safeId = this._sanitizeId(agentId);
-    if (!safeId) return null;
+    if (!safeId) {return null;}
 
     const filePath = this._safePath(`${safeId}.json`);
 
@@ -77,7 +77,7 @@ class RecoveryManager {
 
   saveTaskState(taskId, state) {
     const safeId = this._sanitizeId(taskId);
-    if (!safeId) return null;
+    if (!safeId) {return null;}
 
     const taskData = {
       taskId: safeId,
@@ -102,7 +102,7 @@ class RecoveryManager {
 
   loadTaskState(taskId) {
     const safeId = this._sanitizeId(taskId);
-    if (!safeId) return null;
+    if (!safeId) {return null;}
 
     const filePath = this._safePath(`task_${safeId}.json`);
 
@@ -117,7 +117,7 @@ class RecoveryManager {
     return null;
   }
 
-  async recoverAfterRestart(agents, tasks) {
+  async recoverAfterRestart(agents, _tasks) {
     const recoveryReport = {
       timestamp: Date.now(),
       agentsRecovered: 0,
@@ -128,13 +128,13 @@ class RecoveryManager {
     };
 
     const stateFiles = fs.readdirSync(this.stateDir)
-      .filter(f => f.endsWith('.json') && !f.startsWith('task_'));
+      .filter((f) => f.endsWith('.json') && !f.startsWith('task_'));
 
     for (const file of stateFiles) {
       const agentId = file.replace('.json', '');
       const savedState = this.loadAgentState(agentId);
 
-      if (!savedState) continue;
+      if (!savedState) {continue;}
 
       const agent = agents.get(agentId);
       if (!agent) {
@@ -163,13 +163,13 @@ class RecoveryManager {
     }
 
     const taskFiles = fs.readdirSync(this.stateDir)
-      .filter(f => f.startsWith('task_'));
+      .filter((f) => f.startsWith('task_'));
 
     for (const file of taskFiles) {
       const taskId = file.replace('task_', '').replace('.json', '');
       const savedTask = this.loadTaskState(taskId);
 
-      if (!savedTask) continue;
+      if (!savedTask) {continue;}
 
       if (savedTask.status === 'running') {
         this.saveTaskState(taskId, {
@@ -197,7 +197,7 @@ class RecoveryManager {
 
   async cancelAgent(agentId, maxRetries = 3) {
     const agent = this.agents.get(agentId);
-    if (!agent) return { success: false, error: 'Agent not found' };
+    if (!agent) {return { success: false, error: 'Agent not found' };}
 
     let retries = 0;
 
@@ -209,7 +209,7 @@ class RecoveryManager {
           data: { cancelRequestedAt: Date.now(), retry: retries }
         });
 
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 500));
 
         const currentState = this.loadAgentState(agentId);
         if (currentState && currentState.coarseState === 'shutdown') {
@@ -298,7 +298,7 @@ class RecoveryManager {
           fs.unlinkSync(filePath);
           cleaned++;
         }
-      } catch (error) {}
+      } catch (error) { /* 忽略删除错误 */ }
     }
 
     return cleaned;

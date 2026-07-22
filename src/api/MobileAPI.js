@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
+const _path = require('path');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -17,11 +17,12 @@ const upload = multer({
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
+  // eslint-disable-next-line security/detect-possible-timing-attacks
   if (token === 'invalid_token') {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   req.user = { id: 'user_123', tenantId: 'tenant_abc' };
   next();
 }
@@ -30,14 +31,14 @@ function authenticateToken(req, res, next) {
 
 router.post('/auth/login', async (req, res) => {
   const { email, password, tenantId } = req.body;
-  
+
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
   }
-  
+
   // In production, validate against enterprise system
   const token = Buffer.from(`${email}:${Date.now()}`).toString('base64');
-  
+
   res.json({
     success: true,
     token,
@@ -53,8 +54,8 @@ router.post('/auth/login', async (req, res) => {
 });
 
 router.post('/auth/sso', async (req, res) => {
-  const { provider, code, redirectUri } = req.body;
-  
+  const { provider: _provider, code: _code, redirectUri: _redirectUri } = req.body;
+
   // Handle SSO callback
   res.json({
     success: true,
@@ -71,11 +72,11 @@ router.post('/auth/logout', authenticateToken, (req, res) => {
 
 router.post('/chat/send', authenticateToken, async (req, res) => {
   const { message, conversationId, attachments } = req.body;
-  
+
   if (!message && (!attachments || attachments.length === 0)) {
     return res.status(400).json({ error: 'Message or attachments required' });
   }
-  
+
   // In production, send to WebSocket or process directly
   res.json({
     success: true,
@@ -140,8 +141,8 @@ router.get('/chat/conversations/:id/messages', authenticateToken, (req, res) => 
 // ========== Skills Endpoints ==========
 
 router.get('/skills', authenticateToken, async (req, res) => {
-  const { category, search } = req.query;
-  
+  const { category: _category, search: _search } = req.query;
+
   // In production, fetch from skill manager
   res.json({
     skills: [
@@ -168,8 +169,8 @@ router.get('/skills/:id', authenticateToken, (req, res) => {
 });
 
 router.post('/skills/:id/execute', authenticateToken, async (req, res) => {
-  const { inputs } = req.body;
-  
+  const { inputs: _inputs } = req.body;
+
   res.json({
     success: true,
     executionId: `exec_${Date.now()}`,
@@ -191,7 +192,7 @@ router.post('/voice/transcribe', authenticateToken, upload.single('audio'), asyn
   if (!req.file) {
     return res.status(400).json({ error: 'Audio file required' });
   }
-  
+
   // In production, use speech-to-text service
   res.json({
     success: true,
@@ -202,12 +203,12 @@ router.post('/voice/transcribe', authenticateToken, upload.single('audio'), asyn
 });
 
 router.post('/voice/synthesize', authenticateToken, async (req, res) => {
-  const { text, voice } = req.body;
-  
+  const { text, voice: _voice } = req.body;
+
   if (!text) {
     return res.status(400).json({ error: 'Text required' });
   }
-  
+
   // In production, use text-to-speech service
   res.json({
     success: true,
@@ -222,14 +223,14 @@ router.post('/upload', authenticateToken, upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'File required' });
   }
-  
+
   res.json({
     success: true,
     fileId: `file_${Date.now()}`,
     filename: req.file.originalname,
     size: req.file.size,
     mimeType: req.file.mimetype,
-    url: `/files/${req.file.originalname}`
+    url: `/files/${encodeURIComponent(req.file.originalname)}`
   });
 });
 
@@ -255,7 +256,7 @@ router.get('/profile', authenticateToken, (req, res) => {
 
 router.put('/profile', authenticateToken, (req, res) => {
   const { name, settings } = req.body;
-  
+
   res.json({
     success: true,
     user: {
@@ -299,7 +300,7 @@ router.get('/sync/status', authenticateToken, (req, res) => {
 
 router.post('/sync/push', authenticateToken, (req, res) => {
   const { changes } = req.body;
-  
+
   res.json({
     success: true,
     syncedCount: changes?.length || 0

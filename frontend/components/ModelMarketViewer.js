@@ -10,7 +10,7 @@ class ModelMarketViewer {
 
   async init() {
     this.container = document.getElementById(this.containerId);
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     await this.loadModels();
     this.render();
@@ -20,9 +20,9 @@ class ModelMarketViewer {
   async loadModels() {
     try {
       const params = new URLSearchParams();
-      if (this.filter.industry) params.set('industry', this.filter.industry);
-      if (this.filter.type) params.set('type', this.filter.type);
-      if (this.filter.sortBy) params.set('sortBy', this.filter.sortBy);
+      if (this.filter.industry) {params.set('industry', this.filter.industry);}
+      if (this.filter.type) {params.set('type', this.filter.type);}
+      if (this.filter.sortBy) {params.set('sortBy', this.filter.sortBy);}
 
       const response = await fetch(`/api/models?${params}`);
       if (response.ok) {
@@ -34,7 +34,7 @@ class ModelMarketViewer {
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {return;}
 
     this.container.innerHTML = `
       <div class="model-market">
@@ -71,7 +71,7 @@ class ModelMarketViewer {
 
   renderModels() {
     const grid = document.getElementById('model-grid');
-    if (!grid) return;
+    if (!grid) {return;}
 
     grid.innerHTML = '';
 
@@ -80,7 +80,7 @@ class ModelMarketViewer {
       return;
     }
 
-    this.models.forEach(model => {
+    this.models.forEach((model) => {
       const card = this.createModelCard(model);
       grid.appendChild(card);
     });
@@ -159,7 +159,7 @@ class ModelMarketViewer {
         this.renderModels();
       }
     } catch (e) {
-      alert('订阅失败: ' + e.message);
+      alert(`订阅失败: ${e.message}`);
     }
   }
 
@@ -204,7 +204,7 @@ class ModelMarketViewer {
       modal.remove();
     });
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 
@@ -296,12 +296,12 @@ class ModelMarketViewer {
         await this.loadModels();
         this.renderModels();
       } catch (e) {
-        alert('启动训练失败: ' + e.message);
+        alert(`启动训练失败: ${e.message}`);
       }
     });
 
     modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
+      if (e.target === modal) {modal.remove();}
     });
   }
 
@@ -320,7 +320,7 @@ class ModelMarketViewer {
   }
 
   escapeHtml(str) {
-    if (!str) return '';
+    if (!str) {return '';}
     const div = document.createElement('div');
     div.textContent = String(str);
     return div.innerHTML;

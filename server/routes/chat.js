@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, optionalAuth, chatLimiter } = require('../middleware');
 const chatService = require('../services/chatService');
+const { errorLog } = require('../utils/logger');
 
 /**
  * POST /api/chat
@@ -46,7 +47,7 @@ router.post('/', optionalAuth, chatLimiter, async (req, res) => {
       data: response
     });
   } catch (error) {
-    console.error('Chat error:', error);
+    errorLog('Chat error', { error: error.message });
     res.status(500).json({
       error: '消息处理失败',
       code: 'CHAT_ERROR'
@@ -73,7 +74,7 @@ router.get('/history', authMiddleware, async (req, res) => {
       data: history
     });
   } catch (error) {
-    console.error('History error:', error);
+    errorLog('History error', { error: error.message });
     res.status(500).json({
       error: '获取历史记录失败',
       code: 'HISTORY_ERROR'
@@ -96,7 +97,7 @@ router.delete('/history', authMiddleware, async (req, res) => {
       message: '聊天历史已清除'
     });
   } catch (error) {
-    console.error('Clear history error:', error);
+    errorLog('Clear history error', { error: error.message });
     res.status(500).json({
       error: '清除历史记录失败',
       code: 'CLEAR_HISTORY_ERROR'
@@ -145,7 +146,7 @@ router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Stream error:', error);
+    errorLog('Stream error', { error: error.message });
     if (!res.headersSent) {
       res.status(500).json({
         error: '流式处理失败',

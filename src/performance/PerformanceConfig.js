@@ -86,7 +86,7 @@ class PerformanceConfig {
     const parts = path.split('.');
     let current = this.config;
     for (const part of parts) {
-      if (current === undefined) return undefined;
+      if (current === undefined) {return undefined;}
       current = current[part];
     }
     return current;
@@ -106,7 +106,7 @@ class PerformanceConfig {
   }
 
   getAll() {
-    return { ...this.config };
+    return JSON.parse(JSON.stringify(this.config));
   }
 
   getCacheConfig() {
@@ -219,14 +219,14 @@ class PerformanceConfig {
 }
 
 // Singleton instance
-let instance = null;
+PerformanceConfig._instance = null;
 
 PerformanceConfig.getInstance = function() {
-  if (!instance) {
-    instance = new PerformanceConfig();
-    instance.loadFromEnv();
+  if (!this._instance) {
+    this._instance = new PerformanceConfig();
+    this._instance.loadFromEnv();
   }
-  return instance;
+  return this._instance;
 };
 
 module.exports = { PerformanceConfig };

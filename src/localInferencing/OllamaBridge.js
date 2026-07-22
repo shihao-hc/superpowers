@@ -10,7 +10,7 @@ class OllamaBridge {
     this.defaultModel = options.model || process.env.OLLAMA_MODEL || 'llama3.2';
     this.client = new Ollama({ host: `${this.host}:${this.port}` });
     this.connected = false;
-    
+
     this.maxTokens = parseInt(process.env.MAX_TOKENS) || 256;
     this.defaultTemperature = parseFloat(process.env.DEFAULT_TEMPERATURE) || 0.8;
   }
@@ -45,34 +45,30 @@ class OllamaBridge {
       throw new Error('Invalid messages array');
     }
 
-    const sanitizedMessages = messages.map(m => ({
+    const sanitizedMessages = messages.map((m) => ({
       role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user',
       content: String(m.content || '').substring(0, MAX_INPUT_LENGTH)
     })).slice(-MAX_MESSAGE_HISTORY);
 
-    try {
-      const response = await this.client.chat({
-        model,
-        messages: sanitizedMessages,
-        options: { temperature, num_predict: maxTokens },
-        stream
-      });
+    const response = await this.client.chat({
+      model,
+      messages: sanitizedMessages,
+      options: { temperature, num_predict: maxTokens },
+      stream
+    });
 
-      if (stream) {
-        return response;
-      }
-
-      return {
-        ok: true,
-        text: response.message?.content?.trim() || '',
-        model,
-        done: true,
-        evalCount: response.eval_count,
-        promptEvalCount: response.prompt_eval_count
-      };
-    } catch (error) {
-      throw error;
+    if (stream) {
+      return response;
     }
+
+    return {
+      ok: true,
+      text: response.message?.content?.trim() || '',
+      model,
+      done: true,
+      evalCount: response.eval_count,
+      promptEvalCount: response.prompt_eval_count
+    };
   }
 
   async infer(input, context = {}) {
@@ -93,8 +89,8 @@ class OllamaBridge {
     }
 
     try {
-      const result = await this.chat(messages, { 
-        model: customModel || this.defaultModel 
+      const result = await this.chat(messages, {
+        model: customModel || this.defaultModel
       });
       return {
         ok: true,
@@ -186,7 +182,7 @@ class OllamaBridge {
       return {
         ok: false,
         error: error.message,
-        description: '图片分析失败: ' + error.message
+        description: `图片分析失败: ${error.message}`
       };
     }
   }
@@ -213,30 +209,26 @@ class OllamaBridge {
       };
     }).slice(-MAX_MESSAGE_HISTORY);
 
-    try {
-      const response = await this.client.chat({
-        model,
-        messages: imageMessages,
-        options: { temperature }
-      });
+    const response = await this.client.chat({
+      model,
+      messages: imageMessages,
+      options: { temperature }
+    });
 
-      return {
-        ok: true,
-        text: response.message?.content?.trim() || '',
-        model,
-        evalCount: response.eval_count
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      ok: true,
+      text: response.message?.content?.trim() || '',
+      model,
+      evalCount: response.eval_count
+    };
   }
 
   async listVisionModels() {
     try {
       const models = await this.listModels();
       const visionKeywords = ['llava', 'vision', 'bakllava', 'moondream', 'minicpm'];
-      return models.filter(m => 
-        visionKeywords.some(kw => m.name.toLowerCase().includes(kw))
+      return models.filter((m) =>
+        visionKeywords.some((kw) => m.name.toLowerCase().includes(kw))
       );
     } catch (e) {
       return [];

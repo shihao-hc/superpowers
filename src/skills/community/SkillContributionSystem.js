@@ -9,7 +9,7 @@ class SkillContributionSystem {
     this.maxContributionsPerDay = options.maxContributionsPerDay || 5;
     this.minQualityScore = options.minQualityScore || 0.6;
     this.storage = options.storage || null;
-    
+
     this._loadContributions();
   }
 
@@ -18,7 +18,7 @@ class SkillContributionSystem {
    */
   async submitContribution(contributor, skillData) {
     const contributionId = this._generateContributionId();
-    
+
     // Validate contribution
     const validation = this._validateContribution(skillData);
     if (!validation.valid) {
@@ -135,9 +135,9 @@ class SkillContributionSystem {
    */
   getContributionsByStatus(status, options = {}) {
     const { limit = 50, offset = 0 } = options;
-    
-    let contributions = Array.from(this.contributions.values())
-      .filter(c => c.status === status)
+
+    const contributions = Array.from(this.contributions.values())
+      .filter((c) => c.status === status)
       .sort((a, b) => b.submittedAt - a.submittedAt);
 
     return contributions.slice(offset, offset + limit);
@@ -148,9 +148,9 @@ class SkillContributionSystem {
    */
   getPendingContributions(options = {}) {
     const { limit = 20, offset = 0 } = options;
-    
+
     const pending = this.getContributionsByStatus('pending')
-      .filter(c => c.qualityScore >= this.minQualityScore);
+      .filter((c) => c.qualityScore >= this.minQualityScore);
 
     return pending.slice(offset, offset + limit);
   }
@@ -250,7 +250,7 @@ class SkillContributionSystem {
    */
   _isFirstContribution(userId) {
     const userContributions = Array.from(this.contributions.values())
-      .filter(c => c.contributor.id === userId && c.status === 'approved');
+      .filter((c) => c.contributor.id === userId && c.status === 'approved');
     return userContributions.length === 1;
   }
 
@@ -259,15 +259,15 @@ class SkillContributionSystem {
    */
   _determineBadges(contribution) {
     const badges = [];
-    
+
     if (contribution.qualityScore >= 0.9) {
       badges.push('quality-master');
     }
-    
+
     if (contribution.skill.examples?.length >= 3) {
       badges.push('documenter');
     }
-    
+
     if (contribution.skill.documentation?.length >= 500) {
       badges.push('thorough');
     }
@@ -283,9 +283,9 @@ class SkillContributionSystem {
    * Calculate tier
    */
   _calculateTier(points) {
-    if (points >= 500) return 'platinum';
-    if (points >= 300) return 'gold';
-    if (points >= 150) return 'silver';
+    if (points >= 500) {return 'platinum';}
+    if (points >= 300) {return 'gold';}
+    if (points >= 150) {return 'silver';}
     return 'bronze';
   }
 
@@ -300,13 +300,13 @@ class SkillContributionSystem {
 
     if (contribution.status === 'revision_needed' || contribution.status === 'rejected') {
       // Update skill data
-      if (updates.name) contribution.skill.name = updates.name;
-      if (updates.description) contribution.skill.description = updates.description;
-      if (updates.category) contribution.skill.category = updates.category;
-      if (updates.tags) contribution.skill.tags = updates.tags;
-      if (updates.code) contribution.skill.code = updates.code;
-      if (updates.examples) contribution.skill.examples = updates.examples;
-      if (updates.documentation) contribution.skill.documentation = updates.documentation;
+      if (updates.name) {contribution.skill.name = updates.name;}
+      if (updates.description) {contribution.skill.description = updates.description;}
+      if (updates.category) {contribution.skill.category = updates.category;}
+      if (updates.tags) {contribution.skill.tags = updates.tags;}
+      if (updates.code) {contribution.skill.code = updates.code;}
+      if (updates.examples) {contribution.skill.examples = updates.examples;}
+      if (updates.documentation) {contribution.skill.documentation = updates.documentation;}
 
       // Reset to pending if revision was needed
       if (contribution.status === 'revision_needed') {
@@ -356,7 +356,7 @@ class SkillContributionSystem {
 
     // Remove existing rating from same user
     contribution.stats.ratings = contribution.stats.ratings
-      .filter(r => r.userId !== userId);
+      .filter((r) => r.userId !== userId);
 
     // Add new rating
     contribution.stats.ratings.push({
@@ -398,11 +398,11 @@ class SkillContributionSystem {
    */
   getContributorStats(userId) {
     const contributions = Array.from(this.contributions.values())
-      .filter(c => c.contributor.id === userId);
+      .filter((c) => c.contributor.id === userId);
 
-    const approved = contributions.filter(c => c.status === 'approved');
-    const pending = contributions.filter(c => c.status === 'pending');
-    const rejected = contributions.filter(c => c.status === 'rejected');
+    const approved = contributions.filter((c) => c.status === 'approved');
+    const pending = contributions.filter((c) => c.status === 'pending');
+    const rejected = contributions.filter((c) => c.status === 'rejected');
 
     const totalPoints = approved.reduce((sum, c) => sum + c.rewards.points, 0);
     const avgQuality = approved.length > 0
@@ -417,7 +417,7 @@ class SkillContributionSystem {
       totalPoints,
       averageQuality: avgQuality,
       tier: this._calculateTier(totalPoints),
-      badges: [...new Set(approved.flatMap(c => c.rewards.badges))]
+      badges: [...new Set(approved.flatMap((c) => c.rewards.badges))]
     };
   }
 
@@ -426,9 +426,9 @@ class SkillContributionSystem {
    */
   getLeaderboard(options = {}) {
     const { limit = 20 } = options;
-    
+
     const contributorPoints = new Map();
-    
+
     for (const contribution of this.contributions.values()) {
       if (contribution.status === 'approved') {
         const id = contribution.contributor.id;
@@ -440,17 +440,17 @@ class SkillContributionSystem {
           avgQuality: 0,
           qualities: []
         };
-        
+
         current.points += contribution.rewards.points;
         current.contributions++;
         current.qualities.push(contribution.qualityScore);
-        
+
         contributorPoints.set(id, current);
       }
     }
 
     return Array.from(contributorPoints.values())
-      .map(c => ({
+      .map((c) => ({
         ...c,
         avgQuality: c.qualities.reduce((a, b) => a + b, 0) / c.qualities.length,
         tier: this._calculateTier(c.points)
@@ -464,16 +464,16 @@ class SkillContributionSystem {
    */
   getDashboardStats() {
     const all = Array.from(this.contributions.values());
-    
+
     return {
       total: all.length,
-      pending: all.filter(c => c.status === 'pending').length,
-      approved: all.filter(c => c.status === 'approved').length,
-      rejected: all.filter(c => c.status === 'rejected').length,
-      revisionNeeded: all.filter(c => c.status === 'revision_needed').length,
+      pending: all.filter((c) => c.status === 'pending').length,
+      approved: all.filter((c) => c.status === 'approved').length,
+      rejected: all.filter((c) => c.status === 'rejected').length,
+      revisionNeeded: all.filter((c) => c.status === 'revision_needed').length,
       totalDownloads: all.reduce((sum, c) => sum + c.stats.downloads, 0),
       totalViews: all.reduce((sum, c) => sum + c.stats.views, 0),
-      averageQuality: all.filter(c => c.qualityScore > 0)
+      averageQuality: all.filter((c) => c.qualityScore > 0)
         .reduce((sum, c, _, arr) => sum + c.qualityScore / arr.length, 0)
     };
   }
@@ -483,8 +483,8 @@ class SkillContributionSystem {
    */
   exportApprovedSkills() {
     return Array.from(this.contributions.values())
-      .filter(c => c.status === 'approved')
-      .map(c => ({
+      .filter((c) => c.status === 'approved')
+      .map((c) => ({
         id: c.id,
         name: c.skill.name,
         description: c.skill.description,
@@ -523,10 +523,10 @@ class SkillContributionSystem {
   _getDailyContributions(userId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return Array.from(this.contributions.values())
-      .filter(c => 
-        c.contributor.id === userId && 
+      .filter((c) =>
+        c.contributor.id === userId &&
         c.submittedAt >= today.getTime()
       ).length;
   }

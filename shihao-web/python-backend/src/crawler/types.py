@@ -12,6 +12,7 @@ class CrawlerStrategy(Enum):
     CRAWL4AI = "crawl4ai"
     PYDOLL = "pydoll"
     SELENIUM_BASE = "selenium_base"
+    STDIO = "stdio"
     AUTO = "auto"
 
 

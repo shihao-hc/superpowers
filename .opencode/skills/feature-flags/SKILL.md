@@ -1,6 +1,8 @@
 ---
 name: feature-flags
 description: AI Agent 特性开关系统 - 构建时消除、A/B测试、渐进发布
+trigger: "特性开关 | A/B测试"
+auto_trigger: true
 category: ai-agent-infrastructure
 source: Claude Code 44+ feature flags analysis
 version: 1.0
@@ -11,6 +13,7 @@ tags:
   - a-b-testing
   - rollout
 ---
+
 
 # 特性开关系统 - 44+ Flags 架构
 
@@ -80,6 +83,8 @@ class FeatureFlag:
     """特性开关定义"""
     name: str
     description: str
+trigger: "特性开关 | A/B测试"
+auto_trigger: true
     flag_type: FlagType
     default_value: Any = False
     
@@ -527,6 +532,42 @@ print(context_flags)
 | **百分比发布** | 基于用户 ID 的确定性分桶 |
 | **依赖管理** | requires/conflicts 检查 |
 | **标签系统** | 按功能分组管理 |
+
+## 维护说明
+
+> **重要**: 本 SKILL.md 是一个**主动维护的文档**，会定期更新以反映项目的最新状态，而非被动等待原始 README.md 更新。
+
+### 更新机制
+
+| 来源 | 说明 |
+|------|------|
+| GitHub Releases | 自动抓取最新 releases |
+| 项目追踪器 | `src/tracking/ProjectTracker.js` |
+| 更新脚本 | `scripts/update-tailor-skill.js` |
+
+### 手动检查更新
+
+```bash
+# 检查所有项目更新
+node scripts/update-tailor-skill.js --check-only
+
+# 检查并自动更新
+node scripts/update-tailor-skill.js --update
+
+# 查看追踪状态
+node scripts/update-tailor-skill.js --status
+```
+
+### 更新内容
+
+当检测到新版本时，会自动更新：
+
+- [ ] **版本号**: 更新到最新版本
+- [ ] **更新日志**: 追加新的版本和变更内容
+- [ ] **功能说明**: 根据 changelog 提取新增功能
+- [ ] **依赖库**: 同步 requirements.txt 的变更
+- [ ] **特别感谢**: 补充新的依赖项目
+
 
 ## 相关技能
 

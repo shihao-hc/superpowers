@@ -112,6 +112,7 @@ class PreToolRiskAnalyzer {
     const targets = [];
     if (!args) {return targets;}
     const a = typeof args === 'string' ? args : JSON.stringify(args);
+    // eslint-disable-next-line security/detect-unsafe-regex
     const fileMatches = a.match(/["']((?:[^"']*\/)?(?:src|\.opencode|AGENTS|\.\.)[^"']*)["']/gi);
     if (fileMatches) {fileMatches.forEach((m) => targets.push(m.replace(/["']/g, '')));}
     // Also find any path with '..' that might not have been caught

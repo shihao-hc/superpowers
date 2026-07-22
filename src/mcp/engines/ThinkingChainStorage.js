@@ -6,13 +6,14 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { readFileLines } = require('../../utils/UltraWorkUtils');
 
 class ThinkingChainStorage {
   constructor(config = {}) {
     this.storageDir = config.storageDir || path.join(os.homedir(), '.mcp', 'thinking');
     this.snapshotInterval = config.snapshotInterval || 50;
     this.maxChainLength = config.maxChainLength || 1000;
-    
+
     this._ensureStorageDir();
   }
 
@@ -31,8 +32,8 @@ class ThinkingChainStorage {
       ...step,
       savedAt: new Date().toISOString()
     });
-    
-    fs.appendFileSync(chainFile, stepLine + '\n');
+
+    fs.appendFileSync(chainFile, `${stepLine}\n`);
     return { success: true, file: chainFile };
   }
 
@@ -41,13 +42,13 @@ class ThinkingChainStorage {
    */
   loadIncremental(chainId) {
     const chainFile = path.join(this.storageDir, `${chainId}.jsonl`);
-    
+
     if (!fs.existsSync(chainFile)) {
       return null;
     }
 
-    const lines = fs.readFileSync(chainFile, 'utf-8').split('\n').filter(l => l.trim());
-    return lines.map(l => JSON.parse(l));
+    const lines = readFileLines(chainFile).filter((l) => l.trim());
+    return lines.map((l) => JSON.parse(l));
   }
 
   /**
@@ -73,11 +74,11 @@ class ThinkingChainStorage {
    */
   getLatestSnapshot(chainId) {
     const files = fs.readdirSync(this.storageDir)
-      .filter(f => f.startsWith(`${chainId}_snapshot_`) && f.endsWith('.json'))
+      .filter((f) => f.startsWith(`${chainId}_snapshot_`) && f.endsWith('.json'))
       .sort()
       .reverse();
 
-    if (files.length === 0) return null;
+    if (files.length === 0) {return null;}
 
     const snapshotFile = path.join(this.storageDir, files[0]);
     return JSON.parse(fs.readFileSync(snapshotFile, 'utf-8'));
@@ -89,14 +90,16 @@ class ThinkingChainStorage {
   deleteChain(chainId) {
     const chainFile = path.join(this.storageDir, `${chainId}.jsonl`);
     const snapshotFiles = fs.readdirSync(this.storageDir)
-      .filter(f => f.startsWith(`${chainId}_snapshot_`));
+      .filter((f) => f.startsWith(`${chainId}_snapshot_`));
 
     let deleted = 0;
-    
-    if (fs.existsSync(chainFile)) {
-      fs.unlinkSync(chainFile);
-      deleted++;
-    }
+
+    try {
+      if (fs.existsSync(chainFile)) {
+        fs.unlinkSync(chainFile);
+        deleted++;
+      }
+    } catch {}
 
     for (const file of snapshotFiles) {
       fs.unlinkSync(path.join(this.storageDir, file));
@@ -111,8 +114,8 @@ class ThinkingChainStorage {
    */
   listChains() {
     const files = fs.readdirSync(this.storageDir)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => {
+      .filter((f) => f.endsWith('.jsonl'))
+      .map((f) => {
         const chainId = f.replace('.jsonl', '');
         const stats = fs.statSync(path.join(this.storageDir, f));
         return {
@@ -120,7 +123,7 @@ class ThinkingChainStorage {
           file: f,
           size: stats.size,
           modified: stats.mtime,
-          steps: fs.readFileSync(path.join(this.storageDir, f), 'utf-8').split('\n').filter(l => l.trim()).length
+          steps: readFileLines(path.join(this.storageDir, f)).filter((l) => l.trim()).length
         };
       });
 
@@ -135,11 +138,11 @@ const storage = new ThinkingChainStorage();
 const originalAddThought = thinkingChain.addThought.bind(thinkingChain);
 thinkingChain.addThought = function(chainId, thought, options = {}) {
   const result = originalAddThought(chainId, thought, options);
-  
+
   if (result) {
     try {
       storage.saveIncremental(chainId, result);
-      
+
       const chain = thinkingChain.chains.get(chainId);
       if (chain && chain.thoughts.length % storage.snapshotInterval === 0) {
         storage.createSnapshot(chainId, chain);
@@ -148,14 +151,14 @@ thinkingChain.addThought = function(chainId, thought, options = {}) {
       console.error('Failed to persist thought:', error);
     }
   }
-  
+
   return result;
 };
 
 const originalCreateChain = thinkingChain.createChain.bind(thinkingChain);
 thinkingChain.createChain = function(initialThought, metadata = {}) {
   const result = originalCreateChain(initialThought, metadata);
-  
+
   if (result) {
     try {
       storage.saveIncremental(result.id, result.thoughts[0]);
@@ -163,7 +166,7 @@ thinkingChain.createChain = function(initialThought, metadata = {}) {
       console.error('Failed to persist chain:', error);
     }
   }
-  
+
   return result;
 };
 
@@ -174,7 +177,7 @@ thinkingChain.deleteChain = function(chainId) {
   } catch (error) {
     console.error('Failed to delete chain storage:', error);
   }
-  
+
   return originalDeleteChain(chainId);
 };
 
@@ -183,18 +186,18 @@ thinkingChain.getStorage = () => storage;
 thinkingChain.getStorageStats = () => {
   const chains = storage.listChains();
   const totalSize = chains.reduce((sum, c) => sum + c.size, 0);
-  
+
   return {
     chains: chains.length,
     totalSize,
     totalSizeFormatted: formatSize(totalSize),
-    snapshots: chains.filter(c => c.file.includes('snapshot')).length
+    snapshots: chains.filter((c) => c.file.includes('snapshot')).length
   };
 };
 
 function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {return `${bytes} B`;}
+  if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 

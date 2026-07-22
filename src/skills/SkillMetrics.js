@@ -10,7 +10,7 @@ class SkillMetrics {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'metrics');
     this.metricsFile = path.join(this.dataDir, 'skill-metrics.json');
-    
+
     // In-memory metrics storage
     this.metrics = {
       executions: {
@@ -43,11 +43,11 @@ class SkillMetrics {
         localExecutions: 0
       }
     };
-    
+
     // Execution times for average calculation
     this.executionTimes = [];
     this.maxExecutionTimes = 1000; // Keep last 1000 execution times
-    
+
     this._ensureDataDir();
     this._loadMetrics();
   }
@@ -62,7 +62,7 @@ class SkillMetrics {
     try {
       if (fs.existsSync(this.metricsFile)) {
         const data = JSON.parse(fs.readFileSync(this.metricsFile, 'utf8'));
-        
+
         // Convert arrays back to Maps
         if (data.executions && data.executions.bySkill) {
           this.metrics.executions.bySkill = new Map(Object.entries(data.executions.bySkill));
@@ -88,17 +88,17 @@ class SkillMetrics {
         if (data.errors && data.errors.bySkill) {
           this.metrics.errors.bySkill = new Map(Object.entries(data.errors.bySkill));
         }
-        
+
         // Copy scalar values
         this.metrics.executions.total = data.executions?.total || 0;
         this.metrics.executions.successful = data.executions?.successful || 0;
         this.metrics.executions.failed = data.executions?.failed || 0;
         this.metrics.executions.averageExecutionTime = data.executions?.averageExecutionTime || 0;
-        
+
         this.metrics.downloads.total = data.downloads?.total || 0;
         this.metrics.views.total = data.views?.total || 0;
         this.metrics.errors.total = data.errors?.total || 0;
-        
+
         this.metrics.performance.cacheHits = data.performance?.cacheHits || 0;
         this.metrics.performance.cacheMisses = data.performance?.cacheMisses || 0;
         this.metrics.performance.dockerExecutions = data.performance?.dockerExecutions || 0;
@@ -135,7 +135,7 @@ class SkillMetrics {
         performance: this.metrics.performance,
         lastUpdated: new Date().toISOString()
       };
-      
+
       fs.writeFileSync(this.metricsFile, JSON.stringify(data, null, 2));
     } catch (error) {
       console.warn('Failed to save skill metrics:', error.message);
@@ -147,40 +147,40 @@ class SkillMetrics {
    */
   recordExecution(skillName, options = {}) {
     const { success = true, duration = 0, type = 'unknown', error = null } = options;
-    
+
     this.metrics.executions.total++;
-    
+
     if (success) {
       this.metrics.executions.successful++;
     } else {
       this.metrics.executions.failed++;
     }
-    
+
     // Track by skill
     const skillCount = this.metrics.executions.bySkill.get(skillName) || 0;
     this.metrics.executions.bySkill.set(skillName, skillCount + 1);
-    
+
     // Track by type
     const typeCount = this.metrics.executions.byType.get(type) || 0;
     this.metrics.executions.byType.set(type, typeCount + 1);
-    
+
     // Update execution times
     if (duration > 0) {
       this.executionTimes.push(duration);
       if (this.executionTimes.length > this.maxExecutionTimes) {
         this.executionTimes.shift();
       }
-      
+
       // Calculate average
       const sum = this.executionTimes.reduce((a, b) => a + b, 0);
       this.metrics.executions.averageExecutionTime = Math.round(sum / this.executionTimes.length);
     }
-    
+
     // Track error if provided
     if (error) {
       this.recordError(skillName, error);
     }
-    
+
     this._saveMetrics();
   }
 
@@ -189,15 +189,15 @@ class SkillMetrics {
    */
   recordDownload(skillName, userId = 'anonymous') {
     this.metrics.downloads.total++;
-    
+
     // Track by skill
     const skillCount = this.metrics.downloads.bySkill.get(skillName) || 0;
     this.metrics.downloads.bySkill.set(skillName, skillCount + 1);
-    
+
     // Track by user
     const userCount = this.metrics.downloads.byUser.get(userId) || 0;
     this.metrics.downloads.byUser.set(userId, userCount + 1);
-    
+
     this._saveMetrics();
   }
 
@@ -206,16 +206,16 @@ class SkillMetrics {
    */
   recordView(skillName, visitorId = 'anonymous') {
     this.metrics.views.total++;
-    
+
     // Track by skill
     const skillCount = this.metrics.views.bySkill.get(skillName) || 0;
     this.metrics.views.bySkill.set(skillName, skillCount + 1);
-    
+
     // Track unique visitors
     const visitorKey = `${skillName}:${visitorId}`;
     const visitorCount = this.metrics.views.uniqueVisitors.get(visitorKey) || 0;
     this.metrics.views.uniqueVisitors.set(visitorKey, visitorCount + 1);
-    
+
     this._saveMetrics();
   }
 
@@ -224,15 +224,15 @@ class SkillMetrics {
    */
   recordError(skillName, errorType = 'unknown') {
     this.metrics.errors.total++;
-    
+
     // Track by type
     const typeCount = this.metrics.errors.byType.get(errorType) || 0;
     this.metrics.errors.byType.set(errorType, typeCount + 1);
-    
+
     // Track by skill
     const skillCount = this.metrics.errors.bySkill.get(skillName) || 0;
     this.metrics.errors.bySkill.set(skillName, skillCount + 1);
-    
+
     this._saveMetrics();
   }
 
@@ -296,14 +296,14 @@ class SkillMetrics {
    * Get summary statistics
    */
   getSummary() {
-    const successRate = this.metrics.executions.total > 0 
+    const successRate = this.metrics.executions.total > 0
       ? (this.metrics.executions.successful / this.metrics.executions.total * 100).toFixed(2)
       : 0;
-    
+
     const cacheHitRate = (this.metrics.performance.cacheHits + this.metrics.performance.cacheMisses) > 0
       ? (this.metrics.performance.cacheHits / (this.metrics.performance.cacheHits + this.metrics.performance.cacheMisses) * 100).toFixed(2)
       : 0;
-    
+
     return {
       totalExecutions: this.metrics.executions.total,
       successRate: parseFloat(successRate),
@@ -313,7 +313,7 @@ class SkillMetrics {
       averageExecutionTime: this.metrics.executions.averageExecutionTime,
       cacheHitRate: parseFloat(cacheHitRate),
       topSkills: this._getTopSkills(),
-      errorRate: this.metrics.executions.total > 0 
+      errorRate: this.metrics.executions.total > 0
         ? (this.metrics.errors.total / this.metrics.executions.total * 100).toFixed(2)
         : 0
     };
@@ -324,7 +324,7 @@ class SkillMetrics {
    */
   _getTopSkills(limit = 10) {
     const skillUsage = new Map();
-    
+
     // Combine execution, download, and view counts
     for (const [skill, count] of this.metrics.executions.bySkill) {
       skillUsage.set(skill, (skillUsage.get(skill) || 0) + count);
@@ -335,12 +335,12 @@ class SkillMetrics {
     for (const [skill, count] of this.metrics.views.bySkill) {
       skillUsage.set(skill, (skillUsage.get(skill) || 0) + count);
     }
-    
+
     // Sort by usage
     const sorted = Array.from(skillUsage.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit);
-    
+
     return sorted.map(([skill, usage]) => ({ skill, usage }));
   }
 

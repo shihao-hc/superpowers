@@ -164,11 +164,28 @@ class HTMLFormatter(BaseFormatter):
 class LinksFormatter(BaseFormatter):
     """Extract links from HTML."""
 
+    @staticmethod
+    def _is_safe_url(url: str) -> bool:
+        """Validate URL is safe for extraction."""
+        if not url:
+            return False
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            return parsed.scheme in ("http", "https")
+        except Exception:
+            return False
+
     def format(self, html_content: str, base_url: str = "", **kwargs) -> str:
         """Extract links as JSON."""
         import html.parser
         from urllib.parse import urljoin
         import json
+
+        safe_base = ""
+        if base_url and self._is_safe_url(base_url):
+            safe_base = base_url
 
         class LinkExtractor(html.parser.HTMLParser):
             def __init__(parser_self):
@@ -179,8 +196,9 @@ class LinksFormatter(BaseFormatter):
                 if tag == "a":
                     href = dict(attrs).get("href", "")
                     if href and not href.startswith(("#", "javascript:", "mailto:")):
-                        full_url = urljoin(base_url, href)
-                        parser_self.links.append({"url": full_url, "text": ""})
+                        full_url = urljoin(safe_base, href)
+                        if LinksFormatter._is_safe_url(full_url):
+                            parser_self.links.append({"url": full_url, "text": ""})
                     parser_self._pending_href = href
 
             def handle_data(parser_self, data):

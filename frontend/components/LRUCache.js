@@ -1,6 +1,6 @@
 /**
  * LRUCache - LRU缓存系统
- * 
+ *
  * 减少API调用，提升性能
  * 支持TTL过期、持久化、统计
  */
@@ -12,10 +12,10 @@ class LRUCache {
     this.cache = new Map();
     this.hits = 0;
     this.misses = 0;
-    
+
     this.storageKey = options.storageKey || 'lru_cache';
     this.persistToStorage = options.persistToStorage || false;
-    
+
     if (this.persistToStorage) {
       this._loadFromStorage();
     }
@@ -23,24 +23,24 @@ class LRUCache {
 
   get(key) {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       this.misses++;
       return null;
     }
-    
+
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       this.misses++;
       return null;
     }
-    
+
     entry.accessCount++;
     entry.lastAccessed = Date.now();
-    
+
     this.cache.delete(key);
     this.cache.set(key, entry);
-    
+
     this.hits++;
     return entry.value;
   }
@@ -52,7 +52,7 @@ class LRUCache {
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
     }
-    
+
     const entry = {
       value,
       createdAt: Date.now(),
@@ -60,9 +60,9 @@ class LRUCache {
       accessCount: 0,
       lastAccessed: Date.now()
     };
-    
+
     this.cache.set(key, entry);
-    
+
     if (this.persistToStorage) {
       this._saveToStorage();
     }
@@ -70,7 +70,7 @@ class LRUCache {
 
   has(key) {
     const entry = this.cache.get(key);
-    if (!entry) return false;
+    if (!entry) {return false;}
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return false;
@@ -86,7 +86,7 @@ class LRUCache {
     this.cache.clear();
     this.hits = 0;
     this.misses = 0;
-    
+
     if (this.persistToStorage) {
       localStorage.removeItem(this.storageKey);
     }
@@ -96,7 +96,7 @@ class LRUCache {
     const now = Date.now();
     let expired = 0;
     let valid = 0;
-    
+
     for (const [, entry] of this.cache) {
       if (now > entry.expiresAt) {
         expired++;
@@ -104,7 +104,7 @@ class LRUCache {
         valid++;
       }
     }
-    
+
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
@@ -112,7 +112,7 @@ class LRUCache {
       expired,
       hits: this.hits,
       misses: this.misses,
-      hitRate: this.hits + this.misses > 0 ? 
+      hitRate: this.hits + this.misses > 0 ?
         this.hits / (this.hits + this.misses) : 0
     };
   }
@@ -158,7 +158,7 @@ class LRUCache {
 
   _isSensitive(key) {
     const sensitivePatterns = ['token', 'key', 'secret', 'password', 'auth'];
-    return sensitivePatterns.some(p => key.toLowerCase().includes(p));
+    return sensitivePatterns.some((p) => key.toLowerCase().includes(p));
   }
 
   getKeys() {
@@ -166,7 +166,7 @@ class LRUCache {
   }
 
   values() {
-    return Array.from(this.cache.values()).map(e => e.value);
+    return Array.from(this.cache.values()).map((e) => e.value);
   }
 
   setMaxSize(size) {
@@ -193,7 +193,7 @@ class CachedAPIClient {
       persistToStorage: options.persistToStorage || false,
       storageKey: 'api_cache'
     });
-    
+
     this.baseUrl = options.baseUrl || '';
     this.defaultHeaders = options.headers || {};
     this.requestTimeout = options.timeout || 10000;
@@ -201,7 +201,7 @@ class CachedAPIClient {
 
   async get(url, options = {}) {
     const cacheKey = `GET:${url}:${JSON.stringify(options.query || {})}`;
-    
+
     if (!options.skipCache) {
       const cached = this.cache.get(cacheKey);
       if (cached) {
@@ -210,7 +210,7 @@ class CachedAPIClient {
     }
 
     const fullUrl = this._buildUrl(url, options.query);
-    
+
     try {
       const response = await fetch(fullUrl, {
         method: 'GET',
@@ -223,7 +223,7 @@ class CachedAPIClient {
       }
 
       const data = await response.json();
-      
+
       if (options.cacheTTL !== 0) {
         this.cache.set(cacheKey, data, options.cacheTTL);
       }
@@ -241,7 +241,7 @@ class CachedAPIClient {
 
   async post(url, body, options = {}) {
     const fullUrl = this._buildUrl(url);
-    
+
     const response = await fetch(fullUrl, {
       method: 'POST',
       headers: {
@@ -262,12 +262,12 @@ class CachedAPIClient {
 
   _buildUrl(url, query = null) {
     let fullUrl = url.startsWith('http') ? url : `${this.baseUrl}${url}`;
-    
+
     if (query && Object.keys(query).length > 0) {
       const params = new URLSearchParams(query);
       fullUrl += (fullUrl.includes('?') ? '&' : '?') + params.toString();
     }
-    
+
     return fullUrl;
   }
 
@@ -276,7 +276,7 @@ class CachedAPIClient {
       this.cache.clear();
       return;
     }
-    
+
     for (const key of this.cache.getKeys()) {
       if (key.includes(pattern)) {
         this.cache.delete(key);

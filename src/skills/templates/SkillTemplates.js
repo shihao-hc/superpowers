@@ -1,11 +1,11 @@
 /**
  * Skill Template Library
  * @deprecated 请使用 SkillRenderer 替代
- * 
+ *
  * 已废弃功能 (2026-03-22):
  * - 此模块已被 src/skills/rendering/SkillRenderer.js 合并
  * - 新代码请使用 getSkillRenderer() 而非 getSkillTemplates()
- * 
+ *
  * 迁移指南:
  *   旧: const { getSkillTemplates } = require('./templates/SkillTemplates');
  *   新: const { getSkillRenderer } = require('./rendering/SkillRenderer');
@@ -15,13 +15,13 @@ console.warn('[弃用警告] SkillTemplates 已弃用，请使用 SkillRenderer 
 
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 /**
  * HTML转义函数 - 防止XSS
  */
 function escapeHtml(str) {
-  if (typeof str !== 'string') return String(str);
+  if (typeof str !== 'string') {return String(str);}
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -34,10 +34,10 @@ function escapeHtml(str) {
  * 验证对象是否包含原型污染尝试
  */
 function isPrototypePollutionSafe(obj) {
-  if (typeof obj !== 'object' || obj === null) return true;
+  if (typeof obj !== 'object' || obj === null) {return true;}
   const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
   for (const key of Object.keys(obj)) {
-    if (dangerousKeys.includes(key)) return false;
+    if (dangerousKeys.includes(key)) {return false;}
   }
   return true;
 }
@@ -46,10 +46,10 @@ class SkillTemplates {
   constructor(options = {}) {
     this.templatesDir = options.templatesDir || path.join(process.cwd(), 'data', 'templates');
     this.templatesFile = path.join(this.templatesDir, 'templates.json');
-    
+
     this.templates = new Map();
     this.categories = new Map();
-    
+
     this._ensureTemplatesDir();
     this._loadTemplates();
     this._initDefaultTemplates();
@@ -87,7 +87,7 @@ class SkillTemplates {
   }
 
   _initDefaultTemplates() {
-    if (this.templates.size > 0) return;
+    if (this.templates.size > 0) {return;}
 
     const defaultTemplates = [
       // 周报模板
@@ -136,7 +136,7 @@ class SkillTemplates {
 ---
 *报告生成时间: {{generatedAt}}*`
       },
-      
+
       // 会议纪要模板
       {
         id: 'meeting-minutes',
@@ -189,7 +189,7 @@ class SkillTemplates {
 *纪要整理人: {{author}}*
 *整理时间: {{generatedAt}}*`
       },
-      
+
       // 合同模板
       {
         id: 'contract',
@@ -249,7 +249,7 @@ class SkillTemplates {
 
 **乙方签章**: ________________  **日期**: {{date}}`
       },
-      
+
       // 发票模板
       {
         id: 'invoice',
@@ -335,7 +335,7 @@ class SkillTemplates {
 </body>
 </html>`
       },
-      
+
       // 请假申请模板
       {
         id: 'leave-request',
@@ -390,7 +390,7 @@ class SkillTemplates {
 
 **人事部门审批**: ________________  **日期**: {{hrApproveDate}}`
       },
-      
+
       // 需求文档模板
       {
         id: 'prd',
@@ -480,35 +480,35 @@ class SkillTemplates {
    */
   listTemplates(options = {}) {
     const { category, search, tags, limit = 50, offset = 0 } = options;
-    
+
     let templates = Array.from(this.templates.values());
-    
+
     // 分类过滤
     if (category) {
-      templates = templates.filter(t => t.category === category);
+      templates = templates.filter((t) => t.category === category);
     }
-    
+
     // 搜索过滤
     if (search) {
       const searchLower = search.toLowerCase();
-      templates = templates.filter(t => 
+      templates = templates.filter((t) =>
         t.name.toLowerCase().includes(searchLower) ||
         t.description.toLowerCase().includes(searchLower) ||
-        t.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        t.tags.some((tag) => tag.toLowerCase().includes(searchLower))
       );
     }
-    
+
     // 标签过滤
     if (tags && tags.length > 0) {
-      templates = templates.filter(t => 
-        tags.some(tag => t.tags.includes(tag))
+      templates = templates.filter((t) =>
+        tags.some((tag) => t.tags.includes(tag))
       );
     }
-    
+
     // 分页
     const total = templates.length;
     const paginatedTemplates = templates.slice(offset, offset + limit);
-    
+
     return {
       templates: paginatedTemplates,
       total,
@@ -529,15 +529,15 @@ class SkillTemplates {
    */
   createTemplate(templateData) {
     const { id, name, description, category, type, tags, fields, template } = templateData;
-    
+
     if (!id || !name || !template) {
       throw new Error('id, name, and template are required');
     }
-    
+
     if (this.templates.has(id)) {
       throw new Error(`Template with id ${id} already exists`);
     }
-    
+
     const newTemplate = {
       id,
       name,
@@ -550,10 +550,10 @@ class SkillTemplates {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    
+
     this.templates.set(id, newTemplate);
     this._saveTemplates();
-    
+
     return newTemplate;
   }
 
@@ -565,32 +565,32 @@ class SkillTemplates {
     if (!template) {
       throw new Error(`Template not found: ${templateId}`);
     }
-    
+
     // 验证更新数据安全 - 防止原型污染
     if (!isPrototypePollutionSafe(updates)) {
       throw new Error('Invalid updates: potential prototype pollution attempt');
     }
-    
+
     // 只允许更新特定字段
     const allowedFields = ['name', 'description', 'category', 'type', 'tags', 'fields', 'template'];
     const safeUpdates = {};
-    
+
     for (const field of allowedFields) {
-      if (updates.hasOwnProperty(field)) {
+      if (Object.hasOwn(updates, field)) {
         safeUpdates[field] = updates[field];
       }
     }
-    
+
     const updatedTemplate = {
       ...template,
       ...safeUpdates,
       id: templateId, // 保持ID不变
       updatedAt: new Date().toISOString()
     };
-    
+
     this.templates.set(templateId, updatedTemplate);
     this._saveTemplates();
-    
+
     return updatedTemplate;
   }
 
@@ -601,10 +601,10 @@ class SkillTemplates {
     if (!this.templates.has(templateId)) {
       throw new Error(`Template not found: ${templateId}`);
     }
-    
+
     this.templates.delete(templateId);
     this._saveTemplates();
-    
+
     return { deleted: true };
   }
 
@@ -620,24 +620,24 @@ class SkillTemplates {
    */
   createCategory(categoryData) {
     const { id, name, description } = categoryData;
-    
+
     if (!id || !name) {
       throw new Error('id and name are required');
     }
-    
+
     if (this.categories.has(id)) {
       throw new Error(`Category with id ${id} already exists`);
     }
-    
+
     const newCategory = {
       id,
       name,
       description: description || ''
     };
-    
+
     this.categories.set(id, newCategory);
     this._saveTemplates();
-    
+
     return newCategory;
   }
 
@@ -649,14 +649,14 @@ class SkillTemplates {
     if (!template) {
       throw new Error(`Template not found: ${templateId}`);
     }
-    
+
     // 验证数据安全 - 防止原型污染
     if (!isPrototypePollutionSafe(data)) {
       throw new Error('Invalid data: potential prototype pollution attempt');
     }
-    
+
     let content = template.template;
-    
+
     // 模板渲染（支持 {{variable}} 语法）- 转义用户输入
     for (const [key, value] of Object.entries(data)) {
       const regex = new RegExp(`{{${key}}}`, 'g');
@@ -669,13 +669,13 @@ class SkillTemplates {
         content = content.replace(regex, value !== undefined ? String(value) : '');
       }
     }
-    
+
     // 添加默认变量（已知安全的系统值）
     const now = new Date();
     content = content.replace(/{{date}}/g, now.toISOString().split('T')[0]);
     content = content.replace(/{{time}}/g, now.toTimeString().split(' ')[0]);
     content = content.replace(/{{generatedAt}}/g, now.toISOString());
-    
+
     return {
       template: template,
       content: content,
@@ -692,13 +692,13 @@ class SkillTemplates {
     if (!template) {
       throw new Error(`Template not found: ${templateId}`);
     }
-    
+
     const errors = [];
     const warnings = [];
-    
+
     for (const field of template.fields) {
       const value = data[field.name];
-      
+
       if (field.required && (value === undefined || value === null || value === '')) {
         errors.push({
           field: field.name,
@@ -711,7 +711,7 @@ class SkillTemplates {
         });
       }
     }
-    
+
     return {
       valid: errors.length === 0,
       errors,
@@ -725,11 +725,11 @@ class SkillTemplates {
   getStats() {
     const templates = Array.from(this.templates.values());
     const categoryCount = {};
-    
+
     for (const template of templates) {
       categoryCount[template.category] = (categoryCount[template.category] || 0) + 1;
     }
-    
+
     return {
       totalTemplates: templates.length,
       totalCategories: this.categories.size,
@@ -757,8 +757,8 @@ const DeprecatedSkillTemplates = class extends SkillTemplates {
   }
 };
 
-module.exports = { 
-  SkillTemplates: DeprecatedSkillTemplates, 
+module.exports = {
+  SkillTemplates: DeprecatedSkillTemplates,
   getSkillTemplates,
   DEPRECATED: true,
   REPLACEMENT: 'src/skills/rendering/SkillRenderer'

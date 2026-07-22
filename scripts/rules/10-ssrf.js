@@ -15,6 +15,7 @@ module.exports = {
       }
     }
   },
+  suggest: '对用户提供的 URL 进行白名单验证：解析 URL 并检查 hostname 是否在允许的域名列表内；禁止直接使用用户输入作为请求目标；使用 URL 解析库提取并校验 hostname 部分。考虑使用 URL allowlist 和协议限制。',
   references: ['CWE-918'],
   since: '2026-06-28',
 };

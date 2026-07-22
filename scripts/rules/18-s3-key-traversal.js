@@ -12,6 +12,7 @@ module.exports = {
       report('HIGH', 'S3_KEY_PATH_TRAVERSAL', `行 ${i + 1}: ${lines[i].trim().substring(0, 100)}`, 'file.originalname 未经 path.basename() 等 sanitizer 直接使用');
     }
   },
+  suggest: '使用 path.basename() 过滤文件名：const safeName = path.basename(file.originalname)。结合唯一 ID 生成存储键：${uuid()}-${safeName}。避免将用户提供的文件名直接用于文件系统或 S3 路径。',
   references: ['CWE-22'],
   since: '2026-06-28',
 };

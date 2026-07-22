@@ -1,6 +1,6 @@
 /**
  * AI虚拟人物统一集成系统 - AI Avatar Unified Integration System
- * 
+ *
  * 整合所有输入输出模块，统一管理虚拟人物的各个子系统
  */
 
@@ -36,7 +36,7 @@ class AvatarIntegrationHub {
       this.subsystems[type] = {};
     }
     this.subsystems[type][name] = instance;
-    this.options.engine.emit(`subsystem:registered`, { type, name });
+    this.options.engine.emit('subsystem:registered', { type, name });
     return instance;
   }
 
@@ -140,8 +140,8 @@ class AvatarIntegrationHub {
   async start() {
     const promises = [];
 
-    for (const [type, subsystems] of Object.entries(this.subsystems)) {
-      for (const [name, instance] of Object.entries(subsystems)) {
+    for (const [_type, subsystems] of Object.entries(this.subsystems)) {
+      for (const [_name, instance] of Object.entries(subsystems)) {
         if (instance.start) {
           promises.push(instance.start());
         }
@@ -156,8 +156,8 @@ class AvatarIntegrationHub {
    * 停止所有子系统
    */
   async stop() {
-    for (const [type, subsystems] of Object.entries(this.subsystems)) {
-      for (const [name, instance] of Object.entries(subsystems)) {
+    for (const [_type, subsystems] of Object.entries(this.subsystems)) {
+      for (const [_name, instance] of Object.entries(subsystems)) {
         if (instance.stop) {
           await instance.stop();
         }
@@ -186,9 +186,9 @@ class VoiceInputSubsystem {
     this.isActive = true;
   }
 
-  async transcribe(audioData) {
+  async transcribe(_audioData) {
     // 调用语音识别
-    return "转录文本";
+    return '转录文本';
   }
 
   stop() {
@@ -334,7 +334,7 @@ class ActionPlannerSubsystem {
     this.availableActions.push(action);
   }
 
-  async plan(context) {
+  async plan(_context) {
     // 根据上下文规划行动
     return null;
   }

@@ -1,6 +1,8 @@
 ---
 name: permission-system
 description: AI Agent 权限控制系统 - 三模式权限、拒绝追踪、安全分类
+trigger: "权限系统 | 三模式"
+auto_trigger: true
 category: ai-agent-security
 source: Claude Code permission system analysis
 version: 1.0
@@ -11,6 +13,7 @@ tags:
   - rate-limiting
   - audit
 ---
+
 
 # 权限控制系统 - Agent 安全防护
 
@@ -80,6 +83,8 @@ class ToolDefinition:
     name: str
     category: ToolCategory
     description: str
+trigger: "权限系统 | 三模式"
+auto_trigger: true
     confirmation_message: Optional[str] = None
     always_ask: bool = False  # 即使在 AUTO 模式也询问
     auto_deny: bool = False   # 总是拒绝
@@ -612,6 +617,42 @@ async def execute_with_timeout(
 | **审计日志** | 记录所有权限决策，便于审计 |
 | **模式切换** | 受信任环境用 AUTO，未知环境用 DEFAULT |
 | **白名单** | 明确允许的命令列表，而非黑名单 |
+
+## 维护说明
+
+> **重要**: 本 SKILL.md 是一个**主动维护的文档**，会定期更新以反映项目的最新状态，而非被动等待原始 README.md 更新。
+
+### 更新机制
+
+| 来源 | 说明 |
+|------|------|
+| GitHub Releases | 自动抓取最新 releases |
+| 项目追踪器 | `src/tracking/ProjectTracker.js` |
+| 更新脚本 | `scripts/update-tailor-skill.js` |
+
+### 手动检查更新
+
+```bash
+# 检查所有项目更新
+node scripts/update-tailor-skill.js --check-only
+
+# 检查并自动更新
+node scripts/update-tailor-skill.js --update
+
+# 查看追踪状态
+node scripts/update-tailor-skill.js --status
+```
+
+### 更新内容
+
+当检测到新版本时，会自动更新：
+
+- [ ] **版本号**: 更新到最新版本
+- [ ] **更新日志**: 追加新的版本和变更内容
+- [ ] **功能说明**: 根据 changelog 提取新增功能
+- [ ] **依赖库**: 同步 requirements.txt 的变更
+- [ ] **特别感谢**: 补充新的依赖项目
+
 
 ## 相关技能
 

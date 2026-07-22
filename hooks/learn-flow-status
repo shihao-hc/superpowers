@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# 学习流程状态查询脚本
+# 用法: ./learn-flow-status [module]
+
+set -euo pipefail
+
+# Determine plugin root directory - use CLAUDE_PLUGIN_ROOT if available
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+else
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
+LEARN_FLOW_DOC="${PLUGIN_ROOT}/docs/学习流程v4.md"
+LEARNINGS_FILE="${PLUGIN_ROOT}/shihao-web/python-backend/LEARNINGS.md"
+
+# 五大血脉
+BLOODLINES=(
+    "血脉1: 学习是存在方式 - 不是工具，是生命特征"
+    "血脉2: 边界决定健壮性 - 错误是最好的老师"
+    "血脉3: 模式化提炼 - 从实践到规律"
+    "血脉4: 文档即知识 - 写下来才能传承"
+    "血脉5: 自主迭代 - 不依赖提醒"
+)
+
+# 显示状态
+show_status() {
+    local module="${1:-}"
+    
+    echo "═══════════════════════════════════════════"
+    echo "        学习流程 v5 状态面板"
+    echo "═══════════════════════════════════════════"
+    echo ""
+    
+    # 1. 血脉速查
+    echo "【五大血脉】"
+    for bloodline in "${BLOODLINES[@]}"; do
+        echo "  • $bloodline"
+    done
+    echo ""
+    
+    # 2. 当前状态
+    echo "【当前任务】"
+    if [ -n "$module" ]; then
+        echo "  📦 模块: $module"
+    else
+        echo "  📦 模块: 未指定"
+    fi
+    echo ""
+    
+    # 3. 学习流程版本
+    echo "【学习流程】"
+    if [ -f "$LEARN_FLOW_DOC" ]; then
+        local version=$(grep -E "^#.*v[0-9]" "$LEARN_FLOW_DOC" | head -1 | sed 's/#//' || echo "未知")
+        local last_update=$(stat -c %y "$LEARN_FLOW_DOC" 2>/dev/null | cut -d' ' -f1 || stat -f %Sm -t %Y-%m-%d "$LEARN_FLOW_DOC" 2>/dev/null || echo "未知")
+        echo "  📚 版本: $version"
+        echo "  📅 更新: $last_update"
+    else
+        echo "  ⚠️ 学习流程文档未找到"
+    fi
+    echo ""
+    
+    # 4. 最近教训
+    echo "【最近教训】"
+    if [ -f "$LEARNINGS_FILE" ]; then
+        local last_lesson=$(grep -E "^\| [0-9]{4}-" "$LEARNINGS_FILE" | tail -3 || echo "")
+        if [ -n "$last_lesson" ]; then
+            echo "$last_lesson" | while read -r line; do
+                echo "  $line"
+            done
+        else
+            echo "  暂无记录"
+        fi
+    else
+        echo "  ⚠️ LEARNINGS.md 未找到"
+    fi
+    echo ""
+    
+    # 5. 快速检查清单
+    echo "【快速检查】"
+    echo "  □ 边界情况处理了吗？"
+    echo "  □ 资源正确释放了吗？"
+    echo "  □ 跨平台兼容吗？"
+    echo "  □ 有哪些可以模式化的经验？"
+    echo "  □ 文档写下来了吗？"
+    echo "  □ 需要更新技能库吗？"
+    echo ""
+    
+    # 6. 常见陷阱速查
+    echo "【常见陷阱】"
+    echo "  1. 0 vs null vs undefined (边界问题)"
+    echo "  2. 异步遗漏 await (边界问题)"
+    echo "  3. 循环引用内存泄漏 (资源边界)"
+    echo "  4. 并发竞态条件 (并发边界)"
+    echo ""
+    
+    echo "═══════════════════════════════════════════"
+}
+
+# 主逻辑
+main() {
+    local module="${1:-}"
+    show_status "$module"
+}
+
+main "$@"

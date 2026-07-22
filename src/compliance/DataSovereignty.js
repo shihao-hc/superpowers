@@ -6,12 +6,12 @@
 const crypto = require('crypto');
 
 class DataSovereignty {
-  constructor(options = {}) {
+  constructor(_options = {}) {
     this.regions = new Map();
     this.dataMappings = new Map();
     this.transferAgreements = new Map();
     this.localizationRules = new Map();
-    
+
     this._initRegions();
     this._initLocalizationRules();
   }
@@ -226,7 +226,7 @@ class DataSovereignty {
     };
 
     this.dataMappings.set(tenantId, tenantConfig);
-    
+
     return {
       success: true,
       tenantId,
@@ -253,7 +253,7 @@ class DataSovereignty {
     }
 
     const applicableRules = rules.dataTypes.includes(dataType) ? rules : null;
-    
+
     if (!applicableRules) {
       return { allowed: true, reason: 'No localization requirement for this data type' };
     }
@@ -295,13 +295,13 @@ class DataSovereignty {
     };
 
     this.transferAgreements.set(transfer.id, transfer);
-    
+
     return transfer;
   }
 
   getTransferAgreements(tenantId) {
     return Array.from(this.transferAgreements.values())
-      .filter(t => t.tenantId === tenantId && t.status === 'active');
+      .filter((t) => t.tenantId === tenantId && t.status === 'active');
   }
 
   // Route data to appropriate region
@@ -313,10 +313,10 @@ class DataSovereignty {
 
     const region = tenantConfig.region;
     const sourceJurisdiction = region.jurisdiction;
-    
+
     // Check localization rules
     const localizationCheck = this.checkDataLocalization(dataType, sourceJurisdiction, region.id);
-    
+
     if (!localizationCheck.allowed) {
       return {
         error: localizationCheck.reason,
@@ -353,7 +353,7 @@ class DataSovereignty {
       .update(`${tenantId}:${regionId}`)
       .digest('hex')
       .substring(0, 16);
-    
+
     return {
       id: `key_${keyId}`,
       region: regionId,
@@ -366,7 +366,7 @@ class DataSovereignty {
   generateResidencyReport(tenantId) {
     const tenantConfig = this.dataMappings.get(tenantId);
     const transfers = this.getTransferAgreements(tenantId);
-    
+
     if (!tenantConfig) {
       return { error: 'Tenant not configured' };
     }
@@ -374,7 +374,7 @@ class DataSovereignty {
     return {
       tenantId,
       primaryRegion: tenantConfig.region,
-      transfers: transfers.map(t => ({
+      transfers: transfers.map((t) => ({
         id: t.id,
         source: t.sourceRegion,
         target: t.targetRegion,
@@ -383,9 +383,9 @@ class DataSovereignty {
         expiresAt: t.expiresAt
       })),
       complianceSummary: {
-        gdprTransfers: transfers.filter(t => t.legalBasis?.includes('GDPR')).length,
-        lgpdTransfers: transfers.filter(t => t.legalBasis?.includes('LGPD')).length,
-        pipedaTransfers: transfers.filter(t => t.legalBasis?.includes('PIPEDA')).length
+        gdprTransfers: transfers.filter((t) => t.legalBasis?.includes('GDPR')).length,
+        lgpdTransfers: transfers.filter((t) => t.legalBasis?.includes('LGPD')).length,
+        pipedaTransfers: transfers.filter((t) => t.legalBasis?.includes('PIPEDA')).length
       },
       generatedAt: Date.now()
     };
@@ -438,32 +438,32 @@ class DataSovereignty {
 
   // Recommend region based on requirements
   recommendRegion(requirements) {
-    const { jurisdiction, regulations, lowLatency, dataType } = requirements;
-    
+    const { jurisdiction, regulations, lowLatency, dataType: _dataType } = requirements;
+
     let candidates = Array.from(this.regions.values());
-    
+
     // Filter by jurisdiction
     if (jurisdiction) {
-      candidates = candidates.filter(r => r.jurisdiction === jurisdiction);
+      candidates = candidates.filter((r) => r.jurisdiction === jurisdiction);
     }
-    
+
     // Filter by regulations
     if (regulations && regulations.length > 0) {
-      candidates = candidates.filter(r => 
-        regulations.every(reg => r.regulations.includes(reg))
+      candidates = candidates.filter((r) =>
+        regulations.every((reg) => r.regulations.includes(reg))
       );
     }
-    
+
     // Sort by latency if specified
     if (lowLatency) {
-      candidates.sort((a, b) => {
+      candidates.sort((_a, _b) => {
         const aLatency = Math.random() * 50;
         const bLatency = Math.random() * 50;
         return aLatency - bLatency;
       });
     }
 
-    return candidates.map(r => ({
+    return candidates.map((r) => ({
       regionId: r.id,
       name: r.name,
       location: r.location,

@@ -136,7 +136,6 @@ class Crawl4AIAdapter(BaseScraper):
             cache_mode_map = {
                 "bypass": CacheMode.BYPASS,
                 "enabled": CacheMode.ENABLED,
-                "only": CacheMode.ONLY,
             }
             config_options["cache_mode"] = cache_mode_map.get(
                 cache_mode, CacheMode.BYPASS
@@ -163,20 +162,26 @@ class Crawl4AIAdapter(BaseScraper):
             screenshot = None
 
             if hasattr(result, "markdown"):
-                if hasattr(result.markdown, "raw_markdown"):
-                    markdown = result.markdown.raw_markdown or ""
-                if hasattr(result.markdown, "fit_markdown"):
-                    fit_markdown = result.markdown.fit_markdown or ""
+                md = result.markdown
+                if hasattr(md, "raw_markdown"):
+                    markdown = str(md.raw_markdown) if md.raw_markdown else ""
+                elif isinstance(md, str):
+                    markdown = md
+                if hasattr(md, "fit_markdown"):
+                    fit_markdown = str(md.fit_markdown) if md.fit_markdown else ""
 
             if hasattr(result, "html"):
                 html = result.html or ""
 
             if hasattr(result, "links"):
-                links = [
-                    link.get("href", "")
-                    for link in (result.links or [])
-                    if link.get("href")
-                ]
+                raw_links = result.links or {}
+                if isinstance(raw_links, dict):
+                    links = list(raw_links.keys())
+                elif isinstance(raw_links, list):
+                    links = [
+                        link.get("href", "") if hasattr(link, "get") else str(link)
+                        for link in raw_links
+                    ]
 
             if hasattr(result, "screenshot"):
                 screenshot = result.screenshot
@@ -189,11 +194,11 @@ class Crawl4AIAdapter(BaseScraper):
                 strategy_used=CrawlerStrategy.CRAWL4AI.value,
                 metadata={
                     "url": url,
-                    "raw_markdown": markdown,
-                    "html": html,
-                    "links": links,
+                    "raw_markdown": markdown[:500] if markdown else "",
+                    "html": html[:500] if html else "",
+                    "links": links[:20],
                     "screenshot": screenshot is not None,
-                    "fit_markdown": fit_markdown,
+                    "fit_markdown": fit_markdown[:500] if fit_markdown else "",
                 },
             )
         except Exception as e:

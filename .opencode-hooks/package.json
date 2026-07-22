@@ -1,0 +1,13 @@
+{
+  "name": "opencode-brain-hook",
+  "version": "1.0.0",
+  "description": "BrainSystem Hook for OpenCode",
+  "main": "brain-hook.js",
+  "hooks": {
+    "before-response": "brain-hook.js",
+    "after-response": "brain-hook.js"
+  },
+  "dependencies": {
+    "brain-system": "file:../src/core/BrainSystem"
+  }
+}

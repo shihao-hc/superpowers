@@ -1,13 +1,13 @@
 /**
  * 前端中文翻译拦截器 - Frontend Chinese Translation Interceptor
- * 
+ *
  * 功能特性:
  * - 浏览器端实时翻译
  * - DOM内容翻译(XSS防护)
  * - WebSocket消息翻译
  * - 本地缓存
  * - 流式翻译支持
- * 
+ *
  * 安全特性:
  * - DOM XSS防护
  * - 输入长度限制
@@ -48,10 +48,10 @@ class FrontendChineseTranslator {
 
     // 翻译缓存
     this.cache = new Map();
-    
+
     // MutationObserver
     this.observer = null;
-    
+
     // 翻译队列
     this.queue = [];
     this.processing = false;
@@ -82,8 +82,8 @@ class FrontendChineseTranslator {
    * 验证数组输入
    */
   validateArray(arr, fallback) {
-    if (!Array.isArray(arr)) return fallback;
-    return arr.filter(item => typeof item === 'string').slice(0, 50);
+    if (!Array.isArray(arr)) {return fallback;}
+    return arr.filter((item) => typeof item === 'string').slice(0, 50);
   }
 
   /**
@@ -98,7 +98,7 @@ class FrontendChineseTranslator {
    * XSS防护转义
    */
   escapeHTML(str) {
-    if (typeof str !== 'string') return str;
+    if (typeof str !== 'string') {return str;}
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
@@ -117,9 +117,10 @@ class FrontendChineseTranslator {
    * 文本净化
    */
   sanitizeText(text) {
-    if (typeof text !== 'string') return '';
+    if (typeof text !== 'string') {return '';}
     // 移除script标签和事件处理器
     return text
+      // eslint-disable-next-line security/detect-unsafe-regex
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
       .replace(/javascript:/gi, '')
@@ -133,16 +134,16 @@ class FrontendChineseTranslator {
     if (this.options.autoTranslate) {
       // 翻译现有内容
       this.translatePage();
-      
+
       // 监听DOM变化
       if (this.options.observeChanges) {
         this.observeDOM();
       }
-      
+
       // 监听WebSocket消息
       this.interceptWebSocket();
     }
-    
+
     if (this.options.onReady) {
       this.options.onReady(this);
     }
@@ -162,14 +163,14 @@ class FrontendChineseTranslator {
    * 翻译单个元素
    */
   async translateElement(element) {
-    if (!element || !element.tagName) return;
-    
+    if (!element || !element.tagName) {return;}
+
     // 检查是否排除
-    if (this.shouldExclude(element)) return;
-    
+    if (this.shouldExclude(element)) {return;}
+
     // 翻译文本节点
     await this.translateTextNodes(element);
-    
+
     // 翻译属性
     await this.translateAttributes(element);
   }
@@ -255,7 +256,7 @@ class FrontendChineseTranslator {
       const headers = {
         'Content-Type': 'application/json'
       };
-      
+
       // 添加CSRF Token
       if (this.options.csrfToken) {
         headers['X-CSRF-Token'] = this.options.csrfToken;
@@ -281,7 +282,7 @@ class FrontendChineseTranslator {
       if (typeof translated === 'string') {
         translated = this.escapeHTML(translated);
       }
-      
+
       // 更新缓存
       this.cache.set(cacheKey, translated);
       if (this.cache.size > 1000) {
@@ -303,20 +304,20 @@ class FrontendChineseTranslator {
    * 检查是否应该排除
    */
   shouldExclude(element) {
-    if (!element || !element.tagName) return false;
-    
+    if (!element || !element.tagName) {return false;}
+
     // 检查标签
     if (this.options.excludeTags.includes(element.tagName)) {
       return true;
     }
-    
+
     // 检查类名
     for (const className of this.options.excludeClasses) {
       if (element.classList && element.classList.contains(className)) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -354,16 +355,16 @@ class FrontendChineseTranslator {
    * 处理翻译队列
    */
   async processQueue() {
-    if (this.processing || this.queue.length === 0) return;
-    
+    if (this.processing || this.queue.length === 0) {return;}
+
     this.processing = true;
-    
+
     // 限制队列大小
     const maxQueueSize = 100;
     while (this.queue.length > 0 && this.queue.length > this.queue.length - maxQueueSize) {
       this.queue.shift();
     }
-    
+
     while (this.queue.length > 0) {
       const node = this.queue.shift();
       if (node && node.textContent) {
@@ -374,7 +375,7 @@ class FrontendChineseTranslator {
         }
       }
     }
-    
+
     this.processing = false;
   }
 
@@ -382,14 +383,14 @@ class FrontendChineseTranslator {
    * 拦截WebSocket消息(安全版本)
    */
   interceptWebSocket() {
-    if (this._wsIntercepted) return;
-    
+    if (this._wsIntercepted) {return;}
+
     const OriginalWebSocket = window.WebSocket;
     const self = this;
-    
+
     // 检查是否已拦截
-    if (OriginalWebSocket._intercepted) return;
-    
+    if (OriginalWebSocket._intercepted) {return;}
+
     window.WebSocket = function(url, protocols) {
       // URL验证
       try {
@@ -402,12 +403,12 @@ class FrontendChineseTranslator {
       } catch (e) {
         // 相对路径允许
       }
-      
+
       const ws = protocols ? new OriginalWebSocket(url, protocols) : new OriginalWebSocket(url);
-      
+
       // 保存原始方法引用
       const originalHandleMessage = ws.handleMessage;
-      
+
       // 拦截消息
       ws.addEventListener('message', async (event) => {
         try {
@@ -416,7 +417,7 @@ class FrontendChineseTranslator {
             const translated = await self.translate(data.message);
             data.message = translated;
             data._translated = true;
-            
+
             // 创建新的事件
             const newEvent = new MessageEvent('message', {
               data: JSON.stringify(data),
@@ -427,7 +428,7 @@ class FrontendChineseTranslator {
               cancelable: event.cancelable,
               composed: event.composed
             });
-            
+
             // 分发新事件
             ws.dispatchEvent(newEvent);
             return;
@@ -435,26 +436,26 @@ class FrontendChineseTranslator {
         } catch (e) {
           // 如果解析失败，保持原样
         }
-        
+
         // 如果不是翻译消息，原始分发
         if (originalHandleMessage) {
           originalHandleMessage.call(ws, event);
         }
       });
-      
+
       return ws;
     };
 
     // 完整复制原型
     window.WebSocket.prototype = OriginalWebSocket.prototype;
     window.WebSocket.prototype.constructor = window.WebSocket;
-    
+
     // 复制静态属性
     window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
     window.WebSocket.OPEN = OriginalWebSocket.OPEN;
     window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
     window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
-    
+
     // 标记已拦截
     window.WebSocket._intercepted = true;
     this._wsIntercepted = true;
@@ -488,7 +489,7 @@ class FrontendChineseTranslator {
 // 自动初始化
 if (typeof window !== 'undefined') {
   window.FrontendChineseTranslator = FrontendChineseTranslator;
-  
+
   // 如果有data-chinese-translate属性，自动初始化
   document.addEventListener('DOMContentLoaded', () => {
     const configElement = document.querySelector('[data-chinese-translate]');

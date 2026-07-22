@@ -1,0 +1,142 @@
+/**
+ * Built-in Commands - Search Operations
+ */
+
+import type { Command, CommandParams, CommandResult } from '../index.js';
+
+export const grepCommand: Command = {
+  name: 'grep',
+  aliases: ['search', 'find'],
+  description: 'Search for pattern in files',
+  priority: 10,
+  patterns: [/^\/(grep|search|find)\s+.+/i],
+  execute: async (params: CommandParams): Promise<CommandResult> => {
+    const pattern = params.args[0];
+    if (!pattern) {
+      return { success: false, error: 'Usage: /grep <pattern> [path]' };
+    }
+
+    const searchPath = params.args[1] || '.';
+    const flags = params.flags;
+
+    // 安全验证：检查危险字符
+    const dangerousPattern = /[;&|`$<>!{}[\]\\]/;
+    if (dangerousPattern.test(pattern) || dangerousPattern.test(searchPath)) {
+      return { success: false, error: 'Search pattern or path contains invalid characters' };
+    }
+
+    // 限制长度
+    if (pattern.length > 1000) {
+      return { success: false, error: 'Pattern too long (max 1000 characters)' };
+    }
+
+    try {
+      const { execSync } = require('child_process');
+      
+      // ✅ 使用数组形式构建命令
+      const grepArgs = [];
+      
+      if (flags.i) grepArgs.push('-i');
+      if (flags.n) grepArgs.push('-n');
+      if (flags.l) grepArgs.push('-l');
+      
+      grepArgs.push('-r');
+      grepArgs.push('--');
+      grepArgs.push(pattern);
+      grepArgs.push(searchPath);
+      
+      const output = execSync('grep', grepArgs, { 
+        encoding: 'utf8',
+        cwd: params.context.workingDirectory,
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      return { success: true, output, data: output.split('\n') };
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes('grep:')) {
+        return { success: false, error: 'No matches found' };
+      }
+      return { success: false, error: `Search failed: pattern or path contains invalid characters` };
+    }
+  }
+};
+
+export const findCommand: Command = {
+  name: 'find',
+  aliases: ['locate'],
+  description: 'Find files by name',
+  priority: 10,
+  patterns: [/^\/find\s+.+/i],
+  execute: async (params: CommandParams): Promise<CommandResult> => {
+    const name = params.args[0];
+    if (!name) {
+      return { success: false, error: 'Usage: /find <filename>' };
+    }
+
+    // 安全验证
+    if (/[;&|`$<>]/.test(name)) {
+      return { success: false, error: 'Filename contains invalid characters' };
+    }
+
+    try {
+      const { execSync } = require('child_process');
+      const output = execSync('find', ['.', '-name', name], {
+        encoding: 'utf8',
+        cwd: params.context.workingDirectory,
+        maxBuffer: 10 * 1024 * 1024,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+      
+      return { success: true, output: output || 'No files found', data: output.split('\n') };
+    } catch (error) {
+      return { success: false, error: 'No files found' };
+    }
+  }
+};
+
+export const replaceCommand: Command = {
+  name: 'replace',
+  aliases: ['sed'],
+  description: 'Replace text in files',
+  priority: 10,
+  patterns: [/^\/replace\s+.+/i],
+  execute: async (params: CommandParams): Promise<CommandResult> => {
+    if (params.args.length < 3) {
+      return { success: false, error: 'Usage: /replace <old> <new> [file]' };
+    }
+
+    const [oldText, newText, file] = params.args;
+
+    try {
+      const fs = require('fs');
+      const path = file || '.';
+      const files = fs.readdirSync(path);
+      
+      let modifiedCount = 0;
+      for (const f of files) {
+        if (f.endsWith('.txt') || f.endsWith('.md') || f.endsWith('.js')) {
+          const filePath = `${path}/${f}`;
+          let content = fs.readFileSync(filePath, 'utf8');
+          if (content.includes(oldText)) {
+            content = content.split(oldText).join(newText);
+            fs.writeFileSync(filePath, content);
+            modifiedCount++;
+          }
+        }
+      }
+      
+      return { success: true, output: `Modified ${modifiedCount} files` };
+    } catch (error) {
+      return { success: false, error: `Replace failed: ${error}` };
+    }
+  }
+};
+
+export const searchCommands: Command[] = [
+  grepCommand,
+  findCommand,
+  replaceCommand
+];

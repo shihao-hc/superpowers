@@ -1,6 +1,6 @@
 /**
  * VisionSystem - 视觉/多模态系统
- * 
+ *
  * 功能:
  * - 屏幕截图捕获
  * - 图像分析
@@ -32,7 +32,7 @@ class VisionSystem {
     // 状态
     this.isCapturing = false;
     this.captureTimer = null;
-    
+
     // 截图历史
     this.screenshotHistory = [];
     this.maxHistory = options.maxHistorySize || 50;
@@ -45,8 +45,8 @@ class VisionSystem {
    * 开始自动截图
    */
   startAutoCapture() {
-    if (this.isCapturing) return;
-    
+    if (this.isCapturing) {return;}
+
     this.isCapturing = true;
     this.captureTimer = setInterval(() => {
       this.captureAndAnalyze();
@@ -77,7 +77,7 @@ class VisionSystem {
       }
     } catch (error) {
       console.error('[VisionSystem] Capture error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
       throw error;
     }
   }
@@ -88,7 +88,7 @@ class VisionSystem {
   async _captureElement(element) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    
+
     if (element instanceof HTMLVideoElement) {
       canvas.width = element.videoWidth || 640;
       canvas.height = element.videoHeight || 480;
@@ -102,7 +102,7 @@ class VisionSystem {
       const rect = element.getBoundingClientRect();
       canvas.width = rect.width;
       canvas.height = rect.height;
-      
+
       // 简化实现
       const svg = await this._elementToSVG(element);
       const blob = await this._svgToBlob(svg);
@@ -126,7 +126,7 @@ class VisionSystem {
 
     const video = document.createElement('video');
     video.srcObject = stream;
-    
+
     await new Promise((resolve) => {
       video.onloadedmetadata = () => {
         video.play();
@@ -135,14 +135,14 @@ class VisionSystem {
     });
 
     // 等待一帧
-    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     if (region) {
       ctx.drawImage(
         video,
@@ -154,18 +154,18 @@ class VisionSystem {
     }
 
     // 停止流
-    stream.getTracks().forEach(track => track.stop());
+    stream.getTracks().forEach((track) => track.stop());
     video.remove();
 
     const dataUrl = canvas.toDataURL('image/png');
-    
+
     // 保存历史
     this.screenshotHistory.push({
       dataUrl,
       timestamp: Date.now(),
       region
     });
-    
+
     if (this.screenshotHistory.length > this.maxHistory) {
       this.screenshotHistory.shift();
     }
@@ -183,7 +183,7 @@ class VisionSystem {
   async captureAndAnalyze(prompt = 'Describe what you see') {
     const screenshot = await this.captureScreen();
     const analysis = await this.analyzeImage(screenshot, prompt);
-    
+
     if (this.options.onAnalysis) {
       this.options.onAnalysis({
         screenshot,
@@ -209,8 +209,8 @@ class VisionSystem {
 
     try {
       // 转换为base64
-      const base64 = imageData.startsWith('data:') 
-        ? imageData.split(',')[1] 
+      const base64 = imageData.startsWith('data:')
+        ? imageData.split(',')[1]
         : imageData;
 
       const response = await fetch(this.options.multimodalEndpoint, {
@@ -249,7 +249,7 @@ class VisionSystem {
 
       // 保存分析历史
       this.analysisHistory.push({
-        image: base64.substring(0, 100) + '...',
+        image: `${base64.substring(0, 100)}...`,
         prompt,
         analysis,
         timestamp: Date.now()
@@ -259,7 +259,7 @@ class VisionSystem {
 
     } catch (error) {
       console.error('[VisionSystem] Analysis error:', error);
-      if (this.options.onError) this.options.onError(error);
+      if (this.options.onError) {this.options.onError(error);}
       throw error;
     }
   }
@@ -271,19 +271,19 @@ class VisionSystem {
     // 创建图像对象
     return new Promise((resolve, reject) => {
       const img = new Image();
-      
+
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
-        
+
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        
+
         // 获取图像数据
         const imageDataObj = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const analysis = this._analyzeImageData(imageDataObj);
-        
+
         resolve({
           type: 'local',
           dimensions: { width: img.width, height: img.height },
@@ -313,13 +313,13 @@ class VisionSystem {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      
+
       totalR += r;
       totalG += g;
       totalB += b;
-      
+
       brightnessSum += (r + g + b) / 3;
-      
+
       // 量化颜色
       const colorKey = `${Math.floor(r/32)},${Math.floor(g/32)},${Math.floor(b/32)}`;
       colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
@@ -336,7 +336,7 @@ class VisionSystem {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([key]) => {
-        const [r, g, b] = key.split(',').map(c => parseInt(c) * 32);
+        const [r, g, b] = key.split(',').map((c) => parseInt(c) * 32);
         return `rgb(${r},${g},${b})`;
       });
 
@@ -353,12 +353,12 @@ class VisionSystem {
    */
   _generateDescription(analysis) {
     const brightness = analysis.brightness;
-    const dominant = analysis.dominantColor;
-    
+    const _dominant = analysis.dominantColor;
+
     let brightnessDesc = 'brightness moderate';
-    if (brightness < 0.3) brightnessDesc = 'dark scene';
-    else if (brightness > 0.7) brightnessDesc = 'bright scene';
-    
+    if (brightness < 0.3) {brightnessDesc = 'dark scene';}
+    else if (brightness > 0.7) {brightnessDesc = 'bright scene';}
+
     return `The image shows a ${brightnessDesc}. ` +
            `Primary colors: ${analysis.colors.slice(0, 3).join(', ')}. ` +
            `Resolution: ${analysis.pixelCount} pixels.`;
@@ -371,7 +371,7 @@ class VisionSystem {
     // 使用Tesseract.js或调用API
     if (typeof Tesseract !== 'undefined') {
       const result = await Tesseract.recognize(imageData, 'eng+chi_sim', {
-        logger: m => console.log('[OCR]', m)
+        logger: (m) => console.log('[OCR]', m)
       });
       return result.data.text;
     }

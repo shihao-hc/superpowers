@@ -15,7 +15,7 @@ class CacheWarmupManager extends EventEmitter {
       retryAttempts: options.retryAttempts || 2,
       ...options
     };
-    
+
     this.warmupTasks = new Map();
     this.stats = {
       totalTasks: 0,
@@ -25,7 +25,7 @@ class CacheWarmupManager extends EventEmitter {
       startTime: null,
       endTime: null
     };
-    
+
     this._isWarming = false;
   }
 
@@ -76,7 +76,7 @@ class CacheWarmupManager extends EventEmitter {
 
     // Sort tasks by priority
     const sortedTasks = Array.from(this.warmupTasks.values())
-      .filter(t => t.enabled)
+      .filter((t) => t.enabled)
       .sort((a, b) => a.priority - b.priority);
 
     // Execute tasks with parallel limit
@@ -84,7 +84,7 @@ class CacheWarmupManager extends EventEmitter {
     for (let i = 0; i < sortedTasks.length; i += this.options.parallelLimit) {
       const batch = sortedTasks.slice(i, i + this.options.parallelLimit);
       const batchResults = await Promise.allSettled(
-        batch.map(task => this._executeTask(task, cacheService, skillManager))
+        batch.map((task) => this._executeTask(task, cacheService, skillManager))
       );
       results.push(...batchResults);
     }
@@ -103,14 +103,15 @@ class CacheWarmupManager extends EventEmitter {
 
     const duration = this.stats.endTime - this.stats.startTime;
     console.log(`[CacheWarmup] Completed: ${this.stats.completed}/${this.stats.totalTasks} in ${duration}ms`);
-    
+
     this.emit('warmup-complete', this.stats);
     return this.stats;
   }
 
   async _executeTask(task, cacheService, skillManager) {
     const startTime = Date.now();
-    
+    let timeoutHandle;
+
     try {
       // Check dependencies
       for (const dep of task.dependencies) {
@@ -122,21 +123,23 @@ class CacheWarmupManager extends EventEmitter {
       // Execute with timeout
       const result = await Promise.race([
         task.handler(cacheService, skillManager),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), task.timeout)
-        )
+        new Promise((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error('Timeout')), task.timeout);
+        })
       ]);
+      clearTimeout(timeoutHandle);
 
       const duration = Date.now() - startTime;
       console.log(`[CacheWarmup] ✓ ${task.name} completed in ${duration}ms`);
-      
+
       this.emit('task-complete', { name: task.name, duration, result });
       return result;
-      
+
     } catch (error) {
+      clearTimeout(timeoutHandle);
       const duration = Date.now() - startTime;
       console.error(`[CacheWarmup] ✗ ${task.name} failed: ${error.message}`);
-      
+
       this.emit('task-failed', { name: task.name, duration, error: error.message });
       throw error;
     }
@@ -146,10 +149,10 @@ class CacheWarmupManager extends EventEmitter {
    * Warmup skill metadata
    */
   async warmupSkillMetadata(cacheService, skillManager) {
-    if (!skillManager || !cacheService) return;
-    
+    if (!skillManager || !cacheService) {return;}
+
     const skills = skillManager.getAllSkills?.() || [];
-    const metadata = skills.map(skill => ({
+    const metadata = skills.map((skill) => ({
       id: skill.id,
       name: skill.name,
       category: skill.category,
@@ -160,7 +163,7 @@ class CacheWarmupManager extends EventEmitter {
       await cacheService.set('skills:metadata', metadata, 3600);
       console.log(`[CacheWarmup] Cached ${metadata.length} skill metadata entries`);
     }
-    
+
     return metadata;
   }
 
@@ -175,10 +178,10 @@ class CacheWarmupManager extends EventEmitter {
       user: ['read', 'execute'],
       guest: ['read']
     };
-    
+
     await cacheService.set('permissions:roles', permissions, 7200);
     console.log('[CacheWarmup] Cached role permissions');
-    
+
     return permissions;
   }
 
@@ -190,12 +193,12 @@ class CacheWarmupManager extends EventEmitter {
       const { IndustrySolutions } = require('../skills/solutions/IndustrySolutions');
       const solutions = new IndustrySolutions();
       const allSolutions = solutions.getAllSolutions();
-      
+
       if (allSolutions.length > 0) {
         await cacheService.set('solutions:all', allSolutions, 1800);
         console.log(`[CacheWarmup] Cached ${allSolutions.length} industry solutions`);
       }
-      
+
       return allSolutions;
     } catch (error) {
       console.error('[CacheWarmup] Failed to warmup industry solutions:', error.message);
@@ -210,12 +213,12 @@ class CacheWarmupManager extends EventEmitter {
     try {
       const { ToolAnnotations } = require('../mcp/engines/ToolAnnotations');
       const annotations = ToolAnnotations.getAllAnnotations();
-      
+
       if (Object.keys(annotations).length > 0) {
         await cacheService.set('annotations:tools', annotations, 3600);
         console.log(`[CacheWarmup] Cached ${Object.keys(annotations).length} tool annotations`);
       }
-      
+
       return annotations;
     } catch (error) {
       console.error('[CacheWarmup] Failed to warmup tool annotations:', error.message);

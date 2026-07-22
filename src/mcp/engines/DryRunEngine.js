@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { splitLines } = require('../../utils/UltraWorkUtils');
 
 class DryRunEngine {
   constructor(options = {}) {
@@ -22,15 +23,15 @@ class DryRunEngine {
     if (!filePath || typeof filePath !== 'string') {
       throw new Error('Invalid file path: must be a non-empty string');
     }
-    
+
     // 规范化路径分隔符 (Windows/Linux兼容)
     const normalized = filePath.replace(/\\/g, '/');
-    
+
     // 检查危险字符和路径穿越
-    if (normalized.includes('..') || /[\<\>\|]/.test(normalized)) {
+    if (normalized.includes('..') || /[<>|]/.test(normalized)) {
       throw new Error('Path traversal or invalid characters not allowed');
     }
-    
+
     const resolved = path.resolve(normalized);
     return resolved;
   }
@@ -49,7 +50,7 @@ class DryRunEngine {
   /**
    * 通用 Dry-Run 检查
    */
-  checkDryRun(params, toolName) {
+  checkDryRun(params, _toolName) {
     if (params.dry_run === true || params.dryRun === true) {
       return true;
     }
@@ -61,19 +62,19 @@ class DryRunEngine {
    */
   previewEdit(filePath, edits, currentContent) {
     const safePath = this.validateFilePath(filePath);
-    
+
     // 如果没有提供内容，先验证并检查文件大小
     if (!currentContent) {
       this.validateFileSize(safePath);
       currentContent = fs.readFileSync(safePath, 'utf-8');
     }
-    
+
     const content = currentContent;
-    
+
     // 限制预览内容长度
     const truncated = content.length > this.maxPreviewLength;
-    const displayContent = truncated ? content.slice(0, this.maxPreviewLength) + '\n...' : content;
-    
+    const displayContent = truncated ? `${content.slice(0, this.maxPreviewLength)}\n...` : content;
+
     const preview = this.applyEdits(displayContent, edits);
     const diff = this.generateDiff(displayContent, preview, filePath);
 
@@ -86,9 +87,9 @@ class DryRunEngine {
         truncated,
         originalSize: content.length,
         lineCount: {
-          before: displayContent.split('\n').length,
-          after: preview.split('\n').length,
-          delta: preview.split('\n').length - displayContent.split('\n').length
+          before: splitLines(displayContent).length,
+          after: splitLines(preview).length,
+          delta: splitLines(preview).length - splitLines(displayContent).length
         }
       },
       preview,
@@ -325,9 +326,9 @@ class DryRunEngine {
   /**
    * 分析 CDP 命令风险
    */
-  analyzeCdpRisks(command, params) {
+  analyzeCdpRisks(command, _params) {
     const risks = [];
-    
+
     if (command.includes('inject') || command.includes('evaluate')) {
       risks.push('This command executes code in the browser context');
     }
@@ -346,7 +347,7 @@ class DryRunEngine {
    */
   applyEdits(content, edits) {
     let result = content;
-    
+
     for (const edit of edits) {
       const { oldText, newText } = edit;
       if (oldText && result.includes(oldText)) {
@@ -361,9 +362,9 @@ class DryRunEngine {
    * 生成差异对比
    */
   generateDiff(before, after, filePath) {
-    const beforeLines = before.split('\n');
-    const afterLines = after.split('\n');
-    
+    const beforeLines = splitLines(before);
+    const afterLines = splitLines(after);
+
     const changes = {
       added: 0,
       removed: 0,
@@ -372,7 +373,7 @@ class DryRunEngine {
     };
 
     let hunkStart = -1;
-    let hunkLines = [];
+    const hunkLines = [];
 
     for (let i = 0; i < Math.max(beforeLines.length, afterLines.length); i++) {
       const beforeLine = beforeLines[i];
@@ -385,16 +386,16 @@ class DryRunEngine {
         }
       } else if (beforeLine !== undefined && afterLine === undefined) {
         changes.removed++;
-        if (hunkStart < 0) hunkStart = Math.max(0, i - 2);
+        if (hunkStart < 0) {hunkStart = Math.max(0, i - 2);}
         hunkLines.push({ type: 'removed', content: beforeLine });
       } else if (beforeLine === undefined && afterLine !== undefined) {
         changes.added++;
-        if (hunkStart < 0) hunkStart = Math.max(0, i - 2);
+        if (hunkStart < 0) {hunkStart = Math.max(0, i - 2);}
         hunkLines.push({ type: 'added', content: afterLine });
       } else {
         changes.removed++;
         changes.added++;
-        if (hunkStart < 0) hunkStart = Math.max(0, i - 2);
+        if (hunkStart < 0) {hunkStart = Math.max(0, i - 2);}
         hunkLines.push({ type: 'removed', content: beforeLine });
         hunkLines.push({ type: 'added', content: afterLine });
       }
@@ -418,9 +419,9 @@ class DryRunEngine {
    * 格式化文件大小
    */
   formatSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024) {return `${bytes} B`;}
+    if (bytes < 1024 * 1024) {return `${(bytes / 1024).toFixed(1)} KB`;}
+    if (bytes < 1024 * 1024 * 1024) {return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;}
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   }
 
@@ -428,13 +429,13 @@ class DryRunEngine {
    * 统计目录文件
    */
   countFiles(dirPath, stats = { count: 0, size: 0 }) {
-    if (!fs.existsSync(dirPath)) return stats;
+    if (!fs.existsSync(dirPath)) {return stats;}
 
     const entries = fs.readdirSync(dirPath);
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry);
       const entryStat = fs.statSync(fullPath);
-      
+
       if (entryStat.isDirectory()) {
         this.countFiles(fullPath, stats);
       } else {

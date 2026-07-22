@@ -11,6 +11,74 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" post-edit-check",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" task-complete-check",
+            "async": false
+          }
+        ]
+      }
+    ],
+    "PreThinking": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/brain-ask\"",
+            "async": false,
+            "description": "决策前元认知自问"
+          }
+        ]
+      }
+    ],
+    "PostThinking": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/brain-review\"",
+            "async": false,
+            "description": "决策后复盘"
+          }
+        ]
+      }
+    ],
+    "OnLesson": [
+      {
+        "matcher": "learn|lesson|教训|学习|研究|分析",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/brain-lesson\"",
+            "async": false,
+            "description": "教训记录"
+          },
+          {
+            "type": "skill",
+            "skill": "learning",
+            "description": "加载学习流程 skill"
+          }
+        ]
+      }
     ]
   }
 }

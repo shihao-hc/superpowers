@@ -55,7 +55,7 @@ const CACHE_GROUPS = {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     Promise.all([
-      caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE_URLS)),
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)),
       loadDynamicAssets()
     ]).then(() => self.skipWaiting())
   );
@@ -78,11 +78,11 @@ async function loadDynamicAssets() {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter(name => name.startsWith('ultrawork-cache-') && name !== CACHE_NAME)
-          .map(name => caches.delete(name))
+          .filter((name) => name.startsWith('ultrawork-cache-') && name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
       );
     }).then(() => self.clients.claim())
   );
@@ -90,36 +90,36 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  
-  if (req.method !== 'GET') return;
-  
-  if (req.url.includes('/socket.io/')) return;
-  
+
+  if (req.method !== 'GET') {return;}
+
+  if (req.url.includes('/socket.io/')) {return;}
+
   const url = new URL(req.url);
-  
+
   if (url.origin !== location.origin) {
     event.respondWith(handleExternalRequest(req));
     return;
   }
-  
+
   const cacheGroup = getCacheGroup(req.url);
-  
+
   switch (cacheGroup) {
-    case 'static':
-    case 'fonts':
-      event.respondWith(cacheFirst(req));
-      break;
-    case 'api':
-      event.respondWith(networkFirst(req));
-      break;
-    default:
-      event.respondWith(staleWhileRevalidate(req));
+  case 'static':
+  case 'fonts':
+    event.respondWith(cacheFirst(req));
+    break;
+  case 'api':
+    event.respondWith(networkFirst(req));
+    break;
+  default:
+    event.respondWith(staleWhileRevalidate(req));
   }
 });
 
 function getCacheGroup(url) {
   for (const [name, group] of Object.entries(CACHE_GROUPS)) {
-    if (group.urls.some(pattern => pattern.test(url))) {
+    if (group.urls.some((pattern) => pattern.test(url))) {
       return name;
     }
   }
@@ -128,8 +128,8 @@ function getCacheGroup(url) {
 
 async function cacheFirst(request) {
   const cached = await caches.match(request);
-  if (cached) return cached;
-  
+  if (cached) {return cached;}
+
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -153,7 +153,7 @@ async function networkFirst(request) {
     return response;
   } catch (e) {
     const cached = await caches.match(request);
-    if (cached) return cached;
+    if (cached) {return cached;}
     return new Response(JSON.stringify({ error: 'Offline' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
@@ -163,21 +163,21 @@ async function networkFirst(request) {
 
 async function staleWhileRevalidate(request) {
   const cached = await caches.match(request);
-  
-  const fetchPromise = fetch(request).then(response => {
+
+  const fetchPromise = fetch(request).then((response) => {
     if (response.ok) {
-      caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
     }
     return response;
   }).catch(() => null);
-  
+
   return cached || fetchPromise || caches.match('/frontend/offline.html');
 }
 
 async function handleExternalRequest(request) {
   const cache = await caches.match(request);
-  if (cache) return cache;
-  
+  if (cache) {return cache;}
+
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -205,15 +205,15 @@ self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }
-  
+
   if (event.data === 'clearCache') {
     event.waitUntil(
-      caches.keys().then(names => Promise.all(names.map(caches.delete)))
+      caches.keys().then((names) => Promise.all(names.map(caches.delete)))
     );
   }
-  
+
   if (event.data.action === 'cacheUrl') {
     const url = event.data.url;
-    caches.open(CACHE_NAME).then(cache => cache.add(url));
+    caches.open(CACHE_NAME).then((cache) => cache.add(url));
   }
 });

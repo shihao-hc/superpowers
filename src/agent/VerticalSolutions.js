@@ -175,7 +175,7 @@ class VerticalSolutions {
 
   async deploy(solutionId, deploymentConfig = {}) {
     const solution = this.solutions.get(solutionId);
-    if (!solution) throw new Error('Solution not found');
+    if (!solution) {throw new Error('Solution not found');}
 
     const deploymentId = `deploy_${solutionId}_${Date.now().toString(36)}`;
 
@@ -185,7 +185,7 @@ class VerticalSolutions {
       solutionName: solution.name,
       status: 'deploying',
       config: { ...solution.config, ...deploymentConfig },
-      agents: solution.agents.map(a => ({
+      agents: solution.agents.map((a) => ({
         name: a,
         status: 'initializing',
         initializedAt: null
@@ -197,7 +197,7 @@ class VerticalSolutions {
     this.activeDeployments.set(deploymentId, deployment);
 
     for (const agent of deployment.agents) {
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 200));
       agent.status = 'ready';
       agent.initializedAt = Date.now();
     }
@@ -212,7 +212,7 @@ class VerticalSolutions {
 
   async stop(deploymentId) {
     const deployment = this.activeDeployments.get(deploymentId);
-    if (!deployment) return false;
+    if (!deployment) {return false;}
 
     deployment.status = 'stopped';
     deployment.stoppedAt = Date.now();
@@ -233,7 +233,7 @@ class VerticalSolutions {
   }
 
   getSolutionsByIndustry(industry) {
-    return Array.from(this.solutions.values()).filter(s => s.industry === industry);
+    return Array.from(this.solutions.values()).filter((s) => s.industry === industry);
   }
 
   getDeployment(deploymentId) {
@@ -245,27 +245,27 @@ class VerticalSolutions {
   }
 
   getRunningDeployments() {
-    return Array.from(this.activeDeployments.values()).filter(d => d.status === 'running');
+    return Array.from(this.activeDeployments.values()).filter((d) => d.status === 'running');
   }
 
   getStats() {
     const solutions = Array.from(this.solutions.values());
     const deployments = Array.from(this.activeDeployments.values());
 
-    const industries = [...new Set(solutions.map(s => s.industry))];
+    const industries = [...new Set(solutions.map((s) => s.industry))];
 
     return {
       solutions: {
         total: solutions.length,
         byIndustry: industries.reduce((acc, ind) => {
-          acc[ind] = solutions.filter(s => s.industry === ind).length;
+          acc[ind] = solutions.filter((s) => s.industry === ind).length;
           return acc;
         }, {})
       },
       deployments: {
         total: deployments.length,
-        running: deployments.filter(d => d.status === 'running').length,
-        stopped: deployments.filter(d => d.status === 'stopped').length
+        running: deployments.filter((d) => d.status === 'running').length,
+        stopped: deployments.filter((d) => d.status === 'stopped').length
       }
     };
   }

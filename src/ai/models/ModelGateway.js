@@ -3,7 +3,7 @@
  * 统一模型接入层 - 支持 OpenAI, Anthropic, 本地模型, 垂直领域模型
  */
 
-const crypto = require('crypto');
+const _crypto = require('crypto');
 
 class ModelGateway {
   constructor() {
@@ -12,7 +12,7 @@ class ModelGateway {
     this.loadBalancers = new Map();
     this.caches = new Map();
     this.fallbacks = new Map();
-    
+
     this._initDefaultModels();
   }
 
@@ -125,6 +125,7 @@ class ModelGateway {
       capabilities: ['chat', 'medical-ner', 'diagnosis-assist', 'medical-qa'],
       domain: 'healthcare',
       compliance: ['HIPAA'],
+      latency: { p50: 3000, p95: 6000 },
       status: 'active'
     });
 
@@ -139,6 +140,7 @@ class ModelGateway {
       capabilities: ['chat', 'contract-analysis', 'legal-research', 'case-prediction'],
       domain: 'legal',
       compliance: ['GDPR'],
+      latency: { p50: 3000, p95: 6000 },
       status: 'active'
     });
 
@@ -153,6 +155,7 @@ class ModelGateway {
       capabilities: ['chat', 'financial-analysis', 'risk-assessment', 'report-gen'],
       domain: 'finance',
       compliance: ['SEC', 'FINRA'],
+      latency: { p50: 3000, p95: 6000 },
       status: 'active'
     });
 
@@ -206,49 +209,49 @@ class ModelGateway {
 
   listModels(filters = {}) {
     let models = Array.from(this.models.values());
-    
+
     if (filters.provider) {
-      models = models.filter(m => m.provider === filters.provider);
+      models = models.filter((m) => m.provider === filters.provider);
     }
     if (filters.type) {
-      models = models.filter(m => m.type === filters.type);
+      models = models.filter((m) => m.type === filters.type);
     }
     if (filters.domain) {
-      models = models.filter(m => m.domain === filters.domain);
+      models = models.filter((m) => m.domain === filters.domain);
     }
     if (filters.capability) {
-      models = models.filter(m => m.capabilities.includes(filters.capability));
+      models = models.filter((m) => m.capabilities.includes(filters.capability));
     }
     if (filters.status) {
-      models = models.filter(m => m.status === filters.status);
+      models = models.filter((m) => m.status === filters.status);
     }
-    
+
     return models;
   }
 
   async route(request) {
-    const { task, domain, complexity, budget, latency, preferences } = request;
-    
+    const { task, domain, complexity, budget, latency, preferences: _preferences } = request;
+
     // 1. 任务匹配
     const suitableModels = this._findSuitableModels(task, domain, complexity);
-    
+
     // 2. 约束过滤
     let candidates = suitableModels;
-    
+
     if (budget) {
-      candidates = candidates.filter(m => this._withinBudget(m, budget));
+      candidates = candidates.filter((m) => this._withinBudget(m, budget));
     }
-    
+
     if (latency) {
-      candidates = candidates.filter(m => m.latency.p95 <= latency);
+      candidates = candidates.filter((m) => m.latency.p95 <= latency);
     }
-    
+
     // 3. 负载均衡
     const selected = this._selectModel(candidates);
-    
+
     // 4. 记录统计
     this._updateStats(selected.id);
-    
+
     return {
       modelId: selected.id,
       model: selected.name,
@@ -270,38 +273,38 @@ class ModelGateway {
       'finance': ['financial-analysis', 'risk-assessment']
     };
 
-    let requiredCaps = capabilityMap[task] || ['chat'];
-    
+    const requiredCaps = capabilityMap[task] || ['chat'];
+
     // 如果指定领域，优先使用领域模型
     if (domain) {
       const domainModels = this.listModels({ domain, status: 'active' });
       if (domainModels.length > 0) {
-        return domainModels.filter(m => 
-          requiredCaps.some(cap => m.capabilities.includes(cap))
+        return domainModels.filter((m) =>
+          requiredCaps.some((cap) => m.capabilities.includes(cap))
         );
       }
     }
-    
+
     // 复杂度匹配
     if (complexity === 'high') {
-      return this.listModels({ 
-        type: 'chat', 
-        status: 'active' 
-      }).filter(m => m.contextWindow >= 100000);
+      return this.listModels({
+        type: 'chat',
+        status: 'active'
+      }).filter((m) => m.contextWindow >= 100000);
     }
-    
+
     if (complexity === 'low') {
-      return this.listModels({ 
+      return this.listModels({
         provider: 'local',
-        status: 'active' 
+        status: 'active'
       }).concat(
-        this.listModels({ 
+        this.listModels({
           id: 'openai-gpt-35-turbo',
-          status: 'active' 
+          status: 'active'
         })
       );
     }
-    
+
     return this.listModels({ type: 'chat', status: 'active' });
   }
 
@@ -314,15 +317,15 @@ class ModelGateway {
     if (models.length === 0) {
       throw new Error('No suitable model found');
     }
-    
+
     // 按延迟排序，选择p95最低的
     models.sort((a, b) => a.latency.p95 - b.latency.p95);
-    
+
     // 加权随机选择
     const weights = models.map((m, i) => 1 / (i + 1));
     const totalWeight = weights.reduce((a, b) => a + b, 0);
     const random = Math.random() * totalWeight;
-    
+
     let sum = 0;
     for (let i = 0; i < models.length; i++) {
       sum += weights[i];
@@ -330,13 +333,13 @@ class ModelGateway {
         return models[i];
       }
     }
-    
+
     return models[0];
   }
 
   _explainSelection(model, request) {
     const reasons = [];
-    
+
     if (model.domain === request.domain) {
       reasons.push('领域专用模型匹配');
     }
@@ -349,14 +352,14 @@ class ModelGateway {
     if (model.latency.p95 < 5000) {
       reasons.push('低延迟');
     }
-    
+
     return reasons.join(' | ') || '综合最优选择';
   }
 
   _estimateCost(model, request) {
     const inputTokens = request.inputTokens || 1000;
     const outputTokens = request.outputTokens || 500;
-    
+
     return {
       inputCost: inputTokens * model.inputCost / 1000,
       outputCost: outputTokens * model.outputCost / 1000,
@@ -435,7 +438,7 @@ class ModelGateway {
   routeByIntelligence() {
     return async (gateway, request) => {
       const { complexity, budget, latency } = request;
-      
+
       // 高复杂度 + 高预算 = 最高质量
       if (complexity === 'high' && budget > 0.1) {
         const opus = gateway.getModel('anthropic-claude-3-opus');
@@ -447,7 +450,7 @@ class ModelGateway {
           cost: gateway._estimateCost(opus, request)
         };
       }
-      
+
       // 中等复杂度 = 平衡选择
       if (complexity === 'medium') {
         const sonnet = gateway.getModel('anthropic-claude-3-sonnet');
@@ -459,7 +462,7 @@ class ModelGateway {
           cost: gateway._estimateCost(sonnet, request)
         };
       }
-      
+
       // 低延迟要求 = 快速响应
       if (latency && latency < 2000) {
         const gpt35 = gateway.getModel('openai-gpt-35-turbo');
@@ -471,7 +474,7 @@ class ModelGateway {
           cost: gateway._estimateCost(gpt35, request)
         };
       }
-      
+
       // 默认智能选择
       return gateway.route(request);
     };
@@ -485,27 +488,27 @@ class ModelGateway {
     }
 
     const startTime = Date.now();
-    
+
     try {
       let response;
-      
+
       switch (model.provider) {
-        case 'openai':
-          response = await this._callOpenAI(modelId, messages, options);
-          break;
-        case 'anthropic':
-          response = await this._callAnthropic(modelId, messages, options);
-          break;
-        case 'local':
-          response = await this._callLocal(modelId, messages, options);
-          break;
-        default:
-          throw new Error(`Unsupported provider: ${model.provider}`);
+      case 'openai':
+        response = await this._callOpenAI(modelId, messages, options);
+        break;
+      case 'anthropic':
+        response = await this._callAnthropic(modelId, messages, options);
+        break;
+      case 'local':
+        response = await this._callLocal(modelId, messages, options);
+        break;
+      default:
+        throw new Error(`Unsupported provider: ${model.provider}`);
       }
-      
+
       const latency = Date.now() - startTime;
       this._recordCompletion(modelId, response, latency);
-      
+
       return response;
     } catch (error) {
       this._recordError(modelId, error);
@@ -516,15 +519,15 @@ class ModelGateway {
   async _callOpenAI(modelId, messages, options) {
     const { OpenAI } = require('openai');
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    
+
     const params = {
       model: modelId.replace('openai-', ''),
       messages,
       ...options
     };
-    
+
     const response = await client.chat.completions.create(params);
-    
+
     return {
       content: response.choices[0].message.content,
       usage: {
@@ -540,17 +543,17 @@ class ModelGateway {
   async _callAnthropic(modelId, messages, options) {
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic();
-    
-    const system = messages.find(m => m.role === 'system')?.content || '';
-    const userMessages = messages.filter(m => m.role !== 'system');
-    
+
+    const system = messages.find((m) => m.role === 'system')?.content || '';
+    const userMessages = messages.filter((m) => m.role !== 'system');
+
     const response = await client.messages.create({
       model: modelId.replace('anthropic-', ''),
       system,
       messages: userMessages,
       ...options
     });
-    
+
     return {
       content: response.content[0].text,
       usage: {
@@ -566,13 +569,13 @@ class ModelGateway {
   async _callLocal(modelId, messages, options) {
     const { OllamaBridge } = require('../../localInferencing/OllamaBridge');
     const ollama = new OllamaBridge();
-    
+
     const response = await ollama.generate({
-      model: model.name,
+      model: modelId,
       messages,
       ...options
     });
-    
+
     return {
       content: response.response,
       usage: {
@@ -580,7 +583,7 @@ class ModelGateway {
         outputTokens: response.eval_count || 0,
         totalTokens: (response.prompt_eval_count || 0) + (response.eval_count || 0)
       },
-      model: model.name,
+      model: modelId,
       id: `local-${Date.now()}`
     };
   }
@@ -595,7 +598,7 @@ class ModelGateway {
         response.usage.inputTokens * model.inputCost / 1000 +
         response.usage.outputTokens * model.outputCost / 1000
       );
-      
+
       // 更新平均延迟
       const prevAvg = model.stats.avgLatency;
       const totalReqs = model.stats.totalRequests;
@@ -603,7 +606,7 @@ class ModelGateway {
     }
   }
 
-  _recordError(modelId, error) {
+  _recordError(modelId, _error) {
     const model = this.models.get(modelId);
     if (model) {
       model.stats.errors++;
@@ -613,15 +616,15 @@ class ModelGateway {
   // 获取模型统计
   getModelStats(modelId) {
     const model = this.models.get(modelId);
-    if (!model) return null;
-    
+    if (!model) {return null;}
+
     return {
       modelId,
       name: model.name,
       provider: model.provider,
       stats: model.stats,
-      errorRate: model.stats.totalRequests > 0 
-        ? model.stats.errors / model.stats.totalRequests 
+      errorRate: model.stats.totalRequests > 0
+        ? model.stats.errors / model.stats.totalRequests
         : 0
     };
   }
@@ -665,21 +668,27 @@ class ModelGateway {
   // 健康检查
   healthCheck() {
     const models = Array.from(this.models.values());
-    const healthy = models.filter(m => m.stats.errorRate < 0.1);
-    const degraded = models.filter(m => m.stats.errorRate >= 0.1 && m.stats.errorRate < 0.5);
-    const unhealthy = models.filter(m => m.stats.errorRate >= 0.5);
-    
+    const withRate = models.map((m) => ({
+      ...m,
+      computedErrorRate: m.stats.totalRequests > 0
+        ? m.stats.errors / m.stats.totalRequests
+        : 0
+    }));
+    const healthy = withRate.filter((m) => m.computedErrorRate < 0.1);
+    const degraded = withRate.filter((m) => m.computedErrorRate >= 0.1 && m.computedErrorRate < 0.5);
+    const unhealthy = withRate.filter((m) => m.computedErrorRate >= 0.5);
+
     return {
       total: models.length,
       healthy: healthy.length,
       degraded: degraded.length,
       unhealthy: unhealthy.length,
-      models: models.map(m => ({
+      models: withRate.map((m) => ({
         id: m.id,
         name: m.name,
-        status: m.stats.errorRate < 0.1 ? 'healthy' : 
-                m.stats.errorRate < 0.5 ? 'degraded' : 'unhealthy',
-        errorRate: m.stats.errorRate,
+        status: m.computedErrorRate < 0.1 ? 'healthy' :
+          m.computedErrorRate < 0.5 ? 'degraded' : 'unhealthy',
+        errorRate: m.computedErrorRate,
         avgLatency: m.stats.avgLatency
       }))
     };
