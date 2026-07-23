@@ -9,6 +9,8 @@ credentials.json
 *.key
 logs/
 coverage/
+coverage-*/
+coverage-*.json
 *.log
 npm-debug.log*
 .DS_Store
@@ -46,6 +48,7 @@ uploads/venvs/
 err.txt
 test_output.txt
 *.out
+coverage-temp/
 
 # Guardrail
 .guardrail-config.json
@@ -53,3 +56,6 @@ test_output.txt
 .guardrail-baseline.json
 guardrail-regressions.jsonl
 tools/guardrail-fix.js
+
+# Backups
+Dockerfile.backup
