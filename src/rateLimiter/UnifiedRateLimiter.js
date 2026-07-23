@@ -184,7 +184,7 @@ class UnifiedRateLimiter {
     ];
     for (const [storeKey] of this.store.entries()) {
       for (const pattern of patterns) {
-        if (storeKey === pattern || storeKey.startsWith(pattern + ':')) {
+        if (storeKey === pattern || storeKey.startsWith(`${pattern}:`)) {
           this.store.delete(storeKey);
           break;
         }

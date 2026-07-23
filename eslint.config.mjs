@@ -264,6 +264,9 @@ export default [
       'brain-entry.js',
       'check_path_security.js',
       'cleanup-duplicate-agents.js',
+      'check-io.js',
+      'cross-ref.js',
+      'final-gap.js',
       'deep-scan.js',
       'D*.js'
     ]

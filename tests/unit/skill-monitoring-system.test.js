@@ -624,7 +624,7 @@ describe('SkillMonitoringSystem', () => {
     it('should load metrics from storage on construction', async () => {
       const load = jest.fn().mockResolvedValue({});
       const storage = { load, save: jest.fn() };
-      const sys = new SkillMonitoringSystem({ storage });
+      const _sys = new SkillMonitoringSystem({ storage });
       await Promise.resolve();
       expect(load).toHaveBeenCalledWith('skillMetrics');
     });
@@ -632,7 +632,7 @@ describe('SkillMonitoringSystem', () => {
     it('should handle storage load failure', async () => {
       const load = jest.fn().mockRejectedValue(new Error('fail'));
       const storage = { load, save: jest.fn() };
-      const sys = new SkillMonitoringSystem({ storage });
+      const _sys = new SkillMonitoringSystem({ storage });
       await Promise.resolve();
       expect(load).toHaveBeenCalled();
     });

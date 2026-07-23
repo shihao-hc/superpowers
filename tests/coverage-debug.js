@@ -11,24 +11,24 @@ for (const k of keys) {
     let uncovered = 0;
     for (const [id, b] of Object.entries(f.branchMap)) {
       const hits = f.b[id];
-      let cov = 0, tot = 0;
+      let cov = 0, tot;
       if (b.type === 'if') {
         tot = 2;
         cov = (hits[0] > 0 ? 1 : 0) + (hits[1] && hits[1] > 0 ? 1 : 0);
       } else if (b.type === 'binary-expr') {
         tot = b.locations.length;
-        for (let i = 0; i < tot; i++) if (hits[i] > 0) cov++;
+        for (let i = 0; i < tot; i++) {if (hits[i] > 0) {cov++;}}
       } else if (b.type === 'cond-expr') {
         tot = 2;
         cov = (hits[0] > 0 ? 1 : 0) + (hits[1] > 0 ? 1 : 0);
       } else {
         tot = b.locations.length;
-        for (let i = 0; i < tot; i++) if (hits[i] > 0) cov++;
+        for (let i = 0; i < tot; i++) {if (hits[i] > 0) {cov++;}}
       }
       if (cov < tot) {
         const loc = b.locations[0] || {};
-        const start = loc.start ? 'L' + loc.start.line : '?';
-        console.log('    UNCOV', b.type, start, id, '[' + cov + '/' + tot + ']');
+        const start = loc.start ? `L${loc.start.line}` : '?';
+        console.log('    UNCOV', b.type, start, id, `[${cov}/${tot}]`);
         uncovered++;
       }
     }

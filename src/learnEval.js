@@ -8,8 +8,8 @@ function ensureDir(p) {
 
 function scanFiles(dir, pattern, maxDepth = 3) {
   const results = [];
-  if (!fs.existsSync(dir)) return results;
-  
+  if (!fs.existsSync(dir)) {return results;}
+
   const files = fs.readdirSync(dir);
 
   for (const file of files) {
@@ -44,64 +44,64 @@ function extractSkills() {
   };
 
   const srcDir = path.resolve(process.cwd(), 'src');
-  
+
   // Claude Code 架构分析核心模块
   const coreAgentLoop = scanFiles(path.join(srcDir, 'core', 'agent-loop'), /\.ts$/);
-  skills.coreModules.push(...coreAgentLoop.map(f => ({
+  skills.coreModules.push(...coreAgentLoop.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'agent-loop',
     category: 'Core Architecture'
   })));
-  
+
   const coreTools = scanFiles(path.join(srcDir, 'core', 'tools'), /\.ts$/);
-  skills.coreModules.push(...coreTools.map(f => ({
+  skills.coreModules.push(...coreTools.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'tools',
     category: 'Tool System'
   })));
-  
+
   const coreCompact = scanFiles(path.join(srcDir, 'core', 'compact'), /\.ts$/);
-  skills.coreModules.push(...coreCompact.map(f => ({
+  skills.coreModules.push(...coreCompact.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'compact',
     category: 'Context Compaction'
   })));
-  
+
   const corePermissions = scanFiles(path.join(srcDir, 'core', 'permissions'), /\.ts$/);
-  skills.coreModules.push(...corePermissions.map(f => ({
+  skills.coreModules.push(...corePermissions.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'permissions',
     category: 'Permission System'
   })));
-  
+
   const commandsFiles = scanFiles(path.join(srcDir, 'commands'), /\.ts$/);
-  skills.coreModules.push(...commandsFiles.map(f => ({
+  skills.coreModules.push(...commandsFiles.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'commands',
     category: 'Command System'
   })));
-  
+
   const pluginsFiles = scanFiles(path.join(srcDir, 'plugins'), /\.ts$/);
-  skills.coreModules.push(...pluginsFiles.map(f => ({
+  skills.coreModules.push(...pluginsFiles.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'plugins',
     category: 'Plugin System'
   })));
-  
+
   const featuresFiles = scanFiles(path.join(srcDir, 'features'), /\.ts$/);
-  skills.coreModules.push(...featuresFiles.map(f => ({
+  skills.coreModules.push(...featuresFiles.map((f) => ({
     name: path.basename(f, '.ts'),
     path: f,
     type: 'features',
     category: 'Feature Flags'
   })));
-  
+
   // 安全审计发现的问题和修复
   skills.securityAudit = [
     {
@@ -142,7 +142,7 @@ function extractSkills() {
       fix: 'Moved type definition after class definitions'
     }
   ];
-  
+
   const agentFiles = scanFiles(path.join(srcDir, 'agent'), /\.js$/);
   skills.skills.push(...agentFiles.map((f) => ({
     name: path.basename(f, '.js'),
@@ -163,13 +163,13 @@ function extractSkills() {
     path: f,
     type: 'monitoring'
   })));
-  
+
   const securityFiles = scanFiles(path.join(srcDir, 'skills', 'security'), /\.js$/);
   skills.security.push(...securityFiles.map((f) => ({
     name: path.basename(f, '.js'),
     path: f
   })));
-  
+
   // 6 大优化方向
   const aiFiles = scanFiles(path.join(srcDir, 'ai', 'models'), /\.js$/);
   skills.sixDirections.push(...aiFiles.map((f) => ({
@@ -184,9 +184,9 @@ function extractSkills() {
     path: f,
     direction: '低代码体验'
   })));
-  
-  const uniqueSkills = new Set(skills.skills.map(s => s.name));
-  
+
+  const _uniqueSkills = new Set(skills.skills.map((s) => s.name));
+
   skills.summary = `
 === Phase 25 Security Audit & Claude Code Architecture Complete ===
 
@@ -216,7 +216,7 @@ Total Core Files: 36 TypeScript files
 
 === Command Injection Prevention Pattern ===
 // BAD: Vulnerable to injection
-execSync(\`git commit -m \"\${message}\"\`)
+execSync(\`git commit -m "\${message}"\`)
 
 // GOOD: Safe, uses array form
 const safeMessage = message.replace(/[;&|$\`<>]/g, '');
@@ -240,7 +240,7 @@ function run(phase = 'phase25') {
 
   const outPath = path.resolve(outputDir, `${phase}.json`);
   fs.writeFileSync(outPath, JSON.stringify(skills, null, 2), 'utf8');
-  console.log(`Learn-Eval: Phase 25 (Security Audit & Claude Code Architecture) extracted to`, outPath);
+  console.log('Learn-Eval: Phase 25 (Security Audit & Claude Code Architecture) extracted to', outPath);
   console.log(skills.summary);
 }
 

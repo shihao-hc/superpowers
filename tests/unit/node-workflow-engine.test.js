@@ -646,8 +646,8 @@ describe('NodeWorkflowEngine', () => {
 
     it('queues and releases when maxConcurrent is exceeded with nodes', async () => {
       const e = new NodeWorkflowEngine({ maxConcurrent: 1 });
-      const n1 = e.createNode('delay', { x: 0, y: 0 });
-      const n2 = e.createNode('delay', { x: 0, y: 0 });
+      const _n1 = e.createNode('delay', { x: 0, y: 0 });
+      const _n2 = e.createNode('delay', { x: 0, y: 0 });
       const result = await e.execute('sem_test', { parallel: true });
       expect(result.status).toBe('completed');
       e.destroy();
@@ -660,7 +660,7 @@ describe('NodeWorkflowEngine', () => {
       const origExecute = textType.execute;
       const mockExecute = jest.fn().mockReturnValue({ text: 'mocked' });
       textType.execute = mockExecute;
-      const node = engine.createNode('text', { x: 0, y: 0 }, { text: 'cached' });
+      const _node = engine.createNode('text', { x: 0, y: 0 }, { text: 'cached' });
       await engine.execute('cache1', { parallel: true });
       expect(mockExecute).toHaveBeenCalledTimes(1);
       await engine.execute('cache2', { parallel: true });
@@ -673,7 +673,7 @@ describe('NodeWorkflowEngine', () => {
       for (let i = 0; i < 11; i++) {
         engine.resultCache.set(`key${i}`, `val${i}`);
       }
-      const node = engine.createNode('text', { x: 0, y: 0 }, { text: 'trigger' });
+      const _node = engine.createNode('text', { x: 0, y: 0 }, { text: 'trigger' });
       await engine.execute('cache_evict', { parallel: true });
       expect(engine.resultCache.size).toBeLessThanOrEqual(10);
     });
@@ -694,7 +694,7 @@ describe('NodeWorkflowEngine', () => {
 
   describe('getPerformanceStats with executions', () => {
     it('returns latency stats from completed executions', async () => {
-      const node = engine.createNode('delay', { x: 0, y: 0 });
+      const _node = engine.createNode('delay', { x: 0, y: 0 });
       await engine.execute('perf1', { parallel: false });
       await engine.execute('perf2', { parallel: false });
       const stats = engine.getPerformanceStats();

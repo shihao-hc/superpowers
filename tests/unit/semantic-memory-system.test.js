@@ -917,7 +917,7 @@ describe('MemoryConsolidator', () => {
 
   describe('_processMemories with patterns only', () => {
     test('returns formatted string when only patterns are extracted', () => {
-      const memories = Array.from({ length: 25 }, (_, i) => ({
+      const memories = Array.from({ length: 25 }, (_, _i) => ({
         content: 'random stuff',
         collection: 'conversations'
       }));
@@ -965,7 +965,7 @@ describe('SemanticMemorySystem - coverage edge cases', () => {
     test('getConversationContext auto-initializes when not initialized', async () => {
       const spy = jest.spyOn(SemanticMemorySystem.prototype, 'initialize');
       const fresh = new SemanticMemorySystem();
-      const result = await fresh.getConversationContext('u1');
+      const _result = await fresh.getConversationContext('u1');
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
       await fresh.destroy();
@@ -1171,7 +1171,7 @@ describe('SemanticMemorySystem - coverage edge cases', () => {
     });
 
     test('consolidateUser returns null when _processMemories returns null with 10+ memories', async () => {
-      const memories = Array.from({ length: 10 }, (_, i) => ({
+      const memories = Array.from({ length: 10 }, (_, _i) => ({
         content: 'generic content without keywords',
         collection: 'unknown_collection'
       }));

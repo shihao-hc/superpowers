@@ -106,7 +106,7 @@ class MCPClient extends EventEmitter {
       let resolved = false;
 
       const timeout = setTimeout(() => {
-        if (!resolved) reject(new Error('HTTP connection timeout'));
+        if (!resolved) {reject(new Error('HTTP connection timeout'));}
       }, this.options.timeout);
 
       this.http = client.request(url, {

@@ -237,7 +237,7 @@ describe('Coverage gaps', () => {
   it('creates log directory when parent does not exist', () => {
     const nestedDir = path.join(os.tmpdir(), `sec-new-dir-${Date.now()}`);
     const logPath = path.join(nestedDir, 'audit.log');
-    const sm = new SecurityManager({ audit: { logPath, maxFileSize: 999999 } });
+    const _sm = new SecurityManager({ audit: { logPath, maxFileSize: 999999 } });
     expect(fs.existsSync(nestedDir)).toBe(true);
     fs.rmdirSync(nestedDir);
   });

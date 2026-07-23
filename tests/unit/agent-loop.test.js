@@ -662,7 +662,7 @@ describe('AgentLoop', () => {
     it('navigate: returns error for invalid URL', async () => {
       const browser = createMockBrowser();
       loop.browser = browser;
-      const result = await loop.actions.get('navigate')({ url: 'javascript:alert(1)' });
+      const result = await loop.actions.get('navigate')({ url: 'javascript:alert(1)' }); // eslint-disable-line no-script-url
       expect(result.success).toBe(false);
       expect(browser.goto).not.toHaveBeenCalled();
     });

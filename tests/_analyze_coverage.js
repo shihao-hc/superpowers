@@ -1,6 +1,6 @@
 const fs = require('fs');
 const cov = JSON.parse(fs.readFileSync('coverage/coverage-final.json', 'utf-8'));
-const bKey = Object.keys(cov).find(k => k.includes('BrainSystem'));
+const bKey = Object.keys(cov).find((k) => k.includes('BrainSystem'));
 const branches = cov[bKey].b;
 let uncovered = 0;
 let total = 0;

@@ -1035,7 +1035,7 @@ describe('ParallelWorkflowEngine', () => {
   describe('executeParallel branch coverage', () => {
     test('handles node removed from map during execution by dependency', async () => {
       const engine2 = createEngine({ maxConcurrent: 1 });
-      let targetId;
+      let targetId; // eslint-disable-line prefer-const
       engine2.registerNodeType('deleter', {
         name: 'Deleter', icon: '❌', category: 'Test',
         inputs: [], outputs: [{ name: 'out', type: 'any' }],

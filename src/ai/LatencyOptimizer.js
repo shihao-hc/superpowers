@@ -102,7 +102,7 @@ class LatencyOptimizer {
   /**
    * 流式生成响应（内部方法）
    */
-  async *_streamGenerate(input, context) {
+  async *_streamGenerate(input, _context) {
     const fullResponse = this._generateBasicResponse(input);
     const chunkSize = 5;
     for (let i = 0; i < fullResponse.length; i += chunkSize) {

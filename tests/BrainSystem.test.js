@@ -1,4 +1,4 @@
-const path = require('path');
+const _path = require('path');
 const fs = require('fs');
 
 // Mock 6 hard requires — these ARE intercepted by jest.mock because BrainSystem.js
