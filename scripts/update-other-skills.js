@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const curl = 'curl.exe';
 
@@ -15,13 +15,13 @@ for (const [owner, repo, path] of projects) {
   
   try {
     let url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
-    let result = execSync(`${curl} -s "${url}"`, { encoding: 'utf8' });
+    let result = execFileSync(curl, ['-s', url], { encoding: 'utf8' });
     let data = JSON.parse(result);
     version = data.tag_name || data.name;
     
     if (!version) {
       url = `https://api.github.com/repos/${owner}/${repo}/tags?per_page=1`;
-      result = execSync(`${curl} -s "${url}"`, { encoding: 'utf8' });
+      result = execFileSync(curl, ['-s', url], { encoding: 'utf8' });
       data = JSON.parse(result);
       version = data[0]?.name || 'N/A';
     }

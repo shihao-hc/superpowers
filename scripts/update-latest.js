@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const skillsDir = 'D:/龙虾/.opencode/skills';
@@ -24,7 +24,7 @@ for (const skill of Object.keys(projectMap)) {
   
   try {
     let url = `https://api.github.com/repos/${p.owner}/${p.repo}/releases/latest`;
-    let result = execSync(`${curl} -s "${url}"`, { encoding: 'utf8', timeout: 10000 });
+    let result = execFileSync(curl, ['-s', url], { encoding: 'utf8', timeout: 10000 });
     
     if (result.includes('rate limit')) {
       console.log(`  ${skill}: API 限流，需等待`);
@@ -36,7 +36,7 @@ for (const skill of Object.keys(projectMap)) {
     
     if (!version) {
       url = `https://api.github.com/repos/${p.owner}/${p.repo}/tags?per_page=1`;
-      result = execSync(`${curl} -s "${url}"`, { encoding: 'utf8', timeout: 10000 });
+      result = execFileSync(curl, ['-s', url], { encoding: 'utf8', timeout: 10000 });
       data = JSON.parse(result);
       version = data[0]?.name;
     }

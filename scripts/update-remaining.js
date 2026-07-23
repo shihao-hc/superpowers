@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const skillsDir = 'D:/龙虾/.opencode/skills';
@@ -66,9 +66,13 @@ for (const skill of Object.keys(projectMap)) {
   console.log(`[${updated + skipped + errors + rateLimited + 1}] ${skill}...`);
   
   try {
-    const authHeader = GITHUB_TOKEN ? `-H "Authorization: Bearer ${GITHUB_TOKEN}" ` : '';
+    const args = ['-s'];
+    if (GITHUB_TOKEN) {
+      args.push('-H', `Authorization: Bearer ${GITHUB_TOKEN}`);
+    }
     let url = `https://api.github.com/repos/${p.owner}/${p.repo}/releases/latest`;
-    let result = execSync(`${curl} -s ${authHeader}"${url}"`, { encoding: 'utf8', timeout: 10000 });
+    args.push(url);
+    let result = execFileSync(curl, args, { encoding: 'utf8', timeout: 10000 });
     
     if (result.includes('rate limit')) {
       rateLimited++;
@@ -80,8 +84,13 @@ for (const skill of Object.keys(projectMap)) {
     let version = data.tag_name || data.name;
     
     if (!version) {
+      const tagArgs = ['-s'];
+      if (GITHUB_TOKEN) {
+        tagArgs.push('-H', `Authorization: Bearer ${GITHUB_TOKEN}`);
+      }
       url = `https://api.github.com/repos/${p.owner}/${p.repo}/tags?per_page=1`;
-      result = execSync(`${curl} -s ${authHeader}"${url}"`, { encoding: 'utf8', timeout: 10000 });
+      tagArgs.push(url);
+      result = execFileSync(curl, tagArgs, { encoding: 'utf8', timeout: 10000 });
       data = JSON.parse(result);
       version = data[0]?.name;
     }

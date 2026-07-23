@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const curl = 'curl.exe';
 
@@ -17,7 +17,7 @@ for (const [owner, repo, skillPath, name] of projects) {
   
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
-    const result = execSync(`${curl} -s "${url}"`, { encoding: 'utf8', timeout: 15000 });
+    const result = execFileSync(curl, ['-s', url], { encoding: 'utf8', timeout: 15000 });
     const data = JSON.parse(result);
     const version = data.tag_name || data.name || 'unknown';
     
