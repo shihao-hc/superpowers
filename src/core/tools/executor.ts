@@ -74,14 +74,14 @@ export class ToolExecutor {
 
     try {
       if (task.tool.validateInput) {
-        const validation = await task.tool.validateInput(task.input as Record<string, unknown>, task.context);
+        const validation = await task.tool.validateInput(task.input, task.context);
         if (!validation.valid) {
-          throw new Error(`Validation failed: ${validation.errors!.join(', ')}`);
+          throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
         }
       }
 
       if (task.tool.checkPermissions) {
-        const permission = await task.tool.checkPermissions(task.input as Record<string, unknown>, task.context);
+        const permission = await task.tool.checkPermissions(task.input, task.context);
         if (!permission.allowed) {
           throw new ToolExecutionError(
             `Permission denied for tool ${toolName}`,
@@ -92,7 +92,7 @@ export class ToolExecutor {
       }
 
       const result = await this.withTimeout(
-        task.tool.call(task.input as Record<string, unknown>, task.context),
+        task.tool.call(task.input, task.context),
         options.timeout || 30000
       );
 

@@ -95,7 +95,7 @@ export class FallbackTriggeredError extends AgentError {
 
 export type PermissionDecision = 'allow' | 'deny' | 'ask' | 'pause' | 'bypass';
 
-export interface ErrorContext extends Record<string, unknown> {
+export interface ErrorContext {
   sessionId?: string;
   turnCount?: number;
   model?: string;

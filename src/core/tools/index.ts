@@ -10,23 +10,7 @@
 import { EventEmitter } from 'events';
 
 // 共享类型
-export type PermissionMode = 
-  | 'default'
-  | 'plan'
-  | 'acceptEdits'
-  | 'bypassPermissions'
-  | 'dontAsk'
-  | 'auto';
-
-export interface ValidationResult {
-  valid: boolean;
-  errors?: string[];
-}
-
-export interface PermissionResult {
-  allowed: boolean;
-  reason?: string;
-}
+export type { PermissionMode, ValidationResult, PermissionResult } from '../permissions/types.js';
 
 // 泛型工具定义
 export interface Tool<
@@ -37,9 +21,8 @@ export interface Tool<
   description: string;
   inputSchema: unknown; // Zod schema
   
-  // 核心方法（各工具实现 execute 或 call）
-  call: (input: Input, context: ToolContext) => Promise<Output>;
-  execute?: (input: Record<string, unknown>, context?: ToolContext) => Promise<Output>;
+  // 核心方法
+  call(input: Input, context: ToolContext): Promise<Output>;
   
   // 生命周期钩子
   validateInput?: (input: Input, context: ToolContext) => Promise<ValidationResult>;
@@ -70,7 +53,6 @@ export interface ToolResult<Output = unknown> {
   error?: string;
   duration?: number;
   toolName: string;
-  metadata?: Record<string, unknown>;
 }
 
 export type ToolStatus = 'queued' | 'executing' | 'completed' | 'failed' | 'cancelled';
@@ -441,6 +423,8 @@ const TOOL_DEFAULTS = {
 };
 
 // Re-export from submodules
+export { ToolRegistry } from './registry.js';
 export { ToolExecutor, ToolQueue } from './executor.js';
+export { StreamingToolExecutor } from './streaming.js';
 export { SchemaValidator, commonSchemas } from './schemas.js';
 export { ToolExecutionError, ToolNotFoundError } from './errors.js';

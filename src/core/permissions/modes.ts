@@ -11,7 +11,7 @@ export interface ModeConfig {
   description: string;
   requiresConfirmation: boolean;
   canBypass: boolean;
-  autoDecision?: 'allow' | 'deny' | 'ask' | 'pause';
+  autoDecision?: 'allow' | 'deny' | 'ask';
 }
 
 export const PERMISSION_MODES: Record<PermissionMode, ModeConfig> = {

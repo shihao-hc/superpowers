@@ -19,47 +19,35 @@ export const grepCommand: Command = {
     const searchPath = params.args[1] || '.';
     const flags = params.flags;
 
-    // 安全验证：检查危险字符
-    const dangerousPattern = /[;&|`$<>!{}[\]\\]/;
-    if (dangerousPattern.test(pattern) || dangerousPattern.test(searchPath)) {
+    // 安全验证
+    if (/[;&|`$<>]/.test(pattern) || /[;&|`$<>]/.test(searchPath)) {
       return { success: false, error: 'Search pattern or path contains invalid characters' };
-    }
-
-    // 限制长度
-    if (pattern.length > 1000) {
-      return { success: false, error: 'Pattern too long (max 1000 characters)' };
     }
 
     try {
       const { execSync } = require('child_process');
-      
-      // ✅ 使用数组形式构建命令
-      const grepArgs = [];
+      const grepArgs = ['-r'];
       
       if (flags.i) grepArgs.push('-i');
       if (flags.n) grepArgs.push('-n');
       if (flags.l) grepArgs.push('-l');
       
-      grepArgs.push('-r');
-      grepArgs.push('--');
-      grepArgs.push(pattern);
-      grepArgs.push(searchPath);
+      grepArgs.push('--', pattern, searchPath);
       
       const output = execSync('grep', grepArgs, { 
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
         maxBuffer: 10 * 1024 * 1024,
-        timeout: 30000,
         stdio: ['pipe', 'pipe', 'pipe']
       });
-
+      
       return { success: true, output, data: output.split('\n') };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('grep:')) {
         return { success: false, error: 'No matches found' };
       }
-      return { success: false, error: `Search failed: pattern or path contains invalid characters` };
+      return { success: false, error: `Search failed: ${errMsg}` };
     }
   }
 };

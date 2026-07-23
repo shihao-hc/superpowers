@@ -173,14 +173,14 @@ export class ToolRegistry extends EventEmitter {
     return registration?.enabled ?? false;
   }
 
-  async validate(name: string, input: unknown): Promise<ValidationResult> {
+  validate(name: string, input: unknown): ValidationResult {
     const tool = this.get(name);
     if (!tool) {
       return { valid: false, errors: [`Tool ${name} not found`] };
     }
 
     if (tool.validateInput) {
-      return await tool.validateInput(input as Record<string, unknown>, {} as ToolContext);
+      return tool.validateInput(input, {} as ToolContext);
     }
 
     return { valid: true, errors: [] };

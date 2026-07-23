@@ -8,16 +8,13 @@ const path = require('path');
 const fs = require('fs');
 
 class PluginSandbox {
-  timeout: number;
-  contexts: Map<string, any>;
-
-  constructor(timeout: any = 5000) {
+  constructor(timeout = 5000) {
     this.timeout = timeout;
     this.contexts = new Map();
   }
 
-  createContext(pluginName: any, sandboxConfig: any = {}) {
-    const context: any = {
+  createContext(pluginName, sandboxConfig = {}) {
+    const context = {
       name: pluginName,
       allowedModules: sandboxConfig.allowedModules || [],
       allowedAPIs: sandboxConfig.allowedAPIs || ['console', 'setTimeout', 'clearTimeout'],
@@ -28,13 +25,13 @@ class PluginSandbox {
     return context;
   }
 
-  async run(pluginName: any, fnName: any, args: any = []) {
+  async run(pluginName, fnName, args = []) {
     const context = this.contexts.get(pluginName);
     if (!context) {
       throw new Error(`Plugin ${pluginName} not found`);
     }
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         reject(new Error(`Plugin ${pluginName} timeout in ${fnName}`));
       }, this.timeout);
@@ -42,21 +39,19 @@ class PluginSandbox {
       try {
         resolve();
         clearTimeout(timer);
-      } catch (err: any) {
+      } catch (err) {
         clearTimeout(timer);
         reject(err);
       }
     });
   }
 
-  destroy(pluginName: any) {
+  destroy(pluginName) {
     this.contexts.delete(pluginName);
   }
 }
 
 class PluginLifecycle extends EventEmitter {
-  hooks: any;
-
   constructor() {
     super();
     this.hooks = {
@@ -73,13 +68,13 @@ class PluginLifecycle extends EventEmitter {
     };
   }
 
-  registerHook(hookName: any, handler: any) {
+  registerHook(hookName, handler) {
     if (this.hooks[hookName]) {
       this.hooks[hookName].push(handler);
     }
   }
 
-  async emitHook(hookName: any, data: any) {
+  async emitHook(hookName, data) {
     const handlers = this.hooks[hookName] || [];
     for (const handler of handlers) {
       await handler(data);
@@ -88,10 +83,6 @@ class PluginLifecycle extends EventEmitter {
 }
 
 class PluginRegistry extends EventEmitter {
-  plugins: Map<any, any>;
-  dependencies: Map<any, any>;
-  hooks: Map<any, any>;
-
   constructor() {
     super();
     this.plugins = new Map();
@@ -99,7 +90,7 @@ class PluginRegistry extends EventEmitter {
     this.hooks = new Map();
   }
 
-  register(pluginDef: any) {
+  register(pluginDef) {
     const plugin = {
       name: pluginDef.name,
       version: pluginDef.version || '1.0.0',
@@ -133,7 +124,7 @@ class PluginRegistry extends EventEmitter {
     return plugin;
   }
 
-  get(name: any) {
+  get(name) {
     return this.plugins.get(name);
   }
 
@@ -141,19 +132,19 @@ class PluginRegistry extends EventEmitter {
     return Array.from(this.plugins.values());
   }
 
-  getByHook(hookName: any) {
+  getByHook(hookName) {
     return this.hooks.get(hookName) || [];
   }
 
-  hasDependencies(name: any) {
+  hasDependencies(name) {
     return this.dependencies.has(name);
   }
 
-  getDependents(name: any) {
+  getDependents(name) {
     return this.dependencies.get(name) || [];
   }
 
-  resolveDependencies(pluginName: any, resolved: any = new Set(), unresolved: any = new Set()) {
+  resolveDependencies(pluginName, resolved = new Set(), unresolved = new Set()) {
     const plugin = this.plugins.get(pluginName);
     if (!plugin) {
       unresolved.add(pluginName);
@@ -175,7 +166,7 @@ class PluginRegistry extends EventEmitter {
     return { resolved, unresolved };
   }
 
-  unregister(name: any) {
+  unregister(name) {
     const plugin = this.plugins.get(name);
     if (!plugin) return false;
 
@@ -191,16 +182,7 @@ class PluginRegistry extends EventEmitter {
 }
 
 class PluginManager extends EventEmitter {
-  basePath: any;
-  pluginDir: any;
-  useSandbox: any;
-  registry: any;
-  lifecycle: any;
-  sandbox: any;
-  instances: any;
-  enabledPlugins: any;
-
-  constructor(options: any = {}) {
+  constructor(options = {}) {
     super();
     this.basePath = options.basePath || process.cwd();
     this.pluginDir = path.resolve(this.basePath, options.pluginDir || 'plugins');
@@ -214,7 +196,7 @@ class PluginManager extends EventEmitter {
     this.enabledPlugins = new Set();
   }
 
-  async loadPlugin(pluginDef: any) {
+  async loadPlugin(pluginDef) {
     const { name, path: pluginPath, enabled = true, config = {} } = pluginDef;
 
     const plugin = this.registry.register({
@@ -254,7 +236,7 @@ class PluginManager extends EventEmitter {
       await this.lifecycle.emitHook('afterInit', { name, plugin });
 
       this.emit('pluginLoaded', { name, instance });
-    } catch (err: any) {
+    } catch (err) {
       plugin.status = 'error';
       plugin.error = err.message;
       this.emit('pluginError', { name, error: err });
@@ -263,9 +245,9 @@ class PluginManager extends EventEmitter {
     return plugin;
   }
 
-  async loadPlugins(manifest: any) {
+  async loadPlugins(manifest) {
     const plugins = manifest.plugins || [];
-    const results: any[] = [];
+    const results = [];
 
     for (const pluginDef of plugins) {
       const { resolved, unresolved } = this.registry.resolveDependencies(pluginDef.name);
@@ -280,7 +262,7 @@ class PluginManager extends EventEmitter {
 
       for (const depName of resolved) {
         if (!this.enabledPlugins.has(depName)) {
-          const depDef = plugins.find((p: any) => p.name === depName);
+          const depDef = plugins.find(p => p.name === depName);
           if (depDef) {
             await this.loadPlugin(depDef);
           }
@@ -293,7 +275,7 @@ class PluginManager extends EventEmitter {
     return results;
   }
 
-  async onMessage(message: any, context: any = {}) {
+  async onMessage(message, context = {}) {
     let msg = message;
     const hookData = { message: msg, context };
 
@@ -308,7 +290,7 @@ class PluginManager extends EventEmitter {
           if (result && typeof result.message === 'string') {
             msg = result.message;
           }
-        } catch (err: any) {
+        } catch (err) {
           this.emit('pluginMessageError', { plugin: name, error: err });
         }
 
@@ -320,14 +302,14 @@ class PluginManager extends EventEmitter {
     return { message: msg };
   }
 
-  async onMemory(memory: any, context: any = {}) {
+  async onMemory(memory, context = {}) {
     await this.lifecycle.emitHook('beforeMemory', { memory, context });
 
     for (const [name, instance] of this.instances) {
       if (typeof instance.onMemory === 'function') {
         try {
           await instance.onMemory(memory, context);
-        } catch (err: any) {
+        } catch (err) {
           this.emit('pluginMemoryError', { plugin: name, error: err });
         }
       }
@@ -336,14 +318,14 @@ class PluginManager extends EventEmitter {
     await this.lifecycle.emitHook('afterMemory', { memory, context });
   }
 
-  async onEvent(event: any, context: any = {}) {
+  async onEvent(event, context = {}) {
     await this.lifecycle.emitHook('beforeEvent', { event, context });
 
     for (const [name, instance] of this.instances) {
       if (typeof instance.onEvent === 'function') {
         try {
           await instance.onEvent(event, context);
-        } catch (err: any) {
+        } catch (err) {
           this.emit('pluginEventError', { plugin: name, error: err });
         }
       }
@@ -352,7 +334,7 @@ class PluginManager extends EventEmitter {
     await this.lifecycle.emitHook('afterEvent', { event, context });
   }
 
-  enable(name: any) {
+  enable(name) {
     if (this.instances.has(name)) {
       this.enabledPlugins.add(name);
       this.emit('pluginEnabled', { name });
@@ -361,17 +343,17 @@ class PluginManager extends EventEmitter {
     return false;
   }
 
-  disable(name: any) {
+  disable(name) {
     this.enabledPlugins.delete(name);
     this.emit('pluginDisabled', { name });
     return true;
   }
 
-  isEnabled(name: any) {
+  isEnabled(name) {
     return this.enabledPlugins.has(name);
   }
 
-  async destroy(name: any) {
+  async destroy(name) {
     await this.lifecycle.emitHook('beforeDestroy', { name });
 
     const instance = this.instances.get(name);
@@ -397,7 +379,7 @@ class PluginManager extends EventEmitter {
     }
   }
 
-  getPlugin(name: any) {
+  getPlugin(name) {
     return {
       registry: this.registry.get(name),
       instance: this.instances.get(name),
@@ -406,7 +388,7 @@ class PluginManager extends EventEmitter {
   }
 
   getAllPlugins() {
-    return Array.from(this.registry.getAll()).map((p: any) => ({
+    return Array.from(this.registry.getAll()).map(p => ({
       ...p,
       instance: this.instances.get(p.name),
       enabled: this.enabledPlugins.has(p.name)
@@ -419,7 +401,7 @@ class PluginManager extends EventEmitter {
       total: plugins.length,
       initialized: this.instances.size,
       enabled: this.enabledPlugins.size,
-      byStatus: plugins.reduce((acc: any, p: any) => {
+      byStatus: plugins.reduce((acc, p) => {
         acc[p.status] = (acc[p.status] || 0) + 1;
         return acc;
       }, {})
@@ -427,7 +409,7 @@ class PluginManager extends EventEmitter {
   }
 }
 
-export {
+module.exports = {
   PluginSandbox,
   PluginLifecycle,
   PluginRegistry,

@@ -3,8 +3,7 @@
  * 基于 Claude Code 的自动上下文压缩
  */
 
-import type { Message } from '../agent-loop/types.js';
-import type { CompactConfig } from './index.js';
+import type { Message, CompactionConfig } from './index.js';
 
 export interface AutoCompactConfig {
   bufferTokens: number;
@@ -43,7 +42,7 @@ export class AutoCompaction {
   private config: AutoCompactConfig;
   private lastCompactTurn: number = 0;
 
-  constructor(config: CompactConfig) {
+  constructor(config: CompactionConfig) {
     this.config = {
       bufferTokens: config.autoCompactBufferTokens,
       warningThreshold: config.warningThresholdBuffer,
@@ -157,7 +156,7 @@ export class AutoCompaction {
       boundaryMarker,
       ...summaries.map(s => ({ role: 'user' as const, content: s })),
       ...recentMessages
-    ] as Message[];
+    ];
   }
 
   private extractAttachments(messages: Message[]): AttachmentMessage[] {
@@ -165,7 +164,7 @@ export class AutoCompaction {
 
     for (const msg of messages) {
       if (typeof msg.content === 'object' && msg.content !== null) {
-        const content = msg.content as unknown as Record<string, unknown>;
+        const content = msg.content as Record<string, unknown>;
         if (Array.isArray(content)) {
           for (const item of content) {
             if (typeof item === 'object' && item !== null && 'type' in item) {
@@ -186,8 +185,7 @@ export class AutoCompaction {
   }
 
   private isBoundaryMarker(msg: Message): boolean {
-    const content = msg.content as unknown as string;
-    return typeof content === 'string' && content.includes('[Context compacted:');
+    return typeof msg.content === 'string' && msg.content.includes('[Context compacted:');
   }
 
   private estimateTokens(messages: Message[]): number {

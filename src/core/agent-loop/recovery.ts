@@ -8,7 +8,7 @@
  * - model_error: 模型错误
  */
 
-import type { LoopState } from './index.js';
+import type { LoopState } from './types.js';
 
 export interface ErrorRecoveryConfig {
   enable: boolean;

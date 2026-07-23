@@ -1,10 +1,7 @@
 ---
 name: seleniumbase-patterns
 description: SeleniumBase 测试框架，UC Mode 反检测、CDP Mode、浏览器池管理、API 测试、Dashboard
-trigger: "SeleniumBase | 反检测"
-auto_trigger: true
 ---
-
 
 # SeleniumBase Patterns
 

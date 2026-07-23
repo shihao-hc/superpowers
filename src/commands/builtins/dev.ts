@@ -1,21 +1,8 @@
 /**
  * Built-in Commands - Development Operations
- * 安全修复: 使用数组形式执行命令
  */
 
 import type { Command, CommandParams, CommandResult } from '../index.js';
-
-// 允许的命令白名单
-const ALLOWED_COMMANDS = ['npm', 'node', 'npx'];
-const ALLOWED_SCRIPTS = ['test', 'test:watch', 'lint', 'build', 'dev', 'format', 'typecheck'];
-
-function sanitizeScriptName(name: string): string {
-  // 只允许字母、数字、冒号、下划线
-  if (!/^[a-zA-Z0-9:_]+$/.test(name)) {
-    throw new Error('Invalid script name');
-  }
-  return name;
-}
 
 export const testCommand: Command = {
   name: 'test',
@@ -26,19 +13,15 @@ export const testCommand: Command = {
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
       const { execSync } = require('child_process');
-      const script = params.flags.watch ? 'test:watch' : 'test';
-      
-      // ✅ 使用数组形式
-      const output = execSync('npm', ['run', script], {
+      const testCmd = params.flags.watch ? 'npm run test:watch' : 'npm test';
+      const output = execSync(testCmd, {
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 120000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        maxBuffer: 50 * 1024 * 1024
       });
       return { success: true, output };
     } catch (error) {
-      return { success: false, error: `Test failed: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Test failed: ${error}` };
     }
   }
 };
@@ -52,17 +35,14 @@ export const lintCommand: Command = {
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
       const { execSync } = require('child_process');
-      // ✅ 使用数组形式
-      const output = execSync('npm', ['run', 'lint'], {
+      const output = execSync('npm run lint', {
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 60000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        maxBuffer: 50 * 1024 * 1024
       });
       return { success: true, output };
     } catch (error) {
-      return { success: false, error: `Lint failed: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Lint failed: ${error}` };
     }
   }
 };
@@ -76,17 +56,14 @@ export const buildCommand: Command = {
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
       const { execSync } = require('child_process');
-      // ✅ 使用数组形式
-      const output = execSync('npm', ['run', 'build'], {
+      const output = execSync('npm run build', {
         encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 180000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        maxBuffer: 50 * 1024 * 1024
       });
       return { success: true, output };
     } catch (error) {
-      return { success: false, error: `Build failed: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Build failed: ${error}` };
     }
   }
 };
@@ -99,17 +76,15 @@ export const devCommand: Command = {
   patterns: [/^\/(dev|start)$/i],
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
-      const { spawn } = require('child_process');
-      // 使用 spawn 启动后台进程
-      spawn('npm', ['run', 'dev'], {
+      const { execSync } = require('child_process');
+      execSync('npm run dev', {
+        encoding: 'utf8',
         cwd: params.context.workingDirectory,
-        stdio: 'inherit',
-        detached: true,
-        shell: false
+        stdio: 'inherit'
       });
-      return { success: true, output: 'Development server starting...' };
+      return { success: true, output: 'Development server started' };
     } catch (error) {
-      return { success: false, error: `Failed to start dev server: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Failed to start dev server: ${error}` };
     }
   }
 };
@@ -123,16 +98,13 @@ export const formatCommand: Command = {
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
       const { execSync } = require('child_process');
-      // ✅ 使用数组形式
-      const output = execSync('npm', ['run', 'format'], {
+      const output = execSync('npm run format', {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory,
-        timeout: 60000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        cwd: params.context.workingDirectory
       });
       return { success: true, output: output || 'Code formatted' };
     } catch (error) {
-      return { success: false, error: `Format failed: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Format failed: ${error}` };
     }
   }
 };
@@ -146,16 +118,13 @@ export const typecheckCommand: Command = {
   execute: async (params: CommandParams): Promise<CommandResult> => {
     try {
       const { execSync } = require('child_process');
-      // ✅ 使用数组形式
-      const output = execSync('npm', ['run', 'typecheck'], {
+      const output = execSync('npm run typecheck', {
         encoding: 'utf8',
-        cwd: params.context.workingDirectory,
-        timeout: 60000,
-        stdio: ['pipe', 'pipe', 'pipe']
+        cwd: params.context.workingDirectory
       });
       return { success: true, output };
     } catch (error) {
-      return { success: false, error: `Type check failed: ${error instanceof Error ? error.message : String(error)}` };
+      return { success: false, error: `Type check failed: ${error}` };
     }
   }
 };

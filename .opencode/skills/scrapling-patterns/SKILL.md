@@ -1,10 +1,7 @@
 ---
 name: scrapling-patterns
 description: Scrapling 自适应 Web 爬虫框架，支持自动元素重定位、代理轮换、反爬绕过、MCP 集成
-trigger: "Scrapling模式"
-auto_trigger: true
 ---
-
 
 # Scrapling Patterns
 

@@ -3,7 +3,7 @@
  * 轻量级上下文压缩，针对单个对话轮次
  */
 
-import type { Message } from '../agent-loop/types.js';
+import type { Message } from './index.js';
 
 export interface MicroCompactConfig {
   maxMessagesToKeep: number;

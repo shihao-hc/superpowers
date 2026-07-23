@@ -119,9 +119,9 @@ export class AgentLoop extends EventEmitter {
     return {
       messages: [],
       turnCount: 0,
-      tokenBudget: new TokenBudget({
-        total: this.config.taskBudget?.total ?? 100000
-      }),
+      tokenBudget: new TokenBudget(
+        this.config.taskBudget?.total ?? 100000
+      ),
       currentModel: 'claude-sonnet-4-20250514',
     };
   }
@@ -216,7 +216,7 @@ export class AgentLoop extends EventEmitter {
               content: [{
                 type: 'tool_result',
                 tool_use_id: toolUse.id,
-                content: result as string,
+                content: result,
               }],
             });
           }
@@ -287,7 +287,7 @@ export class AgentLoop extends EventEmitter {
           return { 
             stopReason: 'end_turn', 
             error: error,
-            message: { type: 'user', content: [{ type: 'text', text: 'Context limit exceeded' }] }
+            message: { type: 'user', content: 'Context limit exceeded' }
           };
         }
       }
@@ -296,18 +296,19 @@ export class AgentLoop extends EventEmitter {
   }
 
   private async callModelAPI(request: unknown): Promise<ModelResponse> {
-    // TODO: 集成 LLM API 调用 — 根据 this.state.currentModel 选择 provider 并发送请求
-    throw new Error(`Model API not implemented - expected currentModel=${this.state.currentModel}`);
+    // TODO: 实现实际的模型调用
+    // 基于 this.config 中的配置调用 LLM API
+    throw new Error('Model API not implemented - integrate with your LLM provider');
   }
 
   private getAvailableTools(): ToolUse[] {
-    // TODO: 从 ToolRegistry 获取可用工具 — 需要注入 registry 实例或使用全局单例
+    // TODO: 从工具注册表获取可用工具
     return [];
   }
 
   private async executeTool(toolUse: ToolUse): Promise<unknown> {
-    // TODO: 实现工具执行 — 根据 toolUse 中的工具名从 registry 获取并调用 execute
-    throw new Error(`Tool execution not implemented: ${toolUse.name}`);
+    // TODO: 实现工具执行
+    throw new Error('Tool execution not implemented');
   }
 
   private generateTurnId(): string {

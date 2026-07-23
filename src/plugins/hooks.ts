@@ -2,6 +2,8 @@
  * Plugin Hooks System
  */
 
+import { EventEmitter } from 'events';
+
 export type HookEvent = 
   | 'session.start'
   | 'session.end'
@@ -12,9 +14,7 @@ export type HookEvent =
   | 'error'
   | 'state.update'
   | 'memory.before'
-  | 'memory.after'
-  | 'hook:registered'
-  | 'hook:unregistered';
+  | 'memory.after';
 
 export interface HookDefinition {
   name: string;
@@ -40,7 +40,7 @@ export interface HookResult {
   error?: string;
 }
 
-export class HookSystem {
+export class HookSystem extends EventEmitter {
   private hooks: Map<HookEvent, HookDefinition[]> = new Map();
   private globalHooks: HookDefinition[] = [];
 

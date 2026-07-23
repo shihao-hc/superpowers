@@ -3,17 +3,8 @@
  * 流式工具执行，支持进度回调和中断
  */
 
-import type { Tool, ToolContext } from './index.js';
+import type { Tool, ToolContext, ToolProgress } from './index.js';
 import { EventEmitter } from 'events';
-
-export interface ToolProgress {
-  taskId: string;
-  toolName: string;
-  status: string;
-  progress: number;
-  chunks: unknown[];
-  error?: string;
-}
 
 export interface StreamingOptions {
   onProgress?: (progress: ToolProgress) => void;
@@ -94,9 +85,9 @@ export class StreamingToolExecutor extends EventEmitter {
     let lastProgress = 0;
 
     try {
-      const generator = tool.call(input as Record<string, unknown>, context);
+      const generator = tool.call(input, context);
 
-      for await (const chunk of generator as unknown as AsyncIterable<unknown>) {
+      for await (const chunk of generator as AsyncIterable<unknown>) {
         if (controller?.signal.aborted) {
           this.updateProgress(taskId, { status: 'cancelled' });
           break;
@@ -131,7 +122,7 @@ export class StreamingToolExecutor extends EventEmitter {
     const tool = task.tool;
     const controller = this.abortControllers.get(taskId);
 
-    const result = await tool.call(input as Record<string, unknown>, context);
+    const result = await tool.call(input, context);
 
     this.updateProgress(taskId, { status: 'completed', progress: 100 });
     options.onProgress?.(this.progress.get(taskId)!);

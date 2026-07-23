@@ -3,7 +3,7 @@
  * 会话级别的记忆压缩和摘要
  */
 
-import type { Message } from '../agent-loop/types.js';
+import type { Message } from './index.js';
 
 export interface SessionMemory {
   sessionId: string;
@@ -118,9 +118,8 @@ export class SessionCompaction {
     const assistantMessages = messages.filter(m => m.role === 'assistant');
     
     const firstUser = userMessages[0];
-    const firstContent = firstUser ? (firstUser.content as unknown as string) : '';
     const firstTopic = firstUser 
-      ? (firstContent ? firstContent.slice(0, 100) : 'Complex interaction')
+      ? (typeof firstUser.content === 'string' ? firstUser.content.slice(0, 100) : 'Complex interaction')
       : 'No user messages';
 
     return `Session with ${userMessages.length} user messages and ${assistantMessages.length} assistant responses. Started with: ${firstTopic}`;

@@ -4,10 +4,7 @@ description: Pydoll browser automation patterns - CDP-based headless browser con
 version: 1.0.0
 author: Pydoll Community
 riskLevel: low
-trigger: "Pydoll | CDP无头浏览器"
-auto_trigger: true
 ---
-
 
 # Pydoll Patterns
 

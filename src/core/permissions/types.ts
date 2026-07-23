@@ -14,9 +14,6 @@ export interface PermissionDecision {
   decision: 'allow' | 'deny' | 'ask' | 'pause';
   reason?: string;
   action?: 'continue' | 'wait_for_approval' | 'block';
-  tool?: string;
-  input?: Record<string, unknown>;
-  timestamp?: number;
 }
 
 export interface PermissionRule {
@@ -27,10 +24,6 @@ export interface PermissionRule {
   condition: RuleCondition;
   action: 'allow' | 'deny';
   expiresAt?: number;
-  source?: string;
-  toolName?: string;
-  pathPattern?: string;
-  behavior?: 'allow' | 'deny';
 }
 
 export interface RuleCondition {

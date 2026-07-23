@@ -12,8 +12,7 @@
  */
 
 import type { Message } from '../agent-loop/types.js';
-import type { CompactType, CompactCheckResult, CompactConfig, CompactResult, CompactionRecord } from './types.js';
-export type { CompactType, CompactCheckResult, CompactConfig, CompactResult, CompactionRecord };
+export type { CompactType, CompactCheckResult, CompactConfig, CompactResult, CompactionRecord } from './types.js';
 
 export interface ContextManagerConfig {
   maxTokens: number;
@@ -258,8 +257,8 @@ export class ContextManager {
    * 生成摘要
    */
   private async generateSummary(groups: Message[][]): Promise<Message[]> {
-    // TODO: 调用 LLM 生成摘要 — 目前使用简化统计摘要替代
-    // 集成后应调用 summarization API 生成语义摘要
+    // TODO: 调用 LLM 生成摘要
+    // 这里返回简化的摘要
     const totalMessages = groups.flat().length;
     
     return [{

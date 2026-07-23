@@ -123,7 +123,7 @@ export class RuleEngine {
     }
 
     if (condition.environment) {
-      if (!condition.environment.includes(context.environment || '')) {
+      if (!condition.environment.includes(context.environment)) {
         return { matched: false, reason: `Environment ${context.environment} not allowed` };
       }
     }

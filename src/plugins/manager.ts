@@ -38,6 +38,7 @@ export class PluginManagerImpl extends EventEmitter {
     const { name, path, enabled = true, config = {} } = definition;
 
     const plugin = (this.registry as unknown as { register: Function }).register({
+      name,
       ...definition
     });
 

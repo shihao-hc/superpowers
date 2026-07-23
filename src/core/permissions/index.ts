@@ -10,7 +10,7 @@
  * - auto: 自动模式
  */
 
-export type { PermissionMode, PermissionDecision, PermissionRule, PermissionContext } from './types.js';
+export type { PermissionMode, PermissionDecision, PermissionRule, PermissionContext, PERMISSION_MODE_CONFIG } from './types.js';
 export type { RuleCondition } from './types.js';
 
 import type { PermissionMode, PermissionDecision, PermissionRule, PermissionContext } from './types.js';
