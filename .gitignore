@@ -59,3 +59,8 @@ tools/guardrail-fix.js
 
 # Backups
 Dockerfile.backup
+
+# Auto-generated test data (timestamps change each run)
+.lesson-library.json
+data/append-test.json
+data/no-items.json
