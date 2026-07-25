@@ -57,7 +57,7 @@
     "jest": "^29.7.0",
     "jsdom": "^29.0.1",
     "lint-staged": "17.0.8",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "socket.io-client": "^4.8.3",
     "supertest": "^6.3.4",
     "typescript": "6.0.3"
@@ -89,7 +89,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
-    "js-yaml": "4.2.0",
+    "js-yaml": "4.3.0",
     "jsonwebtoken": "^9.0.3",
     "mineflayer": "^4.35.0",
     "mineflayer-pathfinder": "^2.4.5",
@@ -111,9 +111,12 @@
   "overrides": {
     "protobufjs": "8.6.4",
     "uuid": "11.1.1",
+    "js-yaml": "4.3.0",
+    "brace-expansion": "2.1.2",
+    "@hono/node-server": "2.0.11",
     "babel-plugin-istanbul": {
       "@istanbuljs/load-nyc-config": {
-        "js-yaml": "4.2.0"
+        "js-yaml": "4.3.0"
       }
     },
     "discord.js": {
