@@ -68,7 +68,8 @@ class OpenClawRouter {
       enabled: options.cacheEnabled !== false
     });
 
-    setInterval(() => this.rateLimiter.cleanup(), RATE_LIMIT_WINDOW);
+    this._cleanupInterval = setInterval(() => this.rateLimiter.cleanup(), RATE_LIMIT_WINDOW);
+    this._cleanupInterval.unref();
   }
 
   async initialize() {
@@ -172,7 +173,7 @@ class OpenClawRouter {
       } catch (error) {
         res.status(500).json({
           status: 'unhealthy',
-          error: error.message,
+          error: 'Health check failed',
           timestamp: new Date().toISOString()
         });
       }
@@ -208,7 +209,7 @@ class OpenClawRouter {
         const result = await this.modelService.listModels();
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -272,7 +273,7 @@ class OpenClawRouter {
         res.json(result);
       } catch (error) {
         console.error('[OpenClaw Router] Chat completion error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -294,7 +295,7 @@ class OpenClawRouter {
 
         res.json(result);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -303,7 +304,7 @@ class OpenClawRouter {
         await this.multiModelManager.initialize();
         res.json(this.multiModelManager.getProviders());
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -323,7 +324,7 @@ class OpenClawRouter {
 
         res.json(models);
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -367,7 +368,7 @@ class OpenClawRouter {
           res.json(result);
         }
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -398,7 +399,7 @@ class OpenClawRouter {
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Internal server error' });
       }
     });
 
@@ -415,7 +416,7 @@ class OpenClawRouter {
 
         res.json(result);
       } catch (error) {
-        res.status(400).json({ error: error.message });
+        res.status(400).json({ error: 'Invalid model parameter' });
       }
     });
 
