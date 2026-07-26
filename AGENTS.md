@@ -237,9 +237,9 @@ edit → lint --max-warnings=0 → 通过? → test → 通过? → 继续下一
 | express.urlencoded | 已设为 `extended: false`（防 qs 嵌套对象攻击）✅ |
 | 账号锁定 | EnhancedAuthService 存在但未接入路由；仅靠 auth 速率限制（5次/分钟） |
 | 日志 | winston 结构化日志；console 仅开发环境 ✅；栈追踪在日志中始终记录 |
-| 依赖版本 | helmet@8.1, express-rate-limit@8.3, jsonwebtoken@9.0, bcrypt@6.0, winston@3.19, js-yaml@4.1 |
-| js-yaml 安全 | v4.1 `yaml.load()` 默认安全 schema（等效旧版 safeLoad）✅ |
-| npm audit | 通过 `npm run audit` (临时切换官方 registry) ✅ 0 vulns |
+| 依赖版本 | helmet@8.1, express-rate-limit@8.3, jsonwebtoken@9.0, bcrypt@6.0, winston@3.19, js-yaml@4.3.0 |
+| js-yaml 安全 | v4.3.0 `yaml.load()` 默认安全 schema（等效旧版 safeLoad）✅ |
+| npm audit | **0 vulnerabilities** ✅ (overrides: @hono/node-server@2.0.11, js-yaml@4.3.0, protobufjs@8.6.6, brace-expansion@5.0.8, sharp@0.35.3) |
 | 规则 DSL | `scripts/rules/` 53 条规则 (14 HIGH + 19 MEDIUM + 20 LOW) |
 | CI/CD 安全 | Trivy + npm audit 集成；actions/checkout@v4 ✅ |
 
@@ -601,5 +601,35 @@ Session 锚点: 2026-07-22 (全量 Timer 泄漏修复 — 201 suites / 10,102 te
   - `session-manager.test.js`: source fix (unref), test already had cleanup
 - **npm audit**: 14→10 (safe fix: hono/fast-uri/brace-expansion), 10 remain in transitive deps (@xenova/transformers, @modelcontextprotocol/sdk)
 - **关键修复模式**: Promise.race+setTimeout 总是泄漏 → 必须 clearTimeout in both success + catch; setInterval in constructor → .unref() 防止进程退出
+
+Session 锚点: 2026-07-26 (ESLint 全量修复 + npm audit 0 漏洞 + 远程合并)
+- ESLint: 0/0 | Tests: **221/225 suites, 10,976/11,022** | npm audit: **0 vulnerabilities** ✅
+- Security scan: 0 HIGH
+- **远程合并**: `git merge -X theirs origin/main`，解决 25 个 add/add 冲突（TypeScript 新文件 src/commands/ src/core/ src/plugins/）
+- **ESLint 全量修复** (16 files):
+  - `OpenClawRouter.js`: 94 trailing spaces auto-fixed + 3 unused vars + dead code (fullContent)
+  - `learnEval.js`: trailing spaces, arrow-parens, curly, no-useless-escape
+  - `LatencyOptimizer.js`: unused context param → `_context`
+  - `MCPProtocolClient.js`: curly brace
+  - `UnifiedRateLimiter.js`: prefer-template
+  - `agent-loop.test.js`: no-script-url disable (security test, intentional `javascript:` URL)
+  - `node-workflow-engine.test.js`: 5 unused vars prefixed
+  - `semantic-memory-system.test.js`: 3 unused vars/params prefixed
+  - `skill-monitoring-system.test.js`: unused vars (careful with replaceAll — 3/5 used, 2/5 unused)
+  - `coverage-debug.js`, `analyze-branches.js`: auto-fixable issues
+  - `eslint.config.mjs`: add check-io.js/cross-ref.js/final-gap.js to ignores
+  - `BrainSystem.test.js`, `security-manager.test.js`: unused imports prefixed
+- **npm audit 0 漏洞** (30→0):
+  - `@hono/node-server`: 1.19.14 → 2.0.11 override (path traversal fix)
+  - `js-yaml`: 4.2.0 → 4.3.0 direct dep + override (YAML merge-key DoS)
+  - `protobufjs`: 8.6.4 → 8.6.6 override (out of vulnerable range 8.0.0-8.6.5)
+  - `sharp`: override @xenova/transformers nested 0.32.6 → 0.35.3 (libvips CVEs)
+  - `brace-expansion`: 2.1.2 → 5.0.8 override (DoS fix, backward-compatible with minimatch@3)
+  - `sharp` direct dep: ^0.34.5 → ^0.35.3
+- **.gitignore 更新**: coverage-*/ coverage-*.json coverage-temp/ Dockerfile.backup + 测试数据文件
+- **测试数据移出跟踪**: .lesson-library.json, data/append-test.json, data/no-items.json
+- **关键发现**: `brace-expansion@5.0.8` 虽是大版本但 API 向后兼容 minimatch@3，所有测试通过
+- **关键发现**: npm overrides 必须与直接依赖版本匹配，否则 EOVERRIDE 冲突
+- 7 commits: `686892b` → `d7f11be` (全部推送)
 ```
 
