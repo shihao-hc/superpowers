@@ -76,7 +76,7 @@ async function main() {
   console.log('配置:');
   console.log(`  路由端口: ${options.port}`);
   console.log(`  Gateway:   ${options.gatewayUrl}`);
-  console.log(`  API Key:   ${options.apiKey}`);
+  console.log(`  API Key:   ${options.apiKey ? '***' : 'not set'}`);
   console.log();
 
   try {

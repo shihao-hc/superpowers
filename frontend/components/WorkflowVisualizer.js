@@ -74,7 +74,7 @@ class WorkflowVisualizer {
             `).join('')}
           </div>
         </div>
-        <button class="wf-run-btn" data-id="${wf.id}">▶ 运行</button>
+        <button class="wf-run-btn" data-id="${this.escapeHtml(wf.id)}">▶ 运行</button>
       `;
 
       card.querySelector('.wf-run-btn')?.addEventListener('click', (e) => {
@@ -145,7 +145,7 @@ class WorkflowVisualizer {
           ${(exec.steps || []).map((step, i) => `
             <div class="step-node status-${step.status}">
               <div class="step-circle">${i + 1}</div>
-              <div class="step-label">${step.agent || step.task}</div>
+              <div class="step-label">${this.escapeHtml(step.agent || step.task)}</div>
               ${i < exec.steps.length - 1 ? '<div class="step-line"></div>' : ''}
             </div>
           `).join('')}
@@ -159,7 +159,7 @@ class WorkflowVisualizer {
       </div>
       ${exec.status === 'running' ? `
         <div class="exec-actions">
-          <button class="btn-cancel" data-id="${exec.id}">取消</button>
+          <button class="btn-cancel" data-id="${this.escapeHtml(exec.id)}">取消</button>
         </div>
       ` : ''}
     `;

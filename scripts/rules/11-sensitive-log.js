@@ -7,8 +7,11 @@ module.exports = {
   match: function (lines, relativePath, filePath, report) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (/console\.(?:log|info)|logger\.(?:info|debug|log)|winston\.(?:info|debug)/.test(line)) {
-        if (/(password|token|secret|credential|apiKey|authorization)\s*[:=]\s*.+/.test(line) && !/masking|sanitize|redact|hidden|\*/.test(line)) {
+      if (/console\.(?:log|info|warn)|logger\.(?:info|debug|log|warn)|winston\.(?:info|debug|warn)/.test(line)) {
+        const hasSensitiveField = /(password|token|secret|credential|apiKey|authorization)\s*[:=]\s*.+/.test(line)
+          || /\$\{[^}]*(password|token|secret|credential|apiKey|authorization)[^}]*\}/i.test(line)
+          || /['"][^'"]*(password|token|secret|credential|apiKey|authorization)['"]\s*[:+]/i.test(line);
+        if (hasSensitiveField && !/masking|sanitize|redact|hidden|\*|set['"]|not\s|not\sset|configured|REDACTED/i.test(line)) {
           report('MEDIUM', 'SENSITIVE_LOG', `行 ${i + 1}: ${line.trim().substring(0, 100)}`, '可能将敏感数据写入日志');
         }
       }

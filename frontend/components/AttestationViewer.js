@@ -103,9 +103,9 @@ class AttestationViewer {
         ` : ''}
       </div>
       <div class="att-card-actions">
-        <button class="btn-action" data-action="verify" data-id="${attestation.id}">验证</button>
-        <button class="btn-action" data-action="details" data-id="${attestation.id}">详情</button>
-        <button class="btn-action" data-action="export" data-id="${attestation.id}">导出</button>
+        <button class="btn-action" data-action="verify" data-id="${this.escapeHtml(attestation.id)}">验证</button>
+        <button class="btn-action" data-action="details" data-id="${this.escapeHtml(attestation.id)}">详情</button>
+        <button class="btn-action" data-action="export" data-id="${this.escapeHtml(attestation.id)}">导出</button>
       </div>
     `;
 
@@ -176,24 +176,24 @@ class AttestationViewer {
         <h3>🔗 存证详情</h3>
         <div class="detail-section">
           <label>ID</label>
-          <code>${att.id}</code>
+          <code>${this.escapeHtml(att.id)}</code>
         </div>
         <div class="detail-section">
           <label>哈希</label>
-          <code class="hash-full">${att.hash || '-'}</code>
+          <code class="hash-full">${this.escapeHtml(att.hash || '-')}</code>
         </div>
         <div class="detail-section">
           <label>数据</label>
-          <pre>${JSON.stringify(att.data, null, 2)}</pre>
+          <pre>${this.escapeHtml(JSON.stringify(att.data, null, 2))}</pre>
         </div>
         <div class="detail-section">
           <label>元数据</label>
-          <pre>${JSON.stringify(att.metadata, null, 2)}</pre>
+          <pre>${this.escapeHtml(JSON.stringify(att.metadata, null, 2))}</pre>
         </div>
         ${att.signature ? `
           <div class="detail-section">
             <label>签名</label>
-            <code class="signature-full">${att.signature.substring(0, 64)}...</code>
+            <code class="signature-full">${this.escapeHtml(att.signature.substring(0, 64))}...</code>
           </div>
         ` : ''}
         <div class="form-actions">

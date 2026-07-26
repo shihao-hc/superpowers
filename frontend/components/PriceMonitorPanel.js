@@ -137,13 +137,13 @@ class PriceMonitorPanel {
       </div>
       <div class="product-body">
         <div class="product-price">
-          <span class="current-price">¥${product.currentPrice || '-'}</span>
-          <span class="price-change ${parseFloat(priceChange) >= 0 ? 'up' : 'down'}">${trendIcon} ${priceChange}%</span>
+          <span class="current-price">¥${this.escapeHtml(String(product.currentPrice || '-'))}</span>
+          <span class="price-change ${parseFloat(priceChange) >= 0 ? 'up' : 'down'}">${trendIcon} ${this.escapeHtml(String(priceChange))}%</span>
         </div>
         <div class="product-stats">
-          <span>最低: ¥${product.lowestPrice || '-'}</span>
-          <span>最高: ¥${product.highestPrice || '-'}</span>
-          <span>目标: ¥${product.targetPrice || '-'}</span>
+          <span>最低: ¥${this.escapeHtml(String(product.lowestPrice || '-'))}</span>
+          <span>最高: ¥${this.escapeHtml(String(product.highestPrice || '-'))}</span>
+          <span>目标: ¥${this.escapeHtml(String(product.targetPrice || '-'))}</span>
         </div>
         <div class="product-url">${this.escapeHtml(product.url || '').substring(0, 50)}...</div>
       </div>
@@ -200,19 +200,19 @@ class PriceMonitorPanel {
         <div class="history-stats">
           <div class="stat">
             <label>当前价格</label>
-            <span>¥${product.currentPrice || '-'}</span>
+            <span>¥${this.escapeHtml(String(product.currentPrice || '-'))}</span>
           </div>
           <div class="stat">
             <label>最低价格</label>
-            <span>¥${product.lowestPrice || '-'}</span>
+            <span>¥${this.escapeHtml(String(product.lowestPrice || '-'))}</span>
           </div>
           <div class="stat">
             <label>最高价格</label>
-            <span>¥${product.highestPrice || '-'}</span>
+            <span>¥${this.escapeHtml(String(product.highestPrice || '-'))}</span>
           </div>
           <div class="stat">
             <label>目标价格</label>
-            <span>¥${product.targetPrice || '-'}</span>
+            <span>¥${this.escapeHtml(String(product.targetPrice || '-'))}</span>
           </div>
         </div>
         <div class="history-chart" id="history-chart">

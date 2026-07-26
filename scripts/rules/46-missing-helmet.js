@@ -7,6 +7,7 @@ module.exports = {
   match: function (lines, relativePath, filePath, report) {
     const src = lines.join('\n');
     if (!/require\s*\(\s*['"]express['"]\s*\)/.test(src) && !/from\s+['"]express['"]/.test(src)) return;
+    if (/express\.Router\s*\(/.test(src)) return;
     if (/require\s*\(\s*['"]helmet['"]\s*\)/.test(src) || /from\s+['"]helmet['"]/.test(src)) return;
     if (/\bhelmet\s*\(/.test(src)) return;
     report('MEDIUM', 'MISSING_HELMET', '文件范围', 'Express 应用未引入 helmet，建议添加安全头中间件');
