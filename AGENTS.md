@@ -649,5 +649,13 @@ Session 锚点: 2026-07-26 (第2次 — ERROR_MESSAGE_LEAK + FILE_UPLOAD_LIMIT +
 - **Commit `966ed8b`**: `fix(security): ERROR_MESSAGE_LEAK generic errors + FILE_UPLOAD_LIMIT lookahead + setInterval.unref()`
 - 9 commits total: `686892b` → `966ed8b` (全部推送)
 - 剩余 MEDIUM: MISSING_HELMET 1 (OpenClawRouter.js 真实未修), MISSING_SECURITY_HEADER 4 (helmet 默认已覆盖), HARDCODED_IP 12 (cosmetic)
+
+Session 锚点: 2026-07-26 (第3次 — 安全规则 false positive 全量消除)
+- ESLint: 0/0 | Tests: **221/225 suites, 10,976/11,022** | npm audit: 0 vulns | Security: **0 HIGH, 1 MEDIUM, 306 LOW**
+- **MISSING_SECURITY_HEADER 规则修复** — 34-missing-security-header.js: helmet 默认设置 X-Content-Type-Options 和 X-Frame-Options，仅在显式禁用时报告（4 false positive 消除）
+- **HARDCODED_IP 规则修复** — 31-hardcoded-ip.js: 排除 127.0.0.1/localhost/::1 回环地址（12 false positive 消除）
+- 10 commits total: `686892b` → `57f72ab` (全部推送)
+- 剩余 1 MEDIUM: MISSING_HELMET (OpenClawRouter.js — 独立子项目，真实但非关键)
+- 剩余 306 LOW: SYNCHRONOUS_IO/LARGE_FILE/DUPLICATE_OBJECT_KEY 等代码质量项
 ```
 
