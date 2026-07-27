@@ -631,5 +631,23 @@ Session 锚点: 2026-07-26 (ESLint 全量修复 + npm audit 0 漏洞 + 远程合
 - **关键发现**: `brace-expansion@5.0.8` 虽是大版本但 API 向后兼容 minimatch@3，所有测试通过
 - **关键发现**: npm overrides 必须与直接依赖版本匹配，否则 EOVERRIDE 冲突
 - 7 commits: `686892b` → `d7f11be` (全部推送)
+
+Session 锚点: 2026-07-26 (第2次 — ERROR_MESSAGE_LEAK + FILE_UPLOAD_LIMIT + INNER_HTML_XSS + SENSITIVE_LOG)
+- ESLint: 0/0 | Tests: **221/225 suites, 10,976/11,022** | npm audit: 0 vulns | Security: **0 HIGH, 17 MEDIUM, 306 LOW**
+- **INNER_HTML_XSS fix** — 3 frontend文件 escapeHtml:
+  - `AttestationViewer.js`: 7 escapeHtml on att.id/hash/signature/data/metadata + 3 data-id attrs
+  - `WorkflowVisualizer.js`: escapeHtml on step.agent/task + wf.id/exec.id data attrs
+  - `PriceMonitorPanel.js`: escapeHtml on price fields (String() + escapeHtml)
+- **SENSITIVE_LOG fix** — `launch-router.js:79` API Key 掩码 (`***`)
+- **MISSING_HELMET 规则修复** — 46-missing-helmet.js 排除 `express.Router()` 文件（13 个 false positive 消除）
+- **SENSITIVE_LOG 规则修复** — 11-sensitive-log.js 扩展正则覆盖模板字符串 + 排除词（set/not/configured）
+- **ERROR_MESSAGE_LEAK fix** — OpenClawRouter.js 9 处 `err.message` 替换为通用错误信息
+- **FILE_UPLOAD_LIMIT 规则修复** — 32-file-upload-limit.js 添加 3 行 lookahead + 文件级 multer limits 检查（4 个 false positive 消除）
+- **OpenClawRouter.js setInterval.unref()** — rateLimiter cleanup timer 泄漏修复
+- **Commit `888c785`**: `fix(security): XSS escapeHtml + API Key masking + rule false-positive elimination`
+- **Commit `4de4bb3`**: AGENTS.md session anchor update
+- **Commit `966ed8b`**: `fix(security): ERROR_MESSAGE_LEAK generic errors + FILE_UPLOAD_LIMIT lookahead + setInterval.unref()`
+- 9 commits total: `686892b` → `966ed8b` (全部推送)
+- 剩余 MEDIUM: MISSING_HELMET 1 (OpenClawRouter.js 真实未修), MISSING_SECURITY_HEADER 4 (helmet 默认已覆盖), HARDCODED_IP 12 (cosmetic)
 ```
 
