@@ -659,3 +659,10 @@ Session 锚点: 2026-07-26 (第3次 — 安全规则 false positive 全量消除
 - 剩余 306 LOW: SYNCHRONOUS_IO/LARGE_FILE/DUPLICATE_OBJECT_KEY 等代码质量项
 ```
 
+Session 锚点: 2026-07-26 (第4次 — MISSING_HELMET 最终修复，MEDIUM 清零)
+- ESLint: 0/0 | Tests: **221/225 suites, 10,976/11,022** | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 306 LOW**
+- **MISSING_HELMET fix** — OpenClawRouter.js: 手动安全头替换为 helmet 中间件（contentSecurityPolicy + crossOriginEmbedderPolicy 关闭，保留 X-XSS-Protection）
+- **MEDIUM 清零**: 从 337 MEDIUM 降至 0（规则 false positive 消除 + 真实问题修复）
+- 11 commits total: `686892b` → `96b7314` (全部推送)
+```
+
