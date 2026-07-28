@@ -151,7 +151,7 @@ const configManager = {
    * 获取所有配置
    */
   getAll() {
-    return { ...config };
+    return JSON.parse(JSON.stringify(config));
   },
 
   /**
