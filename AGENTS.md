@@ -666,49 +666,29 @@ Session 锚点: 2026-07-26 (第4次 — MISSING_HELMET 最终修复，MEDIUM 清
 - 11 commits total: `686892b` → `96b7314` (全部推送)
 ```
 
-Session 锚点: 2026-07-28 (智能化能力验证 — 15 Task 计划完成)
-- ESLint: 0/0 | Tests: **233 suites / 11,209 passed** (4 suites skipped pre-existing) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+Session 锚点: 2026-07-28 (智能化能力验证 + BrainSystem 分解 + 测试覆盖)
+- ESLint: 0/0 | Tests: **238 suites / 11,324 passed** (4 suites skipped pre-existing) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
 - **智能化能力验证计划完成** — 15 tasks across 6 phases, 所有测试通过
-- **Phase 1 (BrainSystem 内部类)**: 6 个新单元测试文件, 35 tests
-  - SmartMemory (smartStore/smartSearch): 5 tests
-  - MultiDimensionPredictor (predict): 5 tests
-  - ProactiveThinking (proactiveThink): 5 tests
-  - EmotionExpress (expressEmotion): 5 tests
-  - DeepIntentAnalyzer (analyzeIntent): 10 tests
-  - Persistence Module (getMemoryStats/getFullStatus/autoLearn/autoValidate): 5 tests
-- **Phase 2 (Skills 核心管线)**: 3 个新单元测试文件, 106 tests
-  - SkillRegistry (constructor/getAllSkills/search/listCategories/getStats): 35 tests
-  - SkillAutoLoader (classifyTask/getSkillsForTaskType/getSkillsForMessage): 38 tests
-  - SkillManager (getAllSkills/isEnabled/getSkillInfo/enableSkill/disableSkill): 33 tests
-- **Phase 3-4 (剩余智能模块)**: 1 新文件 + 2 扩展, 125 tests
-  - BaseLLMAdapter (OpenAI/DeepSeek/Google/DashScope/OpenClaw + factory): 35 tests
-  - ProactiveAdvisor deep branches (malformed JSON, maxResults, simultaneous multi-type, error decisions): +13 tests
-  - SelfCodeImprover deep branches (multi-check scanFile, generateReport, getSuggestions): +7 tests
-- **Phase 5 (语义记忆回退)**: 1 个新单元测试文件, 17 tests
-  - SemanticMemory fallback mode (ChromaDB unavailable → Map store): all operations
-- **Phase 6 (集成测试)**: 1 个新集成测试文件, 18 tests
-  - BrainSystem full pipeline: Intent→Emotion→Response, Memory→Learning, Prediction→Proactive, Cross-Module Consistency, SmartStore round-trip
+- **BrainSystem.js 分解完成** — 6854→4326 lines (37% reduction)
+  - Phase 1: AutonomousLearning, DeepIntentAnalyzer, SmartMemory, MultiDimensionPredictor, SelfEvolvingAGI (5 modules)
+  - Phase 2: PatternLearner, DeepSelfAwareness, AGIEngine, AgentTeam (4 modules)
+  - 全部 9 个类提取为独立模块, require() 导入 + 静态方法委托
+- **4 个新测试文件** (131 tests):
+  - `tests/unit/pattern-learner.test.js` (22 tests)
+  - `tests/unit/deep-self-awareness.test.js` (22 tests)
+  - `tests/unit/agi-engine.test.js` (27 tests)
+  - `tests/unit/agent-team.test.js` (60 tests)
+- **生产部署优化**: Dockerfile --omit=dev, ecosystem.config.js env vars, server/config deep copy fix, SIGTERM timer leak fix
 - **关键发现**:
   - BrainSystem 模块导出结构: `{ BrainSystem: Class, smartStore: fn, ... }` — 函数在模块级别, 非实例方法
-  - `analyzeIntent` 返回 `{ intent, confidence, method, suggestions }` (非 `{ type, confidence, subcategories }`)
-  - `expressEmotion` 返回 `{ detected, contextAware, expression, natural, timestamp }` (非 `{ userEmotion, aiEmotion, response }`)
-  - `predict` 返回 `{ intent, skill, nextAction, timeBased, confidence }` (非 `{ intent, skill, action, time }`)
-  - `proactiveThink` 返回 `{ insights, interactionCount, predictions }` (非 `{ action, shouldAct }`)
-  - `getEvolutionStats` 返回 `{ total }` (非 `{ totalLessons, totalImprovements }`)
-  - `getFullStatus` 有 `memory` + `evolution` (无 `learning`/`emotion` 属性)
-- **新增文件** (8 个测试文件):
-  - `tests/unit/smart-memory.test.js`
-  - `tests/unit/multi-dimension-predictor.test.js`
-  - `tests/unit/proactive-thinking.test.js`
-  - `tests/unit/emotion-express.test.js`
-  - `tests/unit/deep-intent-analyzer.test.js`
-  - `tests/unit/persistence-module.test.js`
-  - `tests/unit/skill-registry-core.test.js`
-  - `tests/unit/skill-auto-loader.test.js`
-  - `tests/unit/skill-manager-core.test.js`
-  - `tests/unit/base-llm-adapter.test.js`
-  - `tests/unit/semantic-memory-fallback.test.js`
-  - `tests/integration/brain-pipeline.integration.test.js`
+  - PatternLearner 使用中文意图名 ('代码'/'学习'/'安全'/'优化'/'调试'/'测试')
+  - AgentTeam 使用依赖注入 (brainApi 对象), 不直接引用 BrainSystem
+  - AGIEngine 完整管道: perception→reasoning→intuition→creativity→metacognition→decision→execution→learn
+  - DeepSelfAwareness 核心反思: 8 个哲学问题 + 5 层自我意识 (认知/理解/评价/接纳/改进)
+- **新增文件** (完整列表):
+  - 9 个核心模块: src/core/AutonomousLearning.js, DeepIntentAnalyzer.js, SmartMemory.js, MultiDimensionPredictor.js, SelfEvolvingAGI.js, PatternLearner.js, DeepSelfAwareness.js, AGIEngine.js, AgentTeam.js
+  - 12+ 测试文件: tests/unit/ 和 tests/integration/
+  - 部署配置: .dockerignore, ecosystem.config.js 更新
 - **扩展文件** (2 个):
   - `tests/unit/proactive-advisor.test.js` (+13 tests)
   - `tests/unit/self-code-improver.test.js` (+7 tests)

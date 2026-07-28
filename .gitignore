@@ -64,3 +64,5 @@ Dockerfile.backup
 .lesson-library.json
 data/append-test.json
 data/no-items.json
+data/patternLearner.json
+data/test.json
