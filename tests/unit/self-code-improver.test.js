@@ -455,5 +455,136 @@ describe('SelfCodeImprover', () => {
       expect(fixes[0].result).toBe('fixed');
       spy.mockRestore();
     });
+
+    test('skips non-fixable issue types', () => {
+      const fixes = improver._autoFix([
+        { type: 'empty-catch', message: 'catch' },
+        { type: 'hardcoded-secret', message: 'key' },
+        { type: 'console-log-leak', message: 'log' }
+      ]);
+      expect(fixes).toHaveLength(0);
+    });
+  });
+
+  describe('_scanFile (deep branches)', () => {
+    test('triggers multiple check types in single file', () => {
+      const content = [
+        'const a = require(\'fs\'); const b = require(\'fs\');',
+        '@version 1.0.0 @version 2.0.0',
+        'try { x() } catch (e) {}',
+        'console.log("d"); console.log("d"); console.log("d");',
+        '"password": "s3cret12345678"'
+      ].join('\n');
+      fs.readFileSync.mockReturnValue(content);
+      const issues = improver._scanFile('/fake/multi-issue.js');
+      const types = issues.map(i => i.type);
+      expect(types).toContain('duplicate-require');
+      expect(types).toContain('version-inconsistency');
+      expect(types).toContain('empty-catch');
+      expect(types).toContain('security-hardcoded-secret');
+    });
+
+    test('returns empty array for clean file', () => {
+      fs.readFileSync.mockReturnValue('const x = require(\'fs\'); const y = require(\'path\');');
+      const issues = improver._scanFile('/fake/clean.js');
+      expect(issues).toEqual([]);
+    });
+
+    test('includes file name in issues', () => {
+      fs.readFileSync.mockReturnValue('const a = require(\'x\'); const b = require(\'x\');');
+      const issues = improver._scanFile('/some/path/myfile.js');
+      expect(issues[0]).toHaveProperty('file');
+      expect(issues[0]).toHaveProperty('type');
+      expect(issues[0]).toHaveProperty('severity');
+      expect(issues[0]).toHaveProperty('message');
+      expect(issues[0]).toHaveProperty('suggestion');
+    });
+  });
+
+  describe('fullScan (deep branches)', () => {
+    test('handles mix of existing and missing paths', () => {
+      fs.existsSync.mockImplementation((p) => !p.includes('nonexistent'));
+      fs.readdirSync.mockReturnValue(['file1.js']);
+      fs.readFileSync.mockReturnValue('const x = require(\'fs\'); const y = require(\'fs\');');
+      const result = improver.fullScan();
+      expect(result.stats.totalFiles).toBeGreaterThan(0);
+      expect(result.timestamp).toBeDefined();
+    });
+
+    test('handles scan path with subdirectories', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readdirSync.mockReturnValue(['sub']);
+      fs.statSync.mockReturnValue({ isDirectory: () => true });
+      const result = improver.fullScan();
+      expect(result).toHaveProperty('issues');
+    });
+  });
+
+  describe('_updateIssueTracker (deep branches)', () => {
+    test('accumulates across multiple calls', () => {
+      improver._updateIssueTracker([{ file: 'a.js', severity: 'high' }]);
+      improver._updateIssueTracker([{ file: 'a.js', severity: 'medium' }]);
+      improver._updateIssueTracker([{ file: 'b.js', severity: 'high' }]);
+      expect(improver.issueTracker.byFile['a.js']).toHaveLength(2);
+      expect(improver.issueTracker.byFile['b.js']).toHaveLength(1);
+      expect(improver.issueTracker.bySeverity.high).toHaveLength(2);
+      expect(improver.issueTracker.bySeverity.medium).toHaveLength(1);
+    });
+  });
+
+  describe('generateReport (extended)', () => {
+    test('returns structured report with history', () => {
+      improver.history.push({
+        timestamp: Date.now(),
+        issuesFound: 5,
+        fixesApplied: 2,
+        filesScanned: 10
+      });
+      const report = improver.generateReport();
+      expect(report).toHaveProperty('summary');
+      expect(report).toHaveProperty('history');
+      expect(report.summary.totalFiles).toBe(10);
+    });
+  });
+
+  describe('getSuggestions (extended)', () => {
+    test('suggests manual-fix when issues were found', () => {
+      improver.history.push({
+        issuesFound: 5,
+        fixesApplied: 3,
+        filesScanned: 5,
+        timestamp: Date.now()
+      });
+      const suggestions = improver.getSuggestions();
+      expect(suggestions.some(s => s.action === 'manual-fix')).toBe(true);
+    });
+
+    test('suggests expand-scan when > 5 files scanned', () => {
+      improver.history.push({
+        issuesFound: 0,
+        fixesApplied: 0,
+        filesScanned: 10,
+        timestamp: Date.now()
+      });
+      const suggestions = improver.getSuggestions();
+      expect(suggestions.some(s => s.action === 'expand-scan')).toBe(true);
+    });
+
+    test('returns run-scan when no history', () => {
+      const suggestions = improver.getSuggestions();
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].action).toBe('run-scan');
+    });
+
+    test('returns empty when no issues and few files', () => {
+      improver.history.push({
+        issuesFound: 0,
+        fixesApplied: 0,
+        filesScanned: 2,
+        timestamp: Date.now()
+      });
+      const suggestions = improver.getSuggestions();
+      expect(suggestions).toHaveLength(0);
+    });
   });
 });

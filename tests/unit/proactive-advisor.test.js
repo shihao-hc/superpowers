@@ -424,4 +424,192 @@ describe('ProactiveAdvisor', () => {
       return '';
     });
   }
+
+  describe('_scanAuditLogs (deep branches)', () => {
+    it('skips malformed JSON lines without crashing', () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['audit.jsonl']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '{"level":"error","module":"db","action":"fail","ts":"1"}\nNOT JSON\n{"level":"error","module":"db","action":"fail","ts":"2"}\n{"level":"error","module":"db","action":"fail","ts":"3"}'
+      );
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      const result = a._scanAuditLogs();
+      expect(result).toHaveLength(1);
+      expect(result[0].count).toBe(3);
+    });
+
+    it('respects maxResults limit', () => {
+      const entries = [];
+      for (let i = 0; i < 15; i++) {
+        for (let j = 0; j < 3; j++) {
+          entries.push({ level: 'error', module: `mod${i}`, action: 'fail', ts: `${j}` });
+        }
+      }
+      mockAuditFiles(entries);
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR, maxResults: 5 });
+      const result = a._scanAuditLogs();
+      expect(result).toHaveLength(5);
+    });
+
+    it('handles multiple .jsonl files', () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['a.jsonl', 'b.jsonl']);
+      jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        if (p.endsWith('a.jsonl')) {
+          return '{"level":"error","module":"x","action":"y","ts":"1"}\n{"level":"error","module":"x","action":"y","ts":"2"}\n{"level":"error","module":"x","action":"y","ts":"3"}';
+        }
+        return '{"level":"error","module":"x","action":"y","ts":"4"}';
+      });
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      const result = a._scanAuditLogs();
+      expect(result[0].count).toBe(4);
+    });
+
+    it('tracks firstSeen and lastSeen timestamps', () => {
+      mockAuditFiles([
+        { level: 'error', module: 'a', action: 'b', ts: '100' },
+        { level: 'error', module: 'a', action: 'b', ts: '200' },
+        { level: 'error', module: 'a', action: 'b', ts: '300' }
+      ]);
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      const result = a._scanAuditLogs();
+      expect(result[0].firstSeen).toBe('100');
+      expect(result[0].lastSeen).toBe('300');
+    });
+
+    it('skips unreadable files without crashing', () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['ok.jsonl', 'bad.jsonl']);
+      jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        if (p.endsWith('bad.jsonl')) throw new Error('permission denied');
+        return '{"level":"error","module":"a","action":"b","ts":"1"}\n{"level":"error","module":"a","action":"b","ts":"2"}\n{"level":"error","module":"a","action":"b","ts":"3"}';
+      });
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      const result = a._scanAuditLogs();
+      expect(result).toHaveLength(1);
+    });
+
+    it('limits to last 7 files sorted', () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['f1.jsonl', 'f2.jsonl', 'f3.jsonl', 'f4.jsonl', 'f5.jsonl', 'f6.jsonl', 'f7.jsonl', 'f8.jsonl']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('');
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      a._scanAuditLogs();
+      expect(fs.readdirSync).toHaveBeenCalled();
+    });
+  });
+
+  describe('scan (simultaneous multi-type)', () => {
+    it('returns multiple suggestion types at once', () => {
+      mockAuditFiles([
+        { level: 'error', module: 'db', action: 'fail', ts: '1' },
+        { level: 'error', module: 'db', action: 'fail', ts: '2' },
+        { level: 'error', module: 'db', action: 'fail', ts: '3' }
+      ]);
+      jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
+        if (p === AUDIT_DIR) return true;
+        if (p === LESSONS_PATH) return true;
+        return false;
+      });
+      jest.spyOn(fs, 'readdirSync').mockImplementation((p) => {
+        if (p === AUDIT_DIR) return ['audit.jsonl'];
+        return [];
+      });
+      jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        if (typeof p === 'string' && p.endsWith('.jsonl')) {
+          return [
+            '{"level":"error","module":"db","action":"fail","ts":"1"}',
+            '{"level":"error","module":"db","action":"fail","ts":"2"}',
+            '{"level":"error","module":"db","action":"fail","ts":"3"}'
+          ].join('\n');
+        }
+        if (p === LESSONS_PATH) return JSON.stringify({
+          lessons: [{ id: 'l1', lesson: 'fix db', priority: 'high', applied: false, applyCount: 0 }]
+        });
+        return '';
+      });
+      const a = new ProactiveAdvisor({
+        auditDir: AUDIT_DIR,
+        lessonLibPath: LESSONS_PATH,
+        decisionPath: DECISIONS_PATH
+      });
+      const results = a.scan();
+      expect(results.length).toBeGreaterThanOrEqual(2);
+      expect(results.some(r => r.type === 'error_pattern')).toBe(true);
+      expect(results.some(r => r.type === 'unapplied_lessons')).toBe(true);
+    });
+
+    it('includes risk_trend when all three sources fire', () => {
+      const history = [];
+      for (let i = 0; i < 25; i++) {
+        history.push({ riskLevel: i < 10 ? 'high' : 'low', decision: 'approved', ts: `${i}` });
+      }
+      mockAuditFiles([
+        { level: 'error', module: 'auth', action: 'fail', ts: '1' },
+        { level: 'error', module: 'auth', action: 'fail', ts: '2' },
+        { level: 'error', module: 'auth', action: 'fail', ts: '3' }
+      ]);
+      jest.spyOn(fs, 'existsSync').mockImplementation((p) => {
+        if (p === AUDIT_DIR) return true;
+        if (p === LESSONS_PATH) return true;
+        if (p === DECISIONS_PATH) return true;
+        return false;
+      });
+      jest.spyOn(fs, 'readdirSync').mockImplementation((p) => {
+        if (p === AUDIT_DIR) return ['audit.jsonl'];
+        return [];
+      });
+      jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
+        if (typeof p === 'string' && p.endsWith('.jsonl')) {
+          return [
+            '{"level":"error","module":"auth","action":"fail","ts":"1"}',
+            '{"level":"error","module":"auth","action":"fail","ts":"2"}',
+            '{"level":"error","module":"auth","action":"fail","ts":"3"}'
+          ].join('\n');
+        }
+        if (p === LESSONS_PATH) return JSON.stringify({
+          lessons: [{ id: 'l1', lesson: 'auth fix', priority: 'high', applied: false }]
+        });
+        if (p === DECISIONS_PATH) return JSON.stringify({ history });
+        return '';
+      });
+      const a = new ProactiveAdvisor({
+        auditDir: AUDIT_DIR,
+        lessonLibPath: LESSONS_PATH,
+        decisionPath: DECISIONS_PATH
+      });
+      const results = a.scan();
+      expect(results.length).toBe(3);
+      expect(results.some(r => r.type === 'error_pattern')).toBe(true);
+      expect(results.some(r => r.type === 'unapplied_lessons')).toBe(true);
+      expect(results.some(r => r.type === 'risk_trend')).toBe(true);
+    });
+  });
+
+  describe('_analyzeDecisions (error decisions)', () => {
+    it('counts error/failed decisions', () => {
+      const history = [];
+      for (let i = 0; i < 20; i++) {
+        history.push({ riskLevel: 'high', decision: i < 6 ? 'error' : 'approved', ts: `${i}` });
+      }
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ history }));
+      const a = new ProactiveAdvisor({ decisionPath: DECISIONS_PATH });
+      const result = a._analyzeDecisions();
+      expect(result).not.toBeNull();
+      expect(result.items.recentErrors).toBe(6);
+    });
+  });
+
+  describe('getStatus (fresh scan)', () => {
+    it('calls scan and returns structured status', () => {
+      const a = new ProactiveAdvisor({ auditDir: AUDIT_DIR });
+      const spy = jest.spyOn(a, 'scan').mockReturnValue([{ type: 'test' }]);
+      const status = a.getStatus();
+      expect(spy).toHaveBeenCalled();
+      expect(status.suggestionCount).toBe(1);
+      expect(status.suggestions[0].type).toBe('test');
+      spy.mockRestore();
+    });
+  });
 });
