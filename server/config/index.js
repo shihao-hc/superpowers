@@ -23,8 +23,8 @@ const defaultConfig = {
     jwtSecret: process.env.JWT_SECRET || generateSecureSecret(),
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
     jwtRefreshExpiresIn: '7d',
-    corsOrigins: process.env.CORS_ORIGINS ?
-      process.env.CORS_ORIGINS.split(',') :
+    corsOrigins: process.env.ALLOWED_ORIGINS ?
+      process.env.ALLOWED_ORIGINS.split(',') :
       ['http://localhost:3000', 'http://127.0.0.1:3000']
   },
 

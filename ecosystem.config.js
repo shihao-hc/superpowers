@@ -17,7 +17,7 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
         API_KEY: process.env.API_KEY,
-        REDIS_URL: 'redis://localhost:6379',
+        REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
         TRUST_PROXY: 'true'
       },
@@ -59,11 +59,11 @@ module.exports = {
 
   deploy: {
     production: {
-      user: 'deploy',
-      host: ['your-server.com'],
-      ref: 'origin/main',
-      repo: 'git@github.com:user/ultrawork.git',
-      path: '/var/www/ultrawork',
+      user: process.env.DEPLOY_USER || 'deploy',
+      host: process.env.DEPLOY_HOST ? process.env.DEPLOY_HOST.split(',') : ['your-server.com'],
+      ref: process.env.DEPLOY_REF || 'origin/main',
+      repo: process.env.DEPLOY_REPO || 'git@github.com:user/ultrawork.git',
+      path: process.env.DEPLOY_PATH || '/var/www/ultrawork',
       'pre-deploy': 'git fetch --all',
       'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production',
       'pre-setup': ''

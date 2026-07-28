@@ -406,17 +406,20 @@ server.listen(port, host, () => {
 });
 
 // 优雅关闭
+let shutdownTimer = null;
+
 process.on('SIGTERM', () => {
   logger.info('收到SIGTERM信号，开始优雅关闭...');
   cleanupModules();
 
   server.close(() => {
     logger.info('HTTP服务器已关闭');
+    if (shutdownTimer) {clearTimeout(shutdownTimer);}
     process.exit(0);
   });
 
   // 强制关闭超时
-  setTimeout(() => {
+  shutdownTimer = setTimeout(() => {
     logger.error('强制关闭超时');
     process.exit(1);
   }, 10000);
@@ -430,6 +433,11 @@ process.on('SIGINT', () => {
     logger.info('HTTP服务器已关闭');
     process.exit(0);
   });
+
+  // Safety timeout to prevent hanging
+  setTimeout(() => {
+    process.exit(1);
+  }, 5000);
 });
 
 // 未捕获异常处理
