@@ -66,3 +66,5 @@ data/append-test.json
 data/no-items.json
 data/patternLearner.json
 data/test.json
+data/corrupt-key.json
+data/test-key.json

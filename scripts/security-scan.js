@@ -11,7 +11,7 @@ const { loadRules, getRules, getRule, isCustomMatchRule } = require('./rules');
 const ROOT = path.resolve(__dirname, '..');
 const RULES_DIR = path.join(__dirname, 'rules');
 const EXCLUDE_DIRS = ['node_modules', '.git', '.opencode', 'tradingagents-cn', 'shihao-', 'test', 'tests', 'scripts', 'frontend', 'examples', 'coverage'];
-const EXCLUDE_PATTERNS = [/node_modules/, /\.test\.js$/, /\.spec\.js$/, /tradingagents-cn/, /shihao-/];
+const EXCLUDE_PATTERNS = [/node_modules/, /\.test\.js$/, /\.spec\.js$/, /tradingagents-cn/, /shihao-/, /test[/\\]archive[/\\]/];
 
 let totalErrors = 0;
 let totalWarnings = 0;
