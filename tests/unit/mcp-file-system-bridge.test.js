@@ -1,7 +1,21 @@
 const fs = require('fs');
 const path = require('path');
 
-jest.mock('fs');
+jest.mock('fs', () => ({
+  promises: {
+    readFile: jest.fn(),
+    writeFile: jest.fn(),
+    readdir: jest.fn(),
+    stat: jest.fn(),
+    mkdir: jest.fn(),
+    rename: jest.fn(),
+    unlink: jest.fn(),
+    rm: jest.fn(),
+    rmdir: jest.fn(),
+    watch: jest.fn()
+  },
+  watch: jest.fn()
+}));
 jest.mock('path');
 
 jest.mock('../../src/utils/UltraWorkUtils', () => ({
@@ -106,7 +120,7 @@ describe('FileSystemBridge', () => {
 
   describe('readTextFile', () => {
     it('reads a file and returns content with line count', async () => {
-      fs.readFileSync.mockReturnValue('line1\nline2\nline3');
+      fs.promises.readFile.mockResolvedValue('line1\nline2\nline3');
       const result = await bridge.readTextFile({ path: 'test.txt' }, makeContext());
       expect(result.content).toBe('line1\nline2\nline3');
       expect(result.lines).toBe(3);
@@ -115,14 +129,14 @@ describe('FileSystemBridge', () => {
     });
 
     it('throws when file does not exist', async () => {
-      fs.readFileSync.mockImplementation(() => { throw new Error('ENOENT'); });
+      fs.promises.readFile.mockRejectedValue(new Error('ENOENT'));
       await expect(bridge.readTextFile({ path: 'missing.txt' }, makeContext())).rejects.toThrow('ENOENT');
     });
   });
 
   describe('readMultipleFiles', () => {
     it('reads multiple files successfully', async () => {
-      fs.readFileSync.mockReturnValue('content');
+      fs.promises.readFile.mockResolvedValue('content');
       const result = await bridge.readMultipleFiles({ paths: ['a.txt', 'b.txt'] }, makeContext());
       expect(result.total).toBe(2);
       expect(result.successful).toBe(2);
@@ -130,9 +144,9 @@ describe('FileSystemBridge', () => {
     });
 
     it('handles mixed success and failure', async () => {
-      fs.readFileSync
-        .mockReturnValueOnce('ok')
-        .mockImplementationOnce(() => { throw new Error('ENOENT'); });
+      fs.promises.readFile
+        .mockResolvedValueOnce('ok')
+        .mockRejectedValueOnce(new Error('ENOENT'));
       const result = await bridge.readMultipleFiles({ paths: ['ok.txt', 'bad.txt'] }, makeContext());
       expect(result.total).toBe(2);
       expect(result.successful).toBe(1);
@@ -143,7 +157,7 @@ describe('FileSystemBridge', () => {
 
   describe('listDirectory', () => {
     it('returns directory entries with types', async () => {
-      fs.readdirSync.mockReturnValue([
+      fs.promises.readdir.mockResolvedValue([
         { name: 'file.txt', isDirectory: () => false },
         { name: 'subdir', isDirectory: () => true }
       ]);
@@ -156,17 +170,17 @@ describe('FileSystemBridge', () => {
 
   describe('directoryTree', () => {
     it('builds a tree with file and directory nodes', async () => {
-      fs.statSync
-        .mockReturnValueOnce({ isDirectory: () => true })   // root
-        .mockReturnValueOnce({ isDirectory: () => false })  // file.txt
-        .mockReturnValueOnce({ isDirectory: () => true })   // subdir
-        .mockReturnValueOnce({ isDirectory: () => false }); // subdir/nested.txt
-      fs.readdirSync
-        .mockReturnValueOnce([
+      fs.promises.stat
+        .mockResolvedValueOnce({ isDirectory: () => true })   // root
+        .mockResolvedValueOnce({ isDirectory: () => false })  // file.txt
+        .mockResolvedValueOnce({ isDirectory: () => true })   // subdir
+        .mockResolvedValueOnce({ isDirectory: () => false }); // subdir/nested.txt
+      fs.promises.readdir
+        .mockResolvedValueOnce([
           { name: 'file.txt', isDirectory: () => false },
           { name: 'subdir', isDirectory: () => true }
         ])
-        .mockReturnValueOnce([
+        .mockResolvedValueOnce([
           { name: 'nested.txt', isDirectory: () => false }
         ]);
       const result = await bridge.directoryTree({ path: 'root' }, makeContext());
@@ -181,15 +195,15 @@ describe('FileSystemBridge', () => {
     });
 
     it('prunes children beyond maxDepth', async () => {
-      fs.statSync.mockReturnValue({ isDirectory: () => true });
-      fs.readdirSync.mockReturnValue([{ name: 'child', isDirectory: () => true }]);
+      fs.promises.stat.mockResolvedValue({ isDirectory: () => true });
+      fs.promises.readdir.mockResolvedValue([{ name: 'child', isDirectory: () => true }]);
       const result = await bridge.directoryTree({ path: 'root', maxDepth: 0 }, makeContext());
       expect(result.tree).not.toBeNull();
       expect(result.tree.children).toHaveLength(0);
     });
 
     it('returns file node for non-directory', async () => {
-      fs.statSync.mockReturnValue({ isDirectory: () => false });
+      fs.promises.stat.mockResolvedValue({ isDirectory: () => false });
       const result = await bridge.directoryTree({ path: 'root/file.txt' }, makeContext());
       expect(result.tree.type).toBe('file');
     });
@@ -197,12 +211,12 @@ describe('FileSystemBridge', () => {
 
   describe('searchFiles', () => {
     it('finds matching files recursively', async () => {
-      fs.readdirSync
-        .mockReturnValueOnce([
+      fs.promises.readdir
+        .mockResolvedValueOnce([
           { name: 'src', isDirectory: () => true },
           { name: 'readme.md', isDirectory: () => false }
         ])
-        .mockReturnValueOnce([
+        .mockResolvedValueOnce([
           { name: 'app.js', isDirectory: () => false }
         ]);
       const result = await bridge.searchFiles({ path: 'root', pattern: '\\.js$' }, makeContext());
@@ -212,20 +226,20 @@ describe('FileSystemBridge', () => {
     });
 
     it('sanitizes overly complex patterns to .*', async () => {
-      fs.readdirSync.mockReturnValue([]);
+      fs.promises.readdir.mockResolvedValue([]);
       const result = await bridge.searchFiles({ path: 'root', pattern: '(ab+)+cd*' }, makeContext());
       expect(result.pattern).toBe('.*');
     });
 
     it('sanitizes patterns exceeding 100 chars', async () => {
-      fs.readdirSync.mockReturnValue([]);
+      fs.promises.readdir.mockResolvedValue([]);
       const longPattern = 'x'.repeat(101);
       const result = await bridge.searchFiles({ path: 'root', pattern: longPattern }, makeContext());
       expect(result.pattern).toBe('.*');
     });
 
     it('rejects non-string patterns', async () => {
-      fs.readdirSync.mockReturnValue([]);
+      fs.promises.readdir.mockResolvedValue([]);
       const result = await bridge.searchFiles({ path: 'root', pattern: 123 }, makeContext());
       expect(result.pattern).toBe('.*');
     });
@@ -233,7 +247,7 @@ describe('FileSystemBridge', () => {
 
   describe('getFileInfo', () => {
     it('returns file metadata including sizeFormatted', async () => {
-      fs.statSync.mockReturnValue({
+      fs.promises.stat.mockResolvedValue({
         size: 2048,
         birthtime: new Date('2026-01-01'),
         mtime: new Date('2026-06-01'),
@@ -246,7 +260,7 @@ describe('FileSystemBridge', () => {
     });
 
     it('formats bytes correctly for MB range', async () => {
-      fs.statSync.mockReturnValue({
+      fs.promises.stat.mockResolvedValue({
         size: 2 * 1024 * 1024,
         birthtime: new Date(),
         mtime: new Date(),
@@ -257,7 +271,7 @@ describe('FileSystemBridge', () => {
     });
 
     it('formats bytes correctly for GB range', async () => {
-      fs.statSync.mockReturnValue({
+      fs.promises.stat.mockResolvedValue({
         size: 3 * 1024 * 1024 * 1024,
         birthtime: new Date(),
         mtime: new Date(),
@@ -268,7 +282,7 @@ describe('FileSystemBridge', () => {
     });
 
     it('formats bytes correctly for small B range', async () => {
-      fs.statSync.mockReturnValue({
+      fs.promises.stat.mockResolvedValue({
         size: 100,
         birthtime: new Date(),
         mtime: new Date(),
@@ -279,7 +293,7 @@ describe('FileSystemBridge', () => {
     });
 
     it('detects directory type', async () => {
-      fs.statSync.mockReturnValue({
+      fs.promises.stat.mockResolvedValue({
         size: 4096,
         birthtime: new Date(),
         mtime: new Date(),
@@ -292,49 +306,49 @@ describe('FileSystemBridge', () => {
 
   describe('writeFile', () => {
     it('writes file and returns success', async () => {
-      fs.writeFileSync.mockImplementation(() => {});
+      fs.promises.writeFile.mockResolvedValue();
       const result = await bridge.writeFile({ path: 'out.txt', content: 'hello' }, makeContext());
       expect(result.success).toBe(true);
       expect(result.bytes).toBe(5);
-      expect(fs.writeFileSync).toHaveBeenCalledWith('/workspace/out.txt', 'hello', 'utf-8');
+      expect(fs.promises.writeFile).toHaveBeenCalledWith('/workspace/out.txt', 'hello', 'utf-8');
       expect(thinkingChain.addThought).toHaveBeenCalled();
     });
 
     it('returns dry_run preview without writing', async () => {
       const result = await bridge.writeFile({ path: 'out.txt', content: 'hi', dry_run: true }, makeContext());
       expect(result.preview).toBe(true);
-      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(fs.promises.writeFile).not.toHaveBeenCalled();
       expect(dryRunEngine.previewWrite).toHaveBeenCalled();
     });
 
     it('supports dryRun alias', async () => {
       const result = await bridge.writeFile({ path: 'out.txt', content: 'hi', dryRun: true }, makeContext());
       expect(result.preview).toBe(true);
-      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(fs.promises.writeFile).not.toHaveBeenCalled();
     });
   });
 
   describe('editFile', () => {
     it('applies edits and writes file', async () => {
-      fs.readFileSync.mockReturnValue('hello world');
-      fs.writeFileSync.mockImplementation(() => {});
+      fs.promises.readFile.mockResolvedValue('hello world');
+      fs.promises.writeFile.mockResolvedValue();
       const edits = [{ oldText: 'world', newText: 'universe' }];
       const result = await bridge.editFile({ path: 'edit.txt', edits }, makeContext());
       expect(result.success).toBe(true);
       expect(result.editsApplied).toBe(1);
-      expect(fs.writeFileSync).toHaveBeenCalledWith('/workspace/edit.txt', 'hello universe', 'utf-8');
+      expect(fs.promises.writeFile).toHaveBeenCalledWith('/workspace/edit.txt', 'hello universe', 'utf-8');
     });
 
     it('returns dry_run preview without editing', async () => {
-      fs.readFileSync.mockReturnValue('hello world');
+      fs.promises.readFile.mockResolvedValue('hello world');
       const result = await bridge.editFile({ path: 'edit.txt', edits: [{ oldText: 'a', newText: 'b' }], dry_run: true }, makeContext());
       expect(result.preview).toBe(true);
-      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(fs.promises.writeFile).not.toHaveBeenCalled();
       expect(dryRunEngine.previewEdit).toHaveBeenCalled();
     });
 
     it('supports dryRun alias for edit', async () => {
-      fs.readFileSync.mockReturnValue('content');
+      fs.promises.readFile.mockResolvedValue('content');
       const result = await bridge.editFile({ path: 'f.txt', edits: [], dryRun: true }, makeContext());
       expect(result.preview).toBe(true);
     });
@@ -342,26 +356,26 @@ describe('FileSystemBridge', () => {
 
   describe('createDirectory', () => {
     it('creates directory with recursive', async () => {
-      fs.mkdirSync.mockImplementation(() => {});
+      fs.promises.mkdir.mockResolvedValue();
       const result = await bridge.createDirectory({ path: 'newdir' }, makeContext());
       expect(result.success).toBe(true);
-      expect(fs.mkdirSync).toHaveBeenCalledWith('/workspace/newdir', { recursive: true });
+      expect(fs.promises.mkdir).toHaveBeenCalledWith('/workspace/newdir', { recursive: true });
     });
 
     it('returns dry_run preview', async () => {
       const result = await bridge.createDirectory({ path: 'newdir', dry_run: true }, makeContext());
       expect(result._meta.dryRun).toBe(true);
       expect(result.action).toBe('create_directory');
-      expect(fs.mkdirSync).not.toHaveBeenCalled();
+      expect(fs.promises.mkdir).not.toHaveBeenCalled();
     });
   });
 
   describe('moveFile', () => {
     it('moves file by renaming', async () => {
-      fs.renameSync.mockImplementation(() => {});
+      fs.promises.rename.mockResolvedValue();
       const result = await bridge.moveFile({ source: 'a.txt', destination: 'b.txt' }, makeContext());
       expect(result.success).toBe(true);
-      expect(fs.renameSync).toHaveBeenCalledWith('/workspace/a.txt', '/workspace/b.txt');
+      expect(fs.promises.rename).toHaveBeenCalledWith('/workspace/a.txt', '/workspace/b.txt');
       expect(thinkingChain.addThought).toHaveBeenCalled();
     });
 
@@ -369,7 +383,7 @@ describe('FileSystemBridge', () => {
       const result = await bridge.moveFile({ source: 'a.txt', destination: 'b.txt', dry_run: true }, makeContext());
       expect(result._meta.dryRun).toBe(true);
       expect(result.action).toBe('move_file');
-      expect(fs.renameSync).not.toHaveBeenCalled();
+      expect(fs.promises.rename).not.toHaveBeenCalled();
     });
 
     it('supports dryRun alias for move', async () => {
@@ -380,49 +394,49 @@ describe('FileSystemBridge', () => {
 
   describe('deleteFile', () => {
     it('deletes file', async () => {
-      fs.unlinkSync.mockImplementation(() => {});
+      fs.promises.unlink.mockResolvedValue();
       const result = await bridge.deleteFile({ path: 'del.txt' }, makeContext());
       expect(result.success).toBe(true);
-      expect(fs.unlinkSync).toHaveBeenCalledWith('/workspace/del.txt');
+      expect(fs.promises.unlink).toHaveBeenCalledWith('/workspace/del.txt');
       expect(thinkingChain.addThought).toHaveBeenCalled();
     });
 
     it('returns dry_run preview', async () => {
       const result = await bridge.deleteFile({ path: 'del.txt', dry_run: true }, makeContext());
       expect(result.preview).toBe(true);
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(fs.promises.unlink).not.toHaveBeenCalled();
       expect(dryRunEngine.previewDelete).toHaveBeenCalled();
     });
   });
 
   describe('deleteDirectory', () => {
     it('deletes directory non-recursively', async () => {
-      fs.rmdirSync.mockImplementation(() => {});
+      fs.promises.rmdir.mockResolvedValue();
       const result = await bridge.deleteDirectory({ path: 'deldir' }, makeContext());
       expect(result.success).toBe(true);
-      expect(fs.rmdirSync).toHaveBeenCalledWith('/workspace/deldir');
-      expect(fs.rmSync).not.toHaveBeenCalled();
+      expect(fs.promises.rmdir).toHaveBeenCalledWith('/workspace/deldir');
+      expect(fs.promises.rm).not.toHaveBeenCalled();
     });
 
     it('deletes directory recursively', async () => {
-      fs.rmSync.mockImplementation(() => {});
+      fs.promises.rm.mockResolvedValue();
       const result = await bridge.deleteDirectory({ path: 'deldir', recursive: true }, makeContext());
       expect(result.success).toBe(true);
-      expect(fs.rmSync).toHaveBeenCalledWith('/workspace/deldir', { recursive: true });
+      expect(fs.promises.rm).toHaveBeenCalledWith('/workspace/deldir', { recursive: true });
     });
 
     it('returns dry_run preview', async () => {
       const result = await bridge.deleteDirectory({ path: 'deldir', dry_run: true }, makeContext());
       expect(result.preview).toBe(true);
       expect(dryRunEngine.previewDeleteDirectory).toHaveBeenCalled();
-      expect(fs.rmdirSync).not.toHaveBeenCalled();
-      expect(fs.rmSync).not.toHaveBeenCalled();
+      expect(fs.promises.rmdir).not.toHaveBeenCalled();
+      expect(fs.promises.rm).not.toHaveBeenCalled();
     });
   });
 
   describe('multiWrite', () => {
     it('writes multiple files', async () => {
-      fs.writeFileSync.mockImplementation(() => {});
+      fs.promises.writeFile.mockResolvedValue();
       const result = await bridge.multiWrite({
         files: [
           { path: 'a.txt', content: 'aaa' },
@@ -441,13 +455,13 @@ describe('FileSystemBridge', () => {
       }, makeContext());
       expect(result._meta.dryRun).toBe(true);
       expect(result.previews).toHaveLength(1);
-      expect(fs.writeFileSync).not.toHaveBeenCalled();
+      expect(fs.promises.writeFile).not.toHaveBeenCalled();
     });
   });
 
   describe('multiDelete', () => {
     it('deletes multiple files', async () => {
-      fs.unlinkSync.mockImplementation(() => {});
+      fs.promises.unlink.mockResolvedValue();
       const result = await bridge.multiDelete({ paths: ['a.txt', 'b.txt'] }, makeContext());
       expect(result.total).toBe(2);
       expect(result.successful).toBe(2);
@@ -458,7 +472,7 @@ describe('FileSystemBridge', () => {
       const result = await bridge.multiDelete({ paths: ['a.txt'], dry_run: true }, makeContext());
       expect(result._meta.dryRun).toBe(true);
       expect(result.previews).toHaveLength(1);
-      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(fs.promises.unlink).not.toHaveBeenCalled();
     });
   });
 

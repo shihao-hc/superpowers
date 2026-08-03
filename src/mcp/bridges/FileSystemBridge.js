@@ -129,7 +129,7 @@ class FileSystemBridge {
     const { path: filePath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
 
-    const content = fs.readFileSync(resolved.path, 'utf-8');
+    const content = await fs.promises.readFile(resolved.path, 'utf-8');
     const lines = splitLines(content).length;
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `读取文件: ${filePath}`, {
@@ -150,7 +150,7 @@ class FileSystemBridge {
     for (const filePath of paths) {
       try {
         const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
-        const content = fs.readFileSync(resolved.path, 'utf-8');
+        const content = await fs.promises.readFile(resolved.path, 'utf-8');
         results.push({ path: resolved.path, content, success: true });
       } catch (error) {
         results.push({ path: filePath, error: error.message, success: false });
@@ -167,7 +167,7 @@ class FileSystemBridge {
     const { path: dirPath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
-    const entries = fs.readdirSync(resolved.path, { withFileTypes: true });
+    const entries = await fs.promises.readdir(resolved.path, { withFileTypes: true });
     const items = entries.map((entry) => ({
       name: entry.name,
       type: entry.isDirectory() ? 'directory' : 'file',
@@ -184,24 +184,24 @@ class FileSystemBridge {
     const { path: dirPath, maxDepth = 10 } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], dirPath);
 
-    const buildTree = (dir, depth = 0) => {
+    const buildTree = async (dir, depth = 0) => {
       if (depth > maxDepth) {return null;}
 
-      const stats = fs.statSync(dir);
+      const stats = await fs.promises.stat(dir);
       if (!stats.isDirectory()) {
         return { name: path.basename(dir), type: 'file' };
       }
 
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      const children = entries.map((entry) => {
+      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+      const children = (await Promise.all(entries.map(async (entry) => {
         const childPath = path.join(dir, entry.name);
         return buildTree(childPath, depth + 1);
-      }).filter(Boolean);
+      }))).filter(Boolean);
 
       return { name: path.basename(dir), type: 'directory', children };
     };
 
-    const tree = buildTree(resolved.path);
+    const tree = await buildTree(resolved.path);
     return { path: resolved.path, tree, maxDepth };
   }
 
@@ -214,19 +214,19 @@ class FileSystemBridge {
     const safePattern = typeof pattern === 'string' && pattern.length <= 100 && !/\([^)]*[+*][^)]*\)[+*?]/.test(pattern) ? pattern : '.*';
 
     const matches = [];
-    const search = (dir, pattern) => {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const search = async (dir, pattern) => {
+      const entries = await fs.promises.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-          search(fullPath, pattern);
+          await search(fullPath, pattern);
         } else if (entry.name.match(new RegExp(pattern))) {
           matches.push({ name: entry.name, path: fullPath });
         }
       }
     };
 
-    search(resolved.path, safePattern);
+    await search(resolved.path, safePattern);
     return { pattern: safePattern, matches, count: matches.length };
   }
 
@@ -237,7 +237,7 @@ class FileSystemBridge {
     const { path: filePath } = params;
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
 
-    const stats = fs.statSync(resolved.path);
+    const stats = await fs.promises.stat(resolved.path);
     return {
       path: resolved.path,
       size: stats.size,
@@ -259,7 +259,7 @@ class FileSystemBridge {
       return dryRunEngine.previewWrite(resolved.path, content);
     }
 
-    fs.writeFileSync(resolved.path, content, 'utf-8');
+    await fs.promises.writeFile(resolved.path, content, 'utf-8');
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `写入文件: ${filePath}`, {
       reasoning: `写入 ${content.length} 字符`,
@@ -277,15 +277,15 @@ class FileSystemBridge {
     const resolved = rootsManager.safeResolve(this.allowedRoots[0], filePath);
 
     if (params.dry_run || params.dryRun) {
-      const content = fs.readFileSync(resolved.path, 'utf-8');
+      const content = await fs.promises.readFile(resolved.path, 'utf-8');
       return dryRunEngine.previewEdit(resolved.path, edits, content);
     }
 
-    let content = fs.readFileSync(resolved.path, 'utf-8');
+    let content = await fs.promises.readFile(resolved.path, 'utf-8');
     for (const edit of edits) {
       content = content.replace(edit.oldText, edit.newText);
     }
-    fs.writeFileSync(resolved.path, content, 'utf-8');
+    await fs.promises.writeFile(resolved.path, content, 'utf-8');
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `编辑文件: ${filePath}`, {
       reasoning: `应用 ${edits.length} 处修改`,
@@ -311,7 +311,7 @@ class FileSystemBridge {
       };
     }
 
-    fs.mkdirSync(resolved.path, { recursive: true });
+    await fs.promises.mkdir(resolved.path, { recursive: true });
 
     return { success: true, path: resolved.path };
   }
@@ -334,7 +334,7 @@ class FileSystemBridge {
       };
     }
 
-    fs.renameSync(srcResolved.path, dstResolved.path);
+    await fs.promises.rename(srcResolved.path, dstResolved.path);
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `移动文件: ${source} -> ${destination}`, {
       metadata: { source, destination }
@@ -354,7 +354,7 @@ class FileSystemBridge {
       return dryRunEngine.previewDelete(resolved.path);
     }
 
-    fs.unlinkSync(resolved.path);
+    await fs.promises.unlink(resolved.path);
 
     thinkingChain.addThought(context.thinking?.getCurrentChain()?.id, `删除文件: ${filePath}`, {
       metadata: { path: filePath, action: 'delete' }
@@ -375,9 +375,9 @@ class FileSystemBridge {
     }
 
     if (recursive) {
-      fs.rmSync(resolved.path, { recursive: true });
+      await fs.promises.rm(resolved.path, { recursive: true });
     } else {
-      fs.rmdirSync(resolved.path);
+      await fs.promises.rmdir(resolved.path);
     }
 
     return { success: true, path: resolved.path };
@@ -400,7 +400,7 @@ class FileSystemBridge {
     const results = [];
     for (const file of files) {
       const resolved = rootsManager.safeResolve(this.allowedRoots[0], file.path);
-      fs.writeFileSync(resolved.path, file.content, 'utf-8');
+      await fs.promises.writeFile(resolved.path, file.content, 'utf-8');
       results.push({ path: resolved.path, success: true });
     }
 
@@ -428,7 +428,7 @@ class FileSystemBridge {
     const results = [];
     for (const p of paths) {
       const resolved = rootsManager.safeResolve(this.allowedRoots[0], p);
-      fs.unlinkSync(resolved.path);
+      await fs.promises.unlink(resolved.path);
       results.push({ path: resolved.path, success: true });
     }
 

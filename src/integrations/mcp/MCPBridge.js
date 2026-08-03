@@ -239,7 +239,7 @@ class MCPBridge {
       const validated = this._validatePath(params.path);
       if (!validated.valid) {return { error: validated.error };}
       try {
-        const content = fs.readFileSync(validated.path, 'utf-8');
+        const content = await fs.promises.readFile(validated.path, 'utf-8');
         return { content, size: content.length };
       } catch (e) {
         return { error: e.message };
@@ -249,7 +249,7 @@ class MCPBridge {
       const validated = this._validatePath(params.path);
       if (!validated.valid) {return { error: validated.error };}
       try {
-        fs.writeFileSync(validated.path, params.content || '', 'utf-8');
+        await fs.promises.writeFile(validated.path, params.content || '', 'utf-8');
         return { success: true, bytesWritten: params.content?.length || 0 };
       } catch (e) {
         return { error: e.message };
@@ -259,7 +259,7 @@ class MCPBridge {
       const validated = this._validatePath(params.path || '.');
       if (!validated.valid) {return { error: validated.error };}
       try {
-        const entries = fs.readdirSync(validated.path, { withFileTypes: true });
+        const entries = await fs.promises.readdir(validated.path, { withFileTypes: true });
         const items = entries.map((entry) => ({
           name: entry.name,
           type: entry.isDirectory() ? 'directory' : 'file',
@@ -274,7 +274,7 @@ class MCPBridge {
       const validated = this._validatePath(params.path);
       if (!validated.valid) {return { error: validated.error };}
       try {
-        fs.mkdirSync(validated.path, { recursive: true });
+        await fs.promises.mkdir(validated.path, { recursive: true });
         return { success: true, path: validated.path };
       } catch (e) {
         return { error: e.message };
@@ -284,7 +284,7 @@ class MCPBridge {
       const validated = this._validatePath(params.path);
       if (!validated.valid) {return { error: validated.error };}
       try {
-        fs.unlinkSync(validated.path);
+        await fs.promises.unlink(validated.path);
         return { success: true, deleted: validated.path };
       } catch (e) {
         return { error: e.message };
@@ -293,18 +293,23 @@ class MCPBridge {
     case 'file_exists': {
       const validated = this._validatePath(params.path);
       if (!validated.valid) {return { exists: false };}
-      return { exists: fs.existsSync(validated.path), path: validated.path };
+      let exists = false;
+      try {
+        await fs.promises.access(validated.path);
+        exists = true;
+      } catch (e) { /* not exists */ }
+      return { exists, path: validated.path };
     }
     case 'search_files': {
       const matches = [];
       const safePattern = typeof params.pattern === 'string' && params.pattern.length <= 100 && !/\([^)]*[+*][^)]*\)[+*?]/.test(params.pattern) ? params.pattern : '.*';
-      const searchDir = (dir, pattern) => {
+      const searchDir = async (dir, pattern) => {
         try {
-          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          const entries = await fs.promises.readdir(dir, { withFileTypes: true });
           for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
             if (entry.isDirectory()) {
-              searchDir(fullPath, pattern);
+              await searchDir(fullPath, pattern);
             } else if (entry.name.match(new RegExp(pattern))) {
               matches.push({ name: entry.name, path: fullPath });
             }
@@ -313,7 +318,7 @@ class MCPBridge {
       };
       const validated = this._validatePath(params.directory || '.');
       if (!validated.valid) {return { error: validated.error };}
-      searchDir(validated.path, safePattern);
+      await searchDir(validated.path, safePattern);
       return { pattern: safePattern, matches, count: matches.length };
     }
     case 'watch_file': {
