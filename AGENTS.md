@@ -780,4 +780,17 @@ Session 锚点: 2026-08-03 (安全扫描误报全量消除 — 302→172 LOW)
 - **验证**: ESLint 全量 0/0 + tsc 0 + Jest 297/4/0 (二次运行 clean exit) + 安全扫描 0 HIGH/0 MEDIUM
 - Commit: `c2ea4e9` (fix(security): eliminate 130 false-positive findings across 7 rules)
 
+Session 锚点: 2026-08-03 (第2次 — 全量验证闭环: 覆盖提升 + 异步IO + 拆分)
+- ESLint: 0/0 | tsc: 0 | Tests: **299 passed suites / 4 skipped / 0 failed** (14,885 passed / 46 skipped) 二次运行稳定 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 168 LOW**
+- **覆盖提升 (Step 5)**: 三个低覆盖模块全量达标
+  - `SemanticMemory.js`: 62%→**100% stmts / 100% branch** (新增 `tests/unit/semantic-memory-collection.test.js` 18 测试 — ChromaDB collection 路径, 与 fallback 测试文件分离因 jest.mock 文件级作用域)
+  - `EmotionExpress.js`: 69%→**100% stmts / 100% branch** (新增 `tests/unit/emotion-express-direct.test.js` 35 测试 — 直接测模块绕过 BrainSystem 包装; 注意 '太棒了' 同时命中 happy+excited, happy 先胜, excited 用 '好期待')
+  - `PythonEnvManager.js`: 56%/14%→**97.5% stmts / 89.3% branch** (python-env-manager.test.js 新增 340 行 6 个 describe 块 77 测试)
+- **P1 源码 Timer 泄漏修复**: `_runInDocker` `child.on('error')` 路径未 clearTimeout (30000ms timer 保持 Jest 存活) → `PythonEnvManager.js:410` 错误处理器加 `clearTimeout(timeoutId)` (--detectOpenHandles 定位)
+- **Step 3 异步IO 全量转换**: `FileSystemBridge.js` + `MCPBridge.js` 同步 fs 调用 → `fs.promises` (read/write/readdir/stat/mkdir/rename/unlink/rm/rmdir/access), FileSystemBridge buildTree 用 `Promise.all` + filter(Boolean) 保留深度 null 过滤
+- **Step 4 大文件拆分**: `ComprehensiveChecker.js` 1251 行 → 14 个维度模块 (`comprehensiveChecks/A-code.js`~`N-cleanliness.js`) + `ComprehensiveCheckImpls.js`; 41-synchronous-io 规则豁免 `comprehensiveChecks/` 诊断实现
+- **Step 2 脚本清理**: 移除 `start:legacy` + `test:mcp:integration` (重复脚本)
+- **测试修复**: python-env-manager.test.js 注释尾行意外粘连 `});` (babel 容错但 eslint 报 EOF) → 拆行修复
+- 4 commits: `a77c25a` (ComprehensiveChecker split) + `e80f969` (async-io) + `0514b4c` (coverage+timer fix) + `3edc59b` (scripts)
+
 
