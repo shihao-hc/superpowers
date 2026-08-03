@@ -81,7 +81,7 @@ const DEFAULT_CONFIG = {
 class PerformanceManager {
   constructor(configPath = null) {
     this.configPath = configPath || path.join(process.cwd(), 'config', 'performance.yaml');
-    this.config = this._deepMerge(DEFAULT_CONFIG, {});
+    this.config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     this.listeners = new Map();
     this.watchInterval = null;
     this.lastModified = null;
@@ -199,7 +199,7 @@ class PerformanceManager {
         const content = fs.readFileSync(this.configPath, 'utf8');
         const loaded = yaml.load(content);
         this._validateConfig(loaded || {}, this._configSchema);
-        this.config = this._deepMerge(DEFAULT_CONFIG, loaded || {});
+        this.config = this._deepMerge(JSON.parse(JSON.stringify(DEFAULT_CONFIG)), loaded || {});
 
         const stats = fs.statSync(this.configPath);
         this.lastModified = stats.mtime.getTime();
@@ -400,7 +400,7 @@ class PerformanceManager {
   }
 
   exportConfig() {
-    return { ...this.config };
+    return JSON.parse(JSON.stringify(this.config));
   }
 }
 

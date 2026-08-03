@@ -41,7 +41,8 @@ function decrypt(encryptedData) {
   if (!key) {
     try {
       return JSON.parse(encryptedData);
-    } catch {
+    } catch (e) {
+      console.warn('[MemoryAgent] Decrypt first fallback failed:', e.message);
       return {};
     }
   }
@@ -59,7 +60,8 @@ function decrypt(encryptedData) {
     console.warn('[MemoryAgent] Decryption failed:', e.message);
     try {
       return JSON.parse(encryptedData);
-    } catch {
+    } catch (e) {
+      console.warn('[MemoryAgent] Decrypt second fallback failed:', e.message);
       return {};
     }
   }
@@ -249,3 +251,5 @@ class MemoryAgent {
 }
 
 module.exports = MemoryAgent;
+
+

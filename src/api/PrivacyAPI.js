@@ -350,14 +350,13 @@ router.post('/retention/apply', (req, res) => {
 
 router.get('/retention/status', (req, res) => {
   const dataStoreSize = privacyCompliance.dataStore.size;
-  const oldestRecord = Math.min(
-    ...Array.from(privacyCompliance.dataStore.values())
-      .map((d) => d.lastUpdated || d.createdAt || Date.now())
-  );
+  const timestamps = Array.from(privacyCompliance.dataStore.values())
+    .map((d) => d.lastUpdated || d.createdAt || Date.now());
+  const oldestRecord = timestamps.length ? Math.min(...timestamps) : null;
 
   res.json({
     totalRecords: dataStoreSize,
-    oldestRecord: new Date(oldestRecord).toISOString(),
+    oldestRecord: oldestRecord ? new Date(oldestRecord).toISOString() : null,
     retentionPeriod: '365 days',
     nextScheduledRun: Date.now() + 24 * 60 * 60 * 1000
   });

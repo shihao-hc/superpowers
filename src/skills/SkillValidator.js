@@ -590,6 +590,7 @@ class SkillValidator {
           result.name = data.name || expectedName;
           result.description = data.description || '';
           result.version = data.version || '1.0.0';
+          result.author = data.author || '';
           result.riskLevel = data.riskLevel || data.risk || 'low';
           result.pure = data.pure === true;
           result.dependencies = data.dependencies || [];

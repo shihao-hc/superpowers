@@ -377,7 +377,8 @@ class SkillToNode {
         input: JSON.stringify(inputData),
         encoding: 'utf8',
         timeout: 30000, // 30 second timeout
-        maxBuffer: 1024 * 1024 // 1MB buffer
+        maxBuffer: 1024 * 1024, // 1MB buffer
+        env
       });
 
       // Parse the output as JSON if possible

@@ -250,7 +250,7 @@ class CostOptimizer {
     return {
       current: currentCost,
       projected: Math.round(projectedTotal * 100) / 100,
-      confidence: daysElapsed / daysInPeriod
+      confidence: Math.min(1, daysElapsed / daysInPeriod)
     };
   }
 

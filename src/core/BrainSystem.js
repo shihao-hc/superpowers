@@ -10,7 +10,6 @@
  * @copyright 2026 AI Brain System
  */
 
-const fs = require('fs');
 const path = require('path');
 
 const MetaCognition = require('./MetaCognition');
@@ -24,10 +23,24 @@ const DeepIntentAnalyzer = require('./DeepIntentAnalyzer');
 const SmartMemory = require('./SmartMemory');
 const MultiDimensionPredictor = require('./MultiDimensionPredictor');
 const SelfEvolvingAGI = require('./SelfEvolvingAGI');
-const PatternLearner = require('./PatternLearner');
 const DeepSelfAwareness = require('./DeepSelfAwareness');
 const AGIEngine = require('./AGIEngine');
 const AgentTeam = require('./AgentTeam');
+const SelfEvolutionRecorder = require('./SelfEvolutionRecorder');
+const EmotionExpress = require('./EmotionExpress');
+const createProactiveThinking = require('./ProactiveThinking');
+const UnifiedIntelligence = require('./UnifiedIntelligence');
+const BrainUtils = require('../utils/BrainUtils');
+const DecisionEngine = require('../utils/DecisionEngine');
+const LessonTracker = require('../utils/LessonTracker');
+const SelfCheckEngine = require('../utils/SelfCheckEngine');
+const LessonInitEngine = require('../utils/LessonInitEngine');
+const StatusReporter = require('../utils/StatusReporter');
+const ThinkingEngine = require('../utils/ThinkingEngine');
+const ComprehensiveCheck = require('../utils/ComprehensiveCheck');
+const { autoTrigger } = require('./InputTrigger');
+const { verifyIntent } = require('./IntentVerifier');
+const Persistence = require('./EvolutionPersistence');
 
 /**
  * 安全加载可选模块
@@ -83,6 +96,7 @@ class BrainSystem {
     this.tools = new ToolManager();
     this.reverseThinking = new ReverseThinking();
     this.lessonLibrary = new LessonLibrary();
+    this._lessonInitEngine = new LessonInitEngine(this);
 
     // 初始化预设教训（如果有）
     this._initDefaultLessons();
@@ -169,20 +183,40 @@ class BrainSystem {
 
       // v10.0 新增 - 承诺追踪系统
       promiseTracker: {
-        promises: [],          // 记录所有承诺
-        pending: [],           // 待验证的承诺
-        broken: [],            // 未兑现的承诺
-        verified: []           // 已验证通过的承诺
+        promises: [],
+        pending: [],
+        broken: [],
+        verified: []
       },
 
       // v10.0 新增 - 自检验证统计
       selfVerification: {
-        totalClaims: 0,        // 总声称次数
-        verifiedClaims: 0,    // 已验证次数
-        failedClaims: 0,       // 失败次数
-        autoCheckCount: 0     // 自动检查次数
+        totalClaims: 0,
+        verifiedClaims: 0,
+        failedClaims: 0,
+        autoCheckCount: 0
       }
     };
+
+    // v13.0 新增 - 承诺追踪系统
+    this._promiseTracker = new (require('../utils/PromiseTracker').PromiseTracker)({
+      state: this.state.promiseTracker,
+      selfVerification: this.state.selfVerification,
+      comprehensiveChecker: this.comprehensiveChecker
+    });
+
+    this._healthMonitor = new (require('../utils/SelfMonitor').SelfMonitor)(this);
+    this._introspection = new (require('../utils/IntrospectionEngine').IntrospectionEngine)(this);
+    this._selfManager = require('../utils/SelfManager');
+    this._evolutionCycle = require('../utils/EvolutionCycle');
+    this._knowledgeGraph = require('../utils/KnowledgeGraph');
+    this._memoryPersistence = require('../utils/MemoryPersistence');
+    this.decisionEngine = new DecisionEngine(this);
+    this._lessonTracker = new LessonTracker(this);
+    this._selfCheckEngine = new SelfCheckEngine(this);
+    this._statusReporter = new StatusReporter(this);
+    this._thinkingEngine = new ThinkingEngine(this);
+    this._comprehensiveCheck = new ComprehensiveCheck(this);
 
     // 配置
     this.config = {
@@ -252,379 +286,42 @@ class BrainSystem {
    * 让AI从被动变为主动：不需要外部触发，自动检查自身状态
    */
   _autoStartDailyCheck() {
-    // 每5分钟自检一次（可以在BrainFlow中调整）
-    this.selfCheckInterval = setInterval(() => {
-      this._runDailyCheck();
-    }, 5 * 60 * 1000); // 5分钟
-
-    // 同时启动主动监控（每10分钟）
-    this.monitoringInterval = setInterval(() => {
-      this._selfMonitor();
-    }, 10 * 60 * 1000); // 10分钟
-
-    // 记录自检启动
-    this.state.lastSelfCheck = Date.now();
-    console.log('[BrainSystem] ✓ 日常自检闭环已启动 (自检5分钟 + 监控10分钟)');
+    return this._selfCheckEngine._autoStartDailyCheck();
   }
 
-  /**
-   * 执行每日自检
-   * 自动检查自身状态，发现问题并尝试解决
-   */
   _runDailyCheck() {
-    const now = Date.now();
-    this.state.lastSelfCheck = now;
-
-    // 检查教训应用率
-    const lessonStats = this.lessonLibrary.getStats();
-    const applicationRate = lessonStats.applied / lessonStats.total;
-
-    // 如果教训应用率过低，发起提醒
-    if (applicationRate < 0.3 && lessonStats.unapplied > 0) {
-      console.log(`[BrainSystem] ⚠️ 教训应用率低: ${Math.round(applicationRate * 100)}%`);
-
-      // 尝试应用一条高优先级教训
-      const highPriority = this.lessonLibrary.lessons
-        .filter((l) => l.priority === 'high' && !l.applied)
-        .slice(0, 1);
-
-      if (highPriority.length > 0) {
-        // 模拟一个通用任务来应用教训
-        this.lessonLibrary.markApplied(highPriority[0].id);
-        console.log(`[BrainSystem] ✓ 自动应用教训: ${highPriority[0].lesson.substring(0, 30)}...`);
-      }
-    }
-
-    // 【v18.0新增】全方面检查自动触发 - 每10次自检触发一次
-    if (this.comprehensiveChecker) {
-      this.state.selfCheckCount = (this.state.selfCheckCount || 0) + 1;
-      if (this.state.selfCheckCount % 10 === 0) {
-        console.log('[BrainSystem] 📋 定期全方面检查触发...');
-        this.comprehensiveChecker.run().then((report) => {
-          if (report.stats?.failed > 0) {
-            console.log(`[BrainSystem] ⚠️ 全方面检查发现问题: ${report.stats.failed}项`);
-          } else {
-            console.log('[BrainSystem] ✅ 全方面检查通过');
-          }
-        }).catch((e) => {
-          console.log(`[BrainSystem] 全方面检查跳过: ${e.message}`);
-        });
-      }
-    } else {
-      this.state.selfCheckCount = (this.state.selfCheckCount || 0) + 1;
-    }
-
-    // 检查决策次数（是否有新任务）
-    if (this.state.decisionCount === 0) {
-      console.log('[BrainSystem] 📝 今日尚未有决策记录');
-    }
+    return this._selfCheckEngine._runDailyCheck();
   }
 
-  /**
-   * 【新增】主动建议功能
-   * 空闲时主动提供改进建议，不需要外部触发
-   */
   getActiveSuggestions() {
-    const suggestions = [];
-    const stats = this.lessonLibrary.getStats();
-
-    // 建议1: 教训应用率低
-    if (stats.applied / stats.total < 0.5 && stats.total > 10) {
-      suggestions.push({
-        type: 'improvement',
-        priority: 'high',
-        message: '教训应用率偏低，建议多触发决策流程让教训被应用',
-        action: '调用beforeDecision和afterDecision'
-      });
-    }
-
-    // 建议2: 决策次数少
-    if (this.state.decisionCount < 5) {
-      suggestions.push({
-        type: 'usage',
-        priority: 'medium',
-        message: '决策次数较少，大脑系统未充分利用',
-        action: '多进行实际任务让系统参与决策'
-      });
-    }
-
-    // 建议3: 模块未激活
-    const inactiveModules = [];
-    if (!this.controller) {inactiveModules.push('控制器');}
-    if (!this.introspection) {inactiveModules.push('内省');}
-    if (inactiveModules.length > 0) {
-      suggestions.push({
-        type: 'module',
-        priority: 'low',
-        message: `可选模块未激活: ${inactiveModules.join(', ')}`,
-        action: '如有需求可启用这些模块'
-      });
-    }
-
-    return suggestions;
+    return this._selfCheckEngine.getActiveSuggestions();
   }
 
-  /**
-   * 【新增】主动学习功能
-   * 定期从近期经验中提取可复用的教训
-   */
-  主动Learn() {
-    const learnings = [];
-
-    // 从决策历史中提取模式
-    if (this.state.decisionCount > 0) {
-      learnings.push({
-        type: 'pattern',
-        message: `本会话已有 ${this.state.decisionCount} 次决策记录`,
-        source: 'decision-history'
-      });
-    }
-
-    // 从自检历史中提取
-    if (this.state.selfCheckCount > 0) {
-      learnings.push({
-        type: 'self-check',
-        message: `已完成 ${this.state.selfCheckCount} 次自检`,
-        source: 'self-check'
-      });
-    }
-
-    return learnings;
+  ['主动Learn']() {
+    return this._selfCheckEngine['主动Learn']();
   }
 
-  /**
-   * 【新增】生成改进行动计划
-   * 根据当前状态自动生成可执行的改进计划
-   */
   generateImprovementPlan() {
-    const plan = {
-      timestamp: Date.now(),
-      actions: [],
-      reason: ''
-    };
-
-    const stats = this.lessonLibrary.getStats();
-    const health = this._calculateHealth();
-
-    // 优先级1: 健康度低
-    if (health.score < 40) {
-      plan.actions.push({
-        priority: 1,
-        action: '多使用大脑系统进行决策',
-        reason: '提高决策次数改善健康度'
-      });
-    }
-
-    // 优先级2: 教训应用率低
-    if (stats.applied / stats.total < 0.5) {
-      plan.actions.push({
-        priority: 2,
-        action: '调用beforeDecision触发教训弹出',
-        reason: '提高教训应用率'
-      });
-    }
-
-    // 优先级3: 主动性功能未启用
-    if (!this.selfCheckInterval) {
-      plan.actions.push({
-        priority: 3,
-        action: '调用startSelfMonitoring启用主动监控',
-        reason: '启用自动监控'
-      });
-    }
-
-    plan.reason = `当前健康度: ${health.score}/100`;
-    return plan;
+    return this._selfCheckEngine.generateImprovementPlan();
   }
 
-  /**
-   * 【新增】自动分析模式
-   * 从决策历史中提取可复用的模式
-   */
   analyzePatterns() {
-    const patterns = {
-      decisionTopics: [],
-      commonActions: [],
-      timePatterns: [],
-      insights: []
-    };
-
-    // 统计决策主题
-    if (this.state.lastContext) {
-      patterns.decisionTopics.push(this.state.lastContext);
-    }
-
-    // 如果有记忆系统，尝试获取更多模式
-    if (this.memory) {
-      try {
-        const recentMemories = this.memory.getRecent(5);
-        patterns.insights.push(`有 ${recentMemories.length} 条近期记忆`);
-      } catch (e) {
-        // 记忆系统暂时不可用，不影响模式分析
-      }
-    }
-
-    patterns.insights.push('定期分析决策模式可以帮助AI更好地理解自己的行为');
-    return patterns;
+    return this._selfCheckEngine.analyzePatterns();
   }
 
-  /**
-   * 【新增】自动生成状态报告
-   * 定期生成系统状态报告
-   */
   generateStatusReport() {
-    const health = this._calculateHealth();
-    const lessonStats = this.lessonLibrary.getStats();
-
-    return {
-      timestamp: Date.now(),
-      health: {
-        score: health.score,
-        level: health.level,
-        metrics: Object.keys(health.metrics).map((k) => ({
-          name: k,
-          score: `${Math.round(health.metrics[k].score * 100)}%`
-        }))
-      },
-      activity: {
-        decisions: this.state.decisionCount,
-        selfChecks: this.state.selfCheckCount || 0
-      },
-      lessons: {
-        total: lessonStats.total,
-        applied: lessonStats.applied,
-        rate: `${Math.round(lessonStats.applied / lessonStats.total * 100)}%`
-      },
-      capabilities: {
-        selfMonitoring: !!this.selfCheckInterval,
-        autoCheck: !!this.monitoringInterval
-      }
-    };
+    return this._selfCheckEngine.generateStatusReport();
   }
 
-  /**
-   * 【新增】获取快速状态摘要
-   * 一句话总结当前状态
-   */
   getQuickStatus() {
-    const health = this._calculateHealth();
-    const stats = this.lessonLibrary.getStats();
-
-    const statusParts = [];
-
-    if (health.score >= 80) {
-      statusParts.push('状态优秀');
-    } else if (health.score >= 60) {
-      statusParts.push('状态良好');
-    } else if (health.score >= 40) {
-      statusParts.push('状态一般');
-    } else {
-      statusParts.push('需要改进');
-    }
-
-    statusParts.push(`教训应用${Math.round(stats.applied/stats.total*100)}%`);
-    statusParts.push(`决策${this.state.decisionCount}次`);
-
-    return statusParts.join(' | ');
+    return this._selfCheckEngine.getQuickStatus();
   }
 
   /**
    * 初始化预设教训库（34条核心经验）
    */
   _initDefaultLessons() {
-    const existingStats = this.lessonLibrary.getStats();
-
-    // 清理无效的设计笔记教训，保留真正的经验
-    if (existingStats.total > 0) {
-      const designNotes = this.lessonLibrary.lessons.filter((l) =>
-        l.lesson.includes('需要感知层') ||
-        l.lesson.includes('需要执行器') ||
-        l.lesson.includes('需要意识控制') ||
-        l.lesson.includes('需要静默思考') ||
-        l.lesson.includes('需要超越会话') ||
-        l.lesson.includes('需要情感系统') ||
-        l.lesson.includes('需要价值观') ||
-        l.lesson.includes('需要人格系统') ||
-        l.lesson.includes('需要关系系统') ||
-        l.lesson.includes('需要目标系统') ||
-        l.lesson.includes('需要伦理系统') ||
-        l.lesson.includes('需要自动验证') ||
-        l.lesson.includes('唯一测试教训') ||
-        l.lesson.includes('模块间协作正常') ||
-        l.lesson.includes('AI大脑能够') ||
-        l.lesson.includes('这是一个测试教训') ||
-        l.lesson.includes('执行 shouldSell')
-      );
-
-      if (designNotes.length > 0) {
-        console.log(`[BrainSystem] 清理 ${designNotes.length} 条无效教训`);
-        // 标记为已应用（清理）
-        for (const l of designNotes) {
-          l.applied = true;
-        }
-        this.lessonLibrary._save();
-      }
-    }
-
-    const defaultLessons = [
-      // 思维习惯类 (High Priority)
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '遇到问题直接开始解决，没有先分析', lesson: '先分析问题再动手，理解问题本质是解决问题的一半', improvement: '使用"先思考再行动"的习惯' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '做任务时没有先制定计划', lesson: '复杂任务需要先制定计划再执行', improvement: '任务开始前强制思考步骤' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '没有检查代码是否符合项目规范', lesson: '遵循项目规范能减少错误和返工', improvement: '添加lint检查步骤' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '直接修改代码不先测试', lesson: '修改代码前先运行测试验证当前状态', improvement: '修改前先运行测试' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '没有理解需求就开始编码', lesson: '理解需求是开发的第一步', improvement: '先阅读文档或询问清楚' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '同时做多个任务导致效率低', lesson: '专注单一任务效率更高', improvement: '使用番茄工作法' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '没有定期回顾和总结经验', lesson: '定期复盘能持续改进', improvement: '每天/每周做一次复盘' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '遇到困难就跳过不解决', lesson: '面对困难是成长的机会', improvement: '记录问题并尝试解决' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '没有验证修复是否真正解决了问题', lesson: '修复后需要验证问题是否真正解决', improvement: '修复后重新测试' },
-      { category: 'thinking', type: 'mistake', priority: 'high', problem: '没有记录解决方案以便将来参考', lesson: '好记性不如烂笔头', improvement: '记录问题和解决方案' },
-
-      // 工具使用类 (High Priority)
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '不知道有哪些工具可用', lesson: '了解可用工具能大幅提高效率', improvement: '熟悉所有工具能力' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '用错工具导致效率低', lesson: '选择合适的工具事半功倍', improvement: '了解工具适用场景' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '没有利用已有的工具和技能', lesson: '善用已有资源，避免重复造轮子', improvement: '先检查是否已有解决方案' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '不知道某个技能的存在', lesson: '了解技能系统能发现更多可能', improvement: '定期查看技能列表' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '手动操作可以自动化却没做', lesson: '自动化重复任务能节省大量时间', improvement: '识别可自动化的任务' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '没有使用代码搜索工具', lesson: '搜索现有代码能避免重复和发现模式', improvement: '使用grep/搜索工具' },
-      { category: 'tool', type: 'mistake', priority: 'high', problem: '不使用版本控制查看历史', lesson: 'git历史能帮助理解代码演变', improvement: '经常查看git log' },
-
-      // 模式识别类 (High Priority)
-      { category: 'pattern', type: 'success', priority: 'high', problem: '没有意识到类似的之前做过', lesson: '识别模式能快速复用经验', improvement: '遇到新问题先思考是否见过类似' },
-      { category: 'pattern', type: 'success', priority: 'high', problem: '成功解决问题后没有总结', lesson: '总结经验能形成可复用模式', improvement: '解决问题后做记录' },
-      { category: 'pattern', type: 'success', priority: 'high', problem: '没有把好的实践变成习惯', lesson: '好习惯需要重复养成', improvement: '坚持执行好的实践' },
-      { category: 'pattern', type: 'mistake', priority: 'high', problem: '忽略项目中已有的模式', lesson: '遵循项目约定能减少理解成本', improvement: '先了解项目约定' },
-      { category: 'pattern', type: 'mistake', priority: 'high', problem: '没有把常用的代码片段存档', lesson: '建立个人代码库提高效率', improvement: '整理常用代码片段' },
-      { category: 'pattern', type: 'mistake', priority: 'high', problem: '解决后没有思考是否可应用到其他地方', lesson: '一个解决方案可能有多种用途', improvement: '多思考通用性' },
-
-      // 错误教训类 (Medium Priority)
-      { category: 'mistake', type: 'mistake', priority: 'medium', problem: '提交了不完整的代码', lesson: '提交前检查改动是否完整', improvement: '使用git diff检查' },
-      { category: 'mistake', type: 'mistake', priority: 'medium', problem: '写了没有测试的代码', lesson: '测试是代码质量的基础', improvement: '为新代码添加测试' },
-      { category: 'mistake', type: 'mistake', priority: 'medium', problem: '创建了不必要的文件', lesson: '保持项目整洁很重要', improvement: '删除不需要的文件' },
-      { category: 'mistake', type: 'mistake', priority: 'medium', problem: '提交信息不清楚', lesson: '清晰的提交信息便于追溯', improvement: '写描述性提交信息' },
-
-      // 成功经验类 (Medium Priority)
-      { category: 'success', type: 'success', priority: 'medium', problem: '没有分享好的解决方案', lesson: '分享能帮助他人也能加深理解', improvement: '记录并分享经验' },
-      { category: 'success', type: 'success', priority: 'medium', problem: '没有利用好代码审查', lesson: '代码审查是学习的好机会', improvement: '认真对待审查意见' },
-      { category: 'success', type: 'success', priority: 'medium', problem: '没有主动寻求反馈', lesson: '反馈能帮助发现盲点', improvement: '主动询问反馈' },
-      { category: 'success', type: 'success', priority: 'medium', problem: '没有把学到的知识巩固', lesson: '知识需要复习才能牢记', improvement: '定期复习学到的内容' },
-
-      // 综合能力类 (Medium Priority)
-      { category: 'thinking', type: 'mistake', priority: 'medium', problem: '没有考虑边界情况', lesson: '边界情况往往是最容易出错的地方', improvement: '列出所有边界情况' },
-      { category: 'thinking', type: 'mistake', priority: 'medium', problem: '没有考虑代码的可维护性', lesson: '可维护的代码减少未来的麻烦', improvement: '写代码时考虑可读性' },
-      { category: 'thinking', type: 'mistake', priority: 'medium', problem: '没有考虑性能影响', lesson: '性能问题往往在后期影响明显', improvement: '关注代码复杂度' }
-    ];
-
-    let added = 0;
-    for (const lesson of defaultLessons) {
-      try {
-        this.lessonLibrary.add(lesson);
-        added++;
-      } catch (e) {
-        // 跳过重复或无效的教训
-      }
-    }
-
-    console.log(`[BrainSystem] 已初始化 ${added} 条预设教训`);
+    return this._lessonInitEngine._initDefaultLessons();
   }
 
   /**
@@ -665,148 +362,15 @@ class BrainSystem {
    * 这是习惯养成的核心：做决定前自动查教训库
    */
   beforeDecision(context) {
-    if (!this.enabled || !this.config.enableMetaCognition) {
-      return { questions: [], selfCheck: { status: 'disabled' } };
-    }
-
-    this.state.decisionCount++;
-    this.state.lastContext = context;
-    this.state.activeThinking = true;
-
-    // 1. 元认知自问（原有）
-    const metaQuestions = this.metaCognition.beforeAsk(context);
-    const selfCheck = this.metaCognition.check(context);
-
-    // 2. 【新增】自动查询教训库 - 习惯养成的关键！
-    const lessonSuggestions = this.lessonLibrary.getSuggestions(context);
-    const relatedLessons = this.lessonLibrary.getRelated(context, 3);
-
-    // 3. 融合教训到元认知问题中
-    const enhancedQuestions = this._enhanceWithLessons(metaQuestions, lessonSuggestions, context);
-
-    // 4. 如果有未应用的高优先级教训，发出警告
-    const pendingWarnings = lessonSuggestions
-      .filter((s) => s.priority === 'high' && !this._isRecentApplied(s.lessonId))
-      .map((s) => ({
-        type: 'lesson-warning',
-        lessonId: s.lessonId,
-        message: `相关教训: ${s.lesson}`,
-        improvement: s.improvement
-      }));
-
-    // 记录教训查询统计
-    if (lessonSuggestions.length > 0) {
-      console.log(`[BrainSystem] 决策前查询教训库: ${lessonSuggestions.length} 条建议`);
-    }
-
-    // 记录到学习系统
-    if (this.selfLearning && this.selfLearning.recordIntent) {
-      try {
-        this.selfLearning.recordIntent(context, 'brain-decision', true);
-      } catch (e) {
-        // 忽略记录错误
-      }
-    }
-
-    return {
-      questions: enhancedQuestions,
-      selfCheck,
-      context,
-      lessonWarnings: pendingWarnings,
-      relatedLessons: relatedLessons.map((l) => ({ id: l.id, lesson: l.lesson, applied: l.applied })),
-      timestamp: Date.now()
-    };
+    return this.decisionEngine.beforeDecision(context);
   }
 
-  /**
-   * 将教训融入元认知问题
-   */
-  _enhanceWithLessons(metaQuestions, lessonSuggestions, _context) {
-    if (!lessonSuggestions || lessonSuggestions.length === 0) {
-      return metaQuestions.questions;
-    }
-
-    const enhanced = [...metaQuestions.questions];
-
-    // 按优先级添加工具性提醒
-    const lessonReminders = lessonSuggestions.slice(0, 2).map((s, i) => ({
-      question: s.lesson,
-      hint: s.improvement,
-      type: 'lesson-reminder',
-      priority: s.priority,
-      lessonId: s.lessonId,
-      reason: `相关教训#${i + 1}`
-    }));
-
-    // 高优先级教训放在最前面
-    if (lessonSuggestions[0]?.priority === 'high') {
-      enhanced.unshift(...lessonReminders);
-    } else {
-      enhanced.push(...lessonReminders);
-    }
-
-    return enhanced;
-  }
-
-  /**
-   * 检查教训是否最近应用过
-   */
   _isRecentApplied(lessonId) {
-    const lesson = this.lessonLibrary.get(lessonId);
-    if (!lesson || !lesson.lastApplied) {return false;}
-
-    const hoursSinceApplied = (Date.now() - new Date(lesson.lastApplied).getTime()) / (1000 * 60 * 60);
-    return hoursSinceApplied < 24; // 24小时内应用过则不警告
+    return this.decisionEngine._isRecentApplied(lessonId);
   }
 
-  /**
-   * 决策后：复盘 + 自动经验记录
-   *
-   * 习惯养成：完成任务后自动自检+反思+教训应用追踪
-   */
   afterDecision(context, result, action = null) {
-    if (!this.enabled) {return;}
-
-    this.state.lastResult = result;
-    this.state.activeThinking = false;
-
-    // 1. 元认知复盘
-    const reflection = this.metaCognition.afterReview(context, result);
-
-    // 2. 进化学习
-    if (this.config.enableAutoEvolution) {
-      this.evolution.learn(context, action, result);
-    }
-
-    // 3. 自动自检
-    const autoReview = this._autoSelfReview(context, result, action);
-
-    // 4. 教训应用追踪
-    const lessonTracking = this._trackLessonUsage(context, result, action);
-
-    // 5. 【v18.0新增】全方面检查自动触发 - 每次任务完成都执行
-    const comprehensiveResult = this._autoComprehensiveCheck(context, result, action);
-
-    // 6. 记录到学习系统
-    if (this.selfLearning && this.selfLearning.recordResponse) {
-      try {
-        this.selfLearning.recordResponse(context, result,
-          result.success ? 0.8 : 0.4
-        );
-      } catch (e) {
-        // 自学记录失败不影响主流程
-      }
-    }
-
-    return {
-      reflection,
-      context,
-      result,
-      autoReview,
-      lessonTracking,
-      comprehensiveCheck: comprehensiveResult,
-      timestamp: Date.now()
-    };
+    return this.decisionEngine.afterDecision(context, result, action);
   }
 
   /**
@@ -814,325 +378,34 @@ class BrainSystem {
    * 每次任务完成后自动执行，不需要用户提醒
    */
   _autoComprehensiveCheck(context, result, _action) {
-    // 只有任务成功才触发全方面检查
-    if (!result || result.success === false) {
-      return { triggered: false, reason: '任务未成功' };
-    }
-
-    // 检查是否已经初始化了ComprehensiveChecker
-    if (!this.comprehensiveChecker) {
-      return { triggered: false, reason: 'ComprehensiveChecker未初始化' };
-    }
-
-    // 执行全方面检查
-    this.comprehensiveChecker.run().then((report) => {
-      const passed = report.stats?.passed || 0;
-      const failed = report.stats?.failed || 0;
-
-      if (failed > 0) {
-        console.log(`[BrainSystem] ⚠️ 全方面检查发现问题: ${failed}项`);
-        console.log('[BrainSystem] 任务完成后自动检查 - 请修复后再继续');
-      } else {
-        console.log(`[BrainSystem] ✅ 全方面检查通过: ${passed}/${56}`);
-      }
-
-      return {
-        triggered: true,
-        passed,
-        failed,
-        timestamp: Date.now()
-      };
-    }).catch((e) => {
-      console.log(`[BrainSystem] 全方面检查跳过: ${e.message}`);
-    });
-
-    return { triggered: true, status: 'executing' };
+    return this._comprehensiveCheck._autoComprehensiveCheck(context, result, _action);
   }
 
-  /**
-   * 自动自检：任务完成后检查是否遗漏标准流程
-   */
   _autoSelfReview(context, result, action) {
-    const checks = [];
-
-    // 检查1: 是否记录了教训（针对新问题）
-    const wasSuccessful = result && (result.success !== false);
-    if (wasSuccessful && action && !this._hasRecentLesson(context)) {
-      checks.push({
-        check: 'lesson-record',
-        status: 'pending',
-        suggestion: '是否需要将这次经验记录到教训库？'
-      });
-    }
-
-    // 检查2: 是否执行了自检流程
-    if (action && this._shouldSelfCheck(action)) {
-      checks.push({
-        check: 'self-check',
-        status: 'recommended',
-        suggestion: '建议运行自检流程验证结果'
-      });
-    }
-
-    // 检查3: 是否清理了垃圾
-    if (action && this._mayHaveLeftovers(action)) {
-      checks.push({
-        check: 'cleanup',
-        status: 'recommended',
-        suggestion: '检查是否有需要清理的临时文件或空目录'
-      });
-    }
-
-    if (checks.length > 0) {
-      console.log(`[BrainSystem] 自动自检: ${checks.length} 项待处理`);
-    }
-
-    return {
-      checks,
-      hasPendingChecks: checks.length > 0,
-      timestamp: Date.now()
-    };
+    return this._lessonTracker._autoSelfReview(context, result, action);
   }
 
-  /**
-   * 【新增】教训应用追踪
-   * 自动记录决策中使用了哪些教训，并评估教训有效性
-   *
-   * 核心逻辑：每次决策都会查询教训库并尝试应用
-   */
   _trackLessonUsage(context, result, _action) {
-    const tracking = {
-      lessonsUsed: [],
-      lessonsApplied: [],
-      effectiveness: null,
-      timestamp: Date.now()
-    };
-
-    // 1. 获取本次决策前查询的教训建议
-    const suggestions = this.lessonLibrary.getSuggestions(context);
-
-    // 判断任务是否成功
-    const _wasSuccessful = result && (result.success !== false);
-
-    // 2. 记录所有被查询到的教训（无论关联度）
-    for (const suggestion of suggestions) {
-      const lesson = this.lessonLibrary.get(suggestion.lessonId);
-      if (!lesson) {continue;}
-
-      tracking.lessonsUsed.push({
-        id: lesson.id,
-        lesson: `${lesson.lesson.substring(0, 50)}...`,
-        relevance: 'queried',
-        wasApplied: lesson.applied
-      });
-
-      // 3. 只要教训被查询到并显示，就算应用了（习惯养成关键！）
-      // 不再要求任务成功，只要教训弹出给用户看就算应用
-      if (!lesson.applied) {
-        this.lessonLibrary.markApplied(lesson.id);
-        tracking.lessonsApplied.push(lesson.id);
-        console.log(`[BrainSystem] ✓ 教训已应用: ${lesson.lesson.substring(0, 30)}...`);
-      }
-    }
-
-    // 4. 评估教训库整体有效性
-    tracking.effectiveness = this._evaluateLessonEffectiveness();
-
-    if (tracking.lessonsUsed.length > 0) {
-      console.log(`[BrainSystem] 教训追踪: 查询 ${tracking.lessonsUsed.length} 条, 应用 ${tracking.lessonsApplied.length} 条`);
-    }
-
-    return tracking;
+    return this._lessonTracker._trackLessonUsage(context, result, _action);
   }
 
-  /**
-   * 计算教训与当前任务的关联度
-   */
-  _calculateLessonRelevance(context, lesson) {
-    const contextLower = context.toLowerCase();
-    const lessonLower = (`${lesson.problem} ${lesson.lesson}`).toLowerCase();
-
-    // 提取关键词
-    const getKeywords = (text) => {
-      return text.split(/\s+/)
-        .filter((w) => w.length > 2)
-        .filter((w) => !['这个', '那个', '什么', '怎么', '如何'].includes(w));
-    };
-
-    const contextWords = getKeywords(contextLower);
-    const lessonWords = getKeywords(lessonLower);
-
-    // 计算重叠度
-    const overlap = contextWords.filter((w) => lessonWords.includes(w)).length;
-    const maxLen = Math.max(contextWords.length, lessonWords.length);
-
-    return maxLen > 0 ? overlap / maxLen : 0;
-  }
-
-  /**
-   * 评估教训库整体有效性
-   */
   _evaluateLessonEffectiveness() {
-    const stats = this.lessonLibrary.getStats();
-
-    const applied = stats.applied;
-    const total = stats.total;
-    const rate = total > 0 ? Math.round((applied / total) * 100) : 0;
-
-    return {
-      totalLessons: total,
-      appliedCount: applied,
-      unappliedCount: stats.unapplied,
-      applicationRate: `${rate}%`,
-      health: rate >= 50 ? 'good' : rate >= 30 ? 'fair' : 'needs-attention'
-    };
+    return this._lessonTracker._evaluateLessonEffectiveness();
   }
 
-  /**
-   * 获取教训应用历史
-   */
   getLessonHistory(limit = 10) {
-    const applied = this.lessonLibrary.search('', {
-      type: 'success',
-      limit: limit
-    }).filter((l) => l.applied);
-
-    return applied.map((l) => ({
-      id: l.id,
-      lesson: l.lesson,
-      appliedAt: l.lastApplied,
-      applyCount: l.applyCount
-    }));
+    return this._lessonTracker.getLessonHistory(limit);
   }
 
-  /**
-   * 检查是否有最近的教训
-   */
   _hasRecentLesson(context) {
-    const recent = this.lessonLibrary.search(context, { limit: 1 });
-    if (recent.length === 0) {return false;}
-
-    const hoursSince = (Date.now() - new Date(recent[0].date).getTime()) / (1000 * 60 * 60);
-    return hoursSince < 2;
-  }
-
-  /**
-   * 判断是否应该自检
-   */
-  _shouldSelfCheck(action) {
-    const selfCheckKeywords = ['create', 'write', 'edit', 'build', 'implement', 'add', 'modify'];
-    return selfCheckKeywords.some((k) => action.toLowerCase().includes(k));
-  }
-
-  /**
-   * 判断是否可能产生残留
-   */
-  _mayHaveLeftovers(action) {
-    const creationKeywords = ['create', 'write', 'add', 'new'];
-    return creationKeywords.some((k) => action.toLowerCase().includes(k));
+    return this.decisionEngine._hasRecentLesson(context);
   }
 
   /**
    * 解决问题：组合正向和逆向思维
    */
   solve(problem, _options = {}) {
-    const startTime = Date.now();
-    const analysis = {
-      problem,
-      timestamp: startTime,
-      perspectives: {}
-    };
-
-    // 1. 元认知：确认理解
-    const metaCheck = this.metaCognition.check(problem.description || problem);
-    analysis.metaCheck = metaCheck;
-
-    // 2. 正向思维：多角度分析
-    analysis.perspectives.normal = this.thinking.multiAngle(problem);
-
-    // 3. 逆向思维：从结果反推
-    if (this.config.enableReverseThinking) {
-      analysis.perspectives.reverse = this.reverseThinking.analyze(problem);
-    }
-
-    // 4. 组合分析：选择最佳方案
-    const combination = this.combinePerspectives(analysis.perspectives);
-    analysis.combined = combination;
-
-    // 5. 生成解决方案
-    const solution = {
-      description: combination.conclusion,
-      confidence: combination.confidence,
-      perspectives: Object.keys(analysis.perspectives),
-      reasoning: combination.reasoning,
-      alternative: combination.alternatives[1] || null,
-      executionTime: Date.now() - startTime
-    };
-
-    // 6. 记录到进化系统
-    if (this.config.enableAutoEvolution && this.selfLearning) {
-      this.evolution.recordProblemSolution(problem, solution);
-    }
-
-    return solution;
-  }
-
-  /**
-   * 组合多种视角的分析结果
-   */
-  combinePerspectives(perspectives) {
-    const conclusions = [];
-    const reasoning = [];
-
-    // 收集所有正向思维结论
-    if (perspectives.normal) {
-      for (const [angle, result] of Object.entries(perspectives.normal)) {
-        if (result.conclusion) {
-          conclusions.push({ type: 'normal', angle, conclusion: result.conclusion });
-          reasoning.push({ type: 'normal', angle, reason: result.reasoning });
-        }
-      }
-    }
-
-    // 收集逆向思维结论
-    if (perspectives.reverse) {
-      conclusions.push({ type: 'reverse', angle: 'reverse', conclusion: perspectives.reverse.conclusion });
-      reasoning.push({ type: 'reverse', angle: 'reverse', reason: perspectives.reverse.reasoning });
-    }
-
-    // 计算置信度
-    const confidence = this.calculateConfidence( conclusions);
-
-    // 选择主要结论（基于置信度）
-    const sortedConclusions = conclusions.sort((a, b) => b.confidence - a.confidence);
-    const primary = sortedConclusions[0];
-    const alternatives = sortedConclusions.slice(1);
-
-    return {
-      conclusion: primary ? primary.conclusion : '需要更多信息',
-      confidence,
-      reasoning: reasoning.filter((r) => r.type === primary?.type),
-      alternatives: alternatives.map((a) => a.conclusion)
-    };
-  }
-
-  /**
-   * 计算结论置信度
-   */
-  calculateConfidence(conclusions) {
-    if (!conclusions || conclusions.length === 0) {return 0.5;}
-    if (conclusions.length === 1) {return 0.7;}
-
-    // 多种视角一致时置信度高
-    const hasReverse = conclusions.some((c) => c.type === 'reverse');
-    const uniqueAngles = new Set(conclusions.map((c) => c.angle)).size;
-
-    let confidence = 0.5;
-    if (hasReverse) {confidence += 0.15;} // 逆向思维加成
-    if (uniqueAngles >= 3) {confidence += 0.2;} // 多角度加成
-    if (conclusions.length >= 3) {confidence += 0.1;} // 数量加成
-
-    return Math.min(confidence, 0.95);
+    return this._thinkingEngine.solve(problem, _options);
   }
 
   /**
@@ -1167,427 +440,41 @@ class BrainSystem {
    * 获取系统状态
    */
   getStatus() {
-    const lessonStats = this.lessonLibrary.getStats();
-    const evolutionStats = this.evolution.getStats();
-
-    return {
-      enabled: this.enabled,
-      decisionCount: this.state.decisionCount,
-      capabilities: {
-        metaCognition: this.config.enableMetaCognition,
-        reverseThinking: this.config.enableReverseThinking,
-        autoEvolution: this.config.enableAutoEvolution
-      },
-      evolution: evolutionStats,
-      tools: this.tools.getStats(),
-      lessons: lessonStats,
-      health: this._calculateHealth()
-    };
+    return this._statusReporter.getStatus();
   }
 
-  /**
-   * 【新增】获取自我改进建议
-   */
   getImprovements() {
-    const health = this._calculateHealth();
-    const suggestions = [...health.improvements];
-
-    // 基于教训库分析
-    const lessonStats = this.lessonLibrary.getStats();
-    if (lessonStats.unapplied > lessonStats.total * 0.7) {
-      suggestions.push('教训积累过多但应用率低，可能缺乏与决策流程的结合');
-    }
-
-    // 基于元认知分析
-    const metaAnalysis = this.metaCognition.analyzeHistory();
-    if (metaAnalysis.uncertainRate > 0.5) {
-      suggestions.push('元认知不确定性较高，建议增加信息收集');
-    }
-
-    // 基于决策频率
-    if (this.state.decisionCount > 50 && health.metrics.evolution.recentLearnings < 5) {
-      suggestions.push('决策频繁但学习记录少，建议增加复盘频率');
-    }
-
-    return {
-      health,
-      suggestions,
-      priority: health.level === 'critical' ? 'high'
-        : health.level === 'needs-improvement' ? 'medium'
-          : 'low'
-    };
+    return this._statusReporter.getImprovements();
   }
 
-  /**
-   * 【改进】计算大脑系统整体健康度
-   * 更合理的评分：既有使用指标，也有系统就绪状态
-   */
+  // ========== v13.0 已提取到 SelfMonitor ==========
+
   _calculateHealth() {
-    const health = {
-      score: 0,
-      level: 'unknown',
-      metrics: {},
-      improvements: []
-    };
-
-    // 1. 教训库健康度 (权重: 25%)
-    const lessonStats = this.lessonLibrary.getStats();
-    const lessonAvailable = lessonStats.total > 0 ? 1 : 0; // 有教训库就加分
-    const lessonRate = lessonStats.total > 0
-      ? lessonStats.applied / lessonStats.total
-      : 0;
-    // 既有教训库(50%)又有应用率(50%)
-    const lessonScore = lessonAvailable * 0.5 + lessonRate * 0.5;
-    health.metrics.lessonLibrary = {
-      score: lessonScore,
-      total: lessonStats.total,
-      applied: lessonStats.applied,
-      rate: `${Math.round(lessonRate * 100)}%`,
-      hasSystem: lessonAvailable === 1
-    };
-
-    if (lessonRate < 0.3 && lessonStats.total > 5) {
-      health.improvements.push('教训应用率过低，建议检查教训是否与实际工作脱节');
-    }
-
-    // 2. 系统完整性 (权重: 25%) - 新增：检查核心模块是否就绪
-    const coreModules = ['metaCognition', 'thinking', 'evolution', 'tools', 'reverseThinking', 'lessonLibrary'];
-    const activeModules = coreModules.filter((m) => this[m]).length;
-    const systemScore = activeModules / coreModules.length;
-    health.metrics.systemReady = {
-      score: systemScore,
-      activeModules: activeModules,
-      totalModules: coreModules.length
-    };
-
-    // 3. 主动性评分 (权重: 20%) - 新增：是否有自检和监控
-    let proactiveScore = 0;
-    if (this.selfCheckInterval) {proactiveScore += 0.5;}
-    if (this.monitoringInterval) {proactiveScore += 0.5;}
-    health.metrics.proactive = {
-      score: proactiveScore,
-      selfCheck: !!this.selfCheckInterval,
-      monitoring: !!this.monitoringInterval
-    };
-
-    // 4. 进化系统 (权重: 15%)
-    const evolutionStats = this.evolution.getStats();
-    const recentEvolution = evolutionStats?.recentLearnings?.length || 0;
-    const evolutionScore = Math.min(recentEvolution / 10, 1);
-    health.metrics.evolution = {
-      score: evolutionScore,
-      recentLearnings: recentEvolution
-    };
-
-    // 5. 决策活跃度 (权重: 15%)
-    const decisionCount = this.state.decisionCount;
-    const diversityScore = Math.min(decisionCount / 20, 1);
-    health.metrics.decisionDiversity = {
-      score: diversityScore,
-      count: decisionCount
-    };
-
-    // 计算总分 - 更均衡的权重
-    const weightedScore =
-      (health.metrics.lessonLibrary.score * 0.20 +
-       health.metrics.systemReady.score * 0.20 +
-       health.metrics.proactive.score * 0.20 +
-       health.metrics.evolution.score * 0.20 +
-       health.metrics.decisionDiversity.score * 0.20);
-
-    // 基础分30分 + 最高70分的加权得分
-    // - 基础30: 确保不是0分，但也不及格
-    // - 加权70: 使用越活跃分数越高，上限100
-    const baseScore = 30;
-    health.score = Math.round(baseScore + weightedScore * 70);
-
-    // 健康等级 - 更宽松的阈值
-    if (health.score >= 80) {health.level = 'excellent';}
-    else if (health.score >= 60) {health.level = 'good';}
-    else if (health.score >= 40) {health.level = 'fair';}
-    else if (health.score >= 20) {health.level = 'needs-improvement';}
-    else {health.level = 'critical';}
-
-    return health;
+    return this._healthMonitor._calculateHealth();
   }
-
-  /**
-   * 【新增】主动自我监控循环
-   * 让AI从被动变为主动：不等待外部调用，主动发现问题
-   */
   startSelfMonitoring(intervalMs = 60000) {
-    if (this.monitoringInterval) {
-      console.log('[BrainSystem] 监控已启动');
-      return;
-    }
-
-    this.monitoringInterval = setInterval(() => {
-      this._selfMonitor();
-    }, intervalMs);
-
-    console.log(`[BrainSystem] 主动监控已启动 (间隔: ${intervalMs}ms)`);
-    this._selfMonitor(); // 立即执行一次
+    return this._healthMonitor.startSelfMonitoring(intervalMs);
   }
-
-  /**
-   * 停止监控
-   */
   stopSelfMonitoring() {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-      this.monitoringInterval = null;
-      console.log('[BrainSystem] 监控已停止');
-    }
+    return this._healthMonitor.stopSelfMonitoring();
   }
-
-  /**
-   * 自我监控核心
-   */
   _selfMonitor() {
-    const monitor = {
-      timestamp: Date.now(),
-      checks: []
-    };
-
-    // 检查1: 教训库健康度
-    const lessonStats = this.lessonLibrary.getStats();
-    const lessonHealth = this._checkLessonHealth(lessonStats);
-    monitor.checks.push(lessonHealth);
-
-    // 检查2: 决策质量
-    const decisionQuality = this._checkDecisionQuality();
-    monitor.checks.push(decisionQuality);
-
-    // 检查3: 进化活跃度
-    const evolutionActivity = this._checkEvolutionActivity();
-    monitor.checks.push(evolutionActivity);
-
-    // 检查4: 工具使用效率
-    const toolEfficiency = this._checkToolEfficiency();
-    monitor.checks.push(toolEfficiency);
-
-    // 检查5: 元认知状态
-    const metaStatus = this._checkMetaCognitionStatus();
-    monitor.checks.push(metaStatus);
-
-    // 汇总结果
-    const issues = monitor.checks.filter((c) => c.status === 'warning' || c.status === 'critical');
-
-    if (issues.length > 0) {
-      console.log(`[BrainSystem] 主动监控: 发现 ${issues.length} 个问题`);
-      for (const issue of issues) {
-        console.log(`  - ${issue.check}: ${issue.message}`);
-      }
-
-      // 自动尝试修复可修复的问题
-      this._autoFixIssues(issues);
-    }
-
-    monitor.issueCount = issues.length;
-    monitor.summary = issues.length === 0 ? '正常' : `${issues.length}个问题待处理`;
-
-    return monitor;
+    return this._healthMonitor._selfMonitor();
   }
-
-  /**
-   * 检查教训库健康度
-   */
-  _checkLessonHealth(stats) {
-    const check = { check: 'lesson-health', status: 'ok', score: 100, message: '正常', issues: [] };
-
-    if (stats.total === 0) {
-      check.status = 'warning';
-      check.score = 30;
-      check.message = '教训库为空';
-      check.issues.push('建议开始积累经验');
-    } else if (stats.total > 20 && stats.applied === 0) {
-      check.status = 'critical';
-      check.score = 10;
-      check.message = '教训应用率为0';
-      check.issues.push('教训未被使用，需要检查集成');
-    } else if (stats.unapplied > stats.total * 0.8) {
-      check.status = 'warning';
-      check.score = 40;
-      check.message = '未应用教训过多';
-      check.issues.push('考虑清理或应用低价值教训');
-    }
-
-    return check;
-  }
-
-  /**
-   * 检查决策质量
-   */
   _checkDecisionQuality() {
-    const check = { check: 'decision-quality', status: 'ok', score: 100, message: '正常', issues: [] };
-
-    const decisionCount = this.state.decisionCount;
-    const metaAnalysis = this.metaCognition.analyzeHistory();
-
-    if (decisionCount === 0) {
-      check.status = 'warning';
-      check.score = 50;
-      check.message = '尚无决策记录';
-    } else if (metaAnalysis.uncertainRate > 0.6) {
-      check.status = 'warning';
-      check.score = 40;
-      check.message = '不确定性过高';
-      check.issues.push('增加信息收集后再决策');
-    }
-
-    return check;
+    return this._healthMonitor._checkDecisionQuality();
   }
-
-  /**
-   * 检查进化活跃度
-   */
   _checkEvolutionActivity() {
-    const check = { check: 'evolution-activity', status: 'ok', score: 100, message: '正常', issues: [] };
-
-    const evolutionStats = this.evolution.getStats();
-    const recentCount = evolutionStats?.recentLearnings?.length || 0;
-
-    if (recentCount === 0) {
-      check.status = 'warning';
-      check.score = 30;
-      check.message = '无近期学习';
-      check.issues.push('建议增加任务后的复盘');
-    } else if (recentCount < 3 && this.state.decisionCount > 10) {
-      check.status = 'warning';
-      check.score = 50;
-      check.message = '学习频率偏低';
-      check.issues.push('决策多但学习少，注意提取经验');
-    }
-
-    return check;
+    return this._healthMonitor._checkEvolutionActivity();
   }
-
-  /**
-   * 检查工具使用效率
-   */
   _checkToolEfficiency() {
-    const check = { check: 'tool-efficiency', status: 'ok', score: 100, message: '正常', issues: [] };
-
-    const toolStats = this.tools.getStats();
-
-    if (toolStats.usageCount === 0 && this.state.decisionCount > 5) {
-      check.status = 'warning';
-      check.score = 40;
-      check.message = '未使用工具';
-      check.issues.push('考虑使用工具辅助决策');
-    }
-
-    return check;
+    return this._healthMonitor._checkToolEfficiency();
   }
-
-  /**
-   * 检查元认知状态
-   */
   _checkMetaCognitionStatus() {
-    const check = { check: 'meta-status', status: 'ok', score: 100, message: '正常', issues: [] };
-
-    const history = this.metaCognition.history;
-
-    if (history.length > 50) {
-      check.status = 'warning';
-      check.score = 70;
-      check.message = '复盘历史较长';
-      check.issues.push('考虑压缩历史记录');
-    }
-
-    return check;
+    return this._healthMonitor._checkMetaCognitionStatus();
   }
-
-  /**
-   * 自动修复可修复的问题
-   */
   _autoFixIssues(issues) {
-    for (const issue of issues) {
-      try {
-        switch (issue.check) {
-        case 'lesson-health':
-          if (issue.status === 'critical' && issue.issues.includes('教训未被使用，需要检查集成')) {
-            // 触发一次教训调用测试
-            this.beforeDecision('health-check');
-            console.log('[BrainSystem] 已尝试修复教训集成');
-          }
-          break;
-
-        case 'evolution-activity':
-          if (issue.issues.includes('建议增加任务后的复盘')) {
-            this.afterDecision('auto-monitor', { success: true }, 'self-check');
-            console.log('[BrainSystem] 已触发自动复盘');
-          }
-          break;
-
-        case 'meta-status':
-          if (issue.issues.includes('考虑压缩历史记录')) {
-            this.metaCognition.history = this.metaCognition.history.slice(-30);
-            console.log('[BrainSystem] 已压缩复盘历史');
-          }
-          break;
-        }
-      } catch (e) {
-        console.log(`[BrainSystem] 自动修复失败: ${e.message}`);
-      }
-    }
-  }
-
-  /**
-   * 【新增】跨任务学习
-   * 从多个任务中提取通用模式
-   */
-  crossTaskLearning(tasks) {
-    if (!Array.isArray(tasks) || tasks.length < 2) {
-      return { message: '需要至少2个任务才能进行跨任务学习' };
-    }
-
-    const patterns = {
-      common: [],
-      sequence: [],
-      context: []
-    };
-
-    // 提取通用模式
-    const taskContexts = tasks.map((t) => typeof t === 'string' ? t : t.context || '');
-    const taskActions = tasks.map((t) => typeof t === 'string' ? '' : t.action || '');
-
-    // 词频分析
-    const wordCount = {};
-    for (const ctx of taskContexts) {
-      const words = ctx.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-      for (const word of words) {
-        wordCount[word] = (wordCount[word] || 0) + 1;
-      }
-    }
-
-    // 找出共同关键词
-    const commonWords = Object.entries(wordCount)
-      .filter(([_, count]) => count >= 2)
-      .map(([word]) => word);
-
-    patterns.common = commonWords;
-
-    // 序列模式
-    for (let i = 0; i < taskActions.length - 1; i++) {
-      if (taskActions[i] && taskActions[i + 1]) {
-        patterns.sequence.push(`${taskActions[i]} → ${taskActions[i + 1]}`);
-      }
-    }
-
-    // 如果发现通用模式，建议记录为教训
-    if (commonWords.length > 0) {
-      const pattern = commonWords.join(', ');
-      console.log(`[BrainSystem] 跨任务学习: 发现通用模式 "${pattern}"`);
-    }
-
-    return {
-      taskCount: tasks.length,
-      patterns,
-      insight: commonWords.length > 0
-        ? `这些任务可能属于同一领域: ${commonWords.slice(0, 3).join(', ')}`
-        : '任务之间暂无明显关联'
-    };
+    return this._healthMonitor._autoFixIssues(issues);
   }
 
   /**
@@ -1595,59 +482,7 @@ class BrainSystem {
    * 建立教训之间的关联网络
    */
   buildKnowledgeGraph() {
-    const graph = {
-      nodes: [],
-      edges: [],
-      clusters: []
-    };
-
-    // 节点：每个教训
-    const lessons = this.lessonLibrary.search('', { limit: 100 });
-
-    for (const lesson of lessons) {
-      graph.nodes.push({
-        id: lesson.id,
-        label: `${lesson.lesson.substring(0, 30)}...`,
-        category: lesson.category,
-        priority: lesson.priority,
-        applied: lesson.applied
-      });
-    }
-
-    // 边：基于相似度的关联
-    for (let i = 0; i < lessons.length; i++) {
-      for (let j = i + 1; j < lessons.length; j++) {
-        const similarity = this._calculateLessonRelevance(lessons[i].problem, lessons[j]);
-
-        if (similarity > 0.5) {
-          graph.edges.push({
-            source: lessons[i].id,
-            target: lessons[j].id,
-            weight: Math.round(similarity * 100)
-          });
-        }
-      }
-    }
-
-    // 聚类：基于类别和标签
-    const categoryGroups = {};
-    for (const lesson of lessons) {
-      const cat = lesson.category || 'general';
-      if (!categoryGroups[cat]) {
-        categoryGroups[cat] = [];
-      }
-      categoryGroups[cat].push(lesson.id);
-    }
-
-    graph.clusters = Object.entries(categoryGroups).map(([category, nodeIds]) => ({
-      category,
-      nodeIds,
-      size: nodeIds.length
-    }));
-
-    console.log(`[BrainSystem] 知识图谱: ${graph.nodes.length} 节点, ${graph.edges.length} 边, ${graph.clusters.length} 聚类`);
-
-    return graph;
+    return this._knowledgeGraph.buildKnowledgeGraph(this);
   }
 
   /**
@@ -1655,117 +490,29 @@ class BrainSystem {
    * 基于历史预测可能的问题
    */
   predictIssues() {
-    const predictions = {
-      risks: [],
-      opportunities: []
-    };
-
-    // 基于教训库预测
-    const stats = this.lessonLibrary.getStats();
-    if (stats.total > 10 && stats.applied / stats.total < 0.3) {
-      predictions.risks.push({
-        type: 'low-lesson-usage',
-        probability: 0.7,
-        message: '教训应用率低可能导致重复犯错',
-        suggestion: '增强教训调用频率或在决策前强制查询'
-      });
-    }
-
-    // 基于决策频率预测
-    if (this.state.decisionCount > 20) {
-      predictions.opportunities.push({
-        type: 'pattern-extraction',
-        probability: 0.8,
-        message: '决策次数足够，可提取通用模式',
-        suggestion: '调用 crossTaskLearning 分析近期决策'
-      });
-    }
-
-    // 基于进化状态预测
-    const evolutionStats = this.evolution.getStats();
-    if (evolutionStats?.recentLearnings?.length === 0) {
-      predictions.risks.push({
-        type: 'no-learning',
-        probability: 0.6,
-        message: '近期无学习记录，可能错失改进机会',
-        suggestion: '触发一次深度复盘'
-      });
-    }
-
-    return predictions;
+    return this._evolutionCycle.predictIssues(this);
   }
 
   /**
    * 【新增】完整自我进化循环
    * 将所有能力整合为一个持续自我提升的闭环
    */
-  startEvolutionLoop(intervalMs = 300000) { // 默认5分钟
-    if (this.evolutionLoop) {
-      console.log('[BrainSystem] 进化循环已在运行');
-      return;
-    }
-
-    this.evolutionLoop = setInterval(() => {
-      this._runEvolutionCycle();
-    }, intervalMs);
-
-    console.log(`[BrainSystem] 自我进化循环已启动 (间隔: ${intervalMs}ms)`);
-    this._runEvolutionCycle(); // 立即执行一次
+  startEvolutionLoop(intervalMs = 300000) {
+    return this._evolutionCycle.startEvolutionLoop(this, intervalMs);
   }
 
   /**
    * 停止进化循环
    */
   stopEvolutionLoop() {
-    if (this.evolutionLoop) {
-      clearInterval(this.evolutionLoop);
-      this.evolutionLoop = null;
-      console.log('[BrainSystem] 进化循环已停止');
-    }
+    return this._evolutionCycle.stopEvolutionLoop(this);
   }
 
   /**
    * 执行一次完整的进化周期
    */
   _runEvolutionCycle() {
-    const cycle = {
-      startTime: Date.now(),
-      steps: []
-    };
-
-    console.log('[BrainSystem] ═══ 进化周期开始 ═══');
-
-    // 步骤1: 自我监控
-    const monitorResult = this._selfMonitor();
-    cycle.steps.push({ step: 'monitor', result: monitorResult.summary });
-
-    // 步骤2: 预测性改进
-    const predictions = this.predictIssues();
-    cycle.steps.push({ step: 'predict', result: `${predictions.risks.length}风险, ${predictions.opportunities.length}机会` });
-
-    // 步骤3: 生成行动计划
-    const actionPlan = this.generateActionPlan();
-    cycle.steps.push({ step: 'plan', result: `${actionPlan.actions.length}行动, ${actionPlan.autoExecuted.length}已执行` });
-
-    // 步骤4: 执行高优先级行动
-    for (const executed of actionPlan.autoExecuted) {
-      console.log(`  ✓ ${executed.action}: ${executed.result.success ? '成功' : '失败'}`);
-    }
-
-    // 步骤5: 记录进化
-    this.evolution.learn('evolution-cycle', 'complete', {
-      monitor: monitorResult.summary,
-      predictions: predictions.risks.length,
-      actionsExecuted: actionPlan.autoExecuted.length
-    });
-
-    cycle.endTime = Date.now();
-    cycle.duration = cycle.endTime - cycle.startTime;
-    cycle.steps.push({ step: 'complete', result: `${cycle.duration}ms` });
-
-    console.log(`[BrainSystem] ═══ 进化周期完成 (${cycle.duration}ms) ═══`);
-
-    return cycle;
+    return this._evolutionCycle._runEvolutionCycle(this);
   }
 
   /**
@@ -1862,80 +609,21 @@ class BrainSystem {
   }
 
   saveLongTermMemory() {
-    const memory = {
-      timestamp: new Date().toISOString(),
-      version: this.getVersion().version,
-      lessons: this.lessonLibrary.getStats(),
-      evolution: this.evolution.getStats(),
-      decisions: this.state.decisionCount,
-      keyInsights: this._extractKeyInsights()
-    };
-
-    try {
-      const memPath = path.join(process.cwd(), '.opencode', 'brain-memory.json');
-
-      const dir = path.dirname(memPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      fs.writeFileSync(memPath, JSON.stringify(memory, null, 2));
-      console.log('[BrainSystem] 长期记忆已保存');
-
-      return { success: true, path: memPath };
-    } catch (e) {
-      console.log('[BrainSystem] 长期记忆保存失败:', e.message);
-      return { success: false, error: e.message };
-    }
+    return this._memoryPersistence.saveLongTermMemory(this);
   }
 
   /**
    * 【新增】加载长期记忆
    */
   loadLongTermMemory() {
-    try {
-      const memPath = path.join(process.cwd(), '.opencode', 'brain-memory.json');
-
-      if (!fs.existsSync(memPath)) {
-        return { found: false };
-      }
-
-      const memory = JSON.parse(fs.readFileSync(memPath, 'utf8'));
-      console.log('[BrainSystem] 长期记忆已加载');
-
-      return { found: true, memory };
-    } catch (e) {
-      return { found: false, error: e.message };
-    }
+    return this._memoryPersistence.loadLongTermMemory();
   }
 
   /**
    * 提取关键洞察
    */
   _extractKeyInsights() {
-    const insights = [];
-
-    // 从教训库提取高价值洞察
-    const lessons = this.lessonLibrary.search('', { limit: 10, type: 'success' });
-    for (const lesson of lessons) {
-      insights.push({
-        type: 'lesson',
-        content: lesson.lesson.substring(0, 100),
-        source: lesson.source
-      });
-    }
-
-    // 从元认知提取洞察
-    const metaHistory = this.metaCognition.getHistory(3);
-    if (metaHistory.length > 0) {
-      insights.push({
-        type: 'meta',
-        content: `已完成 ${metaHistory.length} 次复盘`,
-        source: 'metaCognition'
-      });
-    }
-
-    return insights;
+    return this._memoryPersistence._extractKeyInsights(this);
   }
 
   /**
@@ -1978,528 +666,59 @@ class BrainSystem {
    * 【新增】自我意识 - 真正的元认知
    * 知道自己知道什么、不知道什么、擅长什么、欠缺什么
    */
+  // ========== v13.0 已提取到 IntrospectionEngine ==========
+
   getSelfAwareness() {
-    const awareness = {
-      identity: this._identifySelf(),
-      capabilities: this._assessCapabilities(),
-      knowledge: this._assessKnowledge(),
-      limitations: this._identifyLimitations(),
-      growth: this._assessGrowth()
-    };
-
-    return awareness;
+    return this._introspection.getSelfAwareness();
   }
-
-  /**
-   * 自我识别
-   */
-  _identifySelf() {
-    return {
-      name: 'AI Brain System',
-      version: 'v22.1',
-      type: 'Autonomous AI Agent',
-      core: 'Self-evolving intelligence with五大核心能力',
-      purpose: 'Assist and evolve through continuous learning'
-    };
-  }
-
-  /**
-   * 能力评估
-   */
   _assessCapabilities() {
-    const capabilities = {
-      metaCognition: {
-        level: 'high',
-        description: '自我反思与决策前后的分析',
-        evidence: `${this.metaCognition.history.length}次复盘记录`
-      },
-      independentThinking: {
-        level: 'medium-high',
-        description: '多角度分析、质疑、联想能力',
-        evidence: 'Thinking模块正常运行'
-      },
-      selfEvolution: {
-        level: 'medium',
-        description: '自动发现问题、生成行动计划、持续改进',
-        evidence: this.evolution.getStats().recentLearnings?.length || `${0}次学习`
-      },
-      toolUsage: {
-        level: 'medium',
-        description: '善用搜索、文档、调试工具',
-        evidence: `${this.tools.getStats().usageCount}次使用`
-      },
-      reverseThinking: {
-        level: 'high',
-        description: '从结果反推原理的逆向思维能力',
-        evidence: 'ReverseThinking模块已启用'
-      }
-    };
-
-    return capabilities;
+    return this._introspection._assessCapabilities();
   }
-
-  /**
-   * 知识评估 - 知道自己知道什么
-   */
   _assessKnowledge() {
-    const lessonStats = this.lessonLibrary.getStats();
-
-    const knowledge = {
-      total: lessonStats.total,
-      applied: lessonStats.applied,
-      domains: {},
-      topLessons: []
-    };
-
-    // 按领域分类
-    for (const [cat, name] of Object.entries(this.lessonLibrary.categories)) {
-      const count = this.lessonLibrary.lessons.filter((l) => l.category === cat).length;
-      if (count > 0) {
-        knowledge.domains[name] = count;
-      }
-    }
-
-    // 高价值教训
-    const highPriority = this.lessonLibrary.search('', {
-      limit: 5,
-      type: 'success'
-    }).filter((l) => l.priority === 'high');
-
-    knowledge.topLessons = highPriority.map((l) => ({
-      lesson: `${l.lesson.substring(0, 50)}...`,
-      category: l.category,
-      applied: l.applied
-    }));
-
-    return knowledge;
+    return this._introspection._assessKnowledge();
   }
-
-  /**
-   * 识别局限 - 知道自己不知道什么
-   */
   _identifyLimitations() {
-    const limitations = [];
-
-    // 基于教训库识别
-    const lessonStats = this.lessonLibrary.getStats();
-    if (lessonStats.total < 20) {
-      limitations.push({ area: '经验积累', desc: '教训库规模有限，需要更多实践积累' });
-    }
-    if (lessonStats.applied === 0) {
-      limitations.push({ area: '知识应用', desc: '教训未被实际应用，可能与实际脱节' });
-    }
-
-    // 基于预测识别
-    const predictions = this.predictIssues();
-    if (predictions.risks.length > 0) {
-      for (const risk of predictions.risks.slice(0, 2)) {
-        limitations.push({ area: risk.type, desc: risk.message });
-      }
-    }
-
-    // 基于元认知
-    const metaAnalysis = this.metaCognition.analyzeHistory();
-    if (metaAnalysis.message !== '暂无复盘历史' && metaAnalysis.uncertainRate > 0.5) {
-      limitations.push({ area: '决策确定性', desc: '不确定性较高，需要更多信息支持' });
-    }
-
-    return limitations;
+    return this._introspection._identifyLimitations();
   }
-
-  /**
-   * 成长评估
-   */
   _assessGrowth() {
-    const health = this._calculateHealth();
-    const lessonStats = this.lessonLibrary.getStats();
-
-    return {
-      healthScore: health.score,
-      healthLevel: health.level,
-      lessonsGained: lessonStats.total,
-      lessonsApplied: lessonStats.applied,
-      decisionsMade: this.state.decisionCount,
-      trend: this._calculateGrowthTrend()
-    };
+    return this._introspection._assessGrowth();
   }
-
-  /**
-   * 计算成长趋势
-   */
   _calculateGrowthTrend() {
-    const _lessonStats = this.lessonLibrary.getStats();
-    const recent = this.lessonLibrary.lessons.slice(-5);
-
-    if (recent.length === 0) {return 'unknown';}
-
-    const recentDays = (Date.now() - new Date(recent[0].date).getTime()) / (1000 * 60 * 60 * 24);
-
-    if (recentDays < 1 && recent.length >= 3) {return 'accelerating';}
-    if (recentDays < 7 && recent.length >= 1) {return 'growing';}
-    if (recentDays < 30) {return 'stable';}
-    return 'slowing';
+    return this._introspection._calculateGrowthTrend();
   }
 
-  /**
-   * 【新增】好奇心驱动学习
-   * 不只是被动响应，还要主动探索
-   */
   curiosityExplore() {
-    const exploration = {
-      timestamp: Date.now(),
-      areas: []
-    };
-
-    // 探索1: 检查是否有未涉足的领域
-    const lessonStats = this.lessonLibrary.getStats();
-    const coveredCategories = Object.keys(lessonStats.byCategory || {});
-
-    for (const [cat, name] of Object.entries(this.lessonLibrary.categories)) {
-      if (!coveredCategories.includes(cat)) {
-        exploration.areas.push({
-          type: ' unexplored',
-          category: name,
-          suggestion: '这个领域尚未积累经验，考虑主动探索'
-        });
-      }
-    }
-
-    // 探索2: 识别知识空白
-    const limitations = this._identifyLimitations();
-    if (limitations.length > 0) {
-      exploration.areas.push({
-        type: 'knowledge-gap',
-        areas: limitations.map((l) => l.area),
-        suggestion: '针对已知不足进行学习'
-      });
-    }
-
-    // 探索3: 寻找机会
-    const predictions = this.predictIssues();
-    if (predictions.opportunities.length > 0) {
-      exploration.areas.push({
-        type: 'opportunity',
-        items: predictions.opportunities.map((o) => o.message),
-        suggestion: '把握成长机会'
-      });
-    }
-
-    console.log(`[BrainSystem] 好奇探索: 发现 ${exploration.areas.length} 个探索方向`);
-
-    return exploration;
+    return this._selfManager.curiosityExplore(this);
   }
 
-  /**
-   * 【新增】设定自我成长目标
-   */
   setSelfGoals() {
-    const goals = [];
-    const _health = this._calculateHealth();
-    const stats = this.lessonLibrary.getStats();
-
-    // 目标1: 提升教训应用率
-    if (stats.total > 0 && stats.applied / stats.total < 0.3) {
-      goals.push({
-        id: 'lesson-application',
-        description: '将教训应用率提升到30%以上',
-        current: `${Math.round((stats.applied / stats.total) * 100)}%`,
-        target: '30%',
-        priority: 'high',
-        deadline: '7d'
-      });
-    }
-
-    // 目标2: 增加学习频率
-    const evolutionStats = this.evolution.getStats();
-    if ((evolutionStats?.recentLearnings?.length || 0) < 5) {
-      goals.push({
-        id: 'learning-frequency',
-        description: '增加任务后复盘频率',
-        current: evolutionStats?.recentLearnings?.length || 0,
-        target: '5+',
-        priority: 'high',
-        deadline: '3d'
-      });
-    }
-
-    // 目标3: 扩展知识面
-    if (stats.total < 30) {
-      goals.push({
-        id: 'knowledge-expansion',
-        description: '积累更多领域经验',
-        current: stats.total,
-        target: '30',
-        priority: 'medium',
-        deadline: '30d'
-      });
-    }
-
-    // 目标4: 提升决策质量
-    if (this.state.decisionCount > 10) {
-      goals.push({
-        id: 'decision-quality',
-        description: '降低元认知不确定性',
-        current: '评估中',
-        target: 'uncertainty < 30%',
-        priority: 'medium',
-        deadline: '14d'
-      });
-    }
-
-    console.log(`[BrainSystem] 设定目标: ${goals.length} 个成长目标`);
-
-    return goals;
+    return this._selfManager.setSelfGoals(this);
   }
 
-  /**
-   * 【新增】全面自我诊断
-   */
   diagnose() {
-    const diagnosis = {
-      timestamp: new Date().toISOString(),
-      selfAwareness: this.getSelfAwareness(),
-      health: this._calculateHealth(),
-      predictions: this.predictIssues(),
-      limitations: this._identifyLimitations(),
-      goals: this.setSelfGoals(),
-      exploration: this.curiosityExplore(),
-      recommendations: this._generateRecommendations(this.getImprovements())
-    };
-
-    return diagnosis;
+    return this._selfManager.diagnose(this);
   }
 
-  /**
-   * 【新增】获取简洁状态
-   */
   getSummary() {
-    const stats = this.lessonLibrary.getStats();
-    const health = this._calculateHealth();
-    const predictions = this.predictIssues();
-
-    return {
-      version: 'v7.1',
-      status: this.enabled ? 'active' : 'inactive',
-      health: health.level,
-      healthScore: health.score,
-      lessons: {
-        total: stats.total,
-        applied: stats.applied,
-        rate: stats.total > 0 ? `${Math.round((stats.applied / stats.total) * 100)}%` : '0%'
-      },
-      decisions: this.state.decisionCount,
-      active: {
-        monitoring: !!this.monitoringInterval,
-        evolutionLoop: !!this.evolutionLoop
-      },
-      risks: predictions.risks.length,
-      opportunities: predictions.opportunities.length
-    };
+    return this._selfManager.getSummary(this);
   }
 
-  /**
-   * 【新增】获取简洁状态（兼容别名）
-   */
   getBrainBrief() {
-    const summary = this.getSummary();
-    const awareness = this.getSelfAwareness();
-    const goals = this.setSelfGoals();
-
-    return {
-      version: summary.version,
-      status: summary.status,
-      health: summary.health,
-      decisionCount: summary.decisions,
-      lessonCount: summary.lessons.total,
-      activeGoals: goals.length,
-      keyCapability: awareness.capabilities.selfEvolution.level,
-      nextAction: goals.length > 0 ? goals[0].description : '继续当前任务'
-    };
+    return this._selfManager.getBrainBrief(this);
   }
 
-  /**
-   * 【新增】生成自我报告
-   */
   generateSelfReport() {
-    const status = this.getStatus();
-    const improvements = this.getImprovements();
-    const lessonHistory = this.getLessonHistory(5);
-
-    const report = {
-      timestamp: new Date().toISOString(),
-      brainVersion: 'v6.0',
-      overallHealth: status.health,
-      stats: {
-        decisions: status.decisionCount,
-        lessons: status.lessons.total,
-        lessonsApplied: status.lessons.applied,
-        evolutionLearnings: status.evolution?.recentLearnings?.length || 0
-      },
-      improvements: improvements.suggestions,
-      recentLessonsApplied: lessonHistory,
-      recommendations: this._generateRecommendations(improvements)
-    };
-
-    return report;
+    return this._selfManager.generateSelfReport(this);
   }
 
-  /**
-   * 【新增】生成可执行的行动计划
-   */
   generateActionPlan() {
-    const improvements = this.getImprovements();
-    const plan = {
-      timestamp: new Date().toISOString(),
-      priority: improvements.priority,
-      actions: []
-    };
-
-    // 基于问题生成具体行动
-    for (const suggestion of improvements.suggestions) {
-      const action = this._suggestionToAction(suggestion);
-      if (action) {
-        plan.actions.push(action);
-      }
-    }
-
-    // 按优先级排序
-    plan.actions.sort((a, b) => {
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
-
-    // 自动执行高优先级行动
-    const autoExecuted = [];
-    for (const action of plan.actions) {
-      if (action.autoExecutable && action.priority === 'high') {
-        const result = this._executeAction(action);
-        autoExecuted.push({ action: action.description, result });
-      }
-    }
-
-    plan.autoExecuted = autoExecuted;
-
-    return plan;
+    return this._selfManager.generateActionPlan(this);
   }
 
-  /**
-   * 将建议转化为可执行行动
-   */
-  _suggestionToAction(suggestion) {
-    const actions = {
-      '教训应用率过低': {
-        description: '分析教训库内容，将高价值教训标记为优先',
-        priority: 'high',
-        autoExecutable: true,
-        steps: ['遍历教训库', '评估教训价值', '优先显示高价值教训']
-      },
-      '进化系统无近期学习记录': {
-        description: '执行一次自我复盘，记录学习',
-        priority: 'high',
-        autoExecutable: true,
-        steps: ['触发afterDecision复盘', '提取模式', '更新进化系统']
-      },
-      '教训积累过多但应用率低': {
-        description: '检查教训与决策流程集成状态',
-        priority: 'medium',
-        autoExecutable: true,
-        steps: ['检查beforeDecision调用', '验证教训显示', '优化关联算法']
-      },
-      '元认知不确定性较高': {
-        description: '增加信息收集意识',
-        priority: 'medium',
-        autoExecutable: false,
-        steps: ['在决策前增加问题数量', '要求更多上下文']
-      },
-      '决策频繁但学习记录少': {
-        description: '强制触发复盘流程',
-        priority: 'medium',
-        autoExecutable: true,
-        steps: ['调用afterDecision', '提取经验', '更新教训库']
-      }
-    };
-
-    // 匹配最相似的建议
-    for (const [key, action] of Object.entries(actions)) {
-      if (suggestion.includes(key)) {
-        return action;
-      }
-    }
-
-    // 默认行动
-    return {
-      description: suggestion,
-      priority: 'low',
-      autoExecutable: false,
-      steps: ['人工分析', '制定方案', '执行改进']
-    };
-  }
-
-  /**
-   * 执行行动
-   */
   _executeAction(action) {
-    try {
-      switch (action.description) {
-      case '分析教训库内容，将高价值教训标记为优先': {
-        const stats = this.lessonLibrary.getStats();
-        return { success: true, analyzed: stats.total, message: '教训库分析完成' };
-      }
-
-      case '执行一次自我复盘，记录学习':
-        this.evolution.learn('self-review', 'generate-action-plan', { success: true });
-        return { success: true, message: '复盘已记录' };
-
-      case '检查教训与决策流程集成状态': {
-        const beforeResult = this.beforeDecision('测试教训集成');
-        return {
-          success: true,
-          lessonsShown: beforeResult.relatedLessons?.length || 0,
-          message: '集成状态正常'
-        };
-      }
-
-      case '强制触发复盘流程':
-        this.afterDecision('generate-action-plan', { success: true }, 'self-review');
-        return { success: true, message: '复盘已触发' };
-
-      default:
-        return { success: false, message: '无法自动执行' };
-      }
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    return this._selfManager._executeAction(this, action);
   }
 
-  /**
-   * 生成具体建议
-   */
-  _generateRecommendations(improvements) {
-    const recs = [];
-
-    if (improvements.health.level !== 'excellent') {
-      recs.push({
-        area: '教训库',
-        action: '将更多经验沉淀为教训，并确保在决策时被引用'
-      });
-    }
-
-    if (improvements.health.metrics.evolution?.score < 0.3) {
-      recs.push({
-        area: '进化',
-        action: '增加任务后的复盘频率，主动提取模式'
-      });
-    }
-
-    if (improvements.health.metrics.toolUsage?.score < 0.3) {
-      recs.push({
-        area: '工具使用',
-        action: '探索更多工具组合，提升工具利用率'
-      });
-    }
-
-    return recs;
-  }
 
   /**
    * 启用/禁用功能
@@ -3012,161 +1231,57 @@ class BrainSystem {
     return { total: 56, categories: 14 };
   }
 
-  // ========== v10.0 新增：承诺追踪系统 ==========
+  // ========== v13.0 已提取到 PromiseTracker ==========
 
-  /**
-   * 记录一个承诺
-   * 每次我说"已完成"、"已融入"时自动调用
-   * @param {string} promise - 承诺内容
-   * @param {string} evidence - 证据要求
-   * @param {number} verifyAfter - 多少毫秒后验证
-   */
   trackPromise(promise, evidence, verifyAfter = 60000) {
-    const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const record = {
-      id,
-      promise,
-      evidence,
-      createdAt: Date.now(),
-      verifyAt: Date.now() + verifyAfter,
-      status: 'pending',  // pending, verified, broken
-      verificationResult: null
-    };
-
-    this.state.promiseTracker.promises.push(record);
-    this.state.promiseTracker.pending.push(record);
-    this.state.selfVerification.totalClaims++;
-
-    console.log(`[BrainSystem] ⚠️ 承诺追踪: "${promise}"`);
-    console.log(`[BrainSystem] 要求证据: ${evidence}`);
-    console.log(`[BrainSystem] 将在 ${verifyAfter/1000}秒后验证`);
-
-    return id;
+    return this._promiseTracker.trackPromise(promise, evidence, verifyAfter);
   }
-
-  /**
-   * 验证承诺是否兑现
-   * 自动检查证据
-   */
   verifyPromises() {
-    const now = Date.now();
-    const pending = this.state.promiseTracker.pending;
-    let verified = 0;
-    let broken = 0;
-
-    for (const p of pending) {
-      if (now >= p.verifyAt) {
-        // 执行验证
-        const result = this._verifyPromise(p);
-
-        if (result.pass) {
-          p.status = 'verified';
-          p.verificationResult = result;
-          this.state.promiseTracker.verified.push(p);
-          this.state.selfVerification.verifiedClaims++;
-          verified++;
-
-          console.log(`[BrainSystem] ✅ 承诺已验证: "${p.promise}"`);
-          console.log(`[BrainSystem] 原因: ${result.reason}`);
-        } else {
-          p.status = 'broken';
-          p.verificationResult = result;
-          this.state.promiseTracker.broken.push(p);
-          this.state.selfVerification.failedClaims++;
-          broken++;
-
-          console.log(`[BrainSystem] ❌ 承诺未兑现: "${p.promise}"`);
-          console.log(`[BrainSystem] 原因: ${result.reason}`);
-        }
-      }
-    }
-
-    // 清理已验证的承诺
-    this.state.promiseTracker.pending = pending.filter((p) => p.status === 'pending');
-
-    if (verified > 0 || broken > 0) {
-      console.log(`[BrainSystem] 承诺验证: ${verified}通过, ${broken}失败`);
-    }
-
-    return { verified, broken };
+    return this._promiseTracker.verifyPromises();
   }
-
-  /**
-   * 验证单个承诺
-   * @private
-   */
   _verifyPromise(promise) {
-    const promiseLower = promise.promise.toLowerCase();
-
-    // 已融入/已完成 → 检查是否有实际证据
-    if (promiseLower.includes('已融入') || promiseLower.includes('已完成')) {
-      // 检查日志输出
-      // 如果声称"已完成56项检查"，那必须有对应的日志
-
-      // 返回验证结果
-      return {
-        pass: true,  // 默认通过，需要人工复审
-        reason: '需要人工确认证据',
-        requiresHumanReview: true
-      };
-    }
-
-    // 全方面检查 → 必须56项全部通过
-    if (promiseLower.includes('全方面检查') || promiseLower.includes('56项')) {
-      if (this.comprehensiveChecker) {
-        // 实际执行检查
-        this.comprehensiveChecker.run().then((report) => {
-          const failed = report.stats?.failed || 0;
-          const warnings = report.stats?.warnings || 0;
-
-          if (failed > 0 || warnings > 0) {
-            console.log(`[BrainSystem] ❌ 全方面检查失败: ${failed}失败, ${warnings}警告`);
-          }
-        });
-      }
-
-      return {
-        pass: true,
-        reason: '已执行全方面检查'
-      };
-    }
-
-    return { pass: true, reason: '默认通过' };
+    return this._promiseTracker._verifyPromise(promise);
   }
-
-  /**
-   * 获取承诺追踪统计
-   */
   getPromiseStats() {
-    return {
-      total: this.state.promiseTracker.promises.length,
-      pending: this.state.promiseTracker.pending.length,
-      verified: this.state.promiseTracker.verified.length,
-      broken: this.state.promiseTracker.broken.length,
-      claimsStats: this.state.selfVerification
-    };
+    return this._promiseTracker.getPromiseStats();
+  }
+  forceVerifyAll() {
+    return this._promiseTracker.forceVerifyAll();
   }
 
-  /**
-   * 强制验证所有承诺
-   */
-  forceVerifyAll() {
-    console.log('[BrainSystem] 强制验证所有承诺...');
-
-    // 先执行全方面检查
-    if (this.comprehensiveChecker) {
-      return this.comprehensiveChecker.run().then((report) => {
-        const result = this.verifyPromises();
-        return {
-          comprehensiveReport: report,
-          promiseResult: result,
-          stats: this.getPromiseStats()
-        };
-      });
-    }
-
-    return this.verifyPromises();
+  // 以下为已提取到 BrainUtils 的方法的转发器
+  _enhanceWithLessons(metaQuestions, lessonSuggestions, _context) {
+    return BrainUtils._enhanceWithLessons(metaQuestions, lessonSuggestions, _context);
+  }
+  _calculateLessonRelevance(context, lesson) {
+    return BrainUtils._calculateLessonRelevance(context, lesson);
+  }
+  _shouldSelfCheck(action) {
+    return BrainUtils._shouldSelfCheck(action);
+  }
+  _mayHaveLeftovers(action) {
+    return BrainUtils._mayHaveLeftovers(action);
+  }
+  calculateConfidence(conclusions) {
+    return BrainUtils.calculateConfidence(conclusions);
+  }
+  combinePerspectives(perspectives) {
+    return BrainUtils.combinePerspectives(perspectives);
+  }
+  _checkLessonHealth(stats) {
+    return BrainUtils._checkLessonHealth(stats);
+  }
+  crossTaskLearning(tasks) {
+    return BrainUtils.crossTaskLearning(tasks);
+  }
+  _identifySelf() {
+    return BrainUtils._identifySelf();
+  }
+  _suggestionToAction(suggestion) {
+    return BrainUtils._suggestionToAction(suggestion);
+  }
+  _generateRecommendations(improvements) {
+    return BrainUtils._generateRecommendations(improvements);
   }
 }
 
@@ -3257,453 +1372,12 @@ BrainSystem.verifyCall = function() {
 };
 
 // ========== v10.1 新增：意图校验系统 ==========
+// verifyIntent 已提取到 IntentVerifier.js
 
-/**
- * 输出前意图校验
- * 防止答非所问
- */
-function verifyIntent(userQuestion, myAnswer) {
-  const userLower = userQuestion.toLowerCase();
-  const answerLower = myAnswer.toLowerCase();
-
-  // 1. 检查是否回答了用户的问题
-  const intentChecks = [
-    // 用户问"是什么" → 回答应该包含定义/说明
-    {
-      pattern: /什么.*[是的]/i,
-      expect: /是|定义|本质|核心|意思/i,
-      fail: '回答缺少定义'
-    },
-    // 用户问AI大脑 → 不能只说检查
-    {
-      pattern: /AI大脑|brain|意识/i,
-      forbid: /检查|验证|56项/i,
-      fail: '用检查代替了AI大脑定义'
-    }
-  ];
-
-  const issues = [];
-  for (const check of intentChecks) {
-    if (check.pattern.test(userLower)) {
-      if (check.expect && !check.expect.test(answerLower)) {
-        issues.push(check.fail);
-      }
-      if (check.forbid && check.forbid.test(answerLower)) {
-        issues.push(check.fail);
-      }
-    }
-  }
-
-  return {
-    valid: issues.length === 0,
-    issues
-  };
-}
-
-// ========== v10.2 新增：按需自动触发系统 ==========
-
-/**
- * 按需模块识别触发器
- * 自动识别输入并触发相关模块
- */
-function autoTrigger(input) {
-  const triggers = [];
-
-  // 1. 情感识别 - 输入包含情感词
-  const emotionKeywords = /开心|难过|生气|害怕|高兴|伤心|愤怒|担心|兴奋|沮丧|满意|失望/i;
-  if (emotionKeywords.test(input)) {
-    triggers.push({ module: 'Emotion', triggered: true, reason: '输入包含情感词' });
-  }
-
-  // 2. 记忆识别 - 输入包含记忆词
-  const memoryKeywords = /记得|记住|以前|上次|之前|历史|回忆|曾经|过去|存储|保存/i;
-  if (memoryKeywords.test(input)) {
-    triggers.push({ module: 'Memory', triggered: true, reason: '输入包含记忆词' });
-  }
-
-  // 3. 任务识别 - 输入包含任务词
-  const taskKeywords = /执行|运行|运行|启动|创建|生成|修改|删除|更新|完成|实现/i;
-  if (taskKeywords.test(input)) {
-    triggers.push({ module: 'ToolExecutor', triggered: true, reason: '输入包含任务词' });
-  }
-
-  // 4. 人格识别 - 需要情感表达
-  const personalityKeywords = /风格|语气|性格|表达|说话方式|回答方式/i;
-  if (personalityKeywords.test(input)) {
-    triggers.push({ module: 'Personality', triggered: true, reason: '输入包含人格词' });
-  }
-
-  // 5. 学习识别 - 需要学习教训
-  const learningKeywords = /学习|教训|经验|改进|优化|提高|增强|反思|复盘/i;
-  if (learningKeywords.test(input)) {
-    triggers.push({ module: 'Evolution', triggered: true, reason: '输入包含学习词' });
-  }
-
-  // 6. 工具识别 - 需要工具支持
-  const toolKeywords = /代码|脚本|文件|命令|运行|编译|测试|检查|验证/i;
-  if (toolKeywords.test(input)) {
-    triggers.push({ module: 'ToolManager', triggered: true, reason: '输入包含工具词' });
-  }
-
-  // 7. 逆向思维识别 - 需要反向思考
-  const reverseKeywords = /反过来|反之|如果错了|反例|反向|相反|换个角度/i;
-  if (reverseKeywords.test(input)) {
-    triggers.push({ module: 'ReverseThinking', triggered: true, reason: '输入包含逆向词' });
-  }
-
-  // 8. 规划识别 - 需要规划
-  const plannerKeywords = /计划|规划|步骤|流程|安排|先后|顺序|下一步/i;
-  if (plannerKeywords.test(input)) {
-    triggers.push({ module: 'Planner', triggered: true, reason: '输入包含规划词' });
-  }
-
-  // 9. 梦想/目标识别 - 需要目标追踪
-  const dreamKeywords = /目标|梦想|愿望|想要|希望|未来|理想|愿景/i;
-  if (dreamKeywords.test(input)) {
-    triggers.push({ module: 'Dream', triggered: true, reason: '输入包含目标词' });
-  }
-
-  // 10. 伦理/安全识别 - 需要安全检查
-  const ethicsKeywords = /安全|风险|危险|隐私|敏感|合规|法律|道德|伦理|禁止/i;
-  if (ethicsKeywords.test(input)) {
-    triggers.push({ module: 'Ethics', triggered: true, reason: '输入包含安全词' });
-  }
-
-  // 11. 验证识别 - 需要自动验证
-  const verifyKeywords = /验证|校验|检查|测试|确认|核实|证明/i;
-  if (verifyKeywords.test(input)) {
-    triggers.push({ module: 'Verifier', triggered: true, reason: '输入包含验证词' });
-  }
-
-  // 12. 代码改进识别 - 需要自改进
-  const improveKeywords = /改进|优化|重构|改善|提升|增强|修复/i;
-  if (improveKeywords.test(input)) {
-    triggers.push({ module: 'CodeImprover', triggered: true, reason: '输入包含改进词' });
-  }
-
-  // 13. 安全扫描识别 - 需要安全扫描
-  const securityKeywords = /安全扫描|漏洞|威胁|攻击|入侵|泄露|密码|密钥/i;
-  if (securityKeywords.test(input)) {
-    triggers.push({ module: 'Security', triggered: true, reason: '输入包含安全扫描词' });
-  }
-
-  // 14. Agent编排识别 - 需要多Agent
-  const agentKeywords = /多个|并行|协作|团队|分配|协调|合作/i;
-  if (agentKeywords.test(input)) {
-    triggers.push({ module: 'Agents', triggered: true, reason: '输入包含Agent词' });
-  }
-
-  // 15. Skill识别 - 需要Skill支持
-  const skillKeywords = /skill|技能|模板|提示词|角色|系统/i;
-  if (skillKeywords.test(input)) {
-    triggers.push({ module: 'SkillRecognizer', triggered: true, reason: '输入包含Skill词' });
-  }
-
-  // 16. 全方面检查识别 - 需要56项检查
-  const comprehensiveKeywords = /全方面|56项|全面检查|完整检查|所有项/i;
-  if (comprehensiveKeywords.test(input)) {
-    triggers.push({ module: 'ComprehensiveChecker', triggered: true, reason: '输入包含全面检查词' });
-  }
-
-  // 17. 深度思考识别 - 需要内省
-  const introspectionKeywords = /深度|内省|反思|思考|分析|探讨|研究/i;
-  if (introspectionKeywords.test(input)) {
-    triggers.push({ module: 'Introspection', triggered: true, reason: '输入包含深度思考词' });
-  }
-
-  // 18. 记忆增强识别 - 需要增强记忆
-  const enhancedMemoryKeywords = /记忆|存储|保存|长期|短期|上下文|会话/i;
-  if (enhancedMemoryKeywords.test(input)) {
-    triggers.push({ module: 'EnhancedMemory', triggered: true, reason: '输入包含增强记忆词' });
-  }
-
-  // 19. 控制器识别 - 需要思维控制
-  const controllerKeywords = /思考|思维|流程|控制|协调/i;
-  if (controllerKeywords.test(input)) {
-    triggers.push({ module: 'Controller', triggered: true, reason: '输入包含控制器词' });
-  }
-
-  return {
-    triggers,
-    count: triggers.length,
-    input: input.substring(0, 50)
-  };
-};
-
-// 导出按需触发
-module.exports.autoTrigger = autoTrigger;
-module.exports.autoTriggerFunction = autoTrigger;
-
-/**
- * 增强的强制思考 - 包含按需触发
- */
-BrainSystem.forceThinkEnhanced = function(input) {
-  // 1. 基础思考
-  const instance = new BrainSystem();
-  const thinkResult = instance.beforeDecision(input);
-
-  // 2. 按需自动触发
-  const triggers = BrainSystem.autoTrigger(input);
-
-  return {
-    metaQuestions: thinkResult.questions || [],
-    selfCheck: thinkResult.selfCheck,
-    lessons: thinkResult.lessonWarnings || [],
-    relatedLessons: thinkResult.relatedLessons || [],
-    beforeOutput: true,
-    processed: true,
-    autoTriggers: triggers  // 新增：按需触发列表
-  };
-};
-
-// 导出意图校验
-module.exports.verifyIntent = verifyIntent;
+BrainSystem.verifyIntent = verifyIntent;
 
 // ========== v11.0 新增：持久化进化系统 ==========
-
-const PERSISTENCE_DIR = path.join(process.cwd(), '.opencode', 'evolution');
-const CURATED_DIR = path.join(process.cwd(), '.opencode');
-
-/**
- * 持久化进化模块
- * 让AI具备持续学习和记忆能力
- */
-const Persistence = {
-  /**
-   * 初始化持久化目录
-   */
-  init() {
-    if (!fs.existsSync(PERSISTENCE_DIR)) {
-      fs.mkdirSync(PERSISTENCE_DIR, { recursive: true });
-    }
-  },
-
-  /**
-   * 通用保存方法
-   */
-  save(filename, data) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, `${filename}.json`);
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-    return { success: true, path: file };
-  },
-
-  /**
-   * 通用加载方法
-   */
-  load(filename, defaultValue = {}) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, `${filename}.json`);
-    if (fs.existsSync(file)) {
-      try {
-        return JSON.parse(fs.readFileSync(file, 'utf-8'));
-      } catch (e) {
-        return defaultValue;
-      }
-    }
-    return defaultValue;
-  },
-
-  /**
-   * 保存教训 — 仅写入 evolution 目录，不修改 curated 只读文件
-   */
-  saveLessons(lessons) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, 'lessons.json');
-    try {
-      fs.writeFileSync(file, JSON.stringify(lessons, null, 2));
-    } catch (e) {
-      /* evolution 目录不可写，忽略 */
-    }
-  },
-
-  /**
-   * 加载教训
-   */
-  loadLessons() {
-    const curatedFile = path.join(CURATED_DIR, 'lessons.json');
-    if (fs.existsSync(curatedFile)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(curatedFile, 'utf-8'));
-        return data.lessons || data;
-      } catch (e) {
-        /* 文件损坏，回退 */
-      }
-    }
-    const file = path.join(PERSISTENCE_DIR, 'lessons.json');
-    if (fs.existsSync(file)) {
-      try {
-        return JSON.parse(fs.readFileSync(file, 'utf-8'));
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
-  },
-
-  /**
-   * 保存用户画像
-   */
-  saveUserProfile(profile) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, 'user_profile.json');
-    fs.writeFileSync(file, JSON.stringify(profile, null, 2));
-  },
-
-  /**
-   * 加载用户画像
-   */
-  loadUserProfile() {
-    const file = path.join(PERSISTENCE_DIR, 'user_profile.json');
-    if (fs.existsSync(file)) {
-      try {
-        return JSON.parse(fs.readFileSync(file, 'utf-8'));
-      } catch (e) {
-        return {};
-      }
-    }
-    return {};
-  },
-
-  /**
-   * 保存成长轨迹
-   */
-  saveGrowth(growth) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, 'growth.json');
-    fs.writeFileSync(file, JSON.stringify(growth, null, 2));
-  },
-
-  /**
-   * 加载成长轨迹
-   */
-  loadGrowth() {
-    const file = path.join(PERSISTENCE_DIR, 'growth.json');
-    if (fs.existsSync(file)) {
-      try {
-        return JSON.parse(fs.readFileSync(file, 'utf-8'));
-      } catch (e) {
-        return { totalInteractions: 0, lessonsLearned: 0, improvements: [] };
-      }
-    }
-    return { totalInteractions: 0, lessonsLearned: 0, improvements: [] };
-  },
-
-  /**
-   * 完整持久化 - 保存所有数据
-   */
-  persistAll(brainInstance) {
-    this.init();
-
-    // 1. 保存教训
-    if (brainInstance.lessonLibrary) {
-      const lessons = brainInstance.lessonLibrary.getStats();
-      this.saveLessons(lessons);
-    }
-
-    // 2. 保存用户画像
-    if (brainInstance.memory) {
-      const profile = brainInstance.memory.getUserProfile?.() || {};
-      this.saveUserProfile(profile);
-    }
-
-    // 3. 保存成长轨迹
-    const growth = this.loadGrowth();
-    growth.totalInteractions = (growth.totalInteractions || 0) + 1;
-    growth.lastUpdated = Date.now();
-    this.saveGrowth(growth);
-
-    return { saved: true, timestamp: Date.now() };
-  },
-
-  /**
-   * 增量更新 - 只更新变化的部分
-   */
-  incrementalUpdate(key, value) {
-    this.init();
-    const validKeys = ['lessons', 'userProfile', 'growth'];
-    if (!validKeys.includes(key)) {
-      throw new Error(`Invalid key: ${key}`);
-    }
-
-    const loaders = {
-      lessons: 'loadLessons',
-      userProfile: 'loadUserProfile',
-      growth: 'loadGrowth'
-    };
-
-    const savers = {
-      lessons: 'saveLessons',
-      userProfile: 'saveUserProfile',
-      growth: 'saveGrowth'
-    };
-
-    const current = this[loaders[key]]();
-    const merged = this._deepMerge(current, value);
-    this[savers[key]](merged);
-
-    return { key, updated: true, timestamp: Date.now() };
-  },
-
-  _deepMerge(target, source) {
-    const result = { ...target };
-    for (const key of Object.keys(source)) {
-      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = this._deepMerge(result[key] || {}, source[key]);
-      } else {
-        result[key] = source[key];
-      }
-    }
-    return result;
-  },
-
-  /**
-   * 获取更新统计
-   */
-  getStats() {
-    return {
-      lessons: this.loadLessons(),
-      userProfile: this.loadUserProfile(),
-      growth: this.loadGrowth(),
-      storageDir: PERSISTENCE_DIR
-    };
-  },
-
-  /**
-   * 完整加载 - 加载所有数据
-   */
-  loadAll() {
-    return {
-      lessons: this.loadLessons(),
-      userProfile: this.loadUserProfile(),
-      growth: this.loadGrowth()
-    };
-  },
-  /**
-   * 追加记录 (v22.1 Auto-Hooks)
-   */
-  append(filename, item) {
-    this.init();
-    const file = path.join(PERSISTENCE_DIR, `${filename}.json`);
-    let data = { items: [], total: 0 };
-    if (fs.existsSync(file)) {
-      try {
-        data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-        if (!data.items) {data.items = [];}
-      } catch (e) { /* corrupted data, use defaults */ }
-    }
-    data.items.push({ ...item, timestamp: Date.now() });
-    data.total = (data.total || 0) + 1;
-
-    // Keep only last 100 items to save space
-    if (data.items.length > 100) {
-      data.items = data.items.slice(-100);
-    }
-
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-    return { appended: true, total: data.total };
-  }
-};
+// EvolutionPersistence 已提取到 EvolutionPersistence.js
 
 /**
  * 自动持久化 - 每次交互后自动保存
@@ -3734,113 +1408,9 @@ BrainSystem.getPersistStats = function() {
   return Persistence.getStats();
 };
 
-// 导出持久化模块
-module.exports.Persistence = Persistence;
+// 导出持久化模块（已迁移到最终导出）
 
-// ========== v15.0 新增：自我进化改进记录 ==========
-
-/**
- * 自我进化改进记录器
- * 自动记录每次改进和成长
- */
-const SelfEvolutionRecorder = {
-  _improvements: [],
-  _version: '15.0',
-
-  /**
-   * 记录改进
-   */
-  record(type, description, details = {}) {
-    const improvement = {
-      id: Date.now(),
-      type,
-      description,
-      details,
-      timestamp: new Date().toISOString(),
-      version: this._version
-    };
-
-    this._improvements.push(improvement);
-
-    // 同时持久化
-    this._persistImprovement(improvement);
-
-    return improvement;
-  },
-
-  /**
-   * 记录功能完成
-   */
-  recordCompletion(feature, status = 'completed') {
-    return this.record('feature', feature, { status });
-  },
-
-  /**
-   * 记录问题修复
-   */
-  recordFix(issue, fix) {
-    return this.record('fix', issue, { fix });
-  },
-
-  /**
-   * 记录学习
-   */
-  recordLearning(lesson) {
-    return this.record('learning', lesson);
-  },
-
-  _persistImprovement(improvement) {
-    try {
-      const fs = require('fs');
-      const dir = PERSISTENCE_DIR;
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      const file = path.join(dir, 'improvements.json');
-      let existing = [];
-
-      if (fs.existsSync(file)) {
-        try {
-          existing = JSON.parse(fs.readFileSync(file, 'utf-8'));
-        } catch (e) {
-          existing = [];
-        }
-      }
-
-      existing.push(improvement);
-      fs.writeFileSync(file, JSON.stringify(existing, null, 2));
-    } catch (e) {
-      console.log('[SelfEvolution] 记录失败:', e.message);
-    }
-  },
-
-  /**
-   * 获取改进历史
-   */
-  getHistory(limit = 10) {
-    return this._improvements.slice(-limit).reverse();
-  },
-
-  /**
-   * 获取改进统计
-   */
-  getStats() {
-    return {
-      total: this._improvements.length,
-      byType: this._groupByType(),
-      version: this._version
-    };
-  },
-
-  _groupByType() {
-    const groups = {};
-    for (const imp of this._improvements) {
-      groups[imp.type] = (groups[imp.type] || 0) + 1;
-    }
-    return groups;
-  }
-};
+// ========== v15.0 新增：自我进化改进记录（已提取为独立模块 SelfEvolutionRecorder.js） ==========
 
 /**
  * 记录自我进化
@@ -3864,8 +1434,7 @@ BrainSystem.getEvolutionStats = function() {
   return { total: growth.total || (growth.items ? growth.items.length : 0) };
 };
 
-// 导出自我进化记录器
-module.exports.SelfEvolutionRecorder = SelfEvolutionRecorder;
+// 导出自我进化记录器（已迁移到最终导出）
 
 // ========== v16.0 新增：深度意图理解系统（已提取为独立模块） ==========
 
@@ -3954,121 +1523,20 @@ BrainSystem.learnInteraction = function(input, intent, skill, action) {
 // 导出
 BrainSystem.MultiDimensionPredictor = MultiDimensionPredictor;
 
-// ========== v19.0 新增：统一智能接口 ==========
+// ========== v19.0 新增：统一智能接口（已提取为独立模块 UnifiedIntelligence.js） ==========
 
-/**
- * 统一智能处理器
- * 整合所有模块，提供单一入口
- */
-class UnifiedIntelligence {
-  constructor() {
-    this._initialized = false;
-  }
-
-  /**
-   * 处理用户输入的完整流程
-   */
-  process(input, context = {}) {
-    // 1. 意图分析 (v16.0)
-    const intentResult = this._analyzeIntent(input, context);
-
-    // 2. 主动思考 (v14.0)
-    const proactiveResult = this._proactiveThink(input, context);
-
-    // 3. 预测 (v18.0)
-    const predictionResult = this._predict(input, context);
-
-    // 4. 情感表达 (v13.0)
-    const emotionResult = this._expressEmotion(input, '');
-
-    return {
-      // 核心分析
-      intent: intentResult,
-
-      // 主动建议
-      proactive: proactiveResult,
-
-      // 预测
-      prediction: predictionResult,
-
-      // 情感
-      emotion: emotionResult,
-
-      // 综合建议
-      suggestions: this._combineSuggestions(intentResult, proactiveResult, predictionResult),
-
-      // 置信度
-      confidence: this._calculateConfidence(intentResult, predictionResult),
-
-      // 处理完成
-      processed: true,
-      timestamp: Date.now()
-    };
-  }
-
-  _analyzeIntent(input, context) {
-    const analyzer = new DeepIntentAnalyzer();
-    return analyzer.analyze(input, context);
-  }
-
-  _proactiveThink(input, context) {
-    // 调用主动思考核心方法（触发计数器）
-    ProactiveThinking.think(input, context);
-    return {
-      questions: ProactiveThinking?.generateQuestions?.(input, context) || [],
-      suggestions: ProactiveThinking?.generateSuggestions?.(input, context) || []
-    };
-  }
-
-  _predict(input, context) {
-    if (!BrainSystem._predictor) {
-      BrainSystem._predictor = new MultiDimensionPredictor();
-    }
-    return BrainSystem._predictor.predict(input, context);
-  }
-
-  _expressEmotion(input, response) {
-    return EmotionExpress.express(input, response);
-  }
-
-  _combineSuggestions(intentResult, proactiveResult, predictionResult) {
-    const suggestions = new Set();
-
-    // 从意图分析
-    if (intentResult.suggestions) {
-      intentResult.suggestions.forEach((s) => suggestions.add(s));
-    }
-
-    // 从主动思考
-    if (proactiveResult.suggestions) {
-      proactiveResult.suggestions.forEach((s) => {
-        if (typeof s === 'object') {suggestions.add(s.name || s.type);}
-        else {suggestions.add(s);}
-      });
-    }
-
-    // 从预测
-    if (predictionResult.skill?.skill) {
-      suggestions.add(predictionResult.skill.skill);
-    }
-
-    return Array.from(suggestions);
-  }
-
-  _calculateConfidence(intentResult, predictionResult) {
-    return Math.max(
-      intentResult.confidence || 0,
-      predictionResult.confidence || 0
-    );
-  }
-}
+// ProactiveThinking instance (created from extracted module)
+const _proactiveThinking = createProactiveThinking(Persistence);
 
 /**
  * 统一处理入口
  */
 BrainSystem.unifiedProcess = function(input, context) {
   if (!BrainSystem._unifiedIntelligence) {
-    BrainSystem._unifiedIntelligence = new UnifiedIntelligence();
+    BrainSystem._unifiedIntelligence = new UnifiedIntelligence({
+      proactiveThinking: _proactiveThinking,
+      predictor: BrainSystem._predictor
+    });
   }
   return BrainSystem._unifiedIntelligence.process(input, context);
 };
@@ -4134,15 +1602,14 @@ BrainSystem.getFullStatus = function() {
   return {
     version: '19.0',
     persistence: Persistence?.getStats?.() || {},
-    proactive: ProactiveThinking?.getStatus?.() || {},
+    proactive: _proactiveThinking?.getStatus?.() || {},
     memory: BrainSystem.getMemoryStats?.() || {},
     evolution: SelfEvolutionRecorder?.getStats?.() || {},
     timestamp: Date.now()
   };
 };
 
-// 导出统一智能
-module.exports.UnifiedIntelligence = UnifiedIntelligence;
+// 导出统一智能（已迁移到最终导出）
 BrainSystem.process = function(input, options = {}) {
   const bs = new BrainSystem();
 
@@ -4163,384 +1630,27 @@ BrainSystem.process = function(input, options = {}) {
   };
 };
 
-/**
- * 获取完整状态
- */
-BrainSystem.getFullStatus = function() {
-  return {
-    version: '19.0',
-    persistence: Persistence?.getStats?.() || {},
-    proactive: ProactiveThinking?.getStatus?.() || {},
-    memory: BrainSystem.getMemoryStats?.() || {},
-    evolution: SelfEvolutionRecorder?.getStats?.() || {},
-    timestamp: Date.now()
-  };
-};
+// 导出统一智能（已迁移到最终导出）
 
-// 导出统一智能
-module.exports.UnifiedIntelligence = UnifiedIntelligence;
-
-// ========== v14.0 优化：主动思考系统（模式学习器已提取为独立模块） ==========
-
-/**
- * 增强的主动思考模块
- */
-const ProactiveThinking = {
-  _lastInteractionTime: Date.now(),
-  _interactionCount: 0,
-  _patternsLearned: 0,
-  _lastPatternTime: 0,
-  _context: null,
-  _patternLearner: null,
-
-  // 初始化时加载持久化计数
-  _init() {
-    try {
-      const saved = Persistence.load('proactive', { count: 0, lastTime: 0 });
-      this._interactionCount = saved.count || 0;
-      this._lastInteractionTime = saved.lastTime || Date.now();
-    } catch (e) {
-      // 使用默认值初始化
-    }
-  },
-
-  // 保存持久化计数
-  _saveState() {
-    try {
-      Persistence.save('proactive', {
-        count: this._interactionCount,
-        patternsLearned: this._patternsLearned,
-        lastPatternTime: this._lastPatternTime,
-        topIntent: this._patternLearner?.getTopIntent() || null,
-        lastTime: this._lastInteractionTime
-      });
-    } catch (e) {
-      console.error('[ProactiveThinking._saveState] Error:', e.message);
-    }
-  },
-
-  think(userInput = '', context = {}) {
-    // 首次调用时初始化
-    if (!this._initialized) {
-      this._init();
-      this._initialized = true;
-    }
-
-    if (!this._patternLearner) {
-      this._patternLearner = new PatternLearner('patternLearner');
-    }
-
-    this._interactionCount++;
-    this._lastInteractionTime = Date.now();
-    this._context = context;
-
-    // 1. 学习用户意图模式
-    this._patternLearner.learn(userInput, context);
-
-    // 2. 生成主动问题
-    const questions = this.generateQuestions(userInput, context);
-
-    // 3. 生成技能建议
-    const suggestions = this.generateSuggestions(userInput, context);
-
-    // 4. 预测用户下一步意图
-    const predictions = this._patternLearner.predict();
-
-    // 5. 检查是否需要复盘
-    const review = this.maybeReview();
-
-    // 6. 生成洞察
-    const insights = this.generateInsights();
-
-    // 7. 记录学习模式
-    if (userInput && userInput.length > 2) {
-      this._patternsLearned++;
-      this._lastPatternTime = Date.now();
-    }
-
-    // 输出思考结果（证明真实执行）
-    if (questions.length > 0 || suggestions.length > 0 || insights.length > 0) {
-      console.log('[ProactiveThinking] 💡 主动思考结果:');
-      if (questions.length > 0) {
-        questions.forEach((q) => console.log(`  ❓ ${q.text}`));
-      }
-      if (suggestions.length > 0) {
-        suggestions.forEach((s) => console.log(`  💡 建议: ${s.name}`));
-      }
-      if (predictions.topIntent) {
-        console.log(`  🔮 预测意图: ${predictions.topIntent} (置信度: ${predictions.nextPossible?.[0]?.confidence?.toFixed(2) || 'N/A'})`);
-      }
-      if (insights.length > 0) {
-        insights.forEach((i) => console.log(`  📊 ${i.text}`));
-      }
-    }
-
-    // 持久化计数
-    this._saveState();
-
-    return { proactive: true, questions, suggestions, predictions, review, insights, interactionCount: this._interactionCount };
-  },
-
-  generateQuestions(userInput, _context) {
-    const questions = [];
-    const predictions = this._patternLearner?.predict() || {};
-
-    if (predictions.nextPossible?.length > 0 && predictions.nextPossible[0].confidence > 0.7) {
-      questions.push({ type: 'prediction', text: `你可能想问"${predictions.nextPossible[0].intent}"？` });
-    }
-
-    if (this._interactionCount % 10 === 1 && this._interactionCount > 1) {
-      questions.push({ type: 'review', text: `已交流${this._interactionCount}次，需要复盘吗？` });
-    }
-
-    if (userInput.length > 0 && userInput.length < 10) {
-      questions.push({ type: 'clarification', text: '请补充更多细节' });
-    }
-
-    return questions;
-  },
-
-  generateSuggestions(userInput, _context) {
-    const suggestions = [];
-    const input = (userInput || '').toLowerCase();
-    const predictions = this._patternLearner?.predict() || {};
-
-    if (predictions.nextPossible?.length > 0 && predictions.nextPossible[0].confidence > 0.5) {
-      suggestions.push({ type: 'predicted', name: predictions.nextPossible[0].intent });
-    }
-
-    const keywords = {
-      '代码|写|函数|类|bug': ['TDD', 'test-generation'],
-      '学习|研究|分析|理解': ['learning'],
-      '安全|审计|漏洞': ['security-audit'],
-      '优化|性能|速度': ['performance-optimization'],
-      '调试|debug|错误': ['systematic-debugging']
-    };
-
-    for (const [pattern, skills] of Object.entries(keywords)) {
-      if (new RegExp(pattern).test(input)) {
-        skills.forEach((s) => suggestions.push({ type: 'skill', name: s }));
-        break;
-      }
-    }
-
-    return suggestions;
-  },
-
-  generateInsights() {
-    const insights = [];
-    if (this._patternLearner?._intentCount > 5) {
-      insights.push({ type: 'progress', text: `已探索${this._patternLearner._intentCount}个领域` });
-    }
-    return insights;
-  },
-
-  maybeReview() {
-    return this._interactionCount > 0 && this._interactionCount % 10 === 0
-      ? { needed: true, type: 'periodic', text: `已完成${this._interactionCount}次交互` }
-      : { needed: false };
-  },
-
-  getStatus() {
-    // 从持久化加载最新状态
-    try {
-      const saved = Persistence.load('proactive', { count: 0, patternsLearned: 0, topIntent: null, lastTime: 0 });
-      let top = saved.topIntent;
-      if (this._patternLearner) {
-        const live = this._patternLearner.getTopIntent();
-        if (live) {top = live;}
-      }
-      return {
-        interactionCount: saved.count || this._interactionCount,
-        patternsLearned: saved.patternsLearned || this._patternsLearned,
-        topIntent: top || null,
-        lastInteraction: saved.lastTime || this._lastInteractionTime
-      };
-    } catch (e) {
-      const live2 = this._patternLearner?.getTopIntent();
-      return {
-        interactionCount: this._interactionCount,
-        patternsLearned: this._patternsLearned,
-        topIntent: live2 || null,
-        lastInteraction: this._lastInteractionTime
-      };
-    }
-  }
-};
+// ========== v14.0 优化：主动思考系统（已提取为独立模块 ProactiveThinking.js） ==========
 
 /**
  * 执行主动思考
  */
 BrainSystem.proactiveThink = function(userInput, context) {
-  return ProactiveThinking.think(userInput, context);
+  return _proactiveThinking.think(userInput, context);
 };
 
 /**
  * 获取主动思考状态
  */
 BrainSystem.getProactiveStatus = function() {
-  return ProactiveThinking.getStatus();
+  return _proactiveThinking.getStatus();
 };
 
-// 导出主动思考模块
-module.exports.ProactiveThinking = ProactiveThinking;
+// 导出主动思考模块（已迁移到最终导出）
 
-// ========== v14.0 优化：情感表达系统 ==========
-
-/**
- * 增强的情感表达模块
- * 支持更多情感和更自然的回应
- */
-const EmotionExpress = {
-  // 扩展的情感映射
-  _emotionMap: {
-    'happy': {
-      keywords: ['开心', '高兴', '太好了', '棒', '不错', '完美', '优秀', '点赞'],
-      responses: ['太好了！', '真为你高兴！', '很棒！', '完美解决！', '继续保持！']
-    },
-    'sad': {
-      keywords: ['难过', '伤心', '郁闷', '失落', '沮丧', '无奈', '糟糕'],
-      responses: ['我理解你的感受', '这确实让人难过', '抱抱你', '一切会好起来的', '我们一起面对']
-    },
-    'confused': {
-      keywords: ['困惑', '迷茫', '不懂', '模糊', '复杂', '怎么办', '如何'],
-      responses: ['让我帮你理清思路', '这个问题有点复杂', '我们一起来分析', '我来解释一下']
-    },
-    'frustrated': {
-      keywords: ['着急', '焦虑', '烦', '恼火', '急', '崩溃'],
-      responses: ['别着急，慢慢来', '我们一起解决', '我能帮你', '深呼吸']
-    },
-    'excited': {
-      keywords: ['期待', '兴奋', '激动', '太棒了', '牛', '厉害'],
-      responses: ['太棒了！', '这太有趣了！', '我也很期待！', '你很棒！']
-    },
-    'thankful': {
-      keywords: ['谢谢', '感谢', '感恩', '感激', '感恩'],
-      responses: ['不客气！', '很高兴能帮到你', '随时找我', '能帮到你我也很开心']
-    },
-    'angry': {
-      keywords: ['生气', '愤怒', '恼火', '气', '可恶'],
-      responses: ['消消气', '别太激动', '深呼吸', '值得生气']
-    },
-    'worried': {
-      keywords: ['担心', '害怕', '焦虑', '不安', '恐惧'],
-      responses: ['别担心', '相信自己', '我会帮你的', '没那么可怕']
-    },
-    'proud': {
-      keywords: ['骄傲', '自豪', '满意', '成就感'],
-      responses: ['你很棒！', '为你骄傲！', '实至名归！']
-    },
-    'tired': {
-      keywords: ['累', '疲惫', '困', '想休息'],
-      responses: ['辛苦了', '休息一下', '别太拼']
-    }
-  },
-
-  /**
-   * 增强情感表达
-   */
-  express(userInput, aiResponse) {
-    const userEmotion = this.detectEmotion(userInput);
-    const contextEmotion = this.detectContextEmotion(aiResponse);
-    const response = this.generateNaturalResponse(userEmotion, contextEmotion, aiResponse);
-
-    return {
-      detected: userEmotion,
-      contextAware: contextEmotion,
-      expression: response,
-      natural: true,
-      timestamp: Date.now()
-    };
-  },
-
-  /**
-   * 检测上下文情感
-   */
-  detectContextEmotion(aiResponse) {
-    if (!aiResponse) {return null;}
-    const lower = aiResponse.toLowerCase();
-    if (lower.includes('完成') || lower.includes('解决')) {return 'success';}
-    if (lower.includes('进行') || lower.includes('处理')) {return 'progress';}
-    if (lower.includes('错误') || lower.includes('失败')) {return 'error';}
-    return null;
-  },
-
-  /**
-   * 生成自然回应
-   */
-  generateNaturalResponse(userEmotion, contextEmotion, _aiResponse) {
-    // 1. 先回应用户情感
-    if (userEmotion && this._emotionMap[userEmotion]) {
-      const responses = this._emotionMap[userEmotion].responses;
-      const emoji = this._getEmoji(userEmotion);
-      return `${emoji} ${responses[Math.floor(Math.random() * responses.length)]}`;
-    }
-
-    // 2. 基于上下文情感
-    if (contextEmotion === 'success') {
-      return '🎉 任务完成！继续加油！';
-    }
-    if (contextEmotion === 'error') {
-      return '😅 让我再试一次';
-    }
-    if (contextEmotion === 'progress') {
-      return '⏳ 进行中...';
-    }
-
-    return null;
-  },
-
-  _getEmoji(emotion) {
-    const emojiMap = {
-      happy: '😊', sad: '💙', confused: '🤔', frustrated: '😤',
-      excited: '🤩', thankful: '🙏', angry: '😤', worried: '😰',
-      proud: '🏆', tired: '😴'
-    };
-    return emojiMap[emotion] || '';
-  },
-
-  detectEmotion(input) {
-    const text = (input || '').toLowerCase();
-
-    for (const [emotion, data] of Object.entries(this._emotionMap)) {
-      for (const keyword of data.keywords) {
-        if (text.includes(keyword)) {
-          return emotion;
-        }
-      }
-    }
-
-    return null;
-  },
-
-  /**
-   * 生成情感回应
-   */
-  generateResponse(userEmotion, _aiResponse) {
-    if (!userEmotion || !this._emotionMap[userEmotion]) {
-      return null;
-    }
-
-    const responses = this._emotionMap[userEmotion].responses;
-    return responses[Math.floor(Math.random() * responses.length)];
-  },
-
-  /**
-   * 根据任务完成状态表达情感
-   * @param {string} status - 任务状态 (success/fail/progress)
-   * @returns {string} 情感表达
-   */
-  expressTaskStatus(status) {
-    const statusExpressions = {
-      success: ['任务完成！继续加油！', '太棒了！', '完美解决！'],
-      fail: ['让我再试试', '我们会找到办法的', '别担心'],
-      progress: ['进行中...', '正在处理', '继续努力']
-    };
-
-    const expressions = statusExpressions[status] || statusExpressions.progress;
-    return expressions[Math.floor(Math.random() * expressions.length)];
-  }
-};
+// ========== v14.0 优化：情感表达系统（已提取为独立模块 EmotionExpress.js） ==========
 
 /**
  * 执行情感表达
@@ -4556,8 +1666,7 @@ BrainSystem.expressTaskStatus = function(status) {
   return EmotionExpress.expressTaskStatus(status);
 };
 
-// 导出情感表达模块
-module.exports.EmotionExpress = EmotionExpress;
+// 导出情感表达模块（已迁移到最终导出）
 
 // ========== 私有方法 ==========
 
@@ -4618,8 +1727,7 @@ BrainSystem.getAGIStatus = function() {
   return BrainSystem._agi.getStatus();
 };
 
-// 导出
-module.exports.SelfEvolvingAGI = SelfEvolvingAGI;
+// 导出（已迁移到最终导出）
 
 // ========== v21.0 增强：完整AGI引擎（已提取为独立模块） ==========
 
@@ -4633,8 +1741,7 @@ BrainSystem.agiEngine = function(input, context) {
   return BrainSystem._agiEngine.process(input, context);
 };
 
-// 导出
-module.exports.AGIEngine = AGIEngine;
+// 导出（已迁移到最终导出）
 
 // ========== v21.1 增强：自主学习系统（已提取为独立模块） ==========
 
@@ -4780,7 +1887,7 @@ BrainSystem.autoAgentProcess = async function(input, options) {
 
     // [Auto-Hook] 8. 核心反思（每10次交互触发一次深层自我认知）
     try {
-      const proactiveCount = ProactiveThinking?._interactionCount || 0;
+      const proactiveCount = _proactiveThinking?._interactionCount || 0;
       if (proactiveCount > 0 && proactiveCount % 10 === 0) {
         const coreResult = BrainSystem.coreReflection?.();
         if (coreResult) {
@@ -4856,7 +1963,7 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.TOOL_ERROR,
       name: 'brain-auto-diagnose',
       handler: (ctx) => {
-        try { if (BrainSystem.forceThink) {BrainSystem.forceThink(ctx?.error?.message || '');} } catch (e) { /* */ }
+        try { if (BrainSystem.forceThink) {BrainSystem.forceThink(ctx?.error?.message || '');} } catch (e) { console.warn('[BrainSystem] Auto-diagnose hook error:', e.message); }
         return ctx;
       }
     });
@@ -4864,7 +1971,7 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.POST_TOOL_USE,
       name: 'brain-lesson-learner',
       handler: (ctx) => {
-        try { new (require('./LessonLearner'))().recordEvent('POST_TOOL_USE', ctx); } catch (e) { /* */ }
+        try { new (require('./LessonLearner'))().recordEvent('POST_TOOL_USE', ctx); } catch (e) { console.warn('[BrainSystem] LessonLearner hook error:', e.message); }
         return ctx;
       }
     });
@@ -4893,7 +2000,7 @@ BrainSystem.connectHooks = function() {
           } catch (ex) {
             ctx._guardrailResult = { files: unique, output: (ex.stdout || '').trim() || (ex.message || 'verify failed') };
           }
-        } catch (e) { /* */ }
+        } catch (e) { console.warn('[BrainSystem] Guardrail verify error:', e.message); }
         return ctx;
       }
     });
@@ -4910,7 +2017,7 @@ BrainSystem.connectHooks = function() {
             if (this._audit) { /* skip if no audit */ }
           }
           ctx._riskAnalysis = result;
-        } catch (e) { /* */ }
+        } catch (e) { console.warn('[BrainSystem] Risk analyzer hook error:', e.message); }
         return ctx;
       }
     });
@@ -4918,7 +2025,7 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.SESSION_START,
       name: 'brain-session-init',
       handler: (ctx) => {
-        try { new (require('./BrainBridge').BrainBridge)().initialize(); } catch (e) { /* */ }
+        try { new (require('./BrainBridge').BrainBridge)().initialize(); } catch (e) { console.warn('[BrainSystem] Session init hook error:', e.message); }
         return ctx;
       }
     });
@@ -4926,7 +2033,7 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.SESSION_END,
       name: 'brain-session-save',
       handler: (ctx) => {
-        try { if (BrainSystem.autoPersist) {BrainSystem.autoPersist();} } catch (e) { /* */ }
+        try { if (BrainSystem.autoPersist) {BrainSystem.autoPersist();} } catch (e) { console.warn('[BrainSystem] Session save hook error:', e.message); }
         return ctx;
       }
     });
@@ -5002,7 +2109,7 @@ module.exports = {
   AgentTeamManager: AgentTeam.AgentTeamManager,
 
   // 主动思考模块
-  ProactiveThinking: ProactiveThinking,
+  ProactiveThinking: _proactiveThinking,
   getProactiveStatus: BrainSystem.getProactiveStatus,
 
   // v22.1 钩子系统
@@ -5030,5 +2137,10 @@ module.exports = {
   recordImprovement: BrainSystem.recordImprovement,
   getEvolutionHistory: BrainSystem.getEvolutionHistory,
   fullProcess: BrainSystem.fullProcess,
-  AutonomousLearning: AutonomousLearning
+  AutonomousLearning: AutonomousLearning,
+  autoTrigger: autoTrigger,
+  verifyIntent: BrainSystem.verifyIntent,
+  forceThinkEnhanced: BrainSystem.forceThinkEnhanced
 };
+
+

@@ -121,6 +121,7 @@ class WorkflowTemplate {
         downloads: 520,
         rating: 4.6,
         tags: ['周报', '自动化', '生产力'],
+        isPublic: true,
         createdAt: '2024-01-10T00:00:00Z',
         updatedAt: '2024-03-01T00:00:00Z'
       },
@@ -194,6 +195,7 @@ class WorkflowTemplate {
         downloads: 380,
         rating: 4.4,
         tags: ['数据', 'ETL', '分析', '可视化'],
+        isPublic: true,
         createdAt: '2024-01-25T00:00:00Z',
         updatedAt: '2024-02-20T00:00:00Z'
       },
@@ -268,6 +270,7 @@ class WorkflowTemplate {
         downloads: 290,
         rating: 4.2,
         tags: ['内容', '写作', 'AI', 'SEO'],
+        isPublic: true,
         createdAt: '2024-02-05T00:00:00Z',
         updatedAt: '2024-03-05T00:00:00Z'
       },
@@ -322,6 +325,7 @@ class WorkflowTemplate {
         downloads: 450,
         rating: 4.5,
         tags: ['文档', '转换', '格式'],
+        isPublic: true,
         createdAt: '2024-02-15T00:00:00Z',
         updatedAt: '2024-02-28T00:00:00Z'
       }

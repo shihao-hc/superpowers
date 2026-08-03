@@ -102,7 +102,8 @@ class BullDebater extends Debater {
         confidence: this._extractConfidence(response),
         recommendation: 'proceed'
       };
-    } catch {
+    } catch (e) {
+      console.warn('[BullDebater] Parse response failed:', e.message);
       return this._generateFallback({});
     }
   }
@@ -174,7 +175,8 @@ class BearDebater extends Debater {
         confidence: this._extractConfidence(response),
         recommendation: 'caution'
       };
-    } catch {
+    } catch (e) {
+      console.warn('[BearDebater] Parse response failed:', e.message);
       return this._generateFallback({});
     }
   }
@@ -417,3 +419,4 @@ module.exports = {
   createBearDebater,
   createJudge
 };
+

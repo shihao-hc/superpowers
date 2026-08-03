@@ -22,6 +22,7 @@ class PersonalityManager {
         this._startMoodDrift();
       }
     } catch (e) {
+      console.warn('[PersonalityManager] Load failed:', e.message);
       this.personalities = {};
     }
   }
@@ -46,6 +47,7 @@ class PersonalityManager {
         this._startMoodDrift();
       }
     } catch (e) {
+      console.warn('[PersonalityManager] LoadSync failed:', e.message);
       this.personalities = {};
     }
   }
@@ -138,7 +140,7 @@ class PersonalityManager {
       if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
       fs.writeFileSync(this.activeStorePath, this.activeName, 'utf8');
     } catch (e) {
-      // ignore persist errors
+      console.warn('[PersonalityManager] SaveActive failed:', e.message);
     }
   }
 
@@ -242,3 +244,4 @@ class PersonalityManager {
 }
 
 module.exports = { PersonalityManager };
+
