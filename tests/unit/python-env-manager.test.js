@@ -477,6 +477,346 @@ describe('PythonEnvManager', () => {
     });
   });
 
+  describe('ensureEnvironment (non-mock, real flow)', () => {
+    it('创建 venv 并安装依赖', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      const _runSpy = jest.spyOn(m, '_run').mockResolvedValue(undefined);
+      jest.spyOn(m, '_pipPath').mockReturnValue(path.join(TEST_BASE, 'skill-a', 'Scripts', 'pip.exe'));
+      const envDir = await m.ensureEnvironment('skill-a', ['numpy']);
+      expect(fs.mkdirSync).toHaveBeenCalled();
+      expect(_runSpy).toHaveBeenCalledWith(['python', '-m', 'venv', path.join(TEST_BASE, 'skill-a')], { cwd: process.cwd(), silent: true });
+      expect(_runSpy).toHaveBeenCalledWith([path.join(TEST_BASE, 'skill-a', 'Scripts', 'pip.exe'), 'install', 'numpy'], { cwd: path.join(TEST_BASE, 'skill-a'), silent: true });
+      expect(envDir).toBe(path.join(TEST_BASE, 'skill-a'));
+    });
+
+    it('venv 已存在时跳过创建', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      const _runSpy = jest.spyOn(m, '_run').mockResolvedValue(undefined);
+      await m.ensureEnvironment('skill-a', []);
+      expect(_runSpy).not.toHaveBeenCalled();
+    });
+
+    it('无依赖时不安装', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      const _runSpy = jest.spyOn(m, '_run').mockResolvedValue(undefined);
+      await m.ensureEnvironment('skill-a');
+      expect(_runSpy).not.toHaveBeenCalled();
+    });
+
+    it('pip 不存在时跳过安装', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      const _runSpy = jest.spyOn(m, '_run').mockResolvedValue(undefined);
+      const pipSpy = jest.spyOn(m, '_pipPath').mockReturnValue(null);
+      await m.ensureEnvironment('skill-a', ['numpy']);
+      expect(pipSpy).toHaveBeenCalled();
+      expect(_runSpy).toHaveBeenCalledTimes(1); // only venv creation
+    });
+  });
+
+  describe('_pipPath', () => {
+    it('win32 返回 Scripts/pip.exe', () => {
+      const win32 = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      const result = manager._pipPath('/env');
+      expect(result).toBe(path.join('/env', 'Scripts', 'pip.exe'));
+      Object.defineProperty(process, 'platform', { value: win32 });
+    });
+
+    it('非 win32 返回 bin/pip', () => {
+      const win32 = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      const result = manager._pipPath('/env');
+      expect(result).toBe(path.join('/env', 'bin', 'pip'));
+      Object.defineProperty(process, 'platform', { value: win32 });
+    });
+
+    it('pip 不存在时返回 null', () => {
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      expect(manager._pipPath('/env')).toBeNull();
+    });
+  });
+
+  describe('_runLocal (real flow)', () => {
+    const makeSpawn = ({ code = 0, stdout = '', stderr = '', throwError = false } = {}) => {
+      const handlers = {};
+      const child = {
+        on: jest.fn((event, cb) => { handlers[event] = cb; }),
+        stdout: { on: jest.fn((e, cb) => { if (e === 'data') cb(Buffer.from(stdout)); }) },
+        stderr: { on: jest.fn((e, cb) => { if (e === 'data') cb(Buffer.from(stderr)); }) },
+        stdin: { write: jest.fn(), end: jest.fn() }
+      };
+      process.nextTick(() => {
+        if (throwError) { if (handlers.error) handlers.error(new Error('spawn failed')); return; }
+        if (handlers.close) handlers.close(code);
+      });
+      return child;
+    };
+
+    it('mockMode 返回 mock 结果', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue(path.join(TEST_BASE, 's'));
+      const result = await m._runLocal('s', '/p.py', { data: 1 });
+      expect(result).toEqual({ ok: true, message: 'mock-run', data: { data: 1 } });
+    });
+
+    it('python 解释器不存在时抛错', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue('/env');
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      await expect(m._runLocal('s', '/p.py', {})).rejects.toThrow('Python interpreter not found in env');
+    });
+
+    it('成功时解析 JSON 输出', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue('/env');
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      safeSpawn.mockReturnValue(makeSpawn({ stdout: '{"ok":true}' }));
+      const result = await m._runLocal('s', '/p.py', {});
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('非 JSON 输出时返回 output/error', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue('/env');
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      safeSpawn.mockReturnValue(makeSpawn({ stdout: 'plain text', stderr: 'warn' }));
+      const result = await m._runLocal('s', '/p.py', {});
+      expect(result).toEqual({ output: 'plain text', error: 'warn' });
+    });
+
+    it('非零退出码时抛错', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue('/env');
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      safeSpawn.mockReturnValue(makeSpawn({ code: 3, stderr: 'boom' }));
+      await expect(m._runLocal('s', '/p.py', {})).rejects.toThrow('Python script failed with code 3');
+    });
+
+    it('spawn 错误时 reject', async () => {
+      const m = new PythonEnvManager({ mockMode: false, baseDir: TEST_BASE });
+      jest.spyOn(m, 'ensureEnvironment').mockResolvedValue('/env');
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      safeSpawn.mockReturnValue(makeSpawn({ throwError: true }));
+      await expect(m._runLocal('s', '/p.py', {})).rejects.toThrow('spawn failed');
+    });
+  });
+
+  describe('_runInDocker (real flow)', () => {
+    const makeDockerSpawn = ({ code = 0, stdout = '', stderr = '', throwError = false } = {}) => {
+      const handlers = {};
+      const child = {
+        on: jest.fn((event, cb) => { (handlers[event] = handlers[event] || []).push(cb); }),
+        stdout: { on: jest.fn((e, cb) => { if (e === 'data') cb(Buffer.from(stdout)); }) },
+        stderr: { on: jest.fn((e, cb) => { if (e === 'data') cb(Buffer.from(stderr)); }) },
+        kill: jest.fn(() => { (handlers.close || []).forEach((cb) => cb(1)); })
+      };
+      if (throwError) {
+        process.nextTick(() => { (handlers.error || []).forEach((cb) => cb(new Error('docker spawn failed'))); });
+      } else {
+        process.nextTick(() => { (handlers.close || []).forEach((cb) => cb(code)); });
+      }
+      return child;
+    };
+
+    it('成功时解析 JSON 输出并清理临时目录', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      const cleanupSpy = jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue(makeDockerSpawn({ stdout: '{"ok":true}' }));
+      const result = await m._runInDocker('skill-a', '/p.py', { d: 1 }, []);
+      expect(result).toEqual({ ok: true });
+      expect(cleanupSpy).toHaveBeenCalled();
+      expect(fs.copyFileSync).toHaveBeenCalledWith('/p.py', expect.stringMatching(new RegExp('\\' + path.sep + '\\.docker\\' + path.sep)));
+      const copiedTo = fs.copyFileSync.mock.calls[0][1];
+      expect(path.basename(copiedTo)).toBe('p.py');
+    });
+
+    it('非 JSON 输出时返回 output/error', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue(makeDockerSpawn({ stdout: 'text', stderr: 'err' }));
+      const result = await m._runInDocker('skill-a', '/p.py', {}, []);
+      expect(result).toEqual({ output: 'text', error: 'err' });
+    });
+
+    it('requirements 存在时写入 requirements.txt', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      fs.writeFileSync = jest.fn();
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue(makeDockerSpawn({ stdout: '{}' }));
+      await m._runInDocker('skill-a', '/p.py', {}, ['numpy', 'pandas']);
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/requirements\.txt$/),
+        'numpy\npandas'
+      );
+    });
+
+    it('非零退出码时抛错', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue(makeDockerSpawn({ code: 2, stderr: 'docker boom' }));
+      await expect(m._runInDocker('skill-a', '/p.py', {}, [])).rejects.toThrow('Docker execution failed with code 2');
+    });
+
+    it('spawn 错误时清理并 reject', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      const cleanupSpy = jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue(makeDockerSpawn({ throwError: true }));
+      await expect(m._runInDocker('skill-a', '/p.py', {}, [])).rejects.toThrow('docker spawn failed');
+      expect(cleanupSpy).toHaveBeenCalled();
+    });
+
+    it('超时后 kill 容器并 reject', async () => {
+      jest.useFakeTimers();
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE, dockerTimeout: 30000 });
+      fs.existsSync = jest.fn().mockReturnValue(false);
+      fs.mkdirSync = jest.fn();
+      fs.copyFileSync = jest.fn();
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      const handlers = {};
+      const hangingChild = {
+        on: jest.fn((event, cb) => { (handlers[event] = handlers[event] || []).push(cb); }),
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        kill: jest.fn(() => { (handlers.close || []).forEach((cb) => cb(1)); })
+      };
+      safeSpawn.mockReturnValue(hangingChild);
+      const runPromise = m._runInDocker('skill-a', '/p.py', {}, []);
+      jest.advanceTimersByTime(30000);
+      await expect(runPromise).rejects.toThrow('Docker execution timeout after 30000ms');
+      expect(hangingChild.kill).toHaveBeenCalled();
+      expect(safeSpawn).toHaveBeenCalledWith('docker', ['rm', '-f', expect.any(String)], { stdio: 'ignore' });
+      jest.useRealTimers();
+    });
+  });
+
+  describe('buildDockerImage (success path)', () => {
+    it('构建成功并返回 imageTag', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      fs.mkdirSync = jest.fn();
+      fs.writeFileSync = jest.fn();
+      fs.readFileSync = jest.fn().mockReturnValue('# Copy requirements if they exist\n');
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue({
+        on: jest.fn((event, cb) => { if (event === 'close') cb(0); }),
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() }
+      });
+      const result = await m.buildDockerImage('skill-a');
+      expect(result).toEqual({
+        success: true,
+        imageTag: 'skill-skill-a:latest',
+        message: 'Docker image skill-skill-a:latest built successfully'
+      });
+    });
+
+    it('有 requirements 时插入安装指令', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      fs.mkdirSync = jest.fn();
+      fs.writeFileSync = jest.fn();
+      fs.readFileSync = jest.fn().mockReturnValue('# Copy requirements if they exist\n');
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue({
+        on: jest.fn((event, cb) => { if (event === 'close') cb(0); }),
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() }
+      });
+      await m.buildDockerImage('skill-a', ['numpy', 'pandas']);
+      const written = fs.writeFileSync.mock.calls[0][1];
+      expect(written).toContain('pip install --no-cache-dir numpy pandas');
+    });
+
+    it('构建失败时抛错', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      fs.mkdirSync = jest.fn();
+      fs.writeFileSync = jest.fn();
+      fs.readFileSync = jest.fn().mockReturnValue('# Copy requirements if they exist\n');
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue({
+        on: jest.fn((event, cb) => { if (event === 'close') cb(1); }),
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn((e, cb) => cb(Buffer.from('build failed'))) }
+      });
+      await expect(m.buildDockerImage('skill-a')).rejects.toThrow('Docker build failed: build failed');
+    });
+
+    it('spawn 错误时 reject', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      fs.existsSync = jest.fn().mockReturnValue(true);
+      fs.mkdirSync = jest.fn();
+      fs.writeFileSync = jest.fn();
+      fs.readFileSync = jest.fn().mockReturnValue('# Copy requirements if they exist\n');
+      jest.spyOn(m, '_cleanupTempDir').mockImplementation(() => {});
+      safeSpawn.mockReturnValue({
+        on: jest.fn((event, cb) => { if (event === 'error') cb(new Error('build spawn error')); }),
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() }
+      });
+      await expect(m.buildDockerImage('skill-a')).rejects.toThrow('build spawn error');
+    });
+  });
+
+  describe('runPythonScript docker success path', () => {
+    it('useDocker 时走 docker 执行并记录 dockerExecutions', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      jest.spyOn(m, '_shouldUseDocker').mockReturnValue(true);
+      jest.spyOn(m, '_runInDocker').mockResolvedValue({ ok: true });
+      const result = await m.runPythonScript('file-system', '/p.py', {}, {});
+      expect(result.ok).toBe(true);
+      expect(result.executionMetadata.usedDocker).toBe(true);
+      expect(m.metrics.dockerExecutions).toBe(1);
+      expect(m.metrics.localExecutions).toBe(0);
+    });
+
+    it('forceDocker 强制使用 docker', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      const dockerSpy = jest.spyOn(m, '_runInDocker').mockResolvedValue({ ok: true });
+      await m.runPythonScript('s', '/p.py', {}, { forceDocker: true });
+      expect(dockerSpy).toHaveBeenCalled();
+      expect(m.metrics.dockerExecutions).toBe(1);
+    });
+
+    it('forceLocal 强制本地执行', async () => {
+      const m = new PythonEnvManager({ mockMode: true, baseDir: TEST_BASE });
+      m.dockerAvailable = true;
+      jest.spyOn(m, '_shouldUseDocker').mockReturnValue(true);
+      const dockerSpy = jest.spyOn(m, '_runInDocker').mockResolvedValue({ ok: true });
+      await m.runPythonScript('s', '/p.py', {}, { forceLocal: true });
+      expect(dockerSpy).not.toHaveBeenCalled();
+      expect(m.metrics.localExecutions).toBe(1);
+    });
+  });
+
   describe('_run', () => {
     it('命令成功时 resolve', async () => {
       safeSpawn.mockReturnValue({

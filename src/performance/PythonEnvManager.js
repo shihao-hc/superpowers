@@ -407,6 +407,7 @@ class PythonEnvManager {
         if (!killed) {
           // Clean up temp directory
           this._cleanupTempDir(tempDir);
+          clearTimeout(timeoutId);
           reject(error);
         }
       });
