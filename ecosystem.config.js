@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'ultrawork',
-      script: 'server/staticServer.js',
+      script: 'server/index.js',
       cwd: '.',
       instances: 'max',
       exec_mode: 'cluster',

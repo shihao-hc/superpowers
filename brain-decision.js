@@ -139,10 +139,10 @@ function main() {
   // 增量 useCount: 被展示的教训使用次数+1
   try {
     if (fs.existsSync(LESSONS_FILE)) {
-      var data = JSON.parse(fs.readFileSync(LESSONS_FILE, 'utf8'));
-      var changed = 0;
+      const data = JSON.parse(fs.readFileSync(LESSONS_FILE, 'utf8'));
+      let changed = 0;
       ruleSet.forEach(function(r) {
-        for (var j = 0; j < data.lessons.length; j++) {
+        for (let j = 0; j < data.lessons.length; j++) {
           if (data.lessons[j].lesson === r.rule) {
             data.lessons[j].useCount = (data.lessons[j].useCount || 0) + 1;
             data.lessons[j].lastUsed = new Date().toISOString();
