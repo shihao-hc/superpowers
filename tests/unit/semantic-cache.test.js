@@ -15,6 +15,10 @@ describe('SemanticCache', () => {
     });
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('set and get', () => {
     it('should store and retrieve a value', async () => {
       await cache.set('key1', { result: 'value1' });
@@ -36,9 +40,8 @@ describe('SemanticCache', () => {
       let result = await shortCache.get('key');
       expect(result.hit).toBe(true);
 
-      Date.now = () => origDateNow() + 120000;
+      jest.spyOn(Date, 'now').mockReturnValue(origDateNow() + 120000);
       result = await shortCache.get('key');
-      Date.now = origDateNow;
       expect(result.hit).toBe(false);
     });
   });
@@ -87,11 +90,10 @@ describe('SemanticCache', () => {
       const origDateNow = Date.now.bind(Date);
       await shortCache.set('key1', { data: 'value1' });
 
-      Date.now = () => origDateNow() + 120000;
+      jest.spyOn(Date, 'now').mockReturnValue(origDateNow() + 120000);
       await shortCache.set('key2', { data: 'value2' });
 
       const cleaned = shortCache.cleanup();
-      Date.now = origDateNow;
       expect(cleaned.cleaned).toBe(1);
     });
   });

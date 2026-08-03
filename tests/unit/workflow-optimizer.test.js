@@ -4,7 +4,7 @@ describe('WorkflowOptimizer', () => {
   let opt;
 
   beforeEach(() => {
-    opt = new WorkflowOptimizer({ explorationRate: 0, learningRate: 0.1, discountFactor: 0.9 });
+    opt = new WorkflowOptimizer({ explorationRate: 0, learningRate: 0.1, discountFactor: 0.9, minExploration: 0 });
   });
 
   const makeStep = (agent, task, status = 'completed', duration = 500) => ({
@@ -340,6 +340,7 @@ describe('WorkflowOptimizer', () => {
 
   describe('getStats', () => {
     it('returns all stats fields', () => {
+      opt.explorationRate = 0.2;
       opt.recordExecution(makeExecution('e1', 'wf', [makeStep('a', 't')]));
       const stats = opt.getStats();
       expect(stats.episodes).toBe(1);

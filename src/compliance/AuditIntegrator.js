@@ -225,7 +225,7 @@ class AuditIntegrator {
 
   // Generate evidence package for audit
   generateEvidencePackage(certification) {
-    const packageId = `evidence_${Date.now()}`;
+    const packageId = `evidence_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
 
     const evidence = {
       id: packageId,
@@ -321,7 +321,7 @@ class AuditIntegrator {
   // Create certification record
   createCertification(certification) {
     const cert = {
-      id: `cert_${Date.now()}`,
+      id: `cert_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
       ...certification,
       status: 'active',
       issuedAt: Date.now(),
@@ -353,7 +353,7 @@ class AuditIntegrator {
   // Schedule external audit
   scheduleAudit(auditRequest) {
     const audit = {
-      id: `audit_${Date.now()}`,
+      id: `audit_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
       ...auditRequest,
       status: 'scheduled',
       scheduledAt: auditRequest.scheduledAt || Date.now(),
@@ -449,7 +449,7 @@ class AuditIntegrator {
     }
 
     const webhook = {
-      id: `webhook_${Date.now()}`,
+      id: `webhook_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
       integrationId,
       receivedAt: Date.now(),
       type: payload.type,

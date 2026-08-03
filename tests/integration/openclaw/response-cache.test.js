@@ -17,6 +17,7 @@ describe('ResponseCache', () => {
 
   afterEach(() => {
     cache.destroy();
+    jest.restoreAllMocks();
   });
 
   describe('基本操作', () => {
@@ -76,9 +77,8 @@ describe('ResponseCache', () => {
       shortCache.set(params, { result: 'test' });
       expect(shortCache.get(params)).toEqual({ result: 'test' });
 
-      Date.now = () => origDateNow() + 200;
+      jest.spyOn(Date, 'now').mockReturnValue(origDateNow() + 200);
       expect(shortCache.get(params)).toBeNull();
-      Date.now = origDateNow;
 
       shortCache.destroy();
     });
@@ -90,10 +90,8 @@ describe('ResponseCache', () => {
       cache.set(params, { result: 'test' }, 100);
       expect(cache.get(params)).toEqual({ result: 'test' });
 
-      Date.now = () => origDateNow() + 200;
-      expect(cache.get(params)).toBeNull();
-      Date.now = origDateNow;
-    });
+      jest.spyOn(Date, 'now').mockReturnValue(origDateNow() + 200);
+      expect(cache.get(params)).toBeNull();    });
   });
 
   describe('LRU 驱逐', () => {

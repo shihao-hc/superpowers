@@ -4,8 +4,8 @@ class WorkflowOptimizer {
     this.maxHistory = options.maxHistory || 1000;
     this.learningRate = options.learningRate || 0.1;
     this.discountFactor = options.discountFactor || 0.9;
-    this.explorationRate = options.explorationRate || 0.2;
-    this.minExploration = options.minExploration || 0.05;
+    this.explorationRate = options.explorationRate ?? 0.2;
+    this.minExploration = options.minExploration ?? 0.05;
     this.explorationDecay = options.explorationDecay || 0.995;
     this.qTable = new Map();
     this.stateActionPairs = new Map();

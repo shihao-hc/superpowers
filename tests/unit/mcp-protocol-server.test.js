@@ -28,6 +28,7 @@ describe('MCPServer', () => {
 
   afterEach(() => {
     server.removeAllListeners();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {

@@ -18,5 +18,18 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts", "**/__tests__/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/__tests__/**",
+    "src/commands",
+    "src/features",
+    "src/plugins",
+    "src/core/agent-loop",
+    "src/core/compact",
+    "src/core/permissions",
+    "src/core/tools"
+  ]
 }

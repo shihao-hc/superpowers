@@ -64,6 +64,15 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "transform": {
+      "^.+\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "configFile": false,
+          "babelrc": false
+        }
+      ]
+    },
     "testMatch": [
       "**/tests/**/*.test.js"
     ],
