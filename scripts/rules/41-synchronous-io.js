@@ -10,6 +10,8 @@ module.exports = {
     if (!/[/\\]/.test(relativePath)) return;
     // 已知诊断/评估/生成脚本（位于 src/ 等子目录但仍是工具性质）
     if (/learnEval|brain-full-check|OpenAPIGenerator|render-graphs|\.debug\./.test(relativePath)) return;
+    // comprehensiveChecks: ComprehensiveChecker 的 56 项检查实现（与 learnEval/brain-full-check 同类诊断工具）
+    if (/comprehensiveChecks[/\\]/.test(relativePath)) return;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (/\bfs\.(readFileSync|writeFileSync|existsSync|mkdirSync|readdirSync|unlinkSync|rmSync|cpSync|renameSync)\s*\(/.test(line)) {

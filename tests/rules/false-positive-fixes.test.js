@@ -156,6 +156,11 @@ describe('RULE 41 — SYNCHRONOUS_IO (root/diagnostic scripts excluded)', () => 
     expect(runRule(src, 'SYNCHRONOUS_IO', 'tools/check.js')).toEqual([]);
     expect(runRule(src, 'SYNCHRONOUS_IO', 'scripts/build.js')).toEqual([]);
   });
+
+  it('does NOT flag sync IO in comprehensiveChecks diagnostic implementations', () => {
+    expect(runRule(src, 'SYNCHRONOUS_IO', 'src/agent/comprehensiveChecks/A-code.js')).toEqual([]);
+    expect(runRule(src, 'SYNCHRONOUS_IO', 'src/agent/comprehensiveChecks/N-cleanliness.js')).toEqual([]);
+  });
 });
 
 describe('RULE 49 — NODE_ENV_CHECK_MISSING (entry-only)', () => {
