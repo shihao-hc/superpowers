@@ -5,7 +5,6 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "start:legacy": "node server/staticServer.js",
     "dev": "nodemon server/index.js",
     "lint": "npx eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -16,7 +15,6 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:mcp": "playwright test tests/e2e/mcp-ui-simplified.spec.js",
-    "test:mcp:integration": "node tests/integration/mcp-client.test.js",
     "test:mcp-client": "node tests/integration/mcp-client.test.js",
     "test:mcp:e2e": "playwright test tests/e2e/mcp-ui.spec.js",
     "test:integration": "node scripts/run-integration-tests.js",
