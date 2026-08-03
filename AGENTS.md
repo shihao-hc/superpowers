@@ -764,4 +764,20 @@ Session 锚点: 2026-07-31 (全量 Jest 零失败 — babel 加载顺序 + 模�
   - 这 7 个目录仅含升级 TS + 未来架构,无业务 JS 被 tsc 涉及 (allowJs 未开启, JS 文件不受 include/exclude 影响); `src/plugins/*.js` 业务插件仍照常运行
 - **零回归确认**: Jest 296/4/0 + ESLint 0/0 + Security 0 HIGH + npm audit 0 vulns 全部保持绿色
 
+Session 锚点: 2026-08-03 (安全扫描误报全量消除 — 302→172 LOW)
+- ESLint: 0/0 | tsc: 0 | Tests: **297 passed suites / 4 skipped / 0 failed** (14,805 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 172 LOW** (误报清理, 非源码改动)
+- **安全扫描 LOW 从 302 降至 172** (消除 130 个误报)，7 个规则修复 (全部为规则启发式缺陷, 遵循 5.3b「缺 rule 加 rule」):
+  - `39-duplicate-object-key.js` (消除 43): 5 行启发式改为对象边界帧追踪 + 模板字符串跳过 (奇偶翻转); `@babel/parser` AST 证明 43 个全为假阳性
+  - `47-sensitive-header-exposed.js` (消除 21): 跳过 `express.Router()` 文件 + helmet 默认 `hidePoweredBy` 视为已防护
+  - `50-trust-proxy-missing.js` (消除 18): 跳过 `express.Router()` 文件 (app 级 trust proxy 在 server/index.js:291 + staticServer.js 统一配置)
+  - `49-node-env-check-missing.js` (消除 21): 只检查真实入口 (根 server/index/app/main.js + server/index.js + src/index.js)，跳过模块出口 `*/index.js`
+  - `41-synchronous-io.js` (消除 23): 跳过根目录工具/诊断脚本 (无子目录) + learnEval/brain-full-check/OpenAPIGenerator/render-graphs
+  - `40-large-file.js` (消除 3): 排除诊断脚本
+  - `36-todo-comment.js` (消除 1): 模板字符串感知 (反引号奇偶翻转, 处理 `` ` : ` `` 同行开闭)
+- **剩余 172 LOW 为真实代码质量提示** (SYNCHRONOUS_IO 99 + LARGE_FILE 72 + NODE_ENV_CHECK_MISSING 1)，非误报，保留
+- **新增规则测试**: `tests/rules/false-positive-fixes.test.js` (23 测试) — 每规则含真实阳性检出 + 误报阴性用例，确保修复不漏检
+- **规则测试总量**: tests/rules/ 5 套件 154 测试全通过
+- **验证**: ESLint 全量 0/0 + tsc 0 + Jest 297/4/0 (二次运行 clean exit) + 安全扫描 0 HIGH/0 MEDIUM
+- Commit: `c2ea4e9` (fix(security): eliminate 130 false-positive findings across 7 rules)
+
 

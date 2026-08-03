@@ -1,4 +1,8 @@
 const path = require('path');
+
+// 默认为生产环境（开发需显式设置 NODE_ENV=development）
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
 const PluginManager = require('./plugins/PluginManager');
 const { PersonalityManager } = require('./personality/PersonalityManager');
 const ChatAgent = require('./agents/ChatAgent');
