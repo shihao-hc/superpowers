@@ -7,6 +7,8 @@ module.exports = {
   match: function (lines, relativePath, filePath, report) {
     const src = lines.join('\n');
     if (!/require\s*\(\s*['"]express['"]\s*\)/.test(src) && !/from\s+['"]express['"]/.test(src)) return;
+    // Express Router 文件不创建 app，不拥有 app 级设置；trust proxy 由 app 入口统一配置
+    if (/express\.Router\(\)/.test(src)) return;
     if (/trust\s*proxy/i.test(src)) return;
     report('LOW', 'TRUST_PROXY_MISSING', '文件范围', 'Express 缺少 trust proxy 配置，负载均衡下 req.ip 可能不准确');
   },

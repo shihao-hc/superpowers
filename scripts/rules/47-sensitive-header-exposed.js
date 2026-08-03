@@ -7,7 +7,11 @@ module.exports = {
   match: function (lines, relativePath, filePath, report) {
     const src = lines.join('\n');
     if (!/require\s*\(\s*['"]express['"]\s*\)/.test(src) && !/from\s+['"]express['"]/.test(src)) return;
+    // Express Router 文件不创建 app，不拥有 app 级设置；x-powered-by 由 app 入口统一禁用
+    if (/express\.Router\(\)/.test(src)) return;
     if (/(?:app|express)\.disable\s*\(\s*['"]x-powered-by['"]\s*\)/.test(src)) return;
+    // helmet 默认启用 hidePoweredBy (移除 X-Powered-By 头)；除非显式禁用
+    if (/helmet\s*\(/.test(src) && !/hidePoweredBy\s*:\s*false/.test(src)) return;
     if (/app\.set\s*\(\s*['"]x-powered-by['"]\s*,\s*false\s*\)/.test(src)) return;
     if (helmetDisables(src)) return;
     report('LOW', 'SENSITIVE_HEADER_EXPOSED', '文件范围', '未禁用 X-Powered-By 头，建议 app.disable("x-powered-by")');
