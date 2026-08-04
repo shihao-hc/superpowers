@@ -878,4 +878,16 @@ Session 锚点: 2026-08-04 (第5次 — 双 SkillLoader 合并: 死代码类移�
 - Commit: `cf7da01` (refactor(skills): remove dead SkillLoader class from loaders/ + CRLF frontmatter fix) 已推 `58ee558..cf7da01`
 - 相关文件: `src/skills/loaders/SkillLoader.js`, `src/skills/SkillRegistry.js`, `tests/unit/skill-loader-direct.test.js`, `tests/unit/skill-registry-core.test.js`, `.gitignore`
 
+---
+
+Session 锚点: 2026-08-04 (第6次 — SkillRegistry 真实 bug 修复)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 167 LOW** (无变化)
+- **SkillRegistry.js 真实 bug 修复 (5.3 发现即修复)**: `_discoverSkill` 弃用检测 `if (!skill.deprecated && indexJsPath)` 中 `indexJsPath` 是 `path.join` 结果**恒 truthy** — index.js 不存在时仍触发无意义 `readFileSync` + catch 吞错 → 改 `skill.hasIndexJs` 守卫
+  - 回归测试: `hasIndex: false` 场景下不标 deprecated (skill-registry-core.test.js +1, 67→68 相关测试)
+  - 测试数: 15,279→15,280 (+1) = 新回归用例; 0 failed
+- **方向判断记录**: 167 LOW (SYNCHRONOUS_IO 96 + LARGE_FILE 71) 全量异步化评估后**放弃** — 96 处分布 96 文件、多为构造期/同步 API 设计 (SkillRegistry/SkillLoader 等), 异步化需改全部调用链+测试, 破坏性高收益低; 与 AGENTS.md "真实但保留" 决策一致。已甄别 async 方法内同步调用候选 (SkillToMCP.generateMCPServerScript 等) 均需改同步测试断言, 性价比低
+- **双 SkillLoader 结论固化**: 旧版 `src/skills/SkillLoader.js` (skills-source/skill.md 格式, SkillManager/MCP 桥接在用) 与新解析模块 (SKILL.md 格式, SkillRegistry 在用) **API 完全不同 = 合理共存**, 不再合并
+- Commit: `0e45bd8` (fix(skills): check hasIndexJs instead of always-truthy indexJsPath) 已推 `68e9c92..0e45bd8`
+- 相关文件: `src/skills/SkillRegistry.js`, `tests/unit/skill-registry-core.test.js`
+
 
