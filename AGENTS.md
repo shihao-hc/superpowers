@@ -808,4 +808,23 @@ Session 锚点: 2026-08-04 (覆盖提升 — ComprehensiveChecker 维度全达�
 - **零回归确认**: 新增文件 stash 基线运行 299 suites / 14,885 tests, 与含新文件 300/14,933 差恰好 +1 suite / +48 tests; MaxListeners 警告 + worker force-exit 在基线同样出现 = 预存, 非本轮引入
 - 相关文件: `tests/unit/comprehensive-checks-branches.test.js` (新), `package.json`, `package-lock.json`
 
+Session 锚点: 2026-08-04 (第2次 — 覆盖提升: 50-70% 批次清零)
+- ESLint: 0/0 | tsc: 0 | Tests: **305 passed suites / 4 skipped / 0 failed** (15,007 passed / 46 skipped) | npm audit: **0 vulns** | Security: **0 HIGH, 0 MEDIUM, 168 LOW**
+- **5 个源文件全部 ≥95% branch** (此前 50-70% 批次, 全部无独立测试):
+  - `src/core/EvolutionPersistence.js`: 52.5%→**95%** (25 测试)
+  - `src/core/SelfEvolvingAGI.js`: 59.09%→**95.45%** (13 测试)
+  - `src/core/UnifiedIntelligence.js`: 54.17%→**100%** (10 测试)
+  - `src/utils/IntrospectionEngine.js`: 69.23%→**100%** (11 测试)
+  - `src/utils/PromiseTracker.js`: 69.44%→**100%** (15 测试)
+- 新增 5 个测试文件, 共 74 测试:
+  - `tests/unit/evolution-persistence.test.js` (25): 真实临时目录 `fs.mkdtempSync` + `process.chdir` per test; `jest.resetModules()` 使模块加载时重算 `PERSISTENCE_DIR` (cwd 依赖); 测试隔离用 beforeEach 全新 tmpRoot
+  - `tests/unit/self-evolving-agi.test.js` (13): 关键词目标生成 (学习/优化/性能/错误/bug + fallback), Math.random spy 控制反思问题
+  - `tests/unit/unified-intelligence.test.js` (10): jest.mock DeepIntentAnalyzer/MultiDimensionPredictor/EmotionExpress (零依赖), 组合建议去重
+  - `tests/unit/introspection-engine.test.js` (11): mock brainSystem (lessonLibrary/predictIssues/metaCognition/evolution/tools), 增长趋势 5 分支 (unknown/accelerating/growing/stable/slowing)
+  - `tests/unit/promise-tracker.test.js` (15): broken 分支经 `jest.spyOn(tracker,'_verifyPromise')` 注入 `pass:false` (源码永不返回 false)
+- **关键设计**: EvolutionPersistence 用 `jest.resetModules()` 使每次测试重算 cwd 派生路径; 否则共享 tmpRoot 残留文件导致测试状态泄漏 (5 处 writeFileSync 需先 mkdirSync 父目录)
+- **零回归确认**: 全量两次运行 305/4/0 一致; MaxListeners 警告 + worker force-exit 仍为预存 (基线同现)
+- 剩余 62 个 <70% src 文件: 大部分 0% 为入口/诊断/外部基础设施 (src/index.js, brain-full-check, daemon, OllamaBridge 等), 低价值
+- 相关文件: 5 个新测试文件 (tests/unit/)
+
 
