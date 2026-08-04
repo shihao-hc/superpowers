@@ -843,4 +843,23 @@ Session 锚点: 2026-08-04 (第3次 — 覆盖提升: 已有专属测试文件�
 - Commit: `5dfcbc4` (test: 覆盖率批次清零 — 4 源文件全部 >=84% branch)
 - 相关文件: `tests/unit/workflow-marketplace.test.js`, `tests/unit/openapi-generator.test.js`, `tests/unit/agent-team.test.js`, `tests/unit/base-llm-adapter.test.js`
 
+---
+
+Session 锚点: 2026-08-04 (第4次 — 剩余有专属测试的业务文件清零 + B类归档 + api.js 3 bug 修复)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,299 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 168 LOW**
+- **B类归档完成**: `src/agent/AgentTeam.js` → **死代码确认** → `git mv` 至 `test/archive/AgentTeam.js` (仅 `agent-team.test.js` 引用, 无业务入口); `src/performance/WorkflowOptimizer.js` → 存活 (经 src/performance/index.js ← scripts/mcp-stress-test.js 中转), 保留; `src/skills/SkillLoader.js` 旧版 → 存活 (src/skills/index.js + SkillManager.js 引用), 与新版 `loaders/SkillLoader.js` (SkillRegistry.js 引用) 双实现共存, 合并列为待办
+- **A类 3 个业务文件全部 ≥87% branch** (初始均无独立真实覆盖):
+  - `src/skills/api.js`: 7.76%→**87.92% branch** / 99.35% stmts (skills-api.test.js 完全重写, 132 测试) — **修复 3 个真实 bug (5.3 发现即修复)**:
+    1. 原 985 行 `module.exports = { SkillsApi };` 覆盖 983 行 → `SkillAutoRouter` 实际 undefined, `staticServer.js:2639/2649` 静默 TypeError 被 catch 吞掉、自动路由整体失效 → 删除重复导出
+    2. 构造函数从未设 `this.skillLoader` → 高危技能测试安全门永不触发、`/nodes`/`/dependencies` 恒 404 → 加 `this.skillLoader = skillManager.skillLoader || null;`
+    3. auth middleware publicGetPaths 含 `'/'` + `startsWith('/')` → **所有 GET 请求绕过认证** → 改精确 `includes(req.path)` + 明确前缀 `['/type/','/marketplace/']`
+  - `src/skills/loaders/SkillLoader.js`: 28.94%→**97.37% branch** / 99.13% stmts (新增 `tests/unit/skill-loader-direct.test.js` 36 测试, 真实临时目录模式)
+  - `src/social/DiscordBot.js`: 39.18%→**87.72% branch** / 94.05% stmts (discord-bot.test.js +90 测试至 144)
+- **DiscordBot 测试关键点**: `start()` 用 fake timers + `bot.client.on.mock.calls` 捕获 handlers 再手动触发 (ready/messageCreate/interactionCreate/reaction); 用 `DISCORD_ADMIN_ROLES` env 控制 isAdmin 分支 (env 为空时 isAdmin 恒 true — 无角色配置=全员管理); cmdPing 需设 `bot.client`; `handlers.ready` 是普通箭头函数非 jest.fn
+- **SkillLoader 测试关键点**: `parseString` 未导出 (内部函数), 仅测 parseFrontmatter/parseYamlSimple; `|` 块键实际行为 = 设 currentKey 但不赋值 result (测试断言 `toBeUndefined` 而非 '|'); `_scanSkillFiles` 测试须先 mkdirSync scripts/references/assets 再写文件
+- **src <70% branch 文件: 58→55** (3 个 A 类文件移除); 剩余 52 个 0% 为入口/诊断/外部基础设施 (src/index.js, brain-full-check, OllamaBridge, daemon 等) + SandboxRunner 62.96% / BrainSystem 63.16% (均为已记录最大可达值)
+- **cov-check4.js 通用化**: 从硬编码 4 文件改为接收 `process.argv` 文件名参数 (coverage-final.json 新版 branchMap 逐 location 统计)
+- Commit: (待填) — 归档 git mv + api.js 修复 + 3 测试文件
+- 相关文件: `src/skills/api.js`, `tests/unit/skills-api.test.js`, `tests/unit/skill-loader-direct.test.js` (新), `tests/unit/discord-bot.test.js`, `test/archive/AgentTeam.js`
+
 

@@ -13,6 +13,7 @@ const { createAuthMiddleware } = require('../middleware/auth');
 class SkillsApi {
   constructor(skillManager) {
     this.skillManager = skillManager;
+    this.skillLoader = skillManager.skillLoader || null;
     this.validator = new SkillValidator();
     this.marketplace = new SkillMarketplace();
     this.versionManager = new SkillVersionManager();
@@ -26,10 +27,11 @@ class SkillsApi {
     this.router.use((req, res, next) => {
       const publicGetPaths = [
         '/', '/metrics', '/prometheus', '/custom',
-        '/marketplace', '/startup',
-        '/type/'
+        '/marketplace', '/startup'
       ];
-      if (req.method === 'GET' && publicGetPaths.some((p) => req.path === p || req.path.startsWith(p))) {
+      const publicGetPrefixes = ['/type/', '/marketplace/'];
+      if (req.method === 'GET' &&
+        (publicGetPaths.includes(req.path) || publicGetPrefixes.some((p) => req.path.startsWith(p)))) {
         return next();
       }
       return auth.authenticate(req, res, next);
@@ -981,5 +983,3 @@ class SkillAutoRouter {
 }
 
 module.exports = { SkillsApi, SkillAutoRouter };
-
-module.exports = { SkillsApi };

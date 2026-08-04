@@ -461,5 +461,707 @@ describe('DiscordBot', () => {
     it('returns false for missing member', () => {
       expect(bot.isAdmin({})).toBe(false);
     });
+
+    it('returns true when no admin roles configured', () => {
+      delete process.env.DISCORD_ADMIN_ROLES;
+      const ctx = { member: { permissions: { has: () => false }, roles: { cache: [] } } };
+      expect(bot.isAdmin(ctx)).toBe(true);
+    });
+
+    it('returns true when member has admin role', () => {
+      process.env.DISCORD_ADMIN_ROLES = 'role123,role456';
+      const ctx = { member: { permissions: { has: () => false }, roles: { cache: [{ id: 'role456' }] } } };
+      expect(bot.isAdmin(ctx)).toBe(true);
+    });
+  });
+
+  describe('registerSlashCommands', () => {
+    it('returns early without clientId', async () => {
+      const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const b = new DiscordBot({ token: 't' });
+      await b.registerSlashCommands();
+      expect(log).toHaveBeenCalledWith('[DiscordBot] No client ID for slash commands');
+      log.mockRestore();
+    });
+
+    it('registers commands via REST', async () => {
+      const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+      await bot.registerSlashCommands();
+      expect(bot.slashCommands.length).toBeGreaterThan(0);
+      expect(log).toHaveBeenCalledWith('[DiscordBot] Slash commands registered');
+      log.mockRestore();
+    });
+
+    it('logs error when REST put fails', async () => {
+      const { REST } = require('discord.js');
+      REST.mockImplementationOnce(() => ({ setToken: jest.fn(() => ({ put: jest.fn().mockRejectedValue(new Error('boom')) })) }));
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.registerSlashCommands();
+      expect(err).toHaveBeenCalledWith('[DiscordBot] Failed to register slash commands:', 'boom');
+      err.mockRestore();
+    });
+  });
+
+  describe('handleSlashCommand', () => {
+    function makeInteraction(commandName, opts = {}) {
+      const values = opts.values || {};
+      const getString = jest.fn((name) => (values[name] !== undefined ? values[name] : null));
+      const getUser = jest.fn((name) => (values[name] !== undefined ? values[name] : null));
+      const interaction = {
+        commandName,
+        options: { getString, getUser },
+        reply: jest.fn().mockResolvedValue(undefined),
+        deferReply: jest.fn().mockResolvedValue(undefined),
+        editReply: jest.fn().mockResolvedValue(undefined),
+        createdTimestamp: Date.now(),
+        user: { id: 'u1', tag: 'U#1', username: 'u1', displayAvatarURL: jest.fn(() => 'url') },
+        member: { permissions: { has: jest.fn(() => true) } },
+        guild: null,
+        customId: '',
+        values: []
+      };
+      return interaction;
+    }
+
+    it('help with command found', async () => {
+      const i = makeInteraction('help', { values: { command: 'ping' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('help with command not found', async () => {
+      const i = makeInteraction('help', { values: { command: 'zzz' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('help general menu', async () => {
+      const i = makeInteraction('help');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+    });
+
+    it('ping', async () => {
+      bot.client = new (require('discord.js').Client)();
+      const i = makeInteraction('ping');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('status with agents', async () => {
+      bot.client = new (require('discord.js').Client)();
+      const i = makeInteraction('status');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('status without pm', async () => {
+      bot.client = new (require('discord.js').Client)();
+      bot.agents = { router: {} };
+      const i = makeInteraction('status');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('chat success', async () => {
+      const i = makeInteraction('chat', { values: { message: 'hello' } });
+      await bot.handleSlashCommand(i);
+      expect(i.deferReply).toHaveBeenCalled();
+      expect(i.editReply).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+    });
+
+    it('chat without router', async () => {
+      const b = new DiscordBot({ token: 't', agents: {} });
+      const i = makeInteraction('chat', { values: { message: 'hello' } });
+      await b.handleSlashCommand(i);
+      expect(i.editReply).toHaveBeenCalled();
+    });
+
+    it('chat router error', async () => {
+      bot.agents.router.routeMessage.mockRejectedValue(new Error('fail'));
+      const i = makeInteraction('chat', { values: { message: 'hello' } });
+      await bot.handleSlashCommand(i);
+      expect(i.editReply).toHaveBeenCalled();
+    });
+
+    it('personality list', async () => {
+      const i = makeInteraction('personality', { values: { action: 'list' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+    });
+
+    it('personality switch denied for non-admin', async () => {
+      process.env.DISCORD_ADMIN_ROLES = 'role123';
+      const i = makeInteraction('personality', { values: { action: 'switch', name: 'sad' } });
+      i.member.permissions.has.mockReturnValue(false);
+      i.member.roles = { cache: [] };
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+      delete process.env.DISCORD_ADMIN_ROLES;
+    });
+
+    it('personality switch without name', async () => {
+      const i = makeInteraction('personality', { values: { action: 'switch' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('personality switch success', async () => {
+      bot.agents.pm.setActive.mockReturnValue(true);
+      const i = makeInteraction('personality', { values: { action: 'switch', name: 'sad' } });
+      await bot.handleSlashCommand(i);
+      expect(bot.agents.pm.setActive).toHaveBeenCalledWith('sad');
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('personality switch fail', async () => {
+      bot.agents.pm.setActive.mockReturnValue(false);
+      const i = makeInteraction('personality', { values: { action: 'switch', name: 'nope' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('personality current', async () => {
+      const i = makeInteraction('personality', { values: { action: 'current' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('personality without pm', async () => {
+      const b = new DiscordBot({ token: 't', agents: {} });
+      const i = makeInteraction('personality', { values: { action: 'list' } });
+      await b.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('game connect denied for non-admin', async () => {
+      process.env.DISCORD_ADMIN_ROLES = 'role123';
+      const i = makeInteraction('game', { values: { action: 'connect' } });
+      i.member.permissions.has.mockReturnValue(false);
+      i.member.roles = { cache: [] };
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+      delete process.env.DISCORD_ADMIN_ROLES;
+    });
+
+    it('memory remember success', async () => {
+      const i = makeInteraction('memory', { values: { action: 'remember', key: 'k', value: 'v' } });
+      await bot.handleSlashCommand(i);
+      expect(bot.agents.memory.remember).toHaveBeenCalledWith('discord_u1_k', expect.any(Object));
+    });
+
+    it('memory remember without key', async () => {
+      const i = makeInteraction('memory', { values: { action: 'remember' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('memory recall success', async () => {
+      bot.agents.memory.retrieve.mockReturnValue('stored');
+      const i = makeInteraction('memory', { values: { action: 'recall', key: 'k' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory recall admin fallback to global', async () => {
+      bot.agents.memory.retrieve.mockReturnValueOnce(null).mockReturnValue('global');
+      const i = makeInteraction('memory', { values: { action: 'recall', key: 'k' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory recall not found', async () => {
+      bot.agents.memory.retrieve.mockReturnValue(null);
+      const i = makeInteraction('memory', { values: { action: 'recall', key: 'k' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('memory recall without key', async () => {
+      const i = makeInteraction('memory', { values: { action: 'recall' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('memory list', async () => {
+      const i = makeInteraction('memory', { values: { action: 'list' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory search without query', async () => {
+      const i = makeInteraction('memory', { values: { action: 'search' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('memory search with results', async () => {
+      bot.agents.memory.list = jest.fn(() => ({ entries: [['key1', 'v1'], ['key2', 'v2']] }));
+      const i = makeInteraction('memory', { values: { action: 'search', query: 'x' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory search empty results', async () => {
+      bot.agents.memory.list = jest.fn(() => ({ entries: [] }));
+      const i = makeInteraction('memory', { values: { action: 'search', query: 'x' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory stats', async () => {
+      const i = makeInteraction('memory', { values: { action: 'stats' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('memory clear denied for non-admin', async () => {
+      process.env.DISCORD_ADMIN_ROLES = 'role123';
+      const i = makeInteraction('memory', { values: { action: 'clear' } });
+      i.member.permissions.has.mockReturnValue(false);
+      i.member.roles = { cache: [] };
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+      delete process.env.DISCORD_ADMIN_ROLES;
+    });
+
+    it('memory clear as admin', async () => {
+      const i = makeInteraction('memory', { values: { action: 'clear' } });
+      await bot.handleSlashCommand(i);
+      expect(bot.agents.memory.remember).toHaveBeenCalled();
+    });
+
+    it('memory without memory system', async () => {
+      const b = new DiscordBot({ token: 't', agents: {} });
+      const i = makeInteraction('memory', { values: { action: 'list' } });
+      await b.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('game status with game', async () => {
+      bot.agents.game = { getStatus: jest.fn(() => ({ connected: true, health: 12 })) };
+      const i = makeInteraction('game', { values: { action: 'status' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('game status without game', async () => {
+      const i = makeInteraction('game', { values: { action: 'status' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('game command without command', async () => {
+      const i = makeInteraction('game', { values: { action: 'command' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('game command with command', async () => {
+      const i = makeInteraction('game', { values: { action: 'command', command: 'say hi' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('game default help', async () => {
+      const i = makeInteraction('game', { values: { action: 'other' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('roll with dice', async () => {
+      const i = makeInteraction('roll', { values: { dice: '2d6' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('roll with large count truncates list', async () => {
+      const i = makeInteraction('roll', { values: { dice: '15d6' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('roll with invalid format falls back', async () => {
+      const i = makeInteraction('roll', { values: { dice: 'abc' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('roll default dice', async () => {
+      const i = makeInteraction('roll');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('8ball', async () => {
+      const i = makeInteraction('8ball', { values: { question: 'yes?' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('avatar', async () => {
+      const i = makeInteraction('avatar');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('userinfo with member', async () => {
+      const member = {
+        joinedTimestamp: Date.now(),
+        nickname: 'Nick',
+        roles: { cache: new Map([['@everyone', { name: '@everyone' }], ['r1', { name: 'role1' }]]) }
+      };
+      const i = makeInteraction('userinfo');
+      i.guild = { members: { fetch: jest.fn().mockResolvedValue(member) } };
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('userinfo without member', async () => {
+      const i = makeInteraction('userinfo');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('serverinfo without guild', async () => {
+      const i = makeInteraction('serverinfo');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('serverinfo with guild', async () => {
+      const i = makeInteraction('serverinfo');
+      i.guild = {
+        name: 'G',
+        memberCount: 3,
+        createdTimestamp: Date.now(),
+        channels: { cache: new Map() },
+        roles: { cache: new Map() },
+        emojis: { cache: new Map() },
+        iconURL: jest.fn(() => 'icon')
+      };
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalled();
+    });
+
+    it('poll with fewer than 2 options', async () => {
+      const i = makeInteraction('poll', { values: { question: 'Q', options: 'only' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true }));
+    });
+
+    it('poll with options', async () => {
+      const i = makeInteraction('poll', { values: { question: 'Q', options: 'a,b,c' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ components: [expect.any(Object)] }));
+    });
+
+    it('catches command errors', async () => {
+      bot.client = new (require('discord.js').Client)();
+      const i = makeInteraction('ping');
+      i.reply.mockRejectedValueOnce(new Error('boom'));
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.handleSlashCommand(i);
+      expect(err).toHaveBeenCalled();
+      err.mockRestore();
+    });
+
+    it('ignores unknown command name', async () => {
+      const i = makeInteraction('unknown');
+      await bot.handleSlashCommand(i);
+      expect(i.reply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('start event wiring', () => {
+    async function setupStartedBot() {
+      jest.useFakeTimers();
+      const startPromise = bot.start();
+      const handlers = {};
+      bot.client.on.mock.calls.forEach(([event, handler]) => { handlers[event] = handler; });
+      return { startPromise, handlers };
+    }
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('wires ready, interaction, message and reaction handlers', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      expect(handlers.ready).toBeDefined();
+      expect(handlers.interactionCreate).toBeDefined();
+      expect(handlers.messageCreate).toBeDefined();
+      expect(handlers.messageReactionAdd).toBeDefined();
+      expect(handlers.messageReactionRemove).toBeDefined();
+      expect(handlers.error).toBeDefined();
+      await startPromise;
+    });
+
+    it('ready handler enables bot and registers commands', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.registerSlashCommands = jest.fn().mockResolvedValue(undefined);
+      await handlers.ready();
+      expect(bot.enabled).toBe(true);
+      expect(bot.registerSlashCommands).toHaveBeenCalled();
+      await startPromise;
+    });
+
+    it('messageCreate skips bot authors', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      const msg = { author: { bot: true }, content: '!ping' };
+      await handlers.messageCreate(msg);
+      expect(bot.enabled).toBe(false);
+      await startPromise;
+    });
+
+    it('messageCreate replies when typing in progress', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.typingUsers.set('u1', { expiresAt: Date.now() + 30000 });
+      const msg = { author: { bot: false, id: 'u1' }, content: '!ping', channel: { send: jest.fn().mockResolvedValue({ delete: jest.fn().mockResolvedValue(undefined) }) } };
+      await handlers.messageCreate(msg);
+      expect(msg.channel.send).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+      await startPromise;
+    });
+
+    it('messageCreate ignores non-prefix messages', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      const msg = { author: { bot: false, id: 'u1' }, content: 'plain text', reply: jest.fn() };
+      await handlers.messageCreate(msg);
+      expect(msg.reply).not.toHaveBeenCalled();
+      await startPromise;
+    });
+
+    it('messageCreate handles prefixed command', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      const msg = { author: { bot: false, id: 'u1' }, content: '!hello world', guild: { name: 'TestGuild' }, channel: { name: 'general' }, reply: jest.fn().mockResolvedValue(undefined) };
+      await handlers.messageCreate(msg);
+      expect(msg.reply).toHaveBeenCalledWith('Hello!');
+      expect(bot.typingUsers.has('u1')).toBe(false);
+      await startPromise;
+    });
+
+    it('interactionCreate dispatches chat commands', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.handleSlashCommand = jest.fn().mockResolvedValue(undefined);
+      const i = { isChatInputCommand: () => true, isButton: () => false, isSelectMenu: () => false };
+      await handlers.interactionCreate(i);
+      expect(bot.handleSlashCommand).toHaveBeenCalledWith(i);
+      await startPromise;
+    });
+
+    it('interactionCreate dispatches buttons', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.handleButton = jest.fn().mockResolvedValue(undefined);
+      const i = { isChatInputCommand: () => false, isButton: () => true, isSelectMenu: () => false };
+      await handlers.interactionCreate(i);
+      expect(bot.handleButton).toHaveBeenCalledWith(i);
+      await startPromise;
+    });
+
+    it('interactionCreate dispatches select menus', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.handleSelectMenu = jest.fn().mockResolvedValue(undefined);
+      const i = { isChatInputCommand: () => false, isButton: () => false, isSelectMenu: () => true };
+      await handlers.interactionCreate(i);
+      expect(bot.handleSelectMenu).toHaveBeenCalledWith(i);
+      await startPromise;
+    });
+
+    it('messageReactionAdd skips bots and handles reactions', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      await handlers.messageReactionAdd({}, { bot: true }, {});
+      bot.handleReaction = jest.fn().mockResolvedValue(undefined);
+      await handlers.messageReactionAdd({}, { bot: false }, {});
+      expect(bot.handleReaction).toHaveBeenCalledWith({}, { bot: false }, 'add');
+      await startPromise;
+    });
+
+    it('messageReactionRemove handles reactions', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.handleReaction = jest.fn().mockResolvedValue(undefined);
+      await handlers.messageReactionRemove({}, { bot: false }, {});
+      expect(bot.handleReaction).toHaveBeenCalledWith({}, { bot: false }, 'remove');
+      await startPromise;
+    });
+
+    it('error handler logs', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      handlers.error(new Error('net'));
+      expect(err).toHaveBeenCalledWith('[DiscordBot] Error:', 'net');
+      err.mockRestore();
+      await startPromise;
+    });
+
+    it('cleanup interval removes expired typing records', async () => {
+      const { startPromise } = await setupStartedBot();
+      bot.typingUsers.set('u1', { expiresAt: Date.now() - 1000 });
+      const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+      jest.advanceTimersByTime(60000);
+      expect(bot.typingUsers.has('u1')).toBe(false);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('Cleaned up 1 typing records'));
+      log.mockRestore();
+      await startPromise;
+    });
+  });
+
+  describe('sendDM edge cases', () => {
+    it('does nothing when user fetch returns null', async () => {
+      bot.client = { users: { fetch: jest.fn().mockResolvedValue(null) } };
+      await bot.sendDM('u', 'msg');
+    });
+
+    it('logs DM error on fetch failure', async () => {
+      bot.client = { users: { fetch: jest.fn().mockRejectedValue(new Error('fail')) } };
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.sendDM('u', 'msg');
+      expect(err).toHaveBeenCalledWith('[DiscordBot] DM error:', 'fail');
+      err.mockRestore();
+    });
+  });
+
+  describe('broadcast edge cases', () => {
+    it('does nothing when channel fetch returns null', async () => {
+      bot.client = { channels: { fetch: jest.fn().mockResolvedValue(null) } };
+      await bot.broadcast('Hello!', 'ch');
+    });
+
+    it('logs broadcast error', async () => {
+      bot.client = { channels: { fetch: jest.fn().mockRejectedValue(new Error('fail')) } };
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.broadcast('Hello!', 'ch');
+      expect(err).toHaveBeenCalledWith('[DiscordBot] Broadcast error:', 'fail');
+      err.mockRestore();
+    });
+  });
+
+  describe('sendToChannel edge cases', () => {
+    it('does nothing when channel missing', async () => {
+      bot.client = { channels: { fetch: jest.fn().mockResolvedValue(null) } };
+      await bot.sendToChannel('ch', 'text');
+    });
+
+    it('logs send error', async () => {
+      bot.client = { channels: { fetch: jest.fn().mockRejectedValue(new Error('fail')) } };
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.sendToChannel('ch', 'text');
+      expect(err).toHaveBeenCalledWith('[DiscordBot] Send error:', 'fail');
+      err.mockRestore();
+    });
+  });
+
+  describe('notifyGameEvent edge cases', () => {
+    beforeEach(() => { delete process.env.DISCORD_GAME_CHANNEL; });
+
+    it('does nothing without game channel', () => {
+      bot.sendToChannel = jest.fn();
+      bot.notifyGameEvent('hurt', { health: 10 });
+      expect(bot.sendToChannel).not.toHaveBeenCalled();
+    });
+
+    it('uses danger color for died events', () => {
+      process.env.DISCORD_GAME_CHANNEL = 'ch';
+      bot.sendToChannel = jest.fn();
+      bot.notifyGameEvent('died', {});
+      const embed = bot.sendToChannel.mock.calls[0][1];
+      expect(embed.data.color).toBe(0xED4245);
+    });
+
+    it('uses success color for connected events', () => {
+      process.env.DISCORD_GAME_CHANNEL = 'ch';
+      bot.sendToChannel = jest.fn();
+      bot.notifyGameEvent('connected', {});
+      const embed = bot.sendToChannel.mock.calls[0][1];
+      expect(embed.data.color).toBe(0x57F287);
+    });
+  });
+
+  describe('handleCommand extended', () => {
+    it('setglobal requires admin', async () => {
+      await bot.handleCommand(mockMessage, 'setglobal', ['k', 'v']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('Hello!');
+    });
+
+    it('setglobal with admin and args', async () => {
+      mockMessage.member = { permissions: { has: () => true } };
+      await bot.handleCommand(mockMessage, 'setglobal', ['k', 'v']);
+      expect(bot.agents.memory.remember).toHaveBeenCalledWith('discord_all_k', expect.any(Object));
+      expect(mockMessage.reply).toHaveBeenCalledWith('✅ 已设置全局记忆: k');
+    });
+
+    it('setglobal with admin missing args', async () => {
+      mockMessage.member = { permissions: { has: () => true } };
+      await bot.handleCommand(mockMessage, 'setglobal', ['k']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('用法: !setglobal <key> <value>');
+    });
+
+    it('personality without pm configured', async () => {
+      const b = new DiscordBot({ agents: {} });
+      await b.handleCommand(mockMessage, 'personality', ['list']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('人格系统未配置');
+    });
+
+    it('personality switch fail', async () => {
+      bot.agents.pm.setActive.mockReturnValue(false);
+      await bot.handleCommand(mockMessage, 'personality', ['switch', 'nope']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('❌ 未找到人格: nope');
+    });
+
+    it('personality switch without name', async () => {
+      await bot.handleCommand(mockMessage, 'personality', ['switch']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('用法: !personality switch <name>');
+    });
+
+    it('personality unknown subcommand', async () => {
+      await bot.handleCommand(mockMessage, 'personality', ['bogus']);
+      expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('用法:'));
+    });
+
+    it('custom command execute error is caught', async () => {
+      bot.registerCommand('bad', { execute: jest.fn().mockRejectedValue(new Error('x')) });
+      const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await bot.handleCommand(mockMessage, 'bad', []);
+      expect(mockMessage.reply).toHaveBeenCalledWith('执行命令时出错');
+      err.mockRestore();
+    });
+  });
+
+  describe('handleChat extended', () => {
+    it('rejects whitespace-only input', async () => {
+      await bot.handleChat(mockMessage, '   ');
+      expect(mockMessage.reply).toHaveBeenCalledWith('输入无效');
+    });
+
+    it('memory remember path without guild', async () => {
+      mockMessage.guild = null;
+      await bot.handleChat(mockMessage, 'hi');
+      expect(bot.agents.memory.remember).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleButton edge case', () => {
+    it('ignores non-poll buttons', async () => {
+      const interaction = { customId: 'other_1', reply: jest.fn() };
+      await bot.handleButton(interaction);
+      expect(interaction.reply).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setupGameNotifications edge case', () => {
+    it('handles undefined gameAgent', () => {
+      expect(() => bot.setupGameNotifications(undefined)).not.toThrow();
+    });
+  });
+
+  describe('getStatus connected', () => {
+    it('reports connected when client ready', () => {
+      bot.client = new (require('discord.js').Client)();
+      bot.enabled = true;
+      const status = bot.getStatus();
+      expect(status.enabled).toBe(true);
+      expect(status.connected).toBe(true);
+      expect(status.guilds).toBe(0);
+      expect(status.commands).toBe(0);
+    });
   });
 });
