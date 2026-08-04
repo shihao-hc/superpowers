@@ -793,4 +793,19 @@ Session 锚点: 2026-08-03 (第2次 — 全量验证闭环: 覆盖提升 + 异�
 - **测试修复**: python-env-manager.test.js 注释尾行意外粘连 `});` (babel 容错但 eslint 报 EOF) → 拆行修复
 - 4 commits: `a77c25a` (ComprehensiveChecker split) + `e80f969` (async-io) + `0514b4c` (coverage+timer fix) + `3edc59b` (scripts)
 
+Session 锚点: 2026-08-04 (覆盖提升 — ComprehensiveChecker 维度全达标 + MCP 目录确认 + npm audit 0 恢复)
+- ESLint: 0/0 | tsc: 0 | Tests: **300 passed suites / 4 skipped / 0 failed** (14,933 passed / 46 skipped) | npm audit: **0 vulns** | Security: **0 HIGH, 0 MEDIUM, 168 LOW**
+- **ComprehensiveChecker 拆分模块全量 ≥70% branch**: 14 维度模块聚合 86.5% stmts / 70.4% branch → **98.21% stmts / 92.22% branch / 98.01% funcs**
+  - 新增 `tests/unit/comprehensive-checks-branches.test.js` (48 测试): 直接调用 `CHECK_IMPLEMENTATIONS` + 真实临时目录 (`fs.mkdtempSync` under os.tmpdir)
+  - **关键设计**: mock-fs 的 `path.join` 产生反斜杠路径, 检查匹配的是正斜杠模式 (`/core/`, `/agent/`, `/api/`) → 永不命中 → 分支空洞; 真实临时目录绕过该 Windows 路径问题
+  - `fwd()` helper 转 `\`→`/` 适配路径匹配; 断言精确状态消息 ('未使用环境变量', '版本号未设置', '缺少package.json', '缺少许可证', 'TODO/FIXME', '空目录') 防消息漂移
+  - 修复测试自身 bug: `checkNamingConsistency` 正则 `[a-z][A-Z]` 要求小写紧跟大写 → `fooBar`(f-o) 不匹配, 改用 `dFoo` 形式 (4 个声明/文件 × 3 文件 → issues>2 → warning)
+- **MCP 目录覆盖确认 (无 0% 文件)**: 29 个源文件全部 ≥87% branch (最低 ThinkingChainStorage 87.1%), 12 个 100% — 2026-07-29 锚点记的 "12 个 0%" 已由 29 个 `tests/unit/mcp-*.test.js` (1719 测试) 覆盖, 本轮无需新增
+- **npm audit 0 恢复 (新公告): 7 → 0 vulnerabilities**
+  - 新公告: brace-expansion GHSA-rgw5-rvv9-x895 (high), fast-uri GHSA-7p8r-x3mc-p8w7 (high), hono GHSA-8j4g-w8fx-2239 (moderate), undici 3× (GHSA-8xcm-r25x-g524 / GHSA-m8rv-5g2x-5cg5 / GHSA-v3r7-h72x-cjcm, moderate)
+  - package.json overrides 升级: brace-expansion 5.0.8→**5.0.9**, undici 6.27.0→**6.28.0** (discord.js/@discordjs/rest/@discordjs/ws), 新增 fast-uri **3.1.5** (ajv ^3.0.1 兼容) + hono **4.12.34** (@hono/node-server peer ^4 兼容)
+  - 坑: npm install 后 fast-uri 磁盘仍 3.1.4 (lock 已是 3.1.5) → 手动删 node_modules/fast-uri 重装才落地
+- **零回归确认**: 新增文件 stash 基线运行 299 suites / 14,885 tests, 与含新文件 300/14,933 差恰好 +1 suite / +48 tests; MaxListeners 警告 + worker force-exit 在基线同样出现 = 预存, 非本轮引入
+- 相关文件: `tests/unit/comprehensive-checks-branches.test.js` (新), `package.json`, `package-lock.json`
+
 
