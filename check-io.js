@@ -17,7 +17,6 @@ const files = [
   'src/performance/Optimizer.js',
   'src/plugin-governance/GovernanceCore.js',
   'src/plugins/SandboxRunner.js',
-  'src/skills/monitoring/AlertNotificationSystem.js',
   'src/game/GameManager.js',
   'src/industry/customer_service/templates.js',
   'src/industry/ecommerce/templates.js',

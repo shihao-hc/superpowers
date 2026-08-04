@@ -8,7 +8,6 @@ const path = require('path');
 
 const files = [
   'src/skills/market/VerticalDomainMarket.js',
-  'src/skills/monitoring/AlertNotificationSystem.js',
   'src/skills/monitoring/SkillMonitoringSystem.js',
   'src/skills/monitoring/FeedbackCollectionSystem.js',
   'src/chat/ChatWebSocketHandler.js',
