@@ -890,4 +890,20 @@ Session 锚点: 2026-08-04 (第6次 — SkillRegistry 真实 bug 修复)
 - Commit: `0e45bd8` (fix(skills): check hasIndexJs instead of always-truthy indexJsPath) 已推 `68e9c92..0e45bd8`
 - 相关文件: `src/skills/SkillRegistry.js`, `tests/unit/skill-registry-core.test.js`
 
+---
+
+Session 锚点: 2026-08-04 (第7次 — 死代码归档: 4 个零引用重复实现旧版)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 163 LOW** (167→163, 归档带走 4 个 LOW 项)
+- **4 个死代码归档完成** (全库零调用, 活跃版存在于他目录):
+  - `src/marketplace/SkillMarketplace.js` → `test/archive/marketplace-SkillMarketplace.js` (活跃版 `src/skills/marketplace/SkillMarketplace.js`)
+  - `src/skills/monitoring/AlertNotificationSystem.js` → `test/archive/skills-monitoring-AlertNotificationSystem.js` (活跃版 `src/monitoring/AlertNotificationSystem.js`)
+  - `src/vision/VisionAgent.js` → `test/archive/vision-VisionAgent.js` (活跃版 `src/agents/VisionAgent.js`)
+  - `src/integrations/mcp/MCPBridge.js` → `test/archive/integrations-mcp-MCPBridge.js` (活跃版 `src/mcp/MCPBridge.js`)
+- **验证方法**: 全库 require 扫描 (990 JS + 95 TS/MJS/CJS) + .opencode/ + test/archive/ + config/shell 全零引用; tests 引用全部指向活跃版 (7 套件 512 测试验证)
+- **清单同步**: `check-io.js` + `scripts/security-audit.js` 移除归档路径 (各 1 行), 保留活跃版 `src/monitoring/AlertNotificationSystem.js`
+- **判断依据** (双 SkillLoader 教训延伸): 零引用的重复实现旧版 = 死代码; git mv 归档保留历史, 模式与 AgentTeam.js 一致
+- Commit: `2cd7783` (refactor: archive 4 dead duplicate implementations to test/archive/ (no callers)) 已推 `c19a8d4..2cd7783`
+- 相关文件: `test/archive/{marketplace-SkillMarketplace,skills-monitoring-AlertNotificationSystem,vision-VisionAgent,integrations-mcp-MCPBridge}.js`, `check-io.js`, `scripts/security-audit.js`
+
+
 
