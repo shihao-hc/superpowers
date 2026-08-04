@@ -1,4 +1,11 @@
 const { BaseLLMAdapter, OpenAIAdapter, DeepSeekAdapter, GoogleAdapter, DashScopeAdapter, OpenClawAdapter, createLLMAdapter } = require('../../src/multiagent/patterns/BaseLLMAdapter');
+const { EventEmitter } = require('events');
+const http = require('http');
+const https = require('https');
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('BaseLLMAdapter', () => {
   describe('constructor', () => {
@@ -259,5 +266,230 @@ describe('createLLMAdapter', () => {
 
   test('case insensitive', () => {
     expect(createLLMAdapter('OpenAI', { apiKey: 'k' }).type).toBe('openai');
+  });
+});
+
+function mockResponse({ statusCode = 200, chunks = [], emitEnd = true } = {}) {
+  const req = new EventEmitter();
+  req.write = jest.fn();
+  req.end = jest.fn();
+  req.destroy = jest.fn();
+  const res = new EventEmitter();
+  res.statusCode = statusCode;
+  const impl = jest.fn((_opts, cb) => {
+    cb(res);
+    for (const chunk of chunks) res.emit('data', chunk);
+    if (emitEnd) setImmediate(() => res.emit('end'));
+    return req;
+  });
+  return { req, res, impl };
+}
+
+function mockStream() {
+  const req = new EventEmitter();
+  req.write = jest.fn();
+  req.end = jest.fn();
+  req.destroy = jest.fn();
+  const res = new EventEmitter();
+  res.statusCode = 200;
+  const impl = jest.fn((_opts, cb) => { cb(res); return req; });
+  return { req, res, impl };
+}
+
+function installTransport(impl) {
+  jest.spyOn(http, 'request').mockImplementation(impl);
+  jest.spyOn(https, 'request').mockImplementation(impl);
+}
+
+describe('OpenAIAdapter HTTP requests', () => {
+  test('generate resolves content via https transport', async () => {
+    const { req, impl } = mockResponse({
+      statusCode: 200,
+      chunks: [JSON.stringify({ choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], usage: { total_tokens: 3 }, model: 'gpt-4' })]
+    });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'https://api.openai.com/v1' });
+    const result = await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(result.content).toBe('ok');
+    expect(result.finishReason).toBe('stop');
+    expect(result.model).toBe('gpt-4');
+    const opts = impl.mock.calls[0][0];
+    expect(opts.hostname).toBe('api.openai.com');
+    expect(opts.port).toBe(443);
+    expect(opts.headers.Authorization).toBe('Bearer k');
+    expect(JSON.parse(req.write.mock.calls[0][0]).model).toBe('gpt-3.5-turbo');
+  });
+
+  test('generate sends zero temperature and max_tokens override via http', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{"choices":[{"message":{"content":"x"}}]}'] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999', temperature: 0 });
+    await adapter.generate([{ role: 'user', content: 'hi' }], { max_tokens: 512 });
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.temperature).toBe(0);
+    expect(body.max_tokens).toBe(512);
+  });
+
+  test('generate rejects with HTTP error message from JSON', async () => {
+    const { impl } = mockResponse({ statusCode: 400, chunks: [JSON.stringify({ error: { message: 'Bad request' } })] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 400: Bad request');
+  });
+
+  test('generate rejects with raw body when not JSON', async () => {
+    const { impl } = mockResponse({ statusCode: 500, chunks: ['oops'] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 500: oops');
+  });
+
+  test('generate rejects on request error', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{}'], emitEnd: false });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const p = adapter.generate([{ role: 'user', content: 'hi' }]);
+    req.emit('error', new Error('ECONNREFUSED'));
+    await expect(p).rejects.toThrow('ECONNREFUSED');
+  });
+
+  test('generate rejects on timeout', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{}'], emitEnd: false });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const p = adapter.generate([{ role: 'user', content: 'hi' }]);
+    req.emit('timeout');
+    await expect(p).rejects.toThrow('Request timeout');
+    expect(req.destroy).toHaveBeenCalled();
+  });
+
+  test('formats scalar non-array messages via String()', () => {
+    const adapter = new OpenAIAdapter({ apiKey: 'k' });
+    expect(adapter._formatMessages(42)).toEqual([{ role: 'user', content: '42' }]);
+  });
+
+  test('throws when response has no choices', () => {
+    const adapter = new OpenAIAdapter({ apiKey: 'k' });
+    expect(() => adapter._parseResponse({})).toThrow('No response choices in LLM response');
+  });
+});
+
+describe('OpenAIAdapter HTTP streaming', () => {
+  test('streams SSE chunks and resolves on [DONE] via https', async () => {
+    const { res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'https://api.openai.com/v1' });
+    const received = [];
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], (c) => received.push(c));
+    res.emit('data', 'data: {"choices":[{"delta":{"content":"a"}}]}\n\n');
+    res.emit('data', 'data: [DONE]\n\n');
+    await p;
+    expect(received).toHaveLength(1);
+    expect(received[0].choices[0].delta.content).toBe('a');
+  });
+
+  test('streams via http and skips malformed JSON lines', async () => {
+    const { res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const received = [];
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], (c) => received.push(c));
+    res.emit('data', 'data: not-json\n');
+    res.emit('data', 'data: {"choices":[{"delta":{"content":"b"}}]}\n\n');
+    res.emit('data', 'data: [DONE]\n\n');
+    await p;
+    expect(received).toHaveLength(1);
+    expect(received[0].choices[0].delta.content).toBe('b');
+  });
+
+  test('stream rejects on request error', async () => {
+    const { req, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], () => {});
+    req.emit('error', new Error('ECONNREFUSED'));
+    await expect(p).rejects.toThrow('ECONNREFUSED');
+  });
+
+  test('stream rejects on timeout', async () => {
+    const { req, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], () => {});
+    req.emit('timeout');
+    await expect(p).rejects.toThrow('Stream timeout');
+    expect(req.destroy).toHaveBeenCalled();
+  });
+
+  test('stream res rejects', async () => {
+    const { res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], () => {});
+    res.emit('error', new Error('socket hang up'));
+    await expect(p).rejects.toThrow('socket hang up');
+  });
+});
+
+describe('GoogleAdapter HTTP requests', () => {
+  test('generate resolves via candidates over https', async () => {
+    const { req, impl } = mockResponse({
+      statusCode: 200,
+      chunks: [JSON.stringify({ candidates: [{ content: { parts: [{ text: 'gok' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7 } })]
+    });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k' });
+    const result = await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(result.content).toBe('gok');
+    expect(result.finishReason).toBe('STOP');
+    expect(result.usage.promptTokenCount).toBe(7);
+    expect(impl.mock.calls[0][0].path).toContain('key=k');
+    expect(JSON.parse(req.write.mock.calls[0][0]).generationConfig.temperature).toBe(0.7);
+  });
+
+  test('generate rejects on HTTP error', async () => {
+    const { impl } = mockResponse({ statusCode: 429, chunks: [JSON.stringify({ error: { message: 'rate limited' } })] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 429: rate limited');
+  });
+});
+
+describe('DashScopeAdapter HTTP requests', () => {
+  test('generate resolves via DashScope output format over https', async () => {
+    const { req, impl } = mockResponse({
+      statusCode: 200,
+      chunks: [JSON.stringify({ output: { choices: [{ message: { content: 'dok' }, finish_reason: 'stop' }] }, usage: { input_tokens: 4 }, model: 'qwen-turbo' })]
+    });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new DashScopeAdapter({ apiKey: 'k' });
+    const result = await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(result.content).toBe('dok');
+    expect(result.usage.input_tokens).toBe(4);
+    expect(impl.mock.calls[0][0].path).toBe('/chat/completions');
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.parameters.result_format).toBe('message');
+  });
+
+  test('generate rejects on HTTP error', async () => {
+    const { impl } = mockResponse({ statusCode: 401, chunks: [JSON.stringify({ error: { message: 'no auth' } })] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new DashScopeAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 401: no auth');
+  });
+});
+
+describe('OpenClawAdapter HTTP requests', () => {
+  test('generate resolves via default http transport', async () => {
+    const { impl } = mockResponse({ statusCode: 200, chunks: ['{"choices":[{"message":{"content":"ok"}}]}'] });
+    jest.spyOn(http, 'request').mockImplementation(impl);
+    const adapter = new OpenClawAdapter({ apiKey: 'k' });
+    const result = await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(result.content).toBe('ok');
+    expect(impl.mock.calls[0][0].port).toBe('3002');
   });
 });

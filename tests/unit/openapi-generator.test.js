@@ -81,6 +81,12 @@ describe('OpenAPIGenerator', () => {
       generator.addPath('post', '/b', { operationId: 'op2', summary: 'B', responses: {} });
       expect(generator.paths).toHaveLength(2);
     });
+
+    it('applies default responses when omitted', () => {
+      generator.addPath('get', '/default', { operationId: 'op', summary: 'Default' });
+      expect(generator.spec.paths['/default'].get.responses['200'].description).toBe('Success');
+      expect(generator.spec.paths['/default'].get.deprecated).toBe(false);
+    });
   });
 
   describe('HTTP method shortcuts', () => {
@@ -154,6 +160,15 @@ describe('OpenAPIGenerator', () => {
       const result = generator.saveToFile('/tmp/api.json');
       expect(result).toBe('/tmp/api.json');
     });
+
+    it('creates directory when missing', () => {
+      const fs = require('fs');
+      jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+      jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
+      jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+      generator.saveToFile('/new/dir/api.json');
+      expect(fs.mkdirSync).toHaveBeenCalledWith('/new/dir', { recursive: true });
+    });
   });
 
   describe('toMarkdown', () => {
@@ -180,6 +195,44 @@ describe('OpenAPIGenerator', () => {
       const md = generator.toMarkdown();
       expect(md).toContain('GET /api/test');
       expect(md).toContain('Test endpoint');
+    });
+
+    it('includes full endpoint details', () => {
+      generator.post('/api/full', {
+        operationId: 'fullOp', summary: 'Full endpoint', description: 'A described endpoint',
+        tags: ['Test'],
+        parameters: [
+          { name: 'typed', schema: { type: 'integer' }, required: true, description: 'typed param' },
+          { name: 'plain' }
+        ],
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object' } } } },
+        responses: { '201': { description: 'Created' } }
+      });
+      const md = generator.toMarkdown();
+      expect(md).toContain('POST /api/full');
+      expect(md).toContain('A described endpoint');
+      expect(md).toContain('**Parameters:**');
+      expect(md).toContain('typed param');
+      expect(md).toContain('**Request Body:**');
+      expect(md).toContain('201');
+      expect(md).toContain('Created');
+    });
+
+    it('includes schema descriptions', () => {
+      generator.addSchema('Described', {
+        type: 'object', description: 'A described model',
+        properties: { id: { type: 'string', description: 'ID field' } }
+      });
+      const md = generator.toMarkdown();
+      expect(md).toContain('A described model');
+      expect(md).toContain('ID field');
+    });
+
+    it('handles schema without properties', () => {
+      generator.addSchema('Bare', { type: 'object' });
+      const md = generator.toMarkdown();
+      expect(md).toContain('Bare');
+      expect(md).not.toContain('| Property |');
     });
 
     it('includes data models section', () => {

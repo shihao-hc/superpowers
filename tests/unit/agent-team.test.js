@@ -336,4 +336,42 @@ describe('AgentTeam', () => {
       expect(_AGENT_TEAMS.learning).toHaveLength(3);
     });
   });
+
+  describe('default-arg branches', () => {
+    const agentFactories = [
+      () => new IntentAgent({}),
+      () => new EmotionAgent({}),
+      () => new ContextAgent({}),
+      () => new CodeAgent({}),
+      () => new SearchAgent({}),
+      () => new DebugAgent({}),
+      () => new OptimizeAgent({}),
+      () => new TestAgent({}),
+      () => new QualityAgent({}),
+      () => new SecurityAgent({}),
+      () => new EffectAgent({}),
+      () => new SummaryAgent({}),
+      () => new ImprovementAgent({}),
+      () => new KnowledgeAgent({})
+    ];
+
+    it('should hit default context arg when _executeSync called without context', () => {
+      for (const make of agentFactories) {
+        const agent = make();
+        const result = agent._executeSync('input');
+        expect(result.agent).toBeDefined();
+      }
+    });
+
+    it('should hit default context arg on BaseAgent._executeSync', () => {
+      const agent = new BaseAgent('Test', 'test');
+      expect(() => agent._executeSync('input')).toThrow('子类必须实现_executeSync方法');
+    });
+
+    it('should construct AgentTeamManager without brainApi', () => {
+      const mgr = new AgentTeamManager();
+      expect(Object.keys(mgr._agents)).toHaveLength(14);
+      expect(mgr._teamStats.tasks).toBe(0);
+    });
+  });
 });
