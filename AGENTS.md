@@ -827,4 +827,20 @@ Session 锚点: 2026-08-04 (第2次 — 覆盖提升: 50-70% 批次清零)
 - 剩余 62 个 <70% src 文件: 大部分 0% 为入口/诊断/外部基础设施 (src/index.js, brain-full-check, daemon, OllamaBridge 等), 低价值
 - 相关文件: 5 个新测试文件 (tests/unit/)
 
+---
+
+Session 锚点: 2026-08-04 (第3次 — 覆盖提升: 已有专属测试文件的接近阈值文件清零)
+- ESLint: 0/0 | tsc: 0 | Tests: **305 passed suites / 4 skipped / 0 failed** (15,059 passed / 46 skipped) | npm audit: **0 vulns** | Security: **0 HIGH, 0 MEDIUM, 168 LOW**
+- **4 个已有专属测试文件的接近阈值源文件全部 ≥84% branch** (最小成本路线: 扩展现有套件, 非新建文件):
+  - `src/workflow/WorkflowMarketplace.js`: 67.66%→**92.22%** (workflow-marketplace.test.js +30 用例)
+  - `src/docs/OpenAPIGenerator.js`: 69.05%→**100%** (openapi-generator.test.js +5 用例)
+  - `src/core/AgentTeam.js`: 67.39%→**100%** (agent-team.test.js +3 用例 — 剩余全为 default-arg 分支, 省略 context 参数调用即可命中)
+  - `src/multiagent/patterns/BaseLLMAdapter.js`: 55.72%→**84.73%** (base-llm-adapter.test.js +18 用例)
+- **BaseLLMAdapter 关键设计**: 不真正连接网络 — `jest.spyOn(http,'request')` + `jest.spyOn(https,'request')` mock 传输层, mock impl 同步 `cb(res)` 注册 data/end handler 再 emit chunk; 覆盖 `_request` 成功/HTTP错误JSON/非JSON body/请求 error/timeout, `_streamRequest` SSE 分块/[DONE]/畸形 JSON 跳过/req error/timeout/res error, GoogleAdapter/DashScopeAdapter `_request` 成功+错误, OpenClawAdapter 默认 http 传输
+- **坑**: coverage-final.json 新版格式用 `statementMap/fnMap/branchMap` + `s/f/b` 计数字典, 非旧版 `data[]` 数组; branch% 必须按 `branchMap[id].locations` 逐个统计 (branchId 部分命中不算全中)
+- **坑**: `URL.port` 返回字符串 → 断言 `opts.port` 用 `toBe('3002')` 非数字
+- **零回归确认**: 全量 305/4/0 = 15,059 passed (较基线 +52, 恰好为新增用例数); MaxListeners 警告 + worker force-exit 仍为预存
+- Commit: `5dfcbc4` (test: 覆盖率批次清零 — 4 源文件全部 >=84% branch)
+- 相关文件: `tests/unit/workflow-marketplace.test.js`, `tests/unit/openapi-generator.test.js`, `tests/unit/agent-team.test.js`, `tests/unit/base-llm-adapter.test.js`
+
 
