@@ -1,19 +1,8 @@
 jest.mock('fs');
-jest.mock('../../src/skills/loaders/SkillLoader', () => {
-  const actual = jest.requireActual('../../src/skills/loaders/SkillLoader');
-  return {
-    ...actual,
-    SkillLoader: jest.fn().mockImplementation(() => ({
-      skillsDir: '',
-      skillCache: new Map(),
-    })),
-  };
-});
 
 const fs = require('fs');
 const path = require('path');
 const { SkillRegistry } = require('../../src/skills/SkillRegistry');
-const _pf = require('../../src/skills/loaders/SkillLoader');
 
 function setupSkillDir(skillsDir, skillDirs) {
   fs.existsSync.mockImplementation((p) => {

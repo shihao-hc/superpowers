@@ -6,12 +6,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { SkillLoader, parseFrontmatter } = require('./loaders/SkillLoader');
+const { parseFrontmatter } = require('./loaders/SkillLoader');
 
 class SkillRegistry {
   constructor(skillsDir = path.join(process.cwd(), 'src', 'skills')) {
     this.skillsDir = skillsDir;
-    this.loader = new SkillLoader(skillsDir);
     this.registry = new Map();
     this.categories = new Map();
     this.tags = new Map();
