@@ -267,6 +267,16 @@ describe('SkillRegistry', () => {
       expect(stats.categories).toBe(1);
       expect(stats.tags).toBe(1);
     });
+
+    it('should not mark deprecated when index.js is missing', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'no-index', description: 'No index', hasIndex: false },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      const skill = registry.getSkill('no-index');
+      expect(skill).toBeTruthy();
+      expect(skill.deprecated).toBe(false);
+    });
   });
 
   describe('search', () => {

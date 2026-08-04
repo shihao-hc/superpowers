@@ -119,7 +119,7 @@ class SkillRegistry {
     skill.files = this._scanFiles(skillPath);
 
     // 检查弃用状态
-    if (!skill.deprecated && indexJsPath) {
+    if (!skill.deprecated && skill.hasIndexJs) {
       try {
         const indexContent = fs.readFileSync(indexJsPath, 'utf8');
         if (indexContent.includes('@deprecated') || indexContent.includes('DEPRECATED: true')) {
