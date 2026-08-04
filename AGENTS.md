@@ -862,4 +862,20 @@ Session 锚点: 2026-08-04 (第4次 — 剩余有专属测试的业务文件清�
 - Commit: (待填) — 归档 git mv + api.js 修复 + 3 测试文件
 - 相关文件: `src/skills/api.js`, `tests/unit/skills-api.test.js`, `tests/unit/skill-loader-direct.test.js` (新), `tests/unit/discord-bot.test.js`, `test/archive/AgentTeam.js`
 
+---
+
+Session 锚点: 2026-08-04 (第5次 — 双 SkillLoader 合并: 死代码类移除)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,279 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 167 LOW** (基线 168 LOW — 死代码移除带走 loaders/ 的同步 fs 调用, 无回归)
+- **双 SkillLoader 合并完成 (删除死代码路线)**: 新版 `src/skills/loaders/SkillLoader.js` 的 `SkillLoader` 类是 100% 死代码 — 唯一生产引用方 `SkillRegistry.js` 只 import 其 `parseFrontmatter` (this.loader 赋值零调用点, 已 grep 证实)
+  - `loaders/SkillLoader.js`: 删除 SkillLoader 类 (7,041→1,958 字节), 收敛为纯解析模块 (parseFrontmatter/parseYamlSimple); 类方法 getSkillTree/searchSkills 仅被死代码测试使用
+  - **P2 附带修复**: parseFrontmatter 正则 `/^---\n/` 不兼容 Windows CRLF → `/^---\r?\n/` + 新增 CRLF 测试 (含 body 保留 `\r\n`)
+  - `SkillRegistry.js`: import 去 SkillLoader, 删 `this.loader = new SkillLoader(skillsDir)` (第 9/14 行)
+  - `tests/unit/skill-loader-direct.test.js`: 删除死代码类测试块, 保留+扩展解析函数测试 (新增 CRLF/空 body 用例, 15 测试)
+  - `tests/unit/skill-registry-core.test.js`: 删除 `jest.mock('loaders/SkillLoader')` 工厂 (含 `...actual` 展开 + SkillLoader 桩) 与 `_pf` 引用
+- **相关测试全过**: skill-loader-direct (15) + skill-registry-core (36) + skill-registry (43) + skill-manager-core + skill-to-node 共 188 tests
+- **测试数变化**: 15,299→15,279 (-20) = 移除死代码类测试的预期减少; 0 failed
+- **.gitignore**: 添加 `data/metrics/` (端到端验证运行时产物, 配置优先不动源码)
+- Commit: `cf7da01` (refactor(skills): remove dead SkillLoader class from loaders/ + CRLF frontmatter fix) 已推 `58ee558..cf7da01`
+- 相关文件: `src/skills/loaders/SkillLoader.js`, `src/skills/SkillRegistry.js`, `tests/unit/skill-loader-direct.test.js`, `tests/unit/skill-registry-core.test.js`, `.gitignore`
+
 
