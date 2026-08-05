@@ -921,6 +921,22 @@ Session 锚点: 2026-08-04 (第8次 — 死代码归档二: 5 个零引用未接
 - Commit: `1aa98a2` (refactor: archive 5 dead unconnected library modules to test/archive/ (no callers)) 已推 `cdf551f..1aa98a2`
 - 相关文件: `test/archive/{plugins-Plugin,plugins-PluginInterface,skills-executors-PptxExecutor,skills-executors-XlsxExecutor,learnEvalMonitoring}.js`
 
+---
+
+Session 锚点: 2026-08-04 (第9次 — 死代码归档三: 全量四分类审计 + 4 个零引用库模块)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (161→160, 归档带走 1 个同步 fs 项)
+- **全量四分类审计**: 对全部 src 文件分类 (DEAD 17 / RUNTIME ENTRY 10 / TEST-ONLY 119 / INTEGRATED 205)
+  - 修正先前 full-zero-caller-audit.js 缺陷 (把仅测试引用文件误标为死代码), 新增 `classify-src-files.js` 四分类 (DEAD=无调用+无测试+无运行入口; RUNTIME ENTRY=shebang/服务/主动连接; TEST-ONLY=仅测试引用; INTEGRATED=活跃调用方)
+- **4 个死代码归档完成** (全库零 require 调用 + 零测试 + 无 shebang/服务/连接面):
+  - `src/agent/AutoScaler.js` → `test/archive/agent-AutoScaler.js` (agent 版无 ScalingRule, 与活跃版 `src/integration/AutoScaler.js` 功能重叠)
+  - `src/agent/RecoveryManager.js` → `test/archive/agent-RecoveryManager.js`
+  - `src/services/CacheService.js` → `test/archive/services-CacheService.js` (redis 库模块, 零测试)
+  - `src/localInferencing/BrowserInferencer.js` → `test/archive/localInferencing-BrowserInferencer.js` (676B mock)
+- **保留判断记录**: 8 个 index.js barrel (context/integrations-openclaw/multiagent/multiagent-examples/security/session/skills/workflow) = 模块导出契约面, 归档收益极低破坏风险高 → 保留; `src/index.js` (664 行聚合器) = 架构入口设计 → 保留; `src/learnEval.js` (npm script `learn-eval` 引用) = 活跃; `src/agent/brain-full-check.js` (process.exit 诊断 CLI) = 独立工具; `src/electronStub.js` (208B stub) = 成本过低不归档
+- **验证方法**: classify-src-files.js 四分类 + grep 全库残留引用 (仅归档文件自身 + COMPLETE.md 文档提及)
+- Commit: `f3c1af9` (refactor: archive 4 dead unconnected modules to test/archive/ (no callers, no tests)) 已推 `1aa98a2..f3c1af9`
+- 相关文件: `test/archive/{agent-AutoScaler,agent-RecoveryManager,services-CacheService,localInferencing-BrowserInferencer}.js`
+
 
 
 
