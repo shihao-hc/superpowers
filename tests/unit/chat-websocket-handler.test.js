@@ -88,6 +88,7 @@ describe('ChatWebSocketHandler', () => {
   });
 
   afterEach(() => {
+    mockExecutor.removeAllListeners();
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
   });

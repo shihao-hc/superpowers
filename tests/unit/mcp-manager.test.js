@@ -8,8 +8,14 @@ jest.mock('../../src/utils/SafeExec', () => {
   mockProc.killed = false;
 
   return {
-    safeSpawn: jest.fn(() => mockProc)
+    safeSpawn: jest.fn(() => mockProc),
+    _mockProc: mockProc
   };
+});
+
+afterEach(() => {
+  const { _mockProc } = require('../../src/utils/SafeExec');
+  _mockProc.removeAllListeners();
 });
 
 const {
