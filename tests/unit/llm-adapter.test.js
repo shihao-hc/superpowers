@@ -112,6 +112,10 @@ describe('PendingRequestMap', () => {
     prm = new PendingRequestMap();
   });
 
+  afterEach(() => {
+    prm.cancelAll();
+  });
+
   it('create returns pending request with promise', () => {
     const result = prm.create({ timeout: -1 });
     expect(result.id).toBe(1);

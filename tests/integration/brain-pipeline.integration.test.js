@@ -35,6 +35,10 @@ describe('BrainSystem Full Pipeline Integration', () => {
   });
 
   afterEach(() => {
+    if (brain) {
+      clearInterval(brain.selfCheckInterval);
+      clearInterval(brain.monitoringInterval);
+    }
     jest.restoreAllMocks();
   });
 
