@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 ## 0. 强制决策协议（自动化桥接）
 
@@ -1007,7 +1007,21 @@ Session 锚点: 2026-08-04 (第13次 — 4 模块全覆盖 + cross-ref 12→4 �
 - **关键学习**: `beforeAll` 中 `jest.resetModules()` 若 mock 了模块 (bcrypt/logger) 会重建 mock 实例 — 首选 `jest.isolateModules` (局部隔离, 不污染全局), 次选删除 resetModules 让 beforeAll 首次 require
 - Commit: `c6350f9` (test: full coverage for 4 uncovered modules (106 tests)) 已推 `cee8d56..c6350f9`
 - 相关文件: `tests/unit/{self-manager,self-monitor,legacy-rate-limiter,middleware-auth}.test.js` (4 新)
+---
 
-
-
-
+Session 锚点: 2026-08-04 (第14次 — 剩余真实缺口清零: core/AuditLogger + IntentVerifier 全覆盖 + 全量低覆盖扫描确认)
+- ESLint: 0/0 | tsc: 0 | Tests: **318 passed suites / 4 skipped / 0 failed** (15,653 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (无变化)
+- **2 个源文件全覆盖 (新增 2 测试文件, 22 tests)**:
+  - src/core/AuditLogger.js: **100/100/100/100** (core-audit-logger.test.js 11 tests) — 真实 0% 缺口 (被 BrainBridge.js:5 + daemon/index.js:21 生产引用, 非死代码)
+    - 关键点: 构造函数每次无条件 _cleanOld(); line 10 mkdirSync 仅在目录不存在时执行 (spy 验证); getTodayLog 文件不存在返回 [] 分支
+    - 注意与 	ests/unit/audit-logger.test.js 区分 — 那个测的是 src/security/AuditLogger (完全不同的类, 含 shutdown/sessionId/pendingLogs)
+  - src/core/IntentVerifier.js: **100/100/100/100** (intent-verifier.test.js 11 tests) — 之前 8.33% (43 行纯逻辑)
+    - verifyIntent 双 check: check1 pattern /什么.*[是的]/i + expect /是|定义|本质|核心|意思/i; check2 pattern /AI大脑|brain|意识/i + forbid /检查|验证|56项/i
+    - 双 check 同中 → issues 聚合顺序 ['回答缺少定义', '用检查代替了AI大脑定义']; 大小写不敏感 ('AI Brain' 命中)
+- **全量低覆盖扫描确认 (核心目录清零)**: 带 --collectCoverageFrom="src/core/**" "src/middleware/**" "src/utils/**" 跑全量, 解析输出表 <70% branch 文件 = **0** (新增 2 文件后)
+  - 覆盖表解析用 node 脚本正则 ^(\S+)\s*\|\s*(\d+\.?\d*)\s*\|... 处理 PowerShell 内联 cast 失效问题
+  - 注意 coverage/coverage-final.json 只有最后单文件运行的残留 — 全量扫描需重新跑覆盖或直接解析 jest 文本表
+- **lint 陷阱**: 只触发构造器的测试, 赋值 const logger = new X() 触发 no-unused-vars (非 _ 前缀) → 直接 
+ew X() 或 _ 前缀; 本项目 ESLint 对测试文件同样强制 --max-warnings=0
+- Commit:  b19870 (test: full coverage for core AuditLogger + IntentVerifier (22 tests)) 已推 43451f7..0b19870
+- 相关文件: 	ests/unit/{core-audit-logger,intent-verifier}.test.js (2 新)
