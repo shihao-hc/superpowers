@@ -949,6 +949,22 @@ Session 锚点: 2026-08-04 (第10次 — worker force-exit 泄漏清零, 恢复 
 - Commit: `4a3dd73` (fix(test): eliminate worker force-exit leaks) 已推 `cba21eb..4a3dd73`
 - 相关文件: `tests/unit/llm-adapter.test.js`, `tests/integration/brain-pipeline.integration.test.js`
 
+---
+
+Session 锚点: 2026-08-04 (第11次 — MaxListenersExceededWarning 清零, 全量零警告)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致且 **无任何 MaxListenersExceededWarning** | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (无变化)
+- **背景**: 全量 Jest 每轮预存 5 条 MaxListenersExceededWarning (error/exit/progress/completed/failed 各 11 listeners > MaxListeners=10), 先于 worker force-exit 存在, 一直未定位
+- **定位方法**: `bisect-maxlisteners.js` 二分 (同 bisect-leak.js: `--runTestsByPath` + 相对路径) → 定位到 `tests/unit/mcp-manager.test.js` (index 40); 但全量还出现 progress/completed/failed 警告来自不同 worker PID → 逐文件验证 `tests/unit/chat-websocket-handler.test.js` 单独跑复现 3 条 progress/completed/failed
+- **根因**: 两个测试文件的 jest.mock 工厂都创建**模块级共享单例 EventEmitter** (`mockProc` / `mockExecutor`), 每个测试构造 MCPClient/`new ChatWebSocketHandler()` 就往共享 emitter 追加 listener 且从不清理 → 11+ 次后超 MaxListeners
+  - `mcp-manager.test.js`: MCPClient connect 加 error/exit listener 到共享 `mockProc` (MCPClient.js:85-86)
+  - `chat-websocket-handler.test.js`: `_setupExecutorListeners()` 加 progress/completed/failed listener 到共享 `mockExecutor` (ChatWebSocketHandler.js:49-59)
+- **修复 (测试侧, 符合 5.3b 不改源码)**:
+  - `mcp-manager.test.js`: jest.mock 工厂导出 `_mockProc` + 文件级顶层 `afterEach(() => { _mockProc.removeAllListeners(); })` (避免每次 safeSpawn() 调用污染 mock 计数)
+  - `chat-websocket-handler.test.js`: describe 顶层 afterEach 加 `mockExecutor.removeAllListeners()`
+- **验证**: 两文件单独跑无警告 + 相关组 4 suites/298 tests 无警告 + 全量两次 306/4/0 clean exit 零警告 + ESLint 0/0 + lint-staged 钩子 (security-scan + eslint) 全通过
+- Commit: `52d3a7b` (fix(test): eliminate MaxListenersExceededWarning) 已推 `33538ef..52d3a7b`
+- 相关文件: `tests/unit/mcp-manager.test.js`, `tests/unit/chat-websocket-handler.test.js`
+
 
 
 
