@@ -965,6 +965,29 @@ Session 锚点: 2026-08-04 (第11次 — MaxListenersExceededWarning 清零, 全
 - Commit: `52d3a7b` (fix(test): eliminate MaxListenersExceededWarning) 已推 `33538ef..52d3a7b`
 - 相关文件: `tests/unit/mcp-manager.test.js`, `tests/unit/chat-websocket-handler.test.js`
 
+---
+
+Session 锚点: 2026-08-04 (第12次 — cross-ref 纯逻辑文件覆盖提升: 6 文件全达 ≥87% branch + electronStub 归档)
+- ESLint: 0/0 | tsc: 0 | Tests: **312 passed suites / 4 skipped / 0 failed** (15,525 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (无变化)
+- **electronStub.js 归档完成**: commit `9cd1958` (refactor: archive electronStub.js zero-reference stub + remove from cross-ref/final-gap neverTest lists) + commit `4aa4310` (docs: remove pending-eval note); 推送 `0a99803..4aa4310`
+- **cross-ref 候选核实**: 16 个"无测试"候选有 5 个实为命名错配已有测试 (Optimizer→performance-optimizer*.test.js, EvolutionCycle→evolution.test.js, SkillLoader→skill-loader 测试等); `coverage/coverage-final.json` 解析为 `{}` → 改用逐个 `--collectCoverageFrom` 验证
+- **6 个文件全量覆盖 (新增 6 测试文件, 245 tests)**, 全部为业务引用/核心路径纯逻辑:
+  - `src/core/InputTrigger.js` (110 行): **100/100/100/100** (input-trigger.test.js, 138 tests — 17 正则关键词分支 + 多关键词 + 50 字符截断)
+  - `src/daemon/securityMonitor.js` (86 行): **100/100/100/100** (security-monitor.test.js, 11 tests — mock chokidar + security-scan, 300ms debounce 合并/快照过滤/HIGH 报告/blockOnHigh/stop 幂等; isIgnored 未导出经 flushScan 行为覆盖)
+  - `src/utils/KnowledgeGraph.js` (58 行): **100/100/100/100** (knowledge-graph.test.js, 7 tests)
+  - `src/localInferencing/InferBridge.js` (140 行): **100 stmts / 96.07 branch** (infer-bridge.test.js, 22 tests; 未覆盖 line 86 fetch→node-fetch 回退 + line 115)
+  - `src/agent/DynamicScraper.js` (234 行): **98.64 stmts / 87.67 branch / 100 lines** (dynamic-scraper.test.js, 34 tests — setupDom 全局 mock DOM; 6 平台验证)
+  - `src/localInferencing/OllamaBridge.js` (239 行): **98.78 stmts / 93.33 branch / 100 lines** (ollama-bridge.test.js, 33 tests — mock ollama npm 包)
+- **3 个 TEST-ONLY bridge 已有测试核实 100/100/100/100 无需补**: DevToolsBridge/MemosBridge/GitHubBridge (mcp-dev-tools/mcp-memos/mcp-git-hub-bridge.test.js 48/60/51 tests)
+- **关键学习**:
+  - KnowledgeGraph `_calculateLessonRelevance` 空格分词 + `w.length > 2` 过滤 → 中文词全被滤, 相似测试须用英文 problem 文本
+  - InferBridge LLMAdapter init 抛错 → 回退 LocalEngine 且 modelLoaded=true; infer 中 LLMAdapter 抛错 → `{ok:false, text:'model-not-loaded'}` (无 LocalEngine 兜底)
+  - DynamicScraper `_extract` evaluate 函数真实引用 `document/window/querySelector(All)` → jest 无 DOM 需 beforeEach 设全局 mock DOM
+  - jest.mock 工厂若被 `new` 调用须返回 class/构造器 (MockOllama/MockBrowserAgent class 模式), jest.fn() 不可构造
+  - generator mock 满足 require-yield 需实际 yield, 否则 ESLint error; 加了 yield 后事件流变化需同步更新断言
+- Commit: (待填 — 6 新测试文件)
+- 相关文件: `tests/unit/{input-trigger,security-monitor,knowledge-graph,infer-bridge,dynamic-scraper,ollama-bridge}.test.js` (6 新)
+
 
 
 
