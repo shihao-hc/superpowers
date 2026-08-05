@@ -38,7 +38,7 @@ const manualToTest = {
 const neverTest = new Set([
   'BrainSystem', 'UltraWorkCLI', 'DAGEngine', 'DAGEngineAdvanced', 'Coordinator',
   'OpenAPIGenerator', 'ChatWebSocketHandler', 'GameWebSocket', 'brain-full-check',
-  'launch-router', 'learnEval', 'learnEvalFinal', 'learnEvalMonitoring', 'electronStub',
+  'launch-router', 'learnEval', 'learnEvalFinal', 'learnEvalMonitoring',
   'index', 'IntegrationTests',
 ]);
 
