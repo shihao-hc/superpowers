@@ -985,8 +985,28 @@ Session 锚点: 2026-08-04 (第12次 — cross-ref 纯逻辑文件覆盖提升: 
   - DynamicScraper `_extract` evaluate 函数真实引用 `document/window/querySelector(All)` → jest 无 DOM 需 beforeEach 设全局 mock DOM
   - jest.mock 工厂若被 `new` 调用须返回 class/构造器 (MockOllama/MockBrowserAgent class 模式), jest.fn() 不可构造
   - generator mock 满足 require-yield 需实际 yield, 否则 ESLint error; 加了 yield 后事件流变化需同步更新断言
-- Commit: (待填 — 6 新测试文件)
+- Commit: `cee8d56` (test: full coverage for 6 uncovered pure-logic modules (245 tests)) 已推 `4aa4310..cee8d56`
 - 相关文件: `tests/unit/{input-trigger,security-monitor,knowledge-graph,infer-bridge,dynamic-scraper,ollama-bridge}.test.js` (6 新)
+
+---
+
+Session 锚点: 2026-08-04 (第13次 — 4 模块全覆盖 + cross-ref 12→4 剩余核实)
+- ESLint: 0/0 | tsc: 0 | Tests: **316 passed suites / 4 skipped / 0 failed** (15,631 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (无变化)
+- **4 个源文件全覆盖 (新增 4 测试文件, 106 tests)**:
+  - `src/utils/SelfManager.js`: **100/90.69/100/100** (self-manager.test.js 21 tests; BrainSystem.test.js 已给 76.74% branch)
+  - `src/utils/SelfMonitor.js`: **97.77/93.54/90.9/97.39** (self-monitor.test.js 25 tests)
+  - `src/middleware/rateLimiter.js`: **100/95.55/100/100** (legacy-rate-limiter.test.js 16 tests; 未覆盖 80-83 skipSuccessful end 拦截)
+  - `src/middleware/auth.js`: **96.24/86.81/95.65/96.18** (middleware-auth.test.js 44 tests; 未覆盖 line 14 bcrypt require catch [jest.mock 不可达] + 356-360 _hashPassword [未导出死代码])
+- **JWTManager 覆盖要点**:
+  - `getJWTSecret()` 三分支测试必须用 `jest.isolateModules` 隔离加载 — `jest.resetModules()` 会**污染全局 mock 注册表** (bcrypt/logger 工厂重跑产生新实例), 导致 auth.js 内部引用与测试文件持有引用分离 → 后续 loginHandler 测试 bcrypt.compare mock 不生效 (4 个测试假失败)
+  - `getJWTSecret()` 只在模块加载时执行一次 (line 43 `const _JWT_SECRET = getJWTSecret()`), 直接 `require` 返回缓存不重跑 → 必须 isolateModules
+  - wrong secret → jsonwebtoken 抛 `JsonWebTokenError` → "Invalid token" 分支 (非 fallback "Token verification failed")
+  - loginHandler 覆盖: bcrypt (compare mockResolvedValue/mockRejectedValue), scrypt salt+hash, 遗留 SHA-256 (warnLog 'Legacy SHA-256'), 无 JWT_USERS (warnLog), 畸形 JSON (errorLog), 无 hash 变体 → 401
+  - bcrypt.compare 日志是双参 `errorLog('[Auth] bcrypt compare failed:', { error: e.message })` 非 stringContaining 单参
+- **cross-ref 剩余核实**: UNCOVERED PURE-LOGIC 20 → 4 (本次 4 文件已覆盖; 批次 1-6 6 文件已覆盖; 剩余 4 为命名错配已有测试或已归档文件)
+- **关键学习**: `beforeAll` 中 `jest.resetModules()` 若 mock 了模块 (bcrypt/logger) 会重建 mock 实例 — 首选 `jest.isolateModules` (局部隔离, 不污染全局), 次选删除 resetModules 让 beforeAll 首次 require
+- Commit: `c6350f9` (test: full coverage for 4 uncovered modules (106 tests)) 已推 `cee8d56..c6350f9`
+- 相关文件: `tests/unit/{self-manager,self-monitor,legacy-rate-limiter,middleware-auth}.test.js` (4 新)
 
 
 
