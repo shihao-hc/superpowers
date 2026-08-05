@@ -917,7 +917,7 @@ Session 锚点: 2026-08-04 (第8次 — 死代码归档二: 5 个零引用未接
   - `src/learnEvalMonitoring.js` → `test/archive/learnEvalMonitoring.js` (learnEval.js 不引用)
 - **验证方法**: 全库 require/import 扫描 + basename 误报甄别 (`src/index.js` 匹配的是 PluginManager 非 Plugin; cross-ref/final-gap 的 neverTest 是排除清单非读取清单, 归档零影响)
 - **B 类保留 (独立运行入口)**: `src/daemon/index.js` (shebang CLI 守护进程), `src/api/MobileAPI.js` (独立 express 服务), `src/game/FactorioAgent.js`/`TerrariaAgent.js` (主动 RCON 连接) — 无法证明不可用, 按 5.5 原则不归档
-- **待评估**: 其余零引用候选含 `src/electronStub.js` (仅 cross-ref/final-gap 清单提及)、`src/integration/AutoScaler.js` (被 2 测试引用, 活跃)
+- **待评估**: 其余零引用候选含 `src/integration/AutoScaler.js` (被 2 测试引用, 活跃)
 - Commit: `1aa98a2` (refactor: archive 5 dead unconnected library modules to test/archive/ (no callers)) 已推 `cdf551f..1aa98a2`
 - 相关文件: `test/archive/{plugins-Plugin,plugins-PluginInterface,skills-executors-PptxExecutor,skills-executors-XlsxExecutor,learnEvalMonitoring}.js`
 
