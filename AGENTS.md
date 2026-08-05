@@ -937,6 +937,18 @@ Session 锚点: 2026-08-04 (第9次 — 死代码归档三: 全量四分类审�
 - Commit: `f3c1af9` (refactor: archive 4 dead unconnected modules to test/archive/ (no callers, no tests)) 已推 `1aa98a2..f3c1af9`
 - 相关文件: `test/archive/{agent-AutoScaler,agent-RecoveryManager,services-CacheService,localInferencing-BrowserInferencer}.js`
 
+---
+
+Session 锚点: 2026-08-04 (第10次 — worker force-exit 泄漏清零, 恢复 clean exit)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致且 **clean exit 无 worker force-exit 警告** | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (无变化)
+- **背景**: 全量 Jest 每轮出现 "A worker process has failed to exit gracefully" 预存警告 (7-30 40 文件批次后引入), `--detectOpenHandles` 会因 handle 未关闭挂起
+- **定位方法**: 写 `bisect-leak.js` 二分脚本 (关键: 必须 `--runTestsByPath` + 相对路径, 绝对路径被 Jest 当 regex pattern 导致 0 matches 假阴性) → 定位到组合泄漏 `[7..9)` = node-workflow-engine + llm-adapter
+- **修复 1 (llm-adapter.test.js)**: `PendingRequestMap.create()` 未传 options 时默认 60000ms setTimeout 永不清理 → PendingRequestMap describe 块加 `afterEach(() => prm.cancelAll())` (cancelAll 内部 reject → clearTimeout)
+- **修复 2 (brain-pipeline.integration.test.js)**: `new BrainSystem()` 构造器无条件 `_autoStartDailyCheck()` 创建 selfCheckInterval + monitoringInterval 两个 interval; 测试 beforeEach 的实例级 jest.fn mock 晚于构造不生效 → afterEach 加 `clearInterval(brain.selfCheckInterval/monitoringInterval)` (对比 BrainSystem.test.js 用 prototype 级 spyOn 所以不泄漏)
+- **验证**: 全量两次运行 clean exit (无泄漏警告) + 组合复现 (node-workflow-engine+llm-adapter / brain-pipeline 单独跑均无警告)
+- Commit: `4a3dd73` (fix(test): eliminate worker force-exit leaks) 已推 `cba21eb..4a3dd73`
+- 相关文件: `tests/unit/llm-adapter.test.js`, `tests/integration/brain-pipeline.integration.test.js`
+
 
 
 
