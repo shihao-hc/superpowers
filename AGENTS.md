@@ -905,5 +905,22 @@ Session 锚点: 2026-08-04 (第7次 — 死代码归档: 4 个零引用重复实
 - Commit: `2cd7783` (refactor: archive 4 dead duplicate implementations to test/archive/ (no callers)) 已推 `c19a8d4..2cd7783`
 - 相关文件: `test/archive/{marketplace-SkillMarketplace,skills-monitoring-AlertNotificationSystem,vision-VisionAgent,integrations-mcp-MCPBridge}.js`, `check-io.js`, `scripts/security-audit.js`
 
+---
+
+Session 锚点: 2026-08-04 (第8次 — 死代码归档二: 5 个零引用未接线库模块)
+- ESLint: 0/0 | tsc: 0 | Tests: **306 passed suites / 4 skipped / 0 failed** (15,280 passed / 46 skipped) 两次运行一致 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM, 161 LOW** (163→161, 归档再带走 2 个 LOW 项)
+- **5 个死代码归档完成** (全库零 require 调用, 纯库模块无 shebang/服务面):
+  - `src/plugins/Plugin.js` → `test/archive/plugins-Plugin.js` (PluginManager 不引用; TS 版 index.ts/manager.ts 独立实现)
+  - `src/plugins/PluginInterface.js` → `test/archive/plugins-PluginInterface.js`
+  - `src/skills/executors/PptxExecutor.js` → `test/archive/skills-executors-PptxExecutor.js` (就绪未接线, 无 SkillManager/MCP 引用)
+  - `src/skills/executors/XlsxExecutor.js` → `test/archive/skills-executors-XlsxExecutor.js`
+  - `src/learnEvalMonitoring.js` → `test/archive/learnEvalMonitoring.js` (learnEval.js 不引用)
+- **验证方法**: 全库 require/import 扫描 + basename 误报甄别 (`src/index.js` 匹配的是 PluginManager 非 Plugin; cross-ref/final-gap 的 neverTest 是排除清单非读取清单, 归档零影响)
+- **B 类保留 (独立运行入口)**: `src/daemon/index.js` (shebang CLI 守护进程), `src/api/MobileAPI.js` (独立 express 服务), `src/game/FactorioAgent.js`/`TerrariaAgent.js` (主动 RCON 连接) — 无法证明不可用, 按 5.5 原则不归档
+- **待评估**: 其余零引用候选含 `src/electronStub.js` (仅 cross-ref/final-gap 清单提及)、`src/integration/AutoScaler.js` (被 2 测试引用, 活跃)
+- Commit: `1aa98a2` (refactor: archive 5 dead unconnected library modules to test/archive/ (no callers)) 已推 `cdf551f..1aa98a2`
+- 相关文件: `test/archive/{plugins-Plugin,plugins-PluginInterface,skills-executors-PptxExecutor,skills-executors-XlsxExecutor,learnEvalMonitoring}.js`
+
+
 
 
