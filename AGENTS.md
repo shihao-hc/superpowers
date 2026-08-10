@@ -1052,3 +1052,17 @@ Session 锚点: 2026-08-04 (第15次 — 全量 src 低覆盖扫描 + 4 死代�
 - **ESLint 环境注意**: `eslint` 本体不在 node_modules (仅 @eslint/js + eslint-plugin-security), `npx eslint` 首次运行自动下载 v10.8.1 到 npx 缓存; 本地直接 `node node_modules/eslint/bin/eslint.js` 会 MODULE_NOT_FOUND
 - Commit: `09c89ce` (test: MemoryAgent + SelfEvolutionRecorder full coverage (56 tests) + archive 4 dead files + js-yaml 4.3.1) 已推 `964e22b..09c89ce`
 - 相关文件: `tests/unit/{memory-agent,self-evolution-recorder}.test.js` (2 新), `test/archive/{core-BrainSystem.test.js,performance-WorkflowOptimizer.js,session-SessionManager.js,session-index.js}`, `package.json`
+---
+
+Session 锚点: 2026-08-10 (LocalEngine + agent/PlatformBridge 全覆盖 + 死代码归档 + 测试计数对账)
+- ESLint: 0/0 | tsc: 0 | Tests: **321 passed suites / 4 skipped / 0 failed** (15,726 passed / 46 skipped, 15,772 total) 两次运行稳定 clean exit | npm audit: **0 vulns** | Security: **0 HIGH, 0 MEDIUM, 159 LOW**
+- **2 个源文件全覆盖**:
+  - `src/localInferencing/LocalEngine.js` (21L 纯逻辑桩): **100/100/100/100** (tests/unit/local-engine.test.js, 7 tests)
+  - `src/agent/PlatformBridge.js` (被 MCPAlertManager.js:6 生产引用): **100/100/96.87/100** branch 100% (tests/unit/platform-bridge.test.js 重写, 41 tests)
+    - PlatformBridge 关键点: unsupported-send 测试需手动设 `status='connected'` (register→connect 对 matrix 会先抛错); `toMatchObject` 不能带 `type: undefined` 断言 (改 `not.toHaveProperty`); 6 种 connect 类型含 4 个 falsy 分支全覆盖
+- **死代码归档**: `src/integration/PlatformBridge.js` → `test/archive/integration-PlatformBridge.js` (旧版 EventEmitter 基类, 全库零调用, 仅 check-io.js 清单引用 → 已移除该行)
+- **测试计数对账关键教训**: platform-bridge.test.js 是 686892b 就存在的**已跟踪文件** (旧 31 tests 测的是 legacy `src/integration/PlatformBridge`, 与 src/agent/PlatformBridge 无关) — 本次是**重写复用** (31→41) 而非新增。计数: 15,755 + (41-31) + 7 = 15,772 ✓ (早前"缺 31 tests"误判 = 把重写当新增)
+  - 教训: 覆盖提升前先 `git log --oneline -- <testfile>` + `git status` 确认该文件是否已跟踪/旧测的是什么模块; 用 `--json --outputFile` 逐文件 assertion 数对账, 不要靠 Select-String 数 √ 行 (全量 verbose 输出 >51KB 会被截断)
+- **验证**: ESLint 0/0 + tsc 0 + security 0 HIGH + npm audit 0 (官方源) + 全量 Jest 321/4/0 (15,726) 稳定
+- Commit: `cf77e74` (test: PlatformBridge (agent) + LocalEngine full coverage (48 tests) + archive legacy integration/PlatformBridge) 已推 `dbe8dc8..cf77e74`
+- 相关文件: `tests/unit/local-engine.test.js` (新), `tests/unit/platform-bridge.test.js` (重写), `test/archive/integration-PlatformBridge.js`, `check-io.js`
