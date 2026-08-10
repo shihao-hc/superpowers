@@ -1021,7 +1021,34 @@ Session 锚点: 2026-08-04 (第14次 — 剩余真实缺口清零: core/AuditLog
 - **全量低覆盖扫描确认 (核心目录清零)**: 带 --collectCoverageFrom="src/core/**" "src/middleware/**" "src/utils/**" 跑全量, 解析输出表 <70% branch 文件 = **0** (新增 2 文件后)
   - 覆盖表解析用 node 脚本正则 ^(\S+)\s*\|\s*(\d+\.?\d*)\s*\|... 处理 PowerShell 内联 cast 失效问题
   - 注意 coverage/coverage-final.json 只有最后单文件运行的残留 — 全量扫描需重新跑覆盖或直接解析 jest 文本表
-- **lint 陷阱**: 只触发构造器的测试, 赋值 const logger = new X() 触发 no-unused-vars (非 _ 前缀) → 直接 
-ew X() 或 _ 前缀; 本项目 ESLint 对测试文件同样强制 --max-warnings=0
-- Commit:  b19870 (test: full coverage for core AuditLogger + IntentVerifier (22 tests)) 已推 43451f7..0b19870
-- 相关文件: 	ests/unit/{core-audit-logger,intent-verifier}.test.js (2 新)
+- **lint 陷阱**: 只触发构造器的测试, 赋值 const logger = new X() 触发 no-unused-vars (非 _ 前缀) → 直接 `new X()` 或 _ 前缀; 本项目 ESLint 对测试文件同样强制 --max-warnings=0
+- Commit: `0b19870` (test: full coverage for core AuditLogger + IntentVerifier (22 tests)) 已推 `43451f7..0b19870`
+- 相关文件: `tests/unit/{core-audit-logger,intent-verifier}.test.js` (2 新)
+
+---
+
+Session 锚点: 2026-08-04 (第15次 — 全量 src 低覆盖扫描 + 4 死代码归档 + MemoryAgent/SelfEvolutionRecorder 全覆盖 + js-yaml 4.3.1 安全修复)
+- ESLint: 0/0 | tsc: 0 | Tests: **320 passed suites / 4 skipped / 0 failed** (15,709 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: **0 vulns** (js-yaml 4.3.1 恢复) | Security: **0 HIGH, 0 MEDIUM, 160 LOW** (归档带走 1 个 SYNCHRONOUS_IO 项)
+- **全量 src 低覆盖扫描 (首次完整 src 覆盖)**: `--collectCoverageFrom="src/**/*.js"` 全量跑 → coverage-final.json 347 entries → **43 个 <70% branch 文件** (约 31 个 0%)
+  - 全部 0%: index.js, learnEval.js, agent/{PlatformBridge,brain-full-check}.js, agents/MemoryAgent.js, api/MobileAPI.js, daemon/index.js, game/{Factorio,Terraria}Agent.js, i18n/index.js, integrations/openclaw/{AuthManager,index,launch-router}.js, memory/{GraphMemory,LongTermMemory,index}.js, monitoring/Metrics.js, multiagent/examples/index.js, performance/{AsyncBatchWriter,RedisCache}.js, personality/PersonalityManager.js, plugins/PluginManager.js, security/index.js, skills/{SkillLoader,rendering/scripts/{preview,render}}.js
+  - 非 0% 但有缺口: core/BrainSystem.js 63.2/86.6, plugins/SandboxRunner.js 63/89.7, localInferencing/LocalEngine.js 50/77.8, integration/IntegrationTests.js 50/90.7
+  - 注意: 仅扫 core|middleware|utils 三目录得出 "<70%: 0" 不完备 (#14 措辞仅限那三目录); 完整 src 扫描才是真账本
+- **4 个死代码/过期文件归档到 test/archive/** (git mv, 保留历史):
+  - `src/core/BrainSystem.test.js` (17KB 自定义 assert 风格自测 runner, 非 Jest, 0 运行引用) → `test/archive/core-BrainSystem.test.js`
+  - `src/performance/WorkflowOptimizer.js` (0 引用死代码; 注意已测的是 `src/agent/WorkflowOptimizer.js`, 不同文件) → `test/archive/performance-WorkflowOptimizer.js`
+  - `src/session/SessionManager.js` (378L, 仅被自己的 barrel 引用) + `src/session/index.js` (barrel 零引用) → 整链归档 2 文件
+  - 引用面核实: `src/agent/PlatformBridge.js` 被 MCPAlertManager.js:6 生产引用 (活跃, 需补测); `monitoring/Metrics.js` src 内 0 引用 (死代码候选)
+- **2 个活跃模块全覆盖 (新增 2 测试文件, 56 tests)**:
+  - `src/core/SelfEvolutionRecorder.js` (73L): **100/100/100/100** (self-evolution-recorder.test.js 15 tests) — 被 BrainSystem.js:29 生产引用
+    - 关键: `PERSISTENCE_DIR` 是模块加载期常数 (顶层 `process.cwd()` 捕获) → 必须在 `process.chdir(tmpDir)` 后 `jest.isolateModules` 重新 require (第一版漏了, 写到真实 cwd)
+  - `src/agents/MemoryAgent.js` (224L): **100/100/100/100** (memory-agent.test.js 41 tests) — 被 src/index.js:9 生产引用
+    - 关键: 原型污染测试用对象字面量 `__proto__` 不产生 own key → 必须 `JSON.parse('{"__proto__":{...}}')` 才命中 PROTECTED_KEYS 删除分支
+    - CSV export 的 value 是 `JSON.stringify` 结果 → `'v'` 变 `"v"` (CSV 行是 `"k","\"v\""`), 断言不能期望裸 `"k","v"`
+    - 加密路径: MEMORY_ENCRYPTION_KEY 模块加载期 env 读取 → 加密 describe 用 isolateModules 重载; encrypt catch 用 `jest.spyOn(crypto,'createCipheriv')` 抛错触发回退
+    - load catch (fs 抛错) 需先建文件再 spy readFileSync 抛错, 否则 existsSync false 根本不进 if
+- **js-yaml 安全修复 (npm audit 1 high → 0)**: CVE-2026-59870 (GHSA-5p4m-2wfm-xmqj, 4.0.0-4.3.0 受影响, 4.3.1 修复未 backport)
+  - package.json 3 处 js-yaml `4.3.0` → `4.3.1`: 直接依赖 (line 99) + 顶层 override (line 121) + path override `babel-plugin-istanbul → @istanbuljs/load-nyc-config` (line 131)
+  - `npm install` 后 audit 恢复 0; js-yaml smoke test 通过; 全量 Jest 320/4/0 无回归
+- **ESLint 环境注意**: `eslint` 本体不在 node_modules (仅 @eslint/js + eslint-plugin-security), `npx eslint` 首次运行自动下载 v10.8.1 到 npx 缓存; 本地直接 `node node_modules/eslint/bin/eslint.js` 会 MODULE_NOT_FOUND
+- Commit: `09c89ce` (test: MemoryAgent + SelfEvolutionRecorder full coverage (56 tests) + archive 4 dead files + js-yaml 4.3.1) 已推 `964e22b..09c89ce`
+- 相关文件: `tests/unit/{memory-agent,self-evolution-recorder}.test.js` (2 新), `test/archive/{core-BrainSystem.test.js,performance-WorkflowOptimizer.js,session-SessionManager.js,session-index.js}`, `package.json`
