@@ -115,9 +115,10 @@ class SemanticCache {
       const semanticResult = await this._findSimilar(key);
       if (semanticResult) {
         this.stats.semanticHits++;
+        this.stats.hits++;
         return {
           type: 'semantic',
-          value: semanticResult.value,
+          value: semanticResult.entry.value,
           hit: true,
           similarity: semanticResult.similarity
         };
@@ -148,7 +149,7 @@ class SemanticCache {
 
     if (bestMatch) {
       bestMatch.entry.hits++;
-      return bestMatch.entry;
+      return bestMatch;
     }
 
     return null;
@@ -233,7 +234,7 @@ class SemanticCache {
       semanticHits: this.stats.semanticHits,
       evictions: this.stats.evictions,
       hitRate: total > 0 ? this.stats.hits / total : 0,
-      semanticHitRate: this.stats.hits > 0 ? this.stats.semanticHits / this.stats.hits : 0,
+      semanticHitRate: total > 0 ? this.stats.semanticHits / total : 0,
       size: this.cacheStore.size,
       maxSize: this.config.maxCacheSize
     };

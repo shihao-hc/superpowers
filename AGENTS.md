@@ -1066,3 +1066,37 @@ Session 锚点: 2026-08-10 (LocalEngine + agent/PlatformBridge 全覆盖 + 死�
 - **验证**: ESLint 0/0 + tsc 0 + security 0 HIGH + npm audit 0 (官方源) + 全量 Jest 321/4/0 (15,726) 稳定
 - Commit: `cf77e74` (test: PlatformBridge (agent) + LocalEngine full coverage (48 tests) + archive legacy integration/PlatformBridge) 已推 `dbe8dc8..cf77e74`
 - 相关文件: `tests/unit/local-engine.test.js` (新), `tests/unit/platform-bridge.test.js` (重写), `test/archive/integration-PlatformBridge.js`, `check-io.js`
+
+---
+
+Session 锚点: 2026-08-10 (第2次 — SemanticCache + SkillRecognizer 全覆盖至可达上限 + 3 真 bug 修复)
+- ESLint: 0/0 (相关文件) | Tests: **325 passed suites / 4 skipped / 0 failed** (15,903 passed / 46 skipped) 两次运行稳定 | npm audit: **0 vulns** | Security: **0 HIGH, 0 MEDIUM**
+- **src/cost/SemanticCache.js: 100/100/100/100** (23 tests, 109 stmts + 51 branch locations 全盖) — 修复 **2 个真 bug (AGENTS 5.3)**:
+  1. `getStats().semanticHitRate = semanticHits / hits` 纯 semantic 场景除零 → `total > 0 ? semanticHits / total : 0` (total = hits + misses)
+  2. `_findSimilar` 返回 `bestMatch.entry` (丢 similarity) → 返回 `bestMatch`; `get()` 取值改 `semanticResult.entry.value` — 修复 `result.similarity` 恒 undefined
+  - semantic 路径靠 `jest.spyOn(cache,'_cosineSimilarity').mockReturnValue(...)` (确定性哈希不会自然产生 >0.85 相似度)
+- **src/core/SkillRecognizer.js: 98.8/97.88/100/98.66** (86 tests, 68→86) — 可达上限, 剩余 3 stmts (764/766/767) + 4 branches (314/692/763/765) 全部探针证实结构性不可达:
+  - **修复 1 个真 bug**: L140 关键词 `'浏览\uFFFD\uFFFD\uFFFD自动化'` (3 个 U+FFFD 替换符, 本应 `'浏览器自动化'`) 永远无法匹配 → 修复 (临时脚本已删)
+  - 新增覆盖: 真实临时目录 `fs.mkdtempSync` 下 `_loadSkills` 全流程 (递归 `_getSkillFiles`/frontmatter 缺失目录名兜底/分类聚簇/加载计数日志/目录不存在 return/skip 不可读文件), `_matchCustomSystems` featureless 分支, `_makeDecision` 排序 + matchType/skip 语义, `recognize` 模糊名命中/短关键词跳过/未加载模块/topN 边界
+  - 不可达证明: `_guessCategory` 恒返回非空串 (L314 fallback); recognize 恒设 match (L443/450/472, L692 fallback); custom 选项 matchType 硬编码 'keyword' (L713 → L746 早退先于 L763); combine 选项仅随 keyword 匹配共存 (L765-i0)
+- **全量 src 隔离扫描确认**: 此前多文件全量低 branch 为跨文件 worker 缓存污染假象 (LessonReminder/ComplianceScanner/CostDashboard/EnhancedInputValidator/ProactiveAdvisor/WorkflowOptimizer/DecisionEngine/KnowledgeGraph/EmotionExpress/InputTrigger/securityMonitor/metrics 隔离跑均 100%)
+- **真实缺口识别 (探针按测试文件顶层 require 推导源文件)**: SemanticCache ✅ → SkillRecognizer ✅ → 下一批 SkillRegistry 82.4% / ZeroTrustEngine 89.1% / BrainBridge 79.0% / SemanticMemory 75.0% / DynamicScraper 87.7% / OllamaBridge 93.3%
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 325/4/0 (15,903) clean
+- 相关文件: `tests/unit/skill-recognizer.test.js` (+18), `tests/unit/semantic-cache.test.js`, `src/core/SkillRecognizer.js`, `src/cost/SemanticCache.js`
+
+---
+
+Session 锚点: 2026-08-10 (第3次 — SkillRegistry 全盖 + 误读教训 + personality flaky 预存确认)
+- ESLint: 0/0 (相关文件) | Tests: **324 passed suites / 4 skipped / 1 failed (预存 personality flaky)** (15,920 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/SkillRegistry.js: 100 stmts / 100 funcs / 98.04 branch (100/102)** (54 tests, 36→54) — 剩余 2 分支探针证实结构性不可达:
+  - id3 L39 `if (skill)` falsy: `_discoverSkill` 恒返回 truthy 对象
+  - id6 L51 `for (const tag of skill.tags || [])` 的 `[]` fallback: L95 恒设 `skill.tags = metadata.tags || []` 为数组
+- **新测试 (+1, 53→54)**: `no-desc-pkg` — skillMdContent 无 description + pkgContent 无 description → L110 `skill.description || pkg.description || ''` 的 `''` fallback 位置执行 (此前 [54,2,0] 中 loc2 恒 0)
+- **重大误读教训 (v8 coverageProvider 语义)**: jest coverageProvider 是 **v8** 非 babel-istanbul → branch 计数字义 = "代码位置是否执行" 而非 "布尔分支是否取反"
+  - L110 实际是 description `||` 链, 不是 tags 三元; 之前把 column 45/64/70 误读成 `tags.length>0 ? tags : ...` 是错的
+  - 教训: 判定某个 branch 时先 `bm[id].locations` 打印真实行列再对照源文件, 不要凭行号+列号猜表达式
+- **临时文件清理**: `tmp-ternary.js` + `tmp-ternary.test.js` (微复现 `A ? B : (C || [])` 在 v8 下生成 cond-expr + binary-expr 两个独立 branch, 而 SkillRegistry L110 是一个 3-location binary-expr — 差异源于不同表达式结构) + `tq/` 临时目录 全删
+- **lint 修复**: skill-registry-core.test.js L578 死变量 `scriptsDir` (此前 getTree 测试遗留) 删除
+- **personality-manager flaky 预存确认**: 全量失败为 `_startMoodDrift keeps mood when drift not triggered` (基线记录的是 `deletePersonality leaves active null` — 同一未跟踪测试文件内失败名漂移), 单独跑 **48/48 通过** → 预存时间/顺序相关 flaky, 非本会话回归; 本会话全部套件 (skill-registry-core 54 / skill-recognizer 86 / semantic-cache 23 / plugin-manager 22 / project-tracker 55 / skills-api 132 / state-store 42 / reverse-thinking 54 / skill-loader-direct 16) 全量 PASS
+- **工作树审计**: git status 混有两部分未提交改动 — (a) 本会话: SkillRecognizer/SemanticCache/PluginManager + 5 测试文件 + AGENTS.md; (b) 预存外部: PersonalityManager.js/LongTermMemory.js + 4 个 memory 测试文件 (graph/long-term/personality/unified-memory, 全部 untracked) — 提交时只暂存本会话文件, 不碰外部工作
+- 相关文件: `tests/unit/skill-registry-core.test.js` (36→54), `src/skills/SkillRegistry.js` (未改, 纯测试补齐)

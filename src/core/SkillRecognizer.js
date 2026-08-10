@@ -137,7 +137,7 @@ class SkillRecognizer {
       ['langchain', 'langchain'],
 
       // 浏览器/爬虫
-      ['浏览���自动化', 'browser-automation'],
+      ['浏览器自动化', 'browser-automation'],
       ['拾号-爬虫', 'module:DynamicScraper'],
       ['拾号爬虫', 'module:DynamicScraper'],
       ['爬虫系统', 'module:DynamicScraper'],

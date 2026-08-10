@@ -62,6 +62,13 @@ describe('SkillRecognizer', () => {
       const systems = recognizer.getCustomSystems();
       expect(systems.some(s => s.name === 'my-sys')).toBe(true);
     });
+
+    test('defaults keywords and features when not provided', () => {
+      recognizer.registerSystem('bare-sys', {});
+      const sys = recognizer.customSystems.get('bare-sys');
+      expect(sys.keywords).toEqual([]);
+      expect(sys.features).toEqual({});
+    });
   });
 
   describe('recognize', () => {
@@ -89,6 +96,44 @@ describe('SkillRecognizer', () => {
       const results = recognizer.recognize('test', { topN: 2 });
       expect(results.length).toBeLessThanOrEqual(2);
     });
+
+    test('skips keywords shorter than minimum match length', () => {
+      const results = recognizer.recognize('buildui');
+      expect(results).toEqual([]);
+    });
+
+    test('skips keyword mapping to an unloaded skill', () => {
+      const results = recognizer.recognize('docker');
+      expect(results).toEqual([]);
+    });
+
+    test('skips fuzzy matching when topN is already reached', () => {
+      const results = recognizer.recognize('测试', { topN: 1 });
+      expect(results).toHaveLength(1);
+    });
+
+    test('recognizes non-crawler module as custom-module', () => {
+      const results = recognizer.recognize('tailor');
+      expect(results.some(r => r.skill.name === 'Tailor' && r.match === 'custom-module')).toBe(true);
+    });
+
+    test('handles module keyword for an unknown module', () => {
+      recognizer.keywordMap.set('ghostmod', 'module:NotRegistered');
+      const results = recognizer.recognize('ghostmod');
+      expect(results).toEqual([]);
+    });
+
+    test('fuzzy matching handles skills missing name and description', () => {
+      recognizer.skills.push({ path: '/a' }, { name: 'no-desc', path: '/b' });
+      const results = recognizer.recognize('zzzznomatch');
+      expect(results).toEqual([]);
+    });
+
+    test('fuzzy matching scores name substring matches', () => {
+      recognizer.skills.push({ name: 'quickstart', description: 'a skill', category: 'x', path: '/q' });
+      const results = recognizer.recognize('quick');
+      expect(results.some(r => r.skill.name === 'quickstart' && r.match === 'fuzzy')).toBe(true);
+    });
   });
 
   describe('_matchCustomSystems', () => {
@@ -110,6 +155,12 @@ describe('SkillRecognizer', () => {
       const result = recognizer._matchCustomSystems('抖音', analysis);
       expect(result.length).toBeGreaterThan(0);
     });
+
+    test('matches featureless custom system by keyword only', () => {
+      recognizer.customSystems.set('featureless', { name: 'featureless', keywords: ['foobar'] });
+      const result = recognizer._matchCustomSystems('foobar', { isDomestic: true, isVideo: true });
+      expect(result.some(s => s.name === 'featureless' && s.score === 1)).toBe(true);
+    });
   });
 
   describe('_makeDecision', () => {
@@ -126,6 +177,45 @@ describe('SkillRecognizer', () => {
         {}
       );
       expect(result.options.length).toBeGreaterThan(0);
+    });
+
+    test('defaults type for a bare custom system', () => {
+      const result = recognizer._makeDecision([{ name: 'bare', score: 3 }], [], {});
+      expect(result.options[0].type).toBe('自有系统');
+    });
+
+    test('defaults matchType and scales fuzzy scores for bare skills', () => {
+      const result = recognizer._makeDecision(
+        [],
+        [{ name: 's', description: 'd', category: 'c', score: 0.5 }],
+        {}
+      );
+      expect(result.options[0].matchType).toBe('skill');
+      expect(result.options[0].score).toBe(0.4);
+    });
+
+    test('does not build a combine option when only one side matches', () => {
+      const result = recognizer._makeDecision(
+        [{ name: 'cs', type: '爬虫系统', score: 3 }],
+        [],
+        { isLargeScale: true }
+      );
+      expect(result.options.some(o => o.combine)).toBe(false);
+    });
+
+    test('sorts skill options by score when no keyword match exists', () => {
+      const result = recognizer._makeDecision(
+        [],
+        [
+          { name: 'low', description: 'd', category: 'c', score: 0.3 },
+          { name: 'high', description: 'd', category: 'c', score: 0.9 },
+          { name: 'mid', description: 'd', category: 'c', score: 0.6 }
+        ],
+        {}
+      );
+      expect(result.options.map(o => o.name)).toEqual(['high', 'mid', 'low']);
+      expect(result.recommendation.name).toBe('high');
+      expect(result.reason).toBe('推荐使用 Skill: high');
     });
   });
 
@@ -420,6 +510,85 @@ describe('SkillRecognizer', () => {
       const results = recognizer.recognize('methodology', { topN: 5 });
       const fuzzy = results.filter(r => r.match === 'fuzzy');
       expect(fuzzy.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('filesystem skill loading', () => {
+    const realFs = jest.requireActual('fs');
+    const os = require('os');
+    const pathMod = require('path');
+    let tmpDir;
+
+    const write = (relPath, content) => {
+      const full = pathMod.join(tmpDir, relPath);
+      realFs.mkdirSync(pathMod.dirname(full), { recursive: true });
+      realFs.writeFileSync(full, content, 'utf8');
+    };
+
+    beforeAll(() => {
+      tmpDir = realFs.mkdtempSync(pathMod.join(os.tmpdir(), 'skillrec-'));
+      write('claude-code/SKILL.md', '---\nname: cc-skill\ndescription: A Claude Code skill\n---\n# CC');
+      write('claude-code/sub/SKILL.md', '---\nname: cc-sub\ndescription: Nested Claude Code skill\n---\n# Sub');
+      write('nested/plain/SKILL.md', '# No frontmatter here\n');
+      write('nested/deep/more/SKILL.md', '---\nname: deep-skill\n---\n# Deep');
+      write('nameless/SKILL.md', '---\ndescription: No name field\n---\n# Nameless');
+      write('misc/README.md', '# ignored');
+    });
+
+    beforeEach(() => {
+      jest.restoreAllMocks();
+      fs.existsSync.mockImplementation(realFs.existsSync);
+      fs.readdirSync.mockImplementation(realFs.readdirSync);
+      fs.readFileSync.mockImplementation(realFs.readFileSync);
+    });
+
+    afterAll(() => {
+      realFs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.existsSync.mockImplementation(() => false);
+      fs.readdirSync.mockImplementation(() => []);
+      fs.readFileSync.mockImplementation(() => undefined);
+    });
+
+    test('loads all skills from the filesystem and builds categories', () => {
+      const r = new SkillRecognizer({ skillsDir: tmpDir });
+      const names = r.skills.map(s => s.name);
+      expect(names).toContain('cc-skill');
+      expect(names).toContain('cc-sub');
+      expect(names).toContain('deep-skill');
+      expect(names).toContain('nameless');
+      expect(names).toContain('plain');
+      expect(r.skills).toHaveLength(5);
+      expect(r.categories['Claude Code']).toHaveLength(2);
+      expect(r.categories['其他']).toHaveLength(3);
+    });
+
+    test('parses frontmatter and falls back to directory name', () => {
+      const r = new SkillRecognizer({ skillsDir: tmpDir });
+      const deep = r.skills.find(s => s.name === 'deep-skill');
+      expect(deep.description).toBe('');
+      const plain = r.skills.find(s => s.name === 'plain');
+      expect(plain.description).toBe('');
+      const nameless = r.skills.find(s => s.name === 'nameless');
+      expect(nameless.name).toBe('nameless');
+      expect(nameless.description).toBe('No name field');
+    });
+
+    test('returns an empty file list for a missing directory', () => {
+      const r = new SkillRecognizer({ skillsDir: tmpDir });
+      expect(r._getSkillFiles(pathMod.join(tmpDir, 'missing'))).toEqual([]);
+    });
+
+    test('logs and returns when the skills directory does not exist', () => {
+      const consoleSpy = jest.spyOn(console, 'log');
+      const r = new SkillRecognizer({ skillsDir: pathMod.join(tmpDir, 'missing') });
+      expect(r.skills).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalled();
+    });
+
+    test('skips unreadable skill files', () => {
+      fs.readFileSync.mockImplementation(() => { throw new Error('EACCES'); });
+      const r = new SkillRecognizer({ skillsDir: tmpDir });
+      expect(r.skills).toEqual([]);
     });
   });
 });

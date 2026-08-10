@@ -39,10 +39,16 @@ function setupSkillDir(skillsDir, skillDirs) {
     for (const sd of skillDirs) {
       const skillPath = path.join(skillsDir, sd.dirName || sd.name);
       if (p === path.join(skillPath, 'SKILL.md')) {
+        if (sd.skillMdThrows) { throw new Error('boom'); }
         return sd.skillMdContent || `---\nname: ${sd.name}\ndescription: ${sd.description || 'A skill'}\ncategory: ${sd.category || 'general'}\ntags:\n  - ${sd.tag || 'test'}\nversion: ${sd.version || '1.0.0'}\n---\nSkill body`;
       }
       if (p === path.join(skillPath, 'package.json')) {
-        return JSON.stringify({ version: sd.version || '1.0.0', description: sd.description || 'A skill' });
+        if (sd.pkgThrows) { throw new Error('boom'); }
+        return sd.pkgContent || JSON.stringify({
+          version: sd.version || '1.0.0',
+          description: sd.description || 'A skill',
+          ...(sd.pkgCategory ? { category: sd.pkgCategory } : {})
+        });
       }
       if (p === path.join(skillPath, 'index.js')) {
         return sd.indexContent || 'module.exports = {};';
@@ -121,6 +127,122 @@ describe('SkillRegistry', () => {
       expect(registry.registry.has('no-md')).toBe(true);
       const skill = registry.registry.get('no-md');
       expect(skill.hasSKILLMd).toBe(false);
+    });
+
+    it('should use the default skills directory when none is provided', () => {
+      fs.existsSync.mockReturnValue(false);
+      registry = new SkillRegistry();
+      expect(registry.registry.size).toBe(0);
+    });
+
+    it('should warn and continue when SKILL.md read fails', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      setupSkillDir(skillsDir, [
+        { name: 'bad-md', skillMdThrows: true },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('解析 SKILL.md 失败'), 'boom');
+      expect(registry.registry.has('bad-md')).toBe(true);
+    });
+
+    it('should fall back to directory name when SKILL.md has no name', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'dir-name', skillMdContent: '---\ndescription: Only desc\n---\nBody' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      const skill = registry.registry.get('dir-name');
+      expect(skill.name).toBe('dir-name');
+      expect(skill.description).toBe('Only desc');
+    });
+
+    it('should default description when SKILL.md has none', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'no-desc', hasPkg: false, skillMdContent: '---\nname: no-desc\n---\nBody' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      const skill = registry.registry.get('no-desc');
+      expect(skill.description).toBe('');
+    });
+
+    it('should leave category null when SKILL.md has no category', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'no-cat', skillMdContent: '---\nname: no-cat\ndescription: D\n---\nBody' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('no-cat').category).toBeNull();
+      expect(registry.categories.size).toBe(0);
+    });
+
+    it('should take category from package.json', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'pkg-cat', pkgCategory: 'from-pkg' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('pkg-cat').category).toBe('from-pkg');
+    });
+
+    it('should warn and continue when package.json parse fails', () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      setupSkillDir(skillsDir, [
+        { name: 'bad-pkg', pkgContent: 'not json' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('解析 package.json 失败'), expect.stringContaining('Unexpected'));
+      expect(registry.registry.has('bad-pkg')).toBe(true);
+    });
+
+    it('should keep SKILL.md version when package.json has none', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'no-ver', pkgContent: JSON.stringify({ description: 'D' }) },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('no-ver').version).toBe('1.0.0');
+    });
+
+    it('should default description to empty when neither skill nor package has one', () => {
+      setupSkillDir(skillsDir, [
+        {
+          name: 'no-desc-pkg',
+          skillMdContent: '---\nname: no-desc-pkg\n---\nBody',
+          pkgContent: JSON.stringify({})
+        },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('no-desc-pkg').description).toBe('');
+    });
+
+    it('should use package.json keywords when skill has no tags', () => {
+      setupSkillDir(skillsDir, [
+        {
+          name: 'pkg-tags',
+          skillMdContent: '---\nname: pkg-tags\ndescription: D\n---\nBody',
+          pkgContent: JSON.stringify({ version: '2.0.0', keywords: ['k1', 'k2'] })
+        },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('pkg-tags').tags).toEqual(['k1', 'k2']);
+    });
+
+    it('should leave tags empty when neither skill nor package has tags', () => {
+      setupSkillDir(skillsDir, [
+        {
+          name: 'no-tags',
+          skillMdContent: '---\nname: no-tags\ndescription: D\n---\nBody',
+          pkgContent: JSON.stringify({ version: '1.0.0' })
+        },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      expect(registry.registry.get('no-tags').tags).toEqual([]);
+    });
+
+    it('should discover skill without package.json', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'no-pkg', hasPkg: false },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      const skill = registry.registry.get('no-pkg');
+      expect(skill.hasPackageJson).toBe(false);
+      expect(skill.version).toBe('1.0.0');
     });
   });
 
@@ -204,6 +326,20 @@ describe('SkillRegistry', () => {
       const result = registry.getSkill('old-skill');
       expect(result.replacementSkill).toBeTruthy();
       expect(result.replacementSkill.name).toBe('new-skill');
+    });
+
+    it('should return skill unchanged when replacement skill is missing', () => {
+      setupSkillDir(skillsDir, [
+        { name: 'old-skill', indexContent: 'DEPRECATED: true' },
+      ]);
+      registry = new SkillRegistry(skillsDir);
+      const oldSkill = registry.registry.get('old-skill');
+      oldSkill.deprecated = true;
+      oldSkill.replacement = 'ghost';
+
+      const result = registry.getSkill('old-skill');
+      expect(result.replacementSkill).toBeUndefined();
+      expect(result.name).toBe('old-skill');
     });
   });
 
@@ -421,6 +557,110 @@ describe('SkillRegistry', () => {
       const skill = { name: 'foo', description: '', tags: [], category: 'test' };
       const score = registry._calculateRelevance(skill, 'test');
       expect(score).toBe(25);
+    });
+
+    it('should handle skill without a tags property', () => {
+      setupSkillDir(skillsDir, []);
+      registry = new SkillRegistry(skillsDir);
+      const skill = { name: 'foo', description: '', category: null };
+      const score = registry._calculateRelevance(skill, 'foo');
+      expect(score).toBe(100);
+    });
+  });
+
+  describe('_scanFiles', () => {
+    beforeEach(() => {
+      registry = new SkillRegistry('/fake/empty');
+    });
+
+    it('should collect files recursively in standard subdirectories with prefixed paths', () => {
+      const scanDir = '/fake/scan';
+      const norm = (p) => String(p).replace(/\\/g, '/');
+      fs.existsSync.mockImplementation((p) => norm(p).startsWith('/fake/scan'));
+      fs.readdirSync.mockImplementation((p) => {
+        switch (norm(p)) {
+          case '/fake/scan': return ['readme.md', 'scripts', 'notes'];
+          case '/fake/scan/scripts': return ['build.js'];
+          case '/fake/scan/notes': return ['scratch.txt'];
+          default: return [];
+        }
+      });
+      fs.statSync.mockImplementation((p) => {
+        if (norm(p) === '/fake/scan/scripts' || norm(p) === '/fake/scan/notes') {
+          return { isDirectory: () => true, size: 100 };
+        }
+        return { isDirectory: () => false, size: 50 };
+      });
+
+      const files = registry._scanFiles(scanDir);
+      expect(files.map((f) => f.name)).toEqual(expect.arrayContaining(['readme.md', 'build.js']));
+      expect(files.map((f) => f.path)).toContain('scripts/build.js');
+      expect(files.map((f) => f.path)).toContain('readme.md');
+    });
+
+    it('should not recurse into non-standard subdirectories', () => {
+      const scanDir = '/fake/scan';
+      const norm = (p) => String(p).replace(/\\/g, '/');
+      fs.existsSync.mockImplementation((p) => norm(p).startsWith('/fake/scan'));
+      fs.readdirSync.mockImplementation((p) => {
+        switch (norm(p)) {
+          case '/fake/scan': return ['notes'];
+          case '/fake/scan/notes': return ['scratch.txt'];
+          default: return [];
+        }
+      });
+      fs.statSync.mockImplementation((p) => {
+        if (norm(p) === '/fake/scan/notes') return { isDirectory: () => true, size: 100 };
+        return { isDirectory: () => false, size: 50 };
+      });
+
+      const files = registry._scanFiles(scanDir);
+      expect(files).toEqual([]);
+    });
+
+    it('should return an empty list when the directory does not exist', () => {
+      fs.existsSync.mockImplementation((p) => p !== '/fake/scan');
+      fs.readdirSync.mockReturnValue([]);
+      fs.statSync.mockReturnValue({ isDirectory: () => false, size: 0 });
+
+      const files = registry._scanFiles('/fake/scan');
+      expect(files).toEqual([]);
+    });
+  });
+
+  describe('getTree with files', () => {
+    it('should expose file paths from discovered skills', () => {
+      const base = '/fake/tree';
+      const skillPath = path.join(base, 'tree-skill');
+      fs.existsSync.mockImplementation((p) => {
+        if (p === base || p === skillPath) return true;
+        if (p === path.join(skillPath, 'SKILL.md')) return true;
+        if (p === path.join(skillPath, 'scripts')) return true;
+        return false;
+      });
+      fs.readdirSync.mockImplementation((p) => {
+        if (p === base) return ['tree-skill'];
+        if (p === skillPath) return ['scripts'];
+        if (p === path.join(skillPath, 'scripts')) return ['run.js'];
+        return [];
+      });
+      fs.statSync.mockImplementation((p) => {
+        if (p === skillPath || p === path.join(skillPath, 'scripts')) {
+          return { isDirectory: () => true, size: 100 };
+        }
+        return { isDirectory: () => false, size: 50 };
+      });
+      fs.readFileSync.mockImplementation((p) => {
+        if (p === path.join(skillPath, 'SKILL.md')) return '---\nname: tree-skill\ndescription: Tree\n---\nBody';
+        return '';
+      });
+
+      registry = new SkillRegistry(base);
+      const skill = registry.registry.get('tree-skill');
+      expect(skill.files.map((f) => f.path)).toEqual(['scripts/run.js']);
+
+      const tree = registry.getTree();
+      expect(tree.categories['uncategorized'][0].files).toContain('scripts/run.js');
     });
   });
 });

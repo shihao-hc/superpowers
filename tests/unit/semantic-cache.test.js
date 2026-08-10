@@ -60,6 +60,67 @@ describe('SemanticCache', () => {
       const result = await cache.get('exact key');
       expect(result.type).toBe('exact');
     });
+
+    it('returns semantic hit when cosine similarity is above threshold', async () => {
+      await cache.set('stored query', { answer: 'stored answer' });
+      jest.spyOn(cache, '_cosineSimilarity').mockReturnValue(0.9);
+
+      const result = await cache.get('different query');
+
+      expect(result.hit).toBe(true);
+      expect(result.type).toBe('semantic');
+      expect(result.similarity).toBe(0.9);
+      expect(result.value.answer).toBe('stored answer');
+      expect(cache.getStats().semanticHits).toBe(1);
+    });
+
+    it('keeps the highest-similarity match', async () => {
+      await cache.set('first', { v: 1 });
+      await cache.set('second', { v: 2 });
+      jest.spyOn(cache, '_cosineSimilarity')
+        .mockReturnValueOnce(0.9)
+        .mockReturnValueOnce(0.95);
+
+      const result = await cache.get('query');
+
+      expect(result.type).toBe('semantic');
+      expect(result.value.v).toBe(2);
+      expect(cache.getStats().semanticHits).toBe(1);
+    });
+
+    it('skips expired entries during semantic search', async () => {
+      await cache.set('stored', { v: 1 });
+      jest.spyOn(cache, '_cosineSimilarity').mockReturnValue(0.9);
+      jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 120000);
+
+      const result = await cache.get('query');
+
+      expect(result.hit).toBe(false);
+    });
+
+    it('ignores orphan vectors without a matching cache entry', async () => {
+      cache.vectorStore.set('orphan-emb', [1, 2, 3]);
+      jest.spyOn(cache, '_cosineSimilarity').mockReturnValue(0.9);
+
+      const result = await cache.get('query');
+
+      expect(result.hit).toBe(false);
+    });
+
+    it('returns 0 similarity for different-length vectors', () => {
+      expect(cache._cosineSimilarity([1, 2], [1])).toBe(0);
+    });
+
+    it('reports a finite semantic hit rate for semantic-only usage', async () => {
+      await cache.set('stored', { v: 1 });
+      jest.spyOn(cache, '_cosineSimilarity').mockReturnValue(0.9);
+
+      await cache.get('query');
+
+      const stats = cache.getStats();
+      expect(stats.semanticHits).toBe(1);
+      expect(stats.semanticHitRate).toBe(1);
+    });
   });
 
   describe('stats', () => {
@@ -149,6 +210,29 @@ describe('SemanticCache', () => {
       const stats = cache.getStats();
       expect(stats.hitRate).toBe(0);
       expect(stats.semanticHitRate).toBe(0);
+    });
+
+    it('uses default config when constructed without options', async () => {
+      const defaultCache = new SemanticCache();
+      expect(defaultCache.config.similarityThreshold).toBe(0.85);
+      expect(defaultCache.config.maxCacheSize).toBe(10000);
+      expect(defaultCache.config.defaultTTL).toBe(24 * 60 * 60 * 1000);
+      expect(defaultCache.config.embeddingModel).toBe('text-embedding-3-large');
+
+      await defaultCache.set('key', 'value');
+      const result = await defaultCache.get('key');
+      expect(result.hit).toBe(true);
+    });
+
+    it('short-circuits semantic search when useSemantic is false and no exact match', async () => {
+      const result = await cache.get('missing', { useSemantic: false });
+      expect(result.hit).toBe(false);
+      expect(result.type).toBe('none');
+    });
+
+    it('no-ops when deleting a non-existent entry', () => {
+      expect(() => cache._deleteEntry('missing-value-key')).not.toThrow();
+      expect(cache.cacheStore.size).toBe(0);
     });
   });
 });

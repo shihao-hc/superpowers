@@ -1,291 +1,314 @@
-const { PluginManager } = require('../../src/workflow/PluginManager');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const SR_PATH = '../../src/plugins/SandboxRunner';
+const PM_PATH = '../../src/plugins/PluginManager';
 
 describe('PluginManager', () => {
-  let pm;
+  let tmpDir;
+  let prevCwd;
+  let savedSandboxEnv;
 
   beforeEach(() => {
-    pm = new PluginManager();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pmgr-'));
+    prevCwd = process.cwd();
+    savedSandboxEnv = process.env.PLUGIN_SANDBOX;
+    delete process.env.PLUGIN_SANDBOX;
   });
 
-  describe('constructor', () => {
-    it('creates empty maps and default maxPlugins', () => {
-      expect(pm.plugins).toBeInstanceOf(Map);
-      expect(pm.loadedPlugins).toBeInstanceOf(Map);
-      expect(pm.hooks).toBeInstanceOf(Map);
-      expect(pm.maxPlugins).toBe(100);
-      expect(pm.mcpBridge).toBeNull();
-      expect(pm.mcpRegistry).toBeNull();
-    });
-
-    it('accepts custom maxPlugins', () => {
-      const pm2 = new PluginManager({ maxPlugins: 50 });
-      expect(pm2.maxPlugins).toBe(50);
-    });
+  afterEach(() => {
+    jest.clearAllMocks();
+    if (savedSandboxEnv === undefined) {
+      delete process.env.PLUGIN_SANDBOX;
+    } else {
+      process.env.PLUGIN_SANDBOX = savedSandboxEnv;
+    }
+    process.chdir(prevCwd);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  describe('setMCPServices', () => {
-    it('sets mcpBridge and mcpRegistry', () => {
-      const bridge = { name: 'bridge' };
-      const registry = { name: 'registry' };
-      pm.setMCPServices(bridge, registry);
-      expect(pm.mcpBridge).toBe(bridge);
-      expect(pm.mcpRegistry).toBe(registry);
-    });
+  function writePlugin(name, body) {
+    const dir = path.join(tmpDir, 'plugins', name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.js'), body, 'utf8');
+  }
+
+  function writeManifest(entries) {
+    const dir = path.join(tmpDir, 'plugins');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'manifest.json'),
+      JSON.stringify({ plugins: entries }),
+      'utf8'
+    );
+  }
+
+  test('constructor defaults to cwd base and empty state', () => {
+    process.chdir(tmpDir);
+    const PM = require(PM_PATH);
+    const pm = new PM();
+    expect(pm.basePath).toBe(tmpDir);
+    expect(pm.pluginDir).toBe(path.join(tmpDir, 'plugins'));
+    expect(pm.manifestPath).toBe(path.join(tmpDir, 'plugins', 'manifest.json'));
+    expect(pm.plugins).toEqual([]);
+    expect(pm.instances).toEqual([]);
+    expect(pm.useSandbox).toBe(false);
   });
 
-  describe('register', () => {
-    const basicPlugin = {
-      name: 'TestPlugin',
-      version: '2.0.0',
-      description: 'A test plugin',
-      author: 'Tester',
-      nodeTypes: [{ type: 'test-node' }],
-      hooks: { onLoad: jest.fn() },
-      config: { key: 'val' }
-    };
-
-    it('stores all fields and returns pluginData', () => {
-      const result = pm.register({ id: 'my-pid', ...basicPlugin });
-      expect(result.id).toBe('my-pid');
-      expect(result.name).toBe('TestPlugin');
-      expect(result.version).toBe('2.0.0');
-      expect(result.description).toBe('A test plugin');
-      expect(result.author).toBe('Tester');
-      expect(result.nodeTypes).toEqual([{ type: 'test-node' }]);
-      expect(result.hooks).toEqual({ onLoad: expect.any(Function) });
-      expect(result.config).toEqual({ key: 'val' });
-      expect(result.status).toBe('registered');
-      expect(result.registeredAt).toBeDefined();
-      expect(pm.plugins.get('my-pid')).toBe(result);
-    });
-
-    it('generates plugin ID with plugin_ prefix when id not provided', () => {
-      const result = pm.register({ name: 'NoId' });
-      expect(result.id).toMatch(/^plugin_/);
-    });
-
-    it('fills default values for optional fields', () => {
-      const result = pm.register({ name: 'Minimal' });
-      expect(result.version).toBe('1.0.0');
-      expect(result.description).toBe('');
-      expect(result.author).toBe('unknown');
-      expect(result.nodeTypes).toEqual([]);
-      expect(result.hooks).toEqual({});
-      expect(result.config).toEqual({});
-    });
+  test('constructor accepts basePath and resolves paths', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    expect(pm.basePath).toBe(tmpDir);
+    expect(pm.pluginDir).toBe(path.join(tmpDir, 'plugins'));
   });
 
-  describe('load', () => {
-    it('throws if plugin not found', async () => {
-      await expect(pm.load('nonexistent')).rejects.toThrow('Plugin not found');
-    });
-
-    it('calls onLoad hook with config and sets status to loaded', async () => {
-      const onLoad = jest.fn();
-      pm.register({ id: 'p1', name: 'P1', hooks: { onLoad }, config: { x: 1 } });
-      const result = await pm.load('p1');
-      expect(onLoad).toHaveBeenCalledWith({ x: 1 });
-      expect(result.success).toBe(true);
-      expect(result.plugin.status).toBe('loaded');
-      expect(pm.loadedPlugins.has('p1')).toBe(true);
-    });
-
-    it('works without onLoad hook', async () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      const result = await pm.load('p1');
-      expect(result.success).toBe(true);
-      expect(result.plugin.status).toBe('loaded');
-    });
-
-    it('returns error when hook throws', async () => {
-      const onLoad = jest.fn().mockRejectedValue(new Error('Hook failed'));
-      pm.register({ id: 'p1', name: 'P1', hooks: { onLoad } });
-      const result = await pm.load('p1');
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Hook failed');
-      expect(pm.plugins.get('p1').status).toBe('error');
-    });
+  test('constructor enables sandbox via PLUGIN_SANDBOX=1', () => {
+    process.env.PLUGIN_SANDBOX = '1';
+    const PM = require(PM_PATH);
+    expect(new PM(tmpDir).useSandbox).toBe(true);
   });
 
-  describe('unload', () => {
-    it('returns error if plugin not loaded', async () => {
-      const result = await pm.unload('nonexistent');
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Plugin not loaded');
-    });
-
-    it('calls onUnload hook and removes from loadedPlugins', async () => {
-      const onUnload = jest.fn();
-      pm.register({ id: 'p1', name: 'P1', hooks: { onUnload } });
-      await pm.load('p1');
-      expect(pm.loadedPlugins.has('p1')).toBe(true);
-
-      const result = await pm.unload('p1');
-      expect(onUnload).toHaveBeenCalled();
-      expect(result.success).toBe(true);
-      expect(pm.plugins.get('p1').status).toBe('unloaded');
-      expect(pm.loadedPlugins.has('p1')).toBe(false);
-    });
-
-    it('works without onUnload hook', async () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      await pm.load('p1');
-      const result = await pm.unload('p1');
-      expect(result.success).toBe(true);
-    });
-
-    it('returns error when onUnload throws', async () => {
-      const onUnload = jest.fn().mockRejectedValue(new Error('Unload failed'));
-      pm.register({ id: 'p1', name: 'P1', hooks: { onUnload } });
-      await pm.load('p1');
-      const result = await pm.unload('p1');
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Unload failed');
-    });
+  test('constructor enables sandbox via PLUGIN_SANDBOX=true', () => {
+    process.env.PLUGIN_SANDBOX = 'true';
+    const PM = require(PM_PATH);
+    expect(new PM(tmpDir).useSandbox).toBe(true);
   });
 
-  describe('executeHook', () => {
-    it('returns empty array when no loaded plugins', async () => {
-      const results = await pm.executeHook('onMessage');
-      expect(results).toEqual([]);
-    });
+  test('loadPlugins reads manifest and loads plugin instances', () => {
+    writeManifest([{ name: 'alpha', path: './plugins/alpha' }]);
+    writePlugin(
+      'alpha',
+      'module.exports = class { init() { this.inited = true; } onMessage(m) { return { message: \'a:\' + m }; } }'
+    );
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.plugins).toHaveLength(1);
+    expect(pm.plugins[0].name).toBe('alpha');
+    expect(pm.instances).toHaveLength(1);
+    expect(pm.instances[0].name).toBe('alpha');
+    expect(pm.instances[0].instance.inited).toBe(true);
+  });
 
-    it('calls hook for all loaded plugins that have it', async () => {
-      const fn1 = jest.fn().mockResolvedValue('r1');
-      const fn2 = jest.fn().mockResolvedValue('r2');
-      pm.register({ id: 'p1', name: 'P1', hooks: { onMessage: fn1 } });
-      pm.register({ id: 'p2', name: 'P2', hooks: { onMessage: fn2 } });
-      pm.register({ id: 'p3', name: 'P3' });
-      await pm.load('p1');
-      await pm.load('p2');
-      await pm.load('p3');
+  test('loadPlugins calls init only when present', () => {
+    writeManifest([{ name: 'noinit', path: './plugins/noinit' }]);
+    writePlugin('noinit', 'module.exports = class { onMessage(m) { return { message: m }; } }');
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.instances).toHaveLength(1);
+    expect(pm.instances[0].instance.init).toBeUndefined();
+  });
 
-      const results = await pm.executeHook('onMessage', 'arg1', 'arg2');
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({ pluginId: 'p1', result: 'r1' });
-      expect(results[1]).toEqual({ pluginId: 'p2', result: 'r2' });
-      expect(fn1).toHaveBeenCalledWith('arg1', 'arg2');
-      expect(fn2).toHaveBeenCalledWith('arg1', 'arg2');
-    });
+  test('loadPlugins auto-discovers plugins when manifest missing', () => {
+    writePlugin('found', 'module.exports = class {}');
+    fs.mkdirSync(path.join(tmpDir, 'plugins', 'noindex'), { recursive: true });
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.plugins.map((p) => p.name)).toEqual(['found']);
+    expect(pm.instances).toHaveLength(1);
+    expect(pm.instances[0].name).toBe('found');
+  });
 
-    it('captures errors per plugin', async () => {
-      const fnGood = jest.fn().mockResolvedValue('ok');
-      const fnBad = jest.fn().mockRejectedValue(new Error('boom'));
-      pm.register({ id: 'p1', name: 'P1', hooks: { onMessage: fnGood } });
-      pm.register({ id: 'p2', name: 'P2', hooks: { onMessage: fnBad } });
-      await pm.load('p1');
-      await pm.load('p2');
+  test('loadPlugins tolerates missing plugin dir', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.plugins).toEqual([]);
+    expect(pm.instances).toEqual([]);
+  });
 
-      const results = await pm.executeHook('onMessage');
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({ pluginId: 'p1', result: 'ok' });
-      expect(results[1]).toEqual({ pluginId: 'p2', error: 'boom' });
+  test('loadPlugins handles manifest with undefined plugins', () => {
+    const dir = path.join(tmpDir, 'plugins');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'manifest.json'), '{"noplugins":true}', 'utf8');
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.plugins).toEqual([]);
+  });
+
+  test('loadPlugins warns when plugin module fails to load', () => {
+    writeManifest([{ name: 'broken', path: './plugins/broken' }]);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(warnSpy).toHaveBeenCalled();
+    expect(pm.instances).toHaveLength(0);
+    warnSpy.mockRestore();
+  });
+
+  test('loadPlugins creates sandbox proxies in sandbox mode', async () => {
+    writeManifest([{ name: 'sandy', path: './plugins/sandy' }]);
+    writePlugin('sandy', 'module.exports = class { onMessage(m) { return { message: m }; } }');
+    process.env.PLUGIN_SANDBOX = '1';
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock(SR_PATH, () => ({ run: jest.fn() }));
+      const PM = require(PM_PATH);
+      const SR = require(SR_PATH);
+      SR.run.mockResolvedValue({ ok: true });
+      const pm = new PM(tmpDir);
+      pm.loadPlugins();
+      expect(pm.instances).toHaveLength(1);
+      const { instance } = pm.instances[0];
+      const msg = await instance.onMessage('hi', {});
+      expect(SR.run).toHaveBeenCalledWith(
+        path.join(tmpDir, 'plugins', 'sandy', 'index.js'),
+        'onMessage',
+        ['hi', {}],
+        2000
+      );
+      expect(msg).toEqual({ ok: true });
     });
   });
 
-  describe('getNodeTypes', () => {
-    it('returns empty array when no loaded plugins', () => {
-      expect(pm.getNodeTypes()).toEqual([]);
-    });
-
-    it('merges node types with pluginId and pluginName', async () => {
-      pm.register({ id: 'p1', name: 'P1', nodeTypes: [{ type: 'a' }, { type: 'b' }] });
-      pm.register({ id: 'p2', name: 'P2', nodeTypes: [{ type: 'c' }] });
-      await pm.load('p1');
-      await pm.load('p2');
-
-      const types = pm.getNodeTypes();
-      expect(types).toHaveLength(3);
-      expect(types[0]).toEqual({ type: 'a', pluginId: 'p1', pluginName: 'P1' });
-      expect(types[1]).toEqual({ type: 'b', pluginId: 'p1', pluginName: 'P1' });
-      expect(types[2]).toEqual({ type: 'c', pluginId: 'p2', pluginName: 'P2' });
+  test('sandbox onMessage falls back on failure', async () => {
+    writeManifest([{ name: 'sandy', path: './plugins/sandy' }]);
+    writePlugin('sandy', 'module.exports = class { onMessage(m) { return { message: m }; } }');
+    process.env.PLUGIN_SANDBOX = '1';
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock(SR_PATH, () => ({ run: jest.fn() }));
+      const PM = require(PM_PATH);
+      const SR = require(SR_PATH);
+      SR.run.mockRejectedValue(new Error('boom'));
+      const pm = new PM(tmpDir);
+      pm.loadPlugins();
+      const { instance } = pm.instances[0];
+      const msg = await instance.onMessage('hi', {});
+      expect(msg).toEqual({ message: 'hi' });
     });
   });
 
-  describe('getPlugin', () => {
-    it('returns from plugins map', () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      const p = pm.getPlugin('p1');
-      expect(p).toBeDefined();
-      expect(p.name).toBe('P1');
-    });
-
-    it('returns from loadedPlugins map', async () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      await pm.load('p1');
-      const p = pm.getPlugin('p1');
-      expect(p).toBeDefined();
-    });
-
-    it('returns undefined if not found', () => {
-      expect(pm.getPlugin('ghost')).toBeUndefined();
-    });
-  });
-
-  describe('getAllPlugins', () => {
-    it('returns all registered plugins', () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      pm.register({ id: 'p2', name: 'P2' });
-      const all = pm.getAllPlugins();
-      expect(all).toHaveLength(2);
-      expect(all.map(p => p.id)).toEqual(['p1', 'p2']);
+  test('sandbox onMemory ignores errors', async () => {
+    writeManifest([{ name: 'sandy', path: './plugins/sandy' }]);
+    writePlugin('sandy', 'module.exports = class {}');
+    process.env.PLUGIN_SANDBOX = '1';
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock(SR_PATH, () => ({ run: jest.fn() }));
+      const PM = require(PM_PATH);
+      const SR = require(SR_PATH);
+      SR.run.mockRejectedValue(new Error('boom'));
+      const pm = new PM(tmpDir);
+      pm.loadPlugins();
+      const { instance } = pm.instances[0];
+      await expect(instance.onMemory({ a: 1 }, {})).resolves.toBeUndefined();
+      expect(SR.run).toHaveBeenCalledWith(
+        path.join(tmpDir, 'plugins', 'sandy', 'index.js'),
+        'onMemory',
+        [{ a: 1 }, {}],
+        1000
+      );
     });
   });
 
-  describe('getLoadedPlugins', () => {
-    it('returns only loaded plugins', async () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      pm.register({ id: 'p2', name: 'P2' });
-      await pm.load('p1');
-      const loaded = pm.getLoadedPlugins();
-      expect(loaded).toHaveLength(1);
-      expect(loaded[0].id).toBe('p1');
+  test('sandbox onEvent ignores errors', async () => {
+    writeManifest([{ name: 'sandy', path: './plugins/sandy' }]);
+    writePlugin('sandy', 'module.exports = class {}');
+    process.env.PLUGIN_SANDBOX = '1';
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock(SR_PATH, () => ({ run: jest.fn() }));
+      const PM = require(PM_PATH);
+      const SR = require(SR_PATH);
+      SR.run.mockRejectedValue(new Error('boom'));
+      const pm = new PM(tmpDir);
+      pm.loadPlugins();
+      const { instance } = pm.instances[0];
+      await expect(instance.onEvent({ e: 1 }, {})).resolves.toBeUndefined();
     });
   });
 
-  describe('isLoaded', () => {
-    it('returns true for loaded plugin', async () => {
-      pm.register({ id: 'p1', name: 'P1' });
-      await pm.load('p1');
-      expect(pm.isLoaded('p1')).toBe(true);
-    });
-
-    it('returns false for unloaded or non-existent plugin', () => {
-      expect(pm.isLoaded('ghost')).toBe(false);
-      pm.register({ id: 'p1', name: 'P1' });
-      expect(pm.isLoaded('p1')).toBe(false);
-    });
-  });
-
-  describe('getStats', () => {
-    it('returns zeroes when empty', () => {
-      expect(pm.getStats()).toEqual({ registered: 0, loaded: 0, nodeTypes: 0 });
-    });
-
-    it('returns correct counts', async () => {
-      pm.register({ id: 'p1', name: 'P1', nodeTypes: [{ type: 'x' }] });
-      pm.register({ id: 'p2', name: 'P2', nodeTypes: [{ type: 'y' }, { type: 'z' }] });
-      await pm.load('p1');
-      const stats = pm.getStats();
-      expect(stats.registered).toBe(2);
-      expect(stats.loaded).toBe(1);
-      expect(stats.nodeTypes).toBe(1);
+  test('falls back to direct load when SandboxRunner unavailable', () => {
+    writeManifest([{ name: 'direct', path: './plugins/direct' }]);
+    writePlugin('direct', 'module.exports = class { onMessage(m) { return { message: m }; } }');
+    process.env.PLUGIN_SANDBOX = '1';
+    jest.isolateModules(() => {
+      jest.doMock(SR_PATH, () => {
+        throw new Error('sandbox runner failed to load');
+      });
+      const PM = require(PM_PATH);
+      const pm = new PM(tmpDir);
+      pm.loadPlugins();
+      expect(pm.instances).toHaveLength(1);
+      expect(pm.instances[0].instance.onMessage('hi', {})).toEqual({ message: 'hi' });
     });
   });
 
-  describe('destroy', () => {
-    it('unloads all loaded plugins and clears maps', async () => {
-      const onUnload = jest.fn();
-      pm.register({ id: 'p1', name: 'P1', hooks: { onUnload } });
-      pm.register({ id: 'p2', name: 'P2' });
-      await pm.load('p1');
-      await pm.load('p2');
-      pm.hooks.set('custom', () => {});
+  test('loadPlugins resolves plugin without explicit path', () => {
+    writeManifest([{ name: 'nopath' }]);
+    writePlugin('nopath', 'module.exports = class { onMessage(m) { return { message: m }; } }');
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.loadPlugins();
+    expect(pm.instances).toHaveLength(1);
+    expect(pm.instances[0].name).toBe('nopath');
+  });
 
-      pm.destroy();
-      expect(pm.plugins.size).toBe(0);
-      expect(pm.loadedPlugins.size).toBe(0);
-      expect(pm.hooks.size).toBe(0);
-    });
+  test('onMessage chains through instances and transforms message', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.instances = [
+      { name: 'a', instance: { onMessage: jest.fn((m) => ({ message: 'a:' + m })) } },
+      { name: 'b', instance: { onMessage: jest.fn((m) => ({ message: 'b:' + m })) } },
+      { name: 'c', instance: { onMessage: jest.fn((_m) => ({ nonMessage: true })) } },
+      { name: 'd', instance: {} }
+    ];
+    const out = pm.onMessage('hi');
+    expect(out).toEqual({ message: 'b:a:hi' });
+    expect(pm.instances[0].instance.onMessage).toHaveBeenCalledWith('hi', {});
+    expect(pm.instances[1].instance.onMessage).toHaveBeenCalledWith('a:hi', {});
+    expect(pm.instances[2].instance.onMessage).toHaveBeenCalledWith('b:a:hi', {});
+    expect(pm.instances[3].instance.onMessage).toBeUndefined();
+  });
+
+  test('onMessage skips instances returning null', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    pm.instances = [{ name: 'a', instance: { onMessage: jest.fn(() => null) } }];
+    expect(pm.onMessage('hi')).toEqual({ message: 'hi' });
+  });
+
+  test('onMemory calls instance handlers with context', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    const handler = jest.fn();
+    pm.instances = [
+      { name: 'a', instance: { onMemory: handler } },
+      { name: 'b', instance: {} }
+    ];
+    pm.onMemory({ m: 1 }, { ctx: true });
+    expect(handler).toHaveBeenCalledWith({ m: 1 }, { ctx: true });
+  });
+
+  test('onMemory defaults context when omitted', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    const handler = jest.fn();
+    pm.instances = [{ name: 'a', instance: { onMemory: handler } }];
+    pm.onMemory({ m: 1 });
+    expect(handler).toHaveBeenCalledWith({ m: 1 }, {});
+  });
+
+  test('onEvent calls instance handlers with context', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    const handler = jest.fn();
+    pm.instances = [
+      { name: 'a', instance: { onEvent: handler } },
+      { name: 'b', instance: {} }
+    ];
+    pm.onEvent({ e: 1 }, { ctx: true });
+    expect(handler).toHaveBeenCalledWith({ e: 1 }, { ctx: true });
+  });
+
+  test('onEvent defaults context when omitted', () => {
+    const PM = require(PM_PATH);
+    const pm = new PM(tmpDir);
+    const handler = jest.fn();
+    pm.instances = [{ name: 'a', instance: { onEvent: handler } }];
+    pm.onEvent({ e: 1 });
+    expect(handler).toHaveBeenCalledWith({ e: 1 }, {});
   });
 });

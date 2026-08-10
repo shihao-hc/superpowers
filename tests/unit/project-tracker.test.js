@@ -273,6 +273,31 @@ describe('ProjectTracker', () => {
 
       Object.defineProperty(process, 'platform', { value: origPlatform });
     });
+
+    it('uses curl on non-Windows', async () => {
+      const origPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+
+      let linuxTracker;
+      jest.isolateModules(() => {
+        const Tracker = require('../../src/tracking/ProjectTracker');
+        linuxTracker = new Tracker();
+      });
+
+      safeExecSync
+        .mockImplementationOnce(() => { throw new Error('gh fail'); })
+        .mockReturnValue(CURL_RELEASE_JSON);
+
+      await linuxTracker.getLatestRelease('Tailor');
+
+      expect(safeExecSync).toHaveBeenLastCalledWith(
+        'curl',
+        expect.any(Array),
+        expect.any(Object)
+      );
+
+      Object.defineProperty(process, 'platform', { value: origPlatform });
+    });
   });
 
   /* ── getRecentCommits ── */
