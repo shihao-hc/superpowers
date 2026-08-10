@@ -5,7 +5,6 @@ const files = [
   'src/daemon/securityMonitor.js',
   'src/auto-update/AutoUpdater.js',
   'src/integration/AutoScaler.js',
-  'src/integration/PlatformBridge.js',
   'src/integrations/openclaw/ModelServiceAdapter.js',
   'src/integrations/openclaw/ResponseCache.js',
   'src/localInferencing/OllamaBridge.js',
