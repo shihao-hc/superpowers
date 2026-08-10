@@ -596,4 +596,166 @@ describe('ComplianceEngine - additional coverage', () => {
     expect(items[0].severity).toBe('critical');
     expect(items[1].severity).toBe('high');
   });
+
+  it('should default severity to medium when finding lacks severity', () => {
+    compliance.assessments.set('a3', {
+      framework: 'soc2',
+      controls: [
+        { controlId: 'CC1.1', findings: [{ checkName: 'm4', checkedAt: 4 }] }
+      ]
+    });
+    const items = compliance.getRemediationItems('soc2');
+    expect(items.length).toBe(1);
+    expect(items[0].severity).toBe('medium');
+  });
+
+  it('should generate summary with zero rate for empty controls', () => {
+    const summary = compliance._generateSummary([]);
+    expect(summary.totalControls).toBe(0);
+    expect(summary.complianceRate).toBe(0);
+  });
+
+  it('should generate pdf report format', async () => {
+    const assessment = await compliance.runAssessment('soc2', 'pdf-scope');
+    const report = compliance.generateReport(assessment.id, 'pdf');
+    expect(report.format).toBe('pdf');
+    expect(report.data.framework).toBe('soc2');
+    expect(report.data.scope).toBe('pdf-scope');
+    expect(report.data.controls.length).toBe(8);
+  });
+});
+
+describe('ZeroTrustEngine - signal & policy edge coverage', () => {
+  let engine;
+
+  beforeEach(() => {
+    engine = new ZeroTrustEngine();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should add active bonus when sessionAge exceeds 3600', async () => {
+    jest.spyOn(engine, '_isUnusualTime').mockReturnValue(false);
+    const result = await engine.evaluateAccess({
+      userId: 'user-sa', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1', sessionAge: 4000 }
+    });
+    expect(result.trustScore).toBe(65);
+  });
+
+  it('should reduce score for high resource sensitivity', async () => {
+    jest.spyOn(engine, '_isUnusualTime').mockReturnValue(false);
+    const result = await engine.evaluateAccess({
+      userId: 'user-hs', resource: { sensitivity: 'high' }, action: 'read',
+      context: { ip: '203.0.113.1' }
+    });
+    expect(result.trustScore).toBe(45);
+    expect(result.riskLevel).toBe('medium');
+  });
+
+  it('should not add active bonus for irregular activity pattern', async () => {
+    jest.spyOn(engine, '_isUnusualTime').mockReturnValue(false);
+    jest.spyOn(engine, '_analyzeActivityPattern').mockResolvedValue('irregular');
+    const result = await engine.evaluateAccess({
+      userId: 'user-ir', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1' }
+    });
+    expect(result.trustScore).toBe(50);
+  });
+
+  it('should throw when context is missing', async () => {
+    await expect(engine.evaluateAccess({
+      userId: 'user-nc', resource: 'file.txt', action: 'read'
+    })).rejects.toThrow();
+  });
+
+  it('should allow when no policy applies', async () => {
+    engine.policies.clear();
+    const result = await engine.evaluateAccess({
+      userId: 'user-np', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1' }
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.action).toBe('allow');
+    expect(result.factors).toEqual([]);
+  });
+
+  it('should default action to allow when matched rule has no action', async () => {
+    engine.policies.clear();
+    engine.addPolicy({
+      id: 'no-action',
+      rules: [{ condition: 'always' }],
+      priority: 999
+    });
+    const result = await engine.evaluateAccess({
+      userId: 'user-noa', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1' }
+    });
+    expect(result.action).toBe('allow');
+    expect(result.factors).toContain('no-action');
+  });
+
+  it('should not match trustScore condition without operator', async () => {
+    engine.addPolicy({
+      id: 'ts-bad',
+      rules: [{ condition: 'trustScore isHigh', action: 'block' }],
+      priority: 999
+    });
+    const result = await engine.evaluateAccess({
+      userId: 'user-tsb', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1' }
+    });
+    expect(result.factors).not.toContain('ts-bad');
+  });
+
+  it('should assign 0.7 reputation for 10.x ip', async () => {
+    jest.spyOn(engine, '_isUnusualTime').mockReturnValue(false);
+    const result = await engine.evaluateAccess({
+      userId: 'user-ip', resource: 'file.txt', action: 'read',
+      context: { ip: '10.0.0.5' }
+    });
+    expect(result.trustScore).toBe(60);
+  });
+
+  it('should assign low trust for bot user agent', async () => {
+    jest.spyOn(engine, '_isUnusualTime').mockReturnValue(false);
+    const result = await engine.evaluateAccess({
+      userId: 'user-ua', resource: 'file.txt', action: 'read',
+      context: { ip: '203.0.113.1', userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1)' }
+    });
+    expect(result.trustScore).toBe(60);
+  });
+});
+
+describe('ThreatDetector - match rule edge coverage', () => {
+  let detector;
+
+  beforeEach(() => {
+    detector = new ThreatDetector();
+  });
+
+  it('should skip undefined field and still match rule', () => {
+    const alerts = detector.analyzeEvent({
+      eventType: 'auth.failed',
+      newLocation: false, unusualTime: false,
+      dataVolume: 0, downloadRate: 0,
+      roleChanged: false, newRole: 'user',
+      rateLimitExceeded: false, errorRate: 0
+    });
+    expect(alerts.length).toBe(1);
+    expect(alerts[0].ruleId).toBe('brute-force');
+  });
+
+  it('should not match in-operator rule when value not in list', () => {
+    const alerts = detector.analyzeEvent({
+      roleChanged: true, newRole: 'guest',
+      eventType: 'auth.success', count: 1,
+      newLocation: false, unusualTime: false,
+      dataVolume: 0, downloadRate: 0,
+      rateLimitExceeded: false, errorRate: 0
+    });
+    expect(alerts.length).toBe(0);
+  });
 });

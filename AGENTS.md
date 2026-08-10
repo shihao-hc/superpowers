@@ -1100,3 +1100,27 @@ Session 锚点: 2026-08-10 (第3次 — SkillRegistry 全盖 + 误读教训 + pe
 - **personality-manager flaky 预存确认**: 全量失败为 `_startMoodDrift keeps mood when drift not triggered` (基线记录的是 `deletePersonality leaves active null` — 同一未跟踪测试文件内失败名漂移), 单独跑 **48/48 通过** → 预存时间/顺序相关 flaky, 非本会话回归; 本会话全部套件 (skill-registry-core 54 / skill-recognizer 86 / semantic-cache 23 / plugin-manager 22 / project-tracker 55 / skills-api 132 / state-store 42 / reverse-thinking 54 / skill-loader-direct 16) 全量 PASS
 - **工作树审计**: git status 混有两部分未提交改动 — (a) 本会话: SkillRecognizer/SemanticCache/PluginManager + 5 测试文件 + AGENTS.md; (b) 预存外部: PersonalityManager.js/LongTermMemory.js + 4 个 memory 测试文件 (graph/long-term/personality/unified-memory, 全部 untracked) — 提交时只暂存本会话文件, 不碰外部工作
 - 相关文件: `tests/unit/skill-registry-core.test.js` (36→54), `src/skills/SkillRegistry.js` (未改, 纯测试补齐)
+
+---
+
+Session 锚点: 2026-08-10 (第4次 — ZeroTrustEngine 全覆盖 + _generatePDFContent 真 bug 修复)
+- ESLint: 0/0 (相关文件) | Tests: **325 passed suites / 4 skipped / 0 failed** (15,935 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/security/zerotrust/ZeroTrustEngine.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (57 tests, 43→57) — 含 ZeroTrustEngine + ComplianceEngine + ThreatDetector 三 class
+- **真 bug 修复 (AGENTS 5.3)**: `_generatePDFContent` 在 L502 被引用但从未定义 → `generateReport(id,'pdf')` 恒 TypeError; 新增 `_generatePDFContent(assessment)` 方法 (framework/scope/status/summary/controls)
+- **新增 14 测试** (gap→test 映射):
+  - `sessionAge > 3600` +5 活跃加分 (context.sessionAge 4000, _isUnusualTime mock false → trustScore 65)
+  - `resourceSensitivity === 'high'` −15 (resource {sensitivity:'high'} → 45, riskLevel medium)
+  - `activityPattern !== 'normal'` 不加分 (jest.spyOn `_analyzeActivityPattern` mockResolvedValue 'irregular' → 50)
+  - `context: _context = {}` 解构默认 (无 context → rejects.toThrow)
+  - 无策略适用 (policies.clear() → allow + factors []) 覆盖 `applicablePolicies[0] || {action:'allow'}` 的 fallback
+  - 规则无 action (addPolicy rule 无 action 字段 → decision.action falsy → 'allow') 覆盖 `decision.action || 'allow'`
+  - 条件含 'trustScore' 但正则不匹配 ('trustScore isHigh' → 不 apply)
+  - ip `10.x` → reputation 0.7; bot userAgent → _evaluateUserAgent 0.3
+  - `_generateSummary([])` → complianceRate 0 (total===0 分支)
+  - `generateReport(id,'pdf')` → {format:'pdf', data:{framework,scope,controls}} (配合 bug 修复)
+  - finding 无 severity → 默认 'medium'
+  - `_matchRule` eventValue undefined → continue (事件缺 count 仍匹配 brute-force)
+  - `in` 操作符 value 不含 eventValue (newRole:'guest' → 不匹配 privilege-escalation)
+- **零回归确认**: 全量 325/4/0 = 15,935 passed (较上轮 15,920 +15 = 14 新测试 + 1 上次 flaky 这次通过); 上次 personality flaky 本轮全绿
+- **工作树审计**: 提交只含本会话文件 (zero-trust-engine.test.js + ZeroTrustEngine.js + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `src/security/zerotrust/ZeroTrustEngine.js`, `tests/unit/zero-trust-engine.test.js` (43→57)

@@ -485,6 +485,16 @@ class ComplianceEngine {
     };
   }
 
+  _generatePDFContent(assessment) {
+    return {
+      framework: assessment.framework,
+      scope: assessment.scope,
+      status: assessment.status,
+      summary: assessment.summary,
+      controls: assessment.controls
+    };
+  }
+
   // 获取合规报告
   generateReport(assessmentId, format = 'json') {
     const assessment = this.assessments.get(assessmentId);
