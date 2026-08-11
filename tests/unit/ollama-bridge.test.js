@@ -99,6 +99,12 @@ describe('OllamaBridge', () => {
       expect(await bridge.listModels()).toEqual([{ name: 'llama3.2' }]);
     });
 
+    test('returns empty array when models missing', async () => {
+      const bridge = makeBridge();
+      bridge.client.list.mockResolvedValue({});
+      expect(await bridge.listModels()).toEqual([]);
+    });
+
     test('returns empty array on error', async () => {
       const bridge = makeBridge();
       bridge.client.list.mockRejectedValue(new Error('boom'));
@@ -141,6 +147,20 @@ describe('OllamaBridge', () => {
         evalCount: 10,
         promptEvalCount: 5,
       });
+    });
+
+    test('uses empty string for missing content', async () => {
+      const bridge = makeBridge();
+      bridge.client.chat.mockResolvedValue({ message: {} });
+      const messages = [{ role: 'user', content: null }];
+      const result = await bridge.chat(messages);
+      expect(bridge.client.chat).toHaveBeenCalledWith({
+        model: 'llama3.2',
+        messages: [{ role: 'user', content: '' }],
+        options: { temperature: 0.8, num_predict: 256 },
+        stream: false,
+      });
+      expect(result.text).toBe('');
     });
 
     test('slices messages beyond MAX_MESSAGE_HISTORY', async () => {
@@ -349,6 +369,20 @@ describe('OllamaBridge', () => {
       const sent = bridge.client.chat.mock.calls[0][0].messages;
       expect(sent[0]).toEqual({ role: 'user', content: 'x' });
     });
+
+    test('defaults missing content to empty string for image and non-last messages', async () => {
+      const bridge = makeBridge();
+      bridge.client.chat.mockResolvedValue({ message: {} });
+      const messages = [
+        { role: 'system', content: null },
+        { role: 'user', content: null },
+      ];
+      const result = await bridge.chatWithImage(messages, 'data:image/png;base64,BASE');
+      const sent = bridge.client.chat.mock.calls[0][0].messages;
+      expect(sent[0]).toEqual({ role: 'system', content: '' });
+      expect(sent[1]).toEqual({ role: 'user', content: '', images: ['data:image/png;base64,BASE'] });
+      expect(result.text).toBe('');
+    });
   });
 
   describe('listVisionModels', () => {
@@ -369,6 +403,12 @@ describe('OllamaBridge', () => {
     test('returns empty on error', async () => {
       const bridge = makeBridge();
       bridge.client.list.mockRejectedValue(new Error('boom'));
+      expect(await bridge.listVisionModels()).toEqual([]);
+    });
+
+    test('returns empty when listModels throws', async () => {
+      const bridge = makeBridge();
+      jest.spyOn(bridge, 'listModels').mockRejectedValue(new Error('internal'));
       expect(await bridge.listVisionModels()).toEqual([]);
     });
   });

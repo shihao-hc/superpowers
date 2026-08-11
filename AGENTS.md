@@ -1144,3 +1144,22 @@ Session 锚点: 2026-08-11 (BrainBridge 全覆盖 — 100/100/100/100 + 测试�
 - **临时脚本清理**: `cov-analyze.js` (TEMP 目录) + `brain-bridge-tmp.test.js` 全删
 - **工作树审计**: 提交只含本会话文件 (brain-bridge.test.js + AGENTS.md), src/core/BrainBridge.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/brain-bridge.test.js` (56→73)
+
+---
+
+Session 锚点: 2026-08-11 (第2次 — DynamicScraper + OllamaBridge 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **325 passed suites / 4 skipped / 0 failed** (15,977 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/agent/DynamicScraper.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (44 tests, 34→44)
+- **src/localInferencing/OllamaBridge.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (37 tests, 33→37)
+- **DynamicScraper 新增 10 测试 (gap→test 映射)**:
+  - `_interact`: scroll 执行 `window.scrollBy(0, y)` 回调体 (evaluate.mockImplementation 直接执行传入 fn); click/wait 缺省 `action.delay||1000` / `action.duration||2000`
+  - `scrape`: browser 已设置时跳过 init (branch6 false 侧); `config.waitTime` falsy → 默认 3000 (jest.spyOn `_detectPlatform` 返回 `{waitTime:0}`)
+  - `_extract`: video `src` 为空 → `querySelector('source')?.src` 兜底; title 无 content → textContent 兜底; title 两者皆空 → `''`; content 无 extractHTML → `html: undefined`; author 无 textContent → `''`
+- **OllamaBridge 新增 4 测试**:
+  - `listModels` 返回无 models 字段 → `response.models || []` 兜底
+  - `chat` message content null → `String(m.content || '')`; response `{}` → `response.message?.content?.trim() || ''`
+  - `chatWithImage` 缺 content 的消息 (non-last + last-with-image) → `''`; 空 message → `''`
+  - `listVisionModels` 经 `jest.spyOn(bridge,'listModels').mockRejectedValue` 触发 catch `return []` (client.list 抛错会被 listModels 内部吞掉, 无法直达 listVisionModels catch)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 325/4/0 (15,977, 较基线 15,963 +14 = 10 DS + 4 OB) 两次稳定 clean exit 零警告
+- **工作树审计**: 提交只含本会话文件 (dynamic-scraper.test.js + ollama-bridge.test.js + AGENTS.md), 两源文件零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/dynamic-scraper.test.js` (34→44), `tests/unit/ollama-bridge.test.js` (33→37)

@@ -201,6 +201,31 @@ describe('DynamicScraper', () => {
       expect(result.timestamp).toBeDefined();
     });
 
+    test('skips init when browser already set', async () => {
+      const browser = makeBrowser();
+      browser.page.evaluate.mockResolvedValue({});
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      await ds.scrape('https://www.douyin.com/video/1');
+      expect(mockBrowserAgent).not.toHaveBeenCalled();
+      expect(browser.init).not.toHaveBeenCalled();
+    });
+
+    test('waits default 3000 when platform waitTime falsy', async () => {
+      const browser = makeBrowser();
+      browser.page.evaluate.mockResolvedValue({});
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      jest.spyOn(ds, '_detectPlatform').mockReturnValue({
+        name: 'custom',
+        config: { waitTime: 0, mobileRequired: false },
+      });
+      await ds.scrape('https://custom.example/v');
+      expect(browser.page.waitForTimeout).toHaveBeenCalledWith(3000);
+    });
+
     test('scrapes unknown platform with default config', async () => {
       const browser = makeBrowser();
       mockBrowserAgent.mockReturnValue(browser);
@@ -262,6 +287,16 @@ describe('DynamicScraper', () => {
       expect(browser.page.waitForTimeout).toHaveBeenCalledWith(200);
     });
 
+    test('click uses default delay', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      await ds._interact([{ type: 'click', selector: '#btn' }]);
+      expect(browser.page.click).toHaveBeenCalledWith('#btn');
+      expect(browser.page.waitForTimeout).toHaveBeenCalledWith(1000);
+    });
+
     test('handles wait action', async () => {
       const browser = makeBrowser();
       mockBrowserAgent.mockReturnValue(browser);
@@ -269,6 +304,27 @@ describe('DynamicScraper', () => {
       ds.browser = browser;
       await ds._interact([{ type: 'wait', duration: 1500 }]);
       expect(browser.page.waitForTimeout).toHaveBeenCalledWith(1500);
+    });
+
+    test('wait uses default duration', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      await ds._interact([{ type: 'wait' }]);
+      expect(browser.page.waitForTimeout).toHaveBeenCalledWith(2000);
+    });
+
+    test('scroll executes window.scrollBy callback', async () => {
+      setupDom();
+      const browser = makeBrowser();
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      await ds._interact([{ type: 'scroll', y: 300 }]);
+      expect(global.window.scrollBy).toHaveBeenCalledWith(0, 300);
+      expect(browser.page.waitForTimeout).toHaveBeenCalledWith(1000);
     });
 
     test('ignores unknown action types', async () => {
@@ -345,6 +401,67 @@ describe('DynamicScraper', () => {
         text: 'Page content text',
         html: '<div>Page html</div>',
       });
+    });
+
+    test('video falls back to source element src when empty', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      const { videoEl } = setupDom();
+      videoEl.src = '';
+      videoEl.querySelector = jest.fn().mockReturnValue({ src: 'http://cdn.example.com/source.mp4' });
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      const data = await ds._extract('douyin', { video: 'video' }, {});
+      expect(data.video.src).toBe('http://cdn.example.com/source.mp4');
+    });
+
+    test('title falls back to textContent when content missing', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      const { titleEl } = setupDom();
+      titleEl.content = undefined;
+      titleEl.textContent = 'Fallback Title';
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      const data = await ds._extract('bilibili', { title: 'h1' }, {});
+      expect(data.title).toBe('Fallback Title');
+    });
+
+    test('title empty when no content or textContent', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      const { titleEl } = setupDom();
+      titleEl.content = undefined;
+      titleEl.textContent = undefined;
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      const data = await ds._extract('bilibili', { title: 'h1' }, {});
+      expect(data.title).toBe('');
+    });
+
+    test('content html undefined when extractHTML not set', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      const data = await ds._extract('weibo', { content: '.content' }, {});
+      expect(data.content).toEqual({ text: 'Page content text', html: undefined });
+    });
+
+    test('author empty when textContent missing', async () => {
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
+      const { authorEl } = setupDom();
+      authorEl.textContent = undefined;
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      const data = await ds._extract('douyin', { author: '[class*=author]' }, {});
+      expect(data.author).toBe('');
     });
 
     test('extracts author when selector present', async () => {
