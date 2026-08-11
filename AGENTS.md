@@ -1124,3 +1124,23 @@ Session 锚点: 2026-08-10 (第4次 — ZeroTrustEngine 全覆盖 + _generatePDF
 - **零回归确认**: 全量 325/4/0 = 15,935 passed (较上轮 15,920 +15 = 14 新测试 + 1 上次 flaky 这次通过); 上次 personality flaky 本轮全绿
 - **工作树审计**: 提交只含本会话文件 (zero-trust-engine.test.js + ZeroTrustEngine.js + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `src/security/zerotrust/ZeroTrustEngine.js`, `tests/unit/zero-trust-engine.test.js` (43→57)
+
+---
+
+Session 锚点: 2026-08-11 (BrainBridge 全覆盖 — 100/100/100/100 + 测试顺序依赖漏洞确认)
+- ESLint: 0/0 (相关文件) | Tests: **325 passed suites / 4 skipped / 0 failed** (15,963 passed / 46 skipped) 两次运行一致 clean exit | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/BrainBridge.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (73 tests, 56→73) — 全 203 statements + 全部 branch 覆盖
+- **真 bug 确认 (AGENTS 5.3)**: 此前 98.02 stmts / 80.24 branch 时的 L264 `.some()` 回调 (stmt159/fn21) 在全量运行中恒 0 hits, 隔离 `-t "not_in_whitelist"` 运行却覆盖 → **测试顺序依赖漏洞**: WARN 白名单测试使用空 `fullAutoWhitelist: []`, `.some()` 回调永不执行, 断言只靠短路, 换非空白名单后断言仍过但执行路径不同 — 非源码 bug, 测试补 `executes when WARN tool is in whitelist` (非空白名单 + ReadFile 命中) 直接覆盖回调
+- **关键踩坑 (JSON.stringify)**: `setupFullAutoConfig({ fullAutoWhitelist: undefined })` 序列化后键被丢弃 → loadConfig 回退默认白名单 `['ReadFile','WriteFile','EditFile']` → 断言 `executed:false` 反直觉失败; 必须显式 `fullAutoWhitelist: null` 才能触发 `|| []` 分支
+- **新增 17 测试 (gap→test 映射)**:
+  - b29 `intentType || input` fallback: `_execute('安全审计', null, ...)` → taskType 'security' (analyzeIntent 返回 intent:null)
+  - b38 decisionContext falsy: `mockDecisionContextGenerate.mockReturnValue(null)` → riskLevel 'low' + decisionContext null
+  - b55-b58 getStatus 缺失 config/组件: `_config=null`→fullAuto false; BRAIN_DISABLE → breakerState UNKNOWN / failures 0 / loopTripped false
+  - b65 BLOCK audit-null; b67 `fullAutoWhitelist || []` fallback (null); b68 `.some` 回调执行 (WARN + WriteFile 未命中白名单 → 回调运行返回 false); b69 白名单命中允许执行; b70 WARN audit-null; b71 ALLOW 成功 audit-null; b73 执行失败 audit-null
+  - b30-b32 lesson 缺失字段 (id/lesson/priority) → fallback `''`/`'medium'`; b35 `useCount` truthy 且 <1 (0.5) → 仍进 warnings
+  - stmt184 emergencyStop audit 存在 → log emergency_stop; b74 audit-null 已覆盖
+  - b75/b76 diagnose audit-null (成功/抛错); b77 config 无 learner 段 → `(this._config && this._config.learner) || {}` fallback
+- **coverage-final.json 覆盖陷阱**: 每次 jest --coverage 都会**覆盖写入**该文件 (含 `-t` 过滤单测运行) — 分析数据前必须用全量套件重跑生成, 否则读到部分运行残留 (隔离 `-t "no_brain"` 曾产生 19.21 stmts / 8.02 branch 假数据)
+- **临时脚本清理**: `cov-analyze.js` (TEMP 目录) + `brain-bridge-tmp.test.js` 全删
+- **工作树审计**: 提交只含本会话文件 (brain-bridge.test.js + AGENTS.md), src/core/BrainBridge.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/brain-bridge.test.js` (56→73)

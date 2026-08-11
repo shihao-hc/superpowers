@@ -31,9 +31,11 @@ jest.mock('../../src/core/AuditLogger', () => {
 });
 
 // Mock lazy-loaded dependencies for _execute
-jest.mock('../../src/core/BrainSystem', () => ({
-  analyzeIntent: jest.fn()
-}));
+let mockBrainSystemThrow = false;
+jest.mock('../../src/core/BrainSystem', () => {
+  if (mockBrainSystemThrow) { throw new Error('brain load failed'); }
+  return { analyzeIntent: jest.fn() };
+});
 
 const mockGetRelevantLessons = jest.fn();
 jest.mock('../../src/core/LessonReminder', () => ({
@@ -56,7 +58,11 @@ jest.mock('../../src/core/AutoDiagnose', () => jest.fn(() => ({
 })));
 
 const mockLessonLearner = { recordEvent: jest.fn() };
-jest.mock('../../src/core/LessonLearner', () => jest.fn(() => mockLessonLearner));
+let mockLessonLearnerThrow = false;
+jest.mock('../../src/core/LessonLearner', () => {
+  if (mockLessonLearnerThrow) { throw new Error('lesson learner load failed'); }
+  return jest.fn(() => mockLessonLearner);
+});
 
 const mockPreToolRiskAnalyzer = { analyze: jest.fn() };
 jest.mock('../../src/core/PreToolRiskAnalyzer', () => jest.fn(() => mockPreToolRiskAnalyzer));
@@ -266,6 +272,23 @@ describe('BrainBridge', () => {
       expect(status.loopTripped).toBe(false);
       expect(status.hasBrain).toBe(false);
     });
+
+    test('reports fullAuto false when config is missing', () => {
+      bridge._initialized = true;
+      bridge._config = null;
+      const status = bridge.getStatus();
+      expect(status.fullAuto).toBe(false);
+    });
+
+    test('reports UNKNOWN and zero fallbacks when components missing', () => {
+      jest.restoreAllMocks();
+      process.env.BRAIN_DISABLE = '1';
+      setupFsMock({ existsSync: false });
+      const status = bridge.getStatus();
+      expect(status.breakerState).toBe('UNKNOWN');
+      expect(status.breakerFailures).toBe(0);
+      expect(status.loopTripped).toBe(false);
+    });
   });
 
   describe('process', () => {
@@ -314,6 +337,121 @@ describe('BrainBridge', () => {
       expect(result.taskType).toBe('fix');
       expect(result.proactive.interactionCount).toBe(0);
       expect(result.proactive.topIntent).toBeNull();
+    });
+
+    test('returns error result when _execute throws', () => {
+      setupFsMock({ existsSync: false });
+      setupProcessMocks();
+      jest.spyOn(bridge, '_execute').mockImplementation(() => { throw new Error('exec failed'); });
+      const result = bridge.process('test input');
+      expect(result.error).toBe('error');
+      expect(mockRegistry.breaker.recordFailure).toHaveBeenCalled();
+      expect(mockRegistry.audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'failed' }));
+    });
+
+    test('uses low riskLevel when decision context is null', () => {
+      setupFsMock({ existsSync: false });
+      setupProcessMocks();
+      mockDecisionContextGenerate.mockReturnValue(null);
+      const result = bridge.process('test input');
+      expect(result.decisionContext).toBeNull();
+      expect(mockDecisionTrackerRecord).toHaveBeenCalledWith(expect.objectContaining({ riskLevel: 'low' }));
+    });
+  });
+
+  describe('_ensureBrain load failure', () => {
+    test('returns no_brain when BrainSystem fails to load', () => {
+      const saved = { breaker: mockRegistry.breaker, loopGuard: mockRegistry.loopGuard, audit: mockRegistry.audit };
+      mockBrainSystemThrow = true;
+      jest.resetModules();
+      const Fresh = require('../../src/core/BrainBridge');
+      const freshBridge = new Fresh.BrainBridge();
+      freshBridge.initialize();
+      const audit = freshBridge._audit;
+      freshBridge._breaker.isAllowed.mockReturnValue(true);
+      freshBridge._loopGuard.check.mockReturnValue({ tripped: false, pattern: null, ts: Date.now() });
+      const result = freshBridge.process('test input');
+      mockRegistry.breaker = saved.breaker;
+      mockRegistry.loopGuard = saved.loopGuard;
+      mockRegistry.audit = saved.audit;
+      mockBrainSystemThrow = false;
+      expect(result.error).toBe('no_brain');
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'brain_load_failed' }));
+    });
+
+    test('returns true when brain already loaded', () => {
+      bridge._brainSystem = {};
+      expect(bridge._ensureBrain()).toBe(true);
+    });
+
+    test('returns false when BrainSystem fails and no audit is set', () => {
+      const saved = { breaker: mockRegistry.breaker, loopGuard: mockRegistry.loopGuard, audit: mockRegistry.audit };
+      mockBrainSystemThrow = true;
+      jest.resetModules();
+      const Fresh = require('../../src/core/BrainBridge');
+      const freshBridge = new Fresh.BrainBridge();
+      const ok = freshBridge._ensureBrain();
+      mockRegistry.breaker = saved.breaker;
+      mockRegistry.loopGuard = saved.loopGuard;
+      mockRegistry.audit = saved.audit;
+      mockBrainSystemThrow = false;
+      expect(ok).toBe(false);
+      expect(freshBridge._audit).toBeNull();
+    });
+  });
+
+  describe('_execute edge cases', () => {
+    test('returns no_brain when brain not loaded (with and without startTime)', () => {
+      expect(bridge._execute('x', null, 1000).error).toBe('no_brain');
+      expect(bridge._execute('x').error).toBe('no_brain');
+    });
+
+    test('handles brain without analyzeIntent method', () => {
+      bridge._brainSystem = {};
+      const result = bridge._execute('x', 'code', Date.now());
+      expect(result.intent).toEqual({ type: null, confidence: 0 });
+    });
+
+    test('handles analyzeIntent returning falsy', () => {
+      bridge._brainSystem = { analyzeIntent: () => null };
+      const result = bridge._execute('x', 'code', Date.now());
+      expect(result.intent).toEqual({ type: null, confidence: 0 });
+    });
+
+    test('resolves task type when not provided', () => {
+      bridge._brainSystem = { analyzeIntent: () => ({ intent: 'bug_fix', confidence: 0.9 }) };
+      const result = bridge._execute('hello bug', null, Date.now());
+      expect(result.taskType).toBe('fix');
+    });
+
+    test('computes duration with default start time', () => {
+      bridge._brainSystem = { analyzeIntent: jest.fn() };
+      const result = bridge._execute('x', 'code');
+      expect(result.taskType).toBe('code');
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    test('resolves task type from raw input when intent missing', () => {
+      bridge._brainSystem = { analyzeIntent: () => ({ intent: null, confidence: 0 }) };
+      const result = bridge._execute('安全审计', null, Date.now());
+      expect(result.taskType).toBe('security');
+    });
+  });
+
+  describe('getLessonLearner load failure', () => {
+    test('returns null when LessonLearner fails to load', () => {
+      const saved = { breaker: mockRegistry.breaker, loopGuard: mockRegistry.loopGuard, audit: mockRegistry.audit };
+      mockLessonLearnerThrow = true;
+      jest.resetModules();
+      const Fresh = require('../../src/core/BrainBridge');
+      const freshBridge = new Fresh.BrainBridge();
+      freshBridge.initialize();
+      const result = freshBridge.getLessonLearner();
+      mockRegistry.breaker = saved.breaker;
+      mockRegistry.loopGuard = saved.loopGuard;
+      mockRegistry.audit = saved.audit;
+      mockLessonLearnerThrow = false;
+      expect(result).toBeNull();
     });
   });
 
@@ -374,10 +512,25 @@ describe('BrainBridge', () => {
       const written = JSON.parse(spy.mock.calls[0][1]);
       expect(written.enabled).toBe(false);
     });
+
+    test('logs emergency_stop when audit is present', () => {
+      setupFsMock({ existsSync: false });
+      bridge.initialize();
+      bridge.emergencyStop();
+      expect(mockRegistry.audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'emergency_stop' }));
+    });
   });
 
   describe('getLessonLearner', () => {
     test('creates LessonLearner instance', () => {
+      const learner = bridge.getLessonLearner();
+      expect(learner).toBe(mockLessonLearner);
+    });
+
+    test('handles config without learner section', () => {
+      setupFsMock({ existsSync: false });
+      bridge.initialize();
+      delete bridge._config.learner;
       const learner = bridge.getLessonLearner();
       expect(learner).toBe(mockLessonLearner);
     });
@@ -468,6 +621,15 @@ describe('BrainBridge', () => {
       expect(fs.unlinkSync).toHaveBeenCalled();
       expect(fs.unlinkSync.mock.calls.length).toBeGreaterThan(0);
     });
+
+    test('returns null when backup copy fails', () => {
+      jest.restoreAllMocks();
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('{}');
+      jest.spyOn(fs, 'copyFileSync').mockImplementation(() => { throw new Error('copy failed'); });
+      const result = bridge.backup('/tmp/existing-file.txt');
+      expect(result).toBeNull();
+    });
   });
 
   describe('_execute warnings', () => {
@@ -481,10 +643,33 @@ describe('BrainBridge', () => {
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.warnings[0]).toContain('LESSON_001');
     });
+
+    test('falls back to empty strings when lesson fields missing', () => {
+      setupFsMock({ existsSync: false });
+      setupProcessMocks();
+      mockGetRelevantLessons.mockReturnValue([
+        { id: undefined, lesson: undefined, priority: undefined, category: undefined, effectiveness: undefined }
+      ]);
+      const result = bridge.process('test input');
+      expect(result.lessons[0]).toEqual({
+        id: '', title: '', priority: 'medium', category: '', effectiveness: 0
+      });
+    });
+
+    test('warns when high priority lesson has truthy low useCount', () => {
+      setupFsMock({ existsSync: false });
+      setupProcessMocks();
+      mockGetRelevantLessons.mockReturnValue([
+        { id: 'LESSON_003', lesson: 'Used Lesson', priority: 'high', useCount: 0.5 }
+      ]);
+      const result = bridge.process('test input');
+      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(result.warnings[0]).toContain('LESSON_003');
+    });
   });
 
   describe('autoExecute risk paths', () => {
-    function setupFullAutoConfig() {
+    function setupFullAutoConfig(overrides = {}) {
       jest.restoreAllMocks();
       jest.spyOn(fs, 'existsSync').mockReturnValue(true);
       jest.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({
@@ -495,7 +680,8 @@ describe('BrainBridge', () => {
         learner: { enabled: true, minConfidence: 0.3, requireApproval: true, autoApprovalThreshold: 0.8 },
         diagnose: { enabled: true, maxResults: 3, minScore: 0.1 },
         daemon: { enabled: true, healthIntervalMs: 300000, cleanIntervalMs: 3600000 },
-        proactive: { enabled: true, scanIntervalMs: 3600000 }
+        proactive: { enabled: true, scanIntervalMs: 3600000 },
+        ...overrides
       }));
       jest.spyOn(fs, 'writeFileSync').mockReturnValue();
     }
@@ -503,6 +689,16 @@ describe('BrainBridge', () => {
     test('returns blocked_by_risk when PreToolRiskAnalyzer returns BLOCK', () => {
       setupFullAutoConfig();
       bridge.initialize();
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'BLOCK', reason: 'high_risk' });
+      const result = bridge.autoExecute('ReadFile', ['test.js']);
+      expect(result.executed).toBe(false);
+      expect(result.reason).toBe('blocked_by_risk');
+    });
+
+    test('returns blocked_by_risk without audit when audit is null', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      bridge._audit = null;
       mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'BLOCK', reason: 'high_risk' });
       const result = bridge.autoExecute('ReadFile', ['test.js']);
       expect(result.executed).toBe(false);
@@ -529,6 +725,44 @@ describe('BrainBridge', () => {
       expect(result.reason).toBe('not_in_whitelist');
     });
 
+    test('falls back to empty whitelist when config lacks fullAutoWhitelist', () => {
+      setupFullAutoConfig({ fullAutoWhitelist: null });
+      bridge.initialize();
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'WARN', reason: 'suspicious' });
+      const result = bridge.autoExecute('WriteFile', ['test.js']);
+      expect(result.executed).toBe(false);
+      expect(result.reason).toBe('not_in_whitelist');
+    });
+
+    test('returns not_in_whitelist when WARN tool not in whitelist', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'WARN', reason: 'suspicious' });
+      const result = bridge.autoExecute('WriteFile', ['test.js']);
+      expect(result.executed).toBe(false);
+      expect(result.reason).toBe('not_in_whitelist');
+    });
+
+    test('executes when WARN tool is in whitelist', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'WARN', reason: 'suspicious' });
+      mockToolExecutor.execute.mockReturnValue('success');
+      const result = bridge.autoExecute('ReadFile', ['test.js']);
+      expect(result.executed).toBe(true);
+      expect(result.result).toBe('success');
+    });
+
+    test('returns not_in_whitelist without audit when audit is null', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      bridge._audit = null;
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'WARN', reason: 'suspicious' });
+      const result = bridge.autoExecute('WriteFile', ['test.js']);
+      expect(result.executed).toBe(false);
+      expect(result.reason).toBe('not_in_whitelist');
+    });
+
     test('executes when risk is ALLOW', () => {
       setupFullAutoConfig();
       bridge.initialize();
@@ -539,9 +773,31 @@ describe('BrainBridge', () => {
       expect(result.result).toBe('success');
     });
 
+    test('executes without audit when audit is null', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      bridge._audit = null;
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'ALLOW' });
+      mockToolExecutor.execute.mockReturnValue('success');
+      const result = bridge.autoExecute('ReadFile', ['test.js']);
+      expect(result.executed).toBe(true);
+      expect(result.result).toBe('success');
+    });
+
     test('returns execution_error when executor throws', () => {
       setupFullAutoConfig();
       bridge.initialize();
+      mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'ALLOW' });
+      mockToolExecutor.execute.mockImplementation(() => { throw new Error('exec failed'); });
+      const result = bridge.autoExecute('ReadFile', ['test.js']);
+      expect(result.executed).toBe(false);
+      expect(result.reason).toBe('execution_error');
+    });
+
+    test('returns execution_error without audit when audit is null', () => {
+      setupFullAutoConfig();
+      bridge.initialize();
+      bridge._audit = null;
       mockPreToolRiskAnalyzer.analyze.mockReturnValue({ action: 'ALLOW' });
       mockToolExecutor.execute.mockImplementation(() => { throw new Error('exec failed'); });
       const result = bridge.autoExecute('ReadFile', ['test.js']);
@@ -563,6 +819,24 @@ describe('BrainBridge', () => {
     test('returns empty array when AutoDiagnose throws', () => {
       setupFsMock({ existsSync: false });
       bridge.initialize();
+      mockAutoDiagnoseDiagnose.mockImplementation(() => { throw new Error('diagnose failed'); });
+      const results = bridge.diagnose('test error', 3);
+      expect(results).toEqual([]);
+    });
+
+    test('returns results without audit when audit is null', () => {
+      setupFsMock({ existsSync: false });
+      bridge.initialize();
+      bridge._audit = null;
+      mockAutoDiagnoseDiagnose.mockReturnValue([{ id: 'DIAG_001', description: 'test diagnosis' }]);
+      const results = bridge.diagnose('test error', 3);
+      expect(results.length).toBe(1);
+    });
+
+    test('returns empty array without audit when AutoDiagnose throws', () => {
+      setupFsMock({ existsSync: false });
+      bridge.initialize();
+      bridge._audit = null;
       mockAutoDiagnoseDiagnose.mockImplementation(() => { throw new Error('diagnose failed'); });
       const results = bridge.diagnose('test error', 3);
       expect(results).toEqual([]);
