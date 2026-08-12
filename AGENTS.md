@@ -1163,3 +1163,26 @@ Session 锚点: 2026-08-11 (第2次 — DynamicScraper + OllamaBridge 全覆盖 
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 325/4/0 (15,977, 较基线 15,963 +14 = 10 DS + 4 OB) 两次稳定 clean exit 零警告
 - **工作树审计**: 提交只含本会话文件 (dynamic-scraper.test.js + ollama-bridge.test.js + AGENTS.md), 两源文件零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/dynamic-scraper.test.js` (34→44), `tests/unit/ollama-bridge.test.js` (33→37)
+
+---
+
+Session 锚点: 2026-08-12 (BrowserAgent 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **326 passed suites / 4 skipped / 0 failed** (15,996 passed / 46 skipped) 两次运行一致 clean exit (首轮 1 失败为预存 personality-manager flaky, 复跑通过) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/agent/BrowserAgent.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (546 行, 107 tests, 89→107)
+- **核心模式**: 全部缺口是 `page.evaluate`/`addInitScript`/`waitForFunction`/`$$eval` 的**回调体** (现有测试用 `mockResolvedValue` 从不执行回调) → `mockImplementation((fn, arg) => fn(arg))` 直接执行 + 全局 DOM stub (Node v24: `window`/`document` 为 undefined、`navigator` 可赋值, 每测试挂 `global.document/window/navigator`, afterEach `delete` 清理)
+- **新增 18 测试 (gap→test 映射)**:
+  - init catch L22: **独立文件** `browser-agent-init-throw.test.js` (文件级 `jest.mock('playwright', () => { throw ... })` — require throw 无法在同文件内按测试覆盖, 因顶层 mock 工厂已固定)
+  - `_applyStealth` L80-83: `addInitScript.mockImplementation((fn) => fn())` 执行 `Object.defineProperty(navigator,...)` + `window.chrome` 断言
+  - `back`/`forward` L189/195: 未初始化 throw guard (此前从不在 guard 列表, stmt 恒 0)
+  - `scroll` L182: `evaluate.mockImplementation((fn,arg)=>fn(arg))` 执行 `window.scrollBy(0, dir==='down'?amount:-amount)` — down/up/默认参数三路
+  - `scrollToLoad` L223/L227: evaluate scroll 回调 + `$$eval(selector, els => els.length)` 回调 (growing 数组防 break)
+  - `extractVideoUrl` L241-267: video+source 兜底 + script 正则匹配 (playAddr/无匹配/null text) + Set 去重
+  - `handleShortVideo` L281-298: 4 场景 — 有 parent+title / 无 parent+source 兜底 / 有 parent 无 title / 无 video
+  - `waitForVideoLoad` L309-310: `waitForFunction.mockImplementation((fn)=>fn())` + `{readyState:4}` 轮询回调
+  - `getPageText` L341: `document.body.innerText` 回调体
+  - `scrapeDynamicPage` L443/452-454/459: auto-init + 默认 options + text/images/scroll 回调 (images 过滤 data: 前缀 + 空 src)
+  - `scrapeDouyin` L483-526: 4 场景 + `douyinDom()` 局部 helper — meta title/og:title/description/og:description 四分支, videoUrl src→source→poster 三阶兜底, author 首选择器命中/全 null, playAddr 正则覆盖, 无 video, auto-init
+- **断言坑**: og:description meta 在 description 之后会覆盖 → 断言最终值 'OG Desc' 非 'A description'; douyinDom 默认 href 是 /123 → auto-init 测试须显式传 href
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 326/4/0 (15,996, 较基线 15,977 +19 = 18 新增 + 1 独立文件) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (browser-agent.test.js + browser-agent-init-throw.test.js + AGENTS.md), src/agent/BrowserAgent.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/browser-agent.test.js` (89→107), `tests/unit/browser-agent-init-throw.test.js` (新)

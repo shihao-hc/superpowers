@@ -71,6 +71,9 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  delete global.document;
+  delete global.window;
+  delete global.navigator;
 });
 
 describe('BrowserAgent', () => {
@@ -187,6 +190,23 @@ describe('BrowserAgent', () => {
       const scriptFn = mockPage.addInitScript.mock.calls[0][0];
       expect(scriptFn).toBeInstanceOf(Function);
     });
+
+    it('should execute the anti-detection script body', async () => {
+      global.navigator = {};
+      global.window = {};
+      mockPage.addInitScript.mockImplementation((fn) => {
+        fn();
+        return Promise.resolve();
+      });
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      expect(global.navigator.webdriver).toBe(false);
+      expect(global.navigator.plugins).toHaveLength(5);
+      expect(global.navigator.languages).toEqual(['zh-CN', 'zh', 'en']);
+      expect(global.window.chrome).toEqual({ runtime: {} });
+    });
   });
 
   describe('setMobileMode', () => {
@@ -259,6 +279,11 @@ describe('BrowserAgent', () => {
       expect(mockPage.goBack).toHaveBeenCalled();
     });
 
+    it('back should throw when not initialized', async () => {
+      const agent = new BrowserAgent();
+      await expect(agent.back()).rejects.toThrow('Browser not initialized');
+    });
+
     it('forward should navigate forward', async () => {
       const agent = new BrowserAgent();
       await agent.init();
@@ -266,6 +291,11 @@ describe('BrowserAgent', () => {
       const result = await agent.forward();
       expect(result).toEqual({ success: true });
       expect(mockPage.goForward).toHaveBeenCalled();
+    });
+
+    it('forward should throw when not initialized', async () => {
+      const agent = new BrowserAgent();
+      await expect(agent.forward()).rejects.toThrow('Browser not initialized');
     });
 
     it('url should return current url', async () => {
@@ -463,6 +493,25 @@ describe('BrowserAgent', () => {
       expect(result).toEqual({ success: true, direction: 'up', amount: 300 });
     });
 
+    it('should execute the scroll evaluate callback', async () => {
+      const scrollBy = jest.fn();
+      global.window = { scrollBy };
+      mockPage.evaluate.mockImplementation((fn, arg) => {
+        fn(arg);
+        return Promise.resolve();
+      });
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      await agent.scroll('down', 400);
+      await agent.scroll('up', 300);
+      await agent.scroll();
+      expect(scrollBy).toHaveBeenCalledWith(0, 400);
+      expect(scrollBy).toHaveBeenCalledWith(0, -300);
+      expect(scrollBy).toHaveBeenCalledWith(0, 500);
+    });
+
     it('scrollToLoad without selector should scroll maxScrolls times', async () => {
       const agent = new BrowserAgent();
       await agent.init();
@@ -487,6 +536,27 @@ describe('BrowserAgent', () => {
       expect(result.success).toBe(true);
       expect(result.scrolls).toBe(2);
     });
+
+    it('should execute scrollToLoad evaluate and $$eval callbacks', async () => {
+      const scrollBy = jest.fn();
+      global.window = { innerHeight: 900, scrollBy };
+      mockPage.evaluate.mockImplementation((fn) => {
+        fn();
+        return Promise.resolve();
+      });
+      mockPage.$$eval
+        .mockImplementationOnce((sel, fn) => Promise.resolve(fn([{}, {}])))
+        .mockImplementationOnce((sel, fn) => Promise.resolve(fn([{}, {}, {}])))
+        .mockImplementationOnce((sel, fn) => Promise.resolve(fn([{}, {}, {}, {}])));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.scrollToLoad('.item', 3);
+      expect(result.scrolls).toBe(3);
+      expect(scrollBy).toHaveBeenCalledWith(0, 900);
+      expect(mockPage.$$eval).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('video methods', () => {
@@ -503,6 +573,41 @@ describe('BrowserAgent', () => {
       expect(result.videoSources).toHaveLength(1);
       expect(result.potentialVideoUrls).toContain('https://example.com/playlist.m3u8');
       expect(result.allUrls).toContain('https://example.com/vid.mp4');
+    });
+
+    it('should execute extractVideoUrl evaluate callback', async () => {
+      const videos = [
+        { src: 'https://example.com/a.mp4', type: 'video/mp4', poster: 'a.jpg', querySelector: () => null },
+        { src: '', type: '', poster: '', querySelector: (sel) => (sel === 'source' ? { src: 'https://example.com/b.webm', type: 'video/webm' } : null) }
+      ];
+      const scripts = [
+        { textContent: 'var playAddr = "https://example.com/stream.mp4";' },
+        { textContent: 'no urls here' },
+        { textContent: null }
+      ];
+      global.document = {
+        querySelectorAll: (sel) => {
+          if (sel === 'video') return videos;
+          if (sel === 'script') return scripts;
+          return [];
+        }
+      };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.extractVideoUrl();
+      expect(result.videoSources).toEqual([
+        { src: 'https://example.com/a.mp4', type: 'video/mp4', poster: 'a.jpg' },
+        { src: 'https://example.com/b.webm', type: 'video/webm', poster: '' }
+      ]);
+      expect(result.potentialVideoUrls).toEqual(['https://example.com/stream.mp4']);
+      expect(result.allUrls).toEqual([
+        'https://example.com/a.mp4',
+        'https://example.com/b.webm',
+        'https://example.com/stream.mp4'
+      ]);
     });
 
     it('handleShortVideo should return video info when video exists', async () => {
@@ -531,6 +636,84 @@ describe('BrowserAgent', () => {
       expect(result.hasVideo).toBe(false);
     });
 
+    it('should execute handleShortVideo callback with video, parent and title', async () => {
+      const title = { textContent: '  Great Title  ' };
+      const video = {
+        src: 'https://example.com/vid.mp4',
+        poster: 'p.jpg',
+        duration: 30,
+        currentTime: 5,
+        querySelector: () => null,
+        closest: () => ({ querySelector: () => title })
+      };
+      global.document = { querySelector: () => video };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.handleShortVideo();
+      expect(result).toEqual({
+        hasVideo: true,
+        src: 'https://example.com/vid.mp4',
+        poster: 'p.jpg',
+        duration: 30,
+        currentTime: 5,
+        title: 'Great Title'
+      });
+    });
+
+    it('should execute handleShortVideo callback without parent using source fallback', async () => {
+      const video = {
+        src: '',
+        poster: '',
+        duration: 0,
+        currentTime: 0,
+        querySelector: () => ({ src: 'https://example.com/source.webm' }),
+        closest: () => null
+      };
+      global.document = { querySelector: () => video };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.handleShortVideo();
+      expect(result.src).toBe('https://example.com/source.webm');
+      expect(result.title).toBeUndefined();
+    });
+
+    it('should execute handleShortVideo callback with parent but no title', async () => {
+      const video = {
+        src: 'https://example.com/vid.mp4',
+        poster: '',
+        duration: 30,
+        currentTime: 5,
+        querySelector: () => null,
+        closest: () => ({ querySelector: () => null })
+      };
+      global.document = { querySelector: () => video };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.handleShortVideo();
+      expect(result.hasVideo).toBe(true);
+      expect(result.title).toBeUndefined();
+    });
+
+    it('should execute handleShortVideo callback when no video present', async () => {
+      global.document = { querySelector: () => null };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.handleShortVideo();
+      expect(result).toEqual({ hasVideo: false });
+    });
+
     it('waitForVideoLoad should return success when video is ready', async () => {
       const agent = new BrowserAgent();
       await agent.init();
@@ -547,6 +730,17 @@ describe('BrowserAgent', () => {
       mockPage.waitForFunction.mockRejectedValue(new Error('timeout'));
       const result = await agent.waitForVideoLoad(5000);
       expect(result).toEqual({ success: false, reason: 'video_load_timeout' });
+    });
+
+    it('should execute waitForVideoLoad polling callback', async () => {
+      global.document = { querySelector: () => ({ readyState: 4 }) };
+      mockPage.waitForFunction.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.waitForVideoLoad(5000);
+      expect(result).toEqual({ success: true, loaded: true });
     });
   });
 
@@ -603,6 +797,16 @@ describe('BrowserAgent', () => {
       await agent.init();
 
       mockPage.evaluate.mockResolvedValue('Hello World');
+      expect(await agent.getPageText()).toBe('Hello World');
+    });
+
+    it('should execute getPageText evaluate callback', async () => {
+      global.document = { body: { innerText: 'Hello World' } };
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
       expect(await agent.getPageText()).toBe('Hello World');
     });
 
@@ -781,9 +985,48 @@ describe('BrowserAgent', () => {
 
       await agent.scrapeDynamicPage('https://example.com', { extractImages: false });
     });
+
+    it('should auto-init and execute scrapeDynamicPage DOM callbacks', async () => {
+      const imgs = [
+        { src: 'https://example.com/a.jpg', alt: 'A', loading: 'lazy' },
+        { src: 'data:image/png;base64,xxxx', alt: '', loading: 'eager' },
+        { src: '', alt: '', loading: '' }
+      ];
+      global.window = { innerHeight: 900, scrollBy: jest.fn() };
+      global.document = {
+        body: { innerText: 'Scraped text' },
+        querySelectorAll: (sel) => (sel === 'img' ? imgs : [])
+      };
+      mockPage.content.mockResolvedValue('<html></html>');
+      mockPage.title.mockResolvedValue('Test');
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      const result = await agent.scrapeDynamicPage('https://example.com');
+
+      expect(result.content.text).toBe('Scraped text');
+      expect(result.images).toEqual([{ src: 'https://example.com/a.jpg', alt: 'A', loading: 'lazy' }]);
+      expect(result.videos.videoSources).toEqual([]);
+      expect(global.window.scrollBy).toHaveBeenCalledWith(0, 900);
+    });
   });
 
   describe('scrapeDouyin', () => {
+    function douyinDom({ video = null, metaTags = [], author = null, scripts = [], href = 'https://www.douyin.com/video/123' } = {}) {
+      global.window = { location: { href } };
+      global.document = {
+        querySelector: (sel) => {
+          if (sel === 'video') return video;
+          return author ? author : null;
+        },
+        querySelectorAll: (sel) => {
+          if (sel === 'meta') return metaTags;
+          if (sel === 'script') return scripts;
+          return [];
+        }
+      };
+    }
+
     it('should scrape douyin page with mobile mode', async () => {
       const agent = new BrowserAgent();
       await agent.init();
@@ -820,6 +1063,112 @@ describe('BrowserAgent', () => {
       const setMobileSpy = jest.spyOn(agent, 'setMobileMode');
       await agent.scrapeDouyin('https://other.com/video/123');
       expect(setMobileSpy).toHaveBeenCalledWith(false);
+    });
+
+    it('should auto-init when page is null', async () => {
+      const video = {
+        src: 'https://example.com/v.mp4',
+        poster: '',
+        querySelector: () => null
+      };
+      douyinDom({ video, metaTags: [], author: null, scripts: [], href: 'https://www.douyin.com/video/9' });
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      const result = await agent.scrapeDouyin('https://www.douyin.com/video/9');
+      expect(result.videoUrl).toBe('https://example.com/v.mp4');
+      expect(result.url).toBe('https://www.douyin.com/video/9');
+    });
+
+    it('should execute scrapeDouyin callback with full metadata', async () => {
+      const video = {
+        src: 'https://example.com/video.mp4',
+        poster: 'https://example.com/cover.jpg',
+        querySelector: () => null
+      };
+      douyinDom({
+        video,
+        metaTags: [
+          { name: 'title', content: 'Video Title', getAttribute: () => null },
+          { name: 'og', content: 'OG Title', getAttribute: (a) => (a === 'property' ? 'og:title' : null) },
+          { name: 'description', content: 'A description', getAttribute: () => null },
+          { name: 'ogdesc', content: 'OG Desc', getAttribute: (a) => (a === 'property' ? 'og:description' : null) },
+          { name: 'none', content: 'x', getAttribute: () => null }
+        ],
+        author: { textContent: '  Creator  ' },
+        scripts: [
+          { textContent: 'var playAddr : "https://example.com/play.mp4";' },
+          { textContent: null }
+        ]
+      });
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.scrapeDouyin('https://www.douyin.com/video/123');
+      expect(result.url).toBe('https://www.douyin.com/video/123');
+      expect(result.title).toBe('OG Title');
+      expect(result.description).toBe('OG Desc');
+      expect(result.author).toBe('Creator');
+      expect(result.videoUrl).toBe('https://example.com/play.mp4');
+      expect(result.coverUrl).toBe('https://example.com/cover.jpg');
+    });
+
+    it('should execute scrapeDouyin callback with source fallback', async () => {
+      const video = {
+        src: '',
+        poster: 'https://example.com/poster.jpg',
+        querySelector: () => ({ src: 'https://example.com/source.webm' })
+      };
+      douyinDom({
+        video,
+        metaTags: [
+          { name: 'other', content: 'y', getAttribute: () => null }
+        ],
+        author: null,
+        scripts: [{ textContent: 'var x = 1;' }],
+        href: 'https://v.douyin.com/abc/'
+      });
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.scrapeDouyin('https://v.douyin.com/abc/');
+      expect(result.videoUrl).toBe('https://example.com/source.webm');
+      expect(result.author).toBe('');
+      expect(result.title).toBe('');
+    });
+
+    it('should execute scrapeDouyin callback with poster fallback', async () => {
+      const video = {
+        src: '',
+        poster: 'https://example.com/poster.jpg',
+        querySelector: () => null
+      };
+      douyinDom({ video, metaTags: [], author: null, scripts: [] });
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.scrapeDouyin('https://www.douyin.com/video/3');
+      expect(result.videoUrl).toBe('https://example.com/poster.jpg');
+      expect(result.coverUrl).toBe('https://example.com/poster.jpg');
+    });
+
+    it('should execute scrapeDouyin callback without video', async () => {
+      douyinDom({ video: null, metaTags: [], author: null, scripts: [] });
+      mockPage.evaluate.mockImplementation((fn) => Promise.resolve(fn()));
+
+      const agent = new BrowserAgent();
+      await agent.init();
+
+      const result = await agent.scrapeDouyin('https://www.douyin.com/video/4');
+      expect(result.videoUrl).toBe('');
+      expect(result.coverUrl).toBe('');
+      expect(result.author).toBe('');
     });
   });
 
