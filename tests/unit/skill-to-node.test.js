@@ -321,6 +321,26 @@ describe('SkillToNode', () => {
         );
       });
 
+      it('should use fallback label/category/description when action fields missing', async () => {
+        const sparseDef = {
+          actions: [
+            { name: 'bare' }
+          ]
+        };
+        SkillNodeDefinitions.getNodeDefinition.mockReturnValue(sparseDef);
+
+        await converter.createNodeFromScript(baseSkill, baseSkill.scripts[0]);
+
+        expect(mockWorkflowEngine.registerNodeType).toHaveBeenCalledWith(
+          'skill.test-skill.bare',
+          expect.objectContaining({
+            name: 'Skill: test-skill - bare',
+            category: 'Skill: test-skill',
+            description: undefined
+          })
+        );
+      });
+
       it('execute function should call executeSkillScript with action', async () => {
         const executeSpy = jest.spyOn(converter, 'executeSkillScript').mockResolvedValue({ success: true });
 
@@ -374,6 +394,20 @@ describe('SkillToNode', () => {
       it('should default action to execute if no enum', async () => {
         expect(await converter.createNodeFromScript(baseSkill, baseSkill.scripts[0]))
           .toBe('skill.test-skill.execute');
+      });
+
+      it('fallback node execute should call executeSkillScript', async () => {
+        const executeSpy = jest.spyOn(converter, 'executeSkillScript').mockResolvedValue({ success: true });
+
+        await converter.createNodeFromScript(baseSkill, baseSkill.scripts[0]);
+
+        const nodeType = mockWorkflowEngine.registerNodeType.mock.calls.find(
+          (c) => c[0] === 'skill.test-skill.execute'
+        )[1];
+
+        await nodeType.execute(null, { data: 1 });
+        expect(executeSpy).toHaveBeenCalledWith(baseSkill, baseSkill.scripts[0], { data: 1 });
+        executeSpy.mockRestore();
       });
 
       it('should return cached node key if already converted', async () => {
@@ -471,6 +505,40 @@ describe('SkillToNode', () => {
         expect(warnSpy).toHaveBeenCalledWith('[PythonExec] Failed to run Python skill:', 'Python error');
         warnSpy.mockRestore();
       });
+
+      it('should default python entry to main.py', async () => {
+        pyEnvMock.runPythonScript.mockResolvedValue({ status: 'ok' });
+
+        await converter.executeSkillScript(
+          { ...baseSkill, skillPath: '/skills/test' },
+          { language: 'python' },
+          {}
+        );
+
+        expect(pyEnvMock.runPythonScript).toHaveBeenCalledWith(
+          'test-skill',
+          path.join('/skills/test', 'main.py'),
+          {},
+          expect.anything()
+        );
+      });
+
+      it('should warn when ensureEnvironment fails', async () => {
+        pyEnvMock.runPythonScript.mockRejectedValue(new Error('no py'));
+        pyEnvMock.ensureEnvironment.mockRejectedValue(new Error('env setup failed'));
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const skillWithDeps = {
+          ...baseSkill,
+          dependencies: ['numpy'],
+          skillPath: '/skills/test'
+        };
+
+        await converter.executeSkillScript(skillWithDeps, { language: 'node', entry: 'index.js' }, {});
+
+        expect(warnSpy).toHaveBeenCalledWith('[PythonEnvManager] env setup warning:', 'env setup failed');
+        warnSpy.mockRestore();
+      });
     });
 
     describe('first dynamic executor path (per-skill executor)', () => {
@@ -534,6 +602,117 @@ describe('SkillToNode', () => {
       });
     });
 
+    describe('named executor binds in first dynamic executor path', () => {
+      function absExec(name) {
+        return path.resolve(__dirname, '..', '..', 'src', 'skills', 'executors', `${name}.js`);
+      }
+
+      it('should bind DocxExecutor.execute when no top-level execute', async () => {
+        const fakeExec = { DocxExecutor: { execute: jest.fn().mockResolvedValue({ success: true, via: 'docx' }) } };
+        jest.doMock(absExec('namedDocxExecutor'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('namedDocxExecutor'));
+
+        const result = await converter.executeSkillScript(
+          { ...baseSkill, name: 'namedDocx' },
+          baseScript,
+          {}
+        );
+
+        expect(fakeExec.DocxExecutor.execute).toHaveBeenCalledWith({ action: 'test', inputs: {} });
+        expect(result.via).toBe('docx');
+        jest.dontMock(absExec('namedDocxExecutor'));
+      });
+
+      it('should bind PdfExecutor.execute when no top-level execute', async () => {
+        const fakeExec = { PdfExecutor: { execute: jest.fn().mockResolvedValue({ success: true, via: 'pdf' }) } };
+        jest.doMock(absExec('namedPdfExecutor'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('namedPdfExecutor'));
+
+        const result = await converter.executeSkillScript(
+          { ...baseSkill, name: 'namedPdf' },
+          baseScript,
+          {}
+        );
+
+        expect(fakeExec.PdfExecutor.execute).toHaveBeenCalledWith({ action: 'test', inputs: {} });
+        expect(result.via).toBe('pdf');
+        jest.dontMock(absExec('namedPdfExecutor'));
+      });
+
+      it('should bind CanvasExecutor.execute when no top-level execute', async () => {
+        const fakeExec = { CanvasExecutor: { execute: jest.fn().mockResolvedValue({ success: true, via: 'canvas' }) } };
+        jest.doMock(absExec('namedCanvasExecutor'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('namedCanvasExecutor'));
+
+        const result = await converter.executeSkillScript(
+          { ...baseSkill, name: 'namedCanvas' },
+          baseScript,
+          {}
+        );
+
+        expect(fakeExec.CanvasExecutor.execute).toHaveBeenCalledWith({ action: 'test', inputs: {} });
+        expect(result.via).toBe('canvas');
+        jest.dontMock(absExec('namedCanvasExecutor'));
+      });
+
+      it('should warn and fall through when first executor throws', async () => {
+        const fakeExec = { execute: jest.fn().mockRejectedValue(new Error('executor boom')) };
+        jest.doMock(absExec('namedBoomExecutor'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('namedBoomExecutor'));
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        await converter.executeSkillScript(
+          { ...baseSkill, name: 'namedBoom' },
+          baseScript,
+          {}
+        );
+
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('failed, falling back'));
+        warnSpy.mockRestore();
+        jest.dontMock(absExec('namedBoomExecutor'));
+      });
+
+      it('should fall through to script execution when no execFn found', async () => {
+        const fakeExec = { SomeOther: { execute: jest.fn() } };
+        jest.doMock(absExec('namedNoopExecutor'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('namedNoopExecutor'));
+
+        await converter.executeSkillScript(
+          { ...baseSkill, name: 'namedNoop' },
+          baseScript,
+          {}
+        );
+
+        expect(safeExecFile).toHaveBeenCalled();
+        jest.dontMock(absExec('namedNoopExecutor'));
+      });
+    });
+
+    describe('second generic executor path catch', () => {
+      it('should warn and fall back when executor execute throws', async () => {
+        const fakeExec = { execute: jest.fn().mockRejectedValue(new Error('second path boom')) };
+        jest.doMock(path.resolve(__dirname, '..', '..', 'src', 'skills', 'executors', 'secondPathExecutor.js'), () => fakeExec, { virtual: true });
+
+        fs.existsSync.mockImplementation((p) => p.includes('secondPathExecutor'));
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+        await converter.executeSkillScript(
+          { ...baseSkill, name: 'secondPath' },
+          baseScript,
+          {}
+        );
+
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('failed, falling back'));
+        warnSpy.mockRestore();
+        jest.dontMock(path.resolve(__dirname, '..', '..', 'src', 'skills', 'executors', 'secondPathExecutor.js'));
+      });
+    });
+
     describe('fallback execFileAsync script execution', () => {
       beforeEach(() => {
         fs.existsSync.mockReturnValue(false);
@@ -581,6 +760,20 @@ describe('SkillToNode', () => {
           expect.any(Object),
           expect.any(Function)
         );
+      });
+
+      it('should default entries for python, node, bash and unknown languages', async () => {
+        await converter.executeSkillScript(baseSkill, { language: 'python' }, {});
+        expect(safeExecFile).toHaveBeenCalledWith('python', [path.join('/skills/test', 'main.py')], expect.any(Object), expect.any(Function));
+
+        await converter.executeSkillScript(baseSkill, { language: 'node' }, {});
+        expect(safeExecFile).toHaveBeenCalledWith('node', [path.join('/skills/test', 'index.js')], expect.any(Object), expect.any(Function));
+
+        await converter.executeSkillScript(baseSkill, { language: 'bash' }, {});
+        expect(safeExecFile).toHaveBeenCalledWith('bash', [path.join('/skills/test', 'script.sh')], expect.any(Object), expect.any(Function));
+
+        await converter.executeSkillScript(baseSkill, { language: 'ruby' }, {});
+        expect(safeExecFile).toHaveBeenCalledWith('node', [path.join('/skills/test', 'index.js')], expect.any(Object), expect.any(Function));
       });
 
       it('should parse stdout as JSON result', async () => {

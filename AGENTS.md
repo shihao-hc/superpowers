@@ -1278,3 +1278,17 @@ Session 锚点: 2026-08-12 (第6次 — CanvasExecutor 全覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,161, 较基线 16,096 +65) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (canvas-executor.test.js + AGENTS.md), src/skills/executors/CanvasExecutor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/canvas-executor.test.js` (96→161)
+
+---
+
+Session 锚点: 2026-08-12 (第7次 — SkillToNode 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **328 passed suites / 4 skipped / 0 failed** (16,175 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/SkillToNode.js: 99.39 stmts / 100 branch / 100 funcs / 99.37 lines** (437 行, 87 tests 主文件 73→84 + 新独立文件 3) — 剩余 1 stmt (L324 second-path `return result`) 探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: CanvasExecutor 77.9% 已清 → 下一目标 SkillToNode 78.2% branch (被 SkillManager.js:21/58 + api.js + skills/index.js 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 14 测试 (gap→test 映射)**:
+  - 主文件: python entry 缺省 → main.py (L242 `|| 'main.py'`); ensureEnvironment 失败 warn (L268); enhanced actionDef 缺 label/category/description → fallback (L58-60); fallback node execute 调用 executeSkillScript (L100); 4 语言 entry 缺省 (L338/343/348/353); **named executor binds (L279-284)**: `jest.doMock` + **absolute path** + `{virtual:true}` 注册不存在的 executor 模块 (DocxExecutor/PdfExecutor/CanvasExecutor 各自 bind); first-path executor throw catch (L292)
+  - **独立文件 `skill-to-node-global-skip.test.js`** (3 tests): 顶层 `jest.mock` 各 executor 工厂返回 `execute: undefined` → 全局 executor `if (typeof execute === 'function')` false 侧 (L300/307/314) — 独立文件因 doMock 覆盖已有 mock 会污染模块缓存致后续测试断言失败
+- **断言坑**: `explicitPath`(L272) 与 `executorPath`(L319) 是**同一路径** → 只要模块有 `.execute` 第一路径必拦截, 第二路径 success (L323-324) 结构性不可达 (仅 catch 可到达); 全局 executor 缺 execute 时静默落到脚本执行, 无 warn; `jest.doMock` 相对路径/虚拟路径与 SkillToNode 的绝对 `path.join` require 不匹配 → 须用 `path.resolve(__dirname,...)` 绝对路径 + `{virtual:true}`
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 328/4/0 (16,175, 较基线 16,161 +14 = 11 主文件 + 3 独立) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-to-node.test.js + skill-to-node-global-skip.test.js + AGENTS.md), src/skills/SkillToNode.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-to-node.test.js` (73→84), `tests/unit/skill-to-node-global-skip.test.js` (新)
