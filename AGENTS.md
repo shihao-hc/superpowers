@@ -1343,3 +1343,21 @@ Session 锚点: 2026-08-12 (第10次 — SkillAutoLoader 全覆盖 100/100/100/1
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,212, 较基线 16,204 +8) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (skill-auto-loader.test.js + AGENTS.md), src/skills/SkillAutoLoader.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/skill-auto-loader.test.js` (38→46)
+
+---
+
+Session 锚点: 2026-08-12 (第11次 — SkillValidator 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **329 passed suites / 4 skipped / 0 failed** (16,238 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/SkillValidator.js: 100 stmts / 97.74 branch / 100 funcs / 100 lines** (718 行, 72 tests, 46→72) — 剩余 4 分支 v8 探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: SkillAutoLoader 80.9% 已清 → 下一目标 SkillValidator 81.9% branch (被 api.js:6 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 26 测试 (gap→test 映射)**:
+  - validateZipPackage 临时目录 mkdir (L97/98); validateSkillDirectory 无 name 早退 (L165/166)/expectedName 不匹配 warn (L171/172)/dependencies 超限 (L208-212)/catch (L233/234)/sparse 元数据 fallback (L219-222)
+  - validateGitRepository catch (L277/278, repoUrl null → match throw)
+  - _analyzeSecurity: blockedPatterns medium (`fs.writeFileSync` L330)/high-risk high (`process.kill` L356)/high-risk low (`open(` L364)/suspicious low (`btoa` L393)/suspicious high (注入规则)/Unix 可执行位 3 场景 (mode 0o755+非脚本 / 0o644 / 0o755+脚本 L406-413)/catch (L468-474)
+  - _parseSkillMd: 空 yaml frontmatter → `if(data)` false (L589)/heading 直连 break (L613)/yaml 抛错 catch (L625/626)
+  - _cleanupTempDir rmSync 抛错 warn (L689); generateReport 无 files → 0 (L705)
+- **断言坑**: jest.spyOn(process,'platform','get') Node24 不可用 → `Object.defineProperty` 覆盖再还原; `---\n---` 前无空行则 frontmatter 正则不匹配 (须 `---\n\n---`); `atob` 是 medium 非 low (L393 default 需 `btoa`)
+- **结构性不可达 4 分支 (v8 探针证实)**: L209 隐式 else (无 else 的 if, false 侧无语句); L219/220/222 `||` 右侧 — `_parseSkillMd` 恒设 version='1.0.0'/riskLevel='low'/dependencies=[] (均 truthy), 右侧恒不 eval
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,238, 较基线 16,212 +26) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-validator.test.js + AGENTS.md), src/skills/SkillValidator.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-validator.test.js` (46→72)

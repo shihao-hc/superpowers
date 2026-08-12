@@ -67,6 +67,17 @@ describe('SkillValidator', () => {
       const result = await validator.validateZipPackage(Buffer.alloc(100), 'test');
       expect(result.valid).toBe(false);
     });
+
+    it('creates temp directory when missing', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(false);
+      const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('---\nname: test\n---\n# Test');
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md']);
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateZipPackage(Buffer.alloc(100), 'test');
+      expect(mkdirSpy).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
   });
 
   describe('validateGitRepository', () => {
@@ -89,6 +100,11 @@ describe('SkillValidator', () => {
     it('warns on private repo patterns', async () => {
       const result = await validator.validateGitRepository('https://github.com/private/repo.git', '/tmp');
       expect(result.warnings.some(w => w.includes('private'))).toBe(true);
+    });
+
+    it('handles validation error', async () => {
+      const result = await validator.validateGitRepository(null, '/tmp');
+      expect(result.errors.some(e => e.includes('Git validation failed'))).toBe(true);
     });
   });
 
@@ -132,6 +148,87 @@ describe('SkillValidator', () => {
       const result = await validator._analyzeSecurity('/fake', ['clean.js']);
       expect(result.score).toBeGreaterThanOrEqual(0);
       expect(result.score).toBeLessThanOrEqual(100);
+    });
+
+    it('handles blocked pattern with low severity default', async () => {
+      validator.securityRules.blockedPatterns.push({ pattern: /weird\/\/x/i, severity: 'low', message: 'low blocked' });
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('weird//x');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.lowRiskCount).toBe(1);
+    });
+
+    it('handles high-risk pattern with high severity', async () => {
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('process.kill(pid)');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.highRiskCount).toBeGreaterThan(0);
+    });
+
+    it('handles high-risk pattern with low severity default', async () => {
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('const f = open("file")');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.lowRiskCount).toBeGreaterThan(0);
+    });
+
+    it('handles suspicious pattern with low severity default', async () => {
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('const b = btoa("data")');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.suspiciousPatterns).toBeGreaterThan(0);
+    });
+
+    it('handles suspicious pattern with high severity', async () => {
+      validator.securityRules.suspiciousPatterns.push({ pattern: /HACK\/\/I/i, severity: 'high', message: 'high susp' });
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('HACK//I');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.suspiciousPatterns).toBeGreaterThan(0);
+    });
+
+    it('handles blocked pattern with medium severity', async () => {
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('fs.writeFileSync("x", "y")');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.mediumRiskCount).toBeGreaterThan(0);
+    });
+
+    it('handles high-risk pattern with medium severity', async () => {
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('fetch("https://x.com")');
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.summary.mediumRiskCount).toBeGreaterThan(0);
+    });
+
+    it('reports executable bit on non-script file on unix', async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('plain text');
+      jest.spyOn(fs, 'statSync').mockReturnValue({ mode: 0o755 });
+      const result = await validator._analyzeSecurity('/fake', ['data.bin']);
+      expect(result.warnings.some(w => w.message.includes('Executable bit'))).toBe(true);
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    });
+
+    it('skips non-executable files on unix', async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('plain text');
+      jest.spyOn(fs, 'statSync').mockReturnValue({ mode: 0o644 });
+      const result = await validator._analyzeSecurity('/fake', ['data.bin']);
+      expect(result.warnings.some(w => w.message.includes('Executable bit'))).toBe(false);
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    });
+
+    it('allows executable bit on script files on unix', async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      jest.spyOn(fs, 'readFileSync').mockReturnValue('#!/bin/sh\necho hi');
+      jest.spyOn(fs, 'statSync').mockReturnValue({ mode: 0o755 });
+      const result = await validator._analyzeSecurity('/fake', ['run.sh']);
+      expect(result.warnings.some(w => w.message.includes('Executable bit'))).toBe(false);
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    });
+
+    it('returns zero score and high risk on analysis error', async () => {
+      jest.spyOn(fs, 'readFileSync').mockImplementation(() => { throw new Error('read failed'); });
+      const result = await validator._analyzeSecurity('/fake', ['a.js']);
+      expect(result.score).toBe(0);
+      expect(result.riskLevel).toBe('high');
     });
   });
 
@@ -261,6 +358,28 @@ describe('SkillValidator', () => {
       const result = validator._parseSkillMd('---\ninvalid: [\n---', 'test');
       expect(result.name).toBe('test');
     });
+
+    it('stops description at next heading', () => {
+      const result = validator._parseSkillMd('# Title\nfirst line\n## Next\nmore', 'test');
+      expect(result.description).toContain('first line');
+      expect(result.description).not.toContain('more');
+    });
+
+    it('handles yaml parse failure with warn', () => {
+      jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const result = validator._parseSkillMd('---\n: bad: [unclosed\n---\n# Body', 'test');
+      expect(result.name).toBe('test');
+    });
+
+    it('handles empty yaml frontmatter', () => {
+      const result = validator._parseSkillMd('---\n\n---\n# Body', 'test');
+      expect(result.name).toBe('test');
+    });
+
+    it('stops description when heading directly follows', () => {
+      const result = validator._parseSkillMd('# Only\n\n## Next', 'test');
+      expect(result.description).toBe('');
+    });
   });
 
   describe('_findRequiredFiles', () => {
@@ -366,6 +485,90 @@ describe('SkillValidator', () => {
       const result = await validator.validateSkillDirectory('/fake', 'test');
       expect(result.warnings.some(w => w.includes('unsafe'))).toBe(true);
     });
+
+    it('rejects skill.md without a name', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\ndescription: no name here\nversion: 1.0.0\n---\n# Test'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake');
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Skill name not found'))).toBe(true);
+    });
+
+    it('warns on skill name mismatch with expected name', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\nname: actual-skill\nversion: 1.0.0\nauthor: me\ndescription: a test skill\n---\n# Test'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake', 'expected-skill');
+      expect(result.warnings.some(w => w.includes('name mismatch'))).toBe(true);
+    });
+
+    it('warns on too many dependencies', async () => {
+      const v = new SkillValidator({ maxDependencyCount: 2 });
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\nname: test\nversion: 1.0.0\nauthor: me\ndescription: a test skill\ndependencies: [a, b, c]\n---\n# Test'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await v.validateSkillDirectory('/fake', 'test');
+      expect(result.warnings.some(w => w.includes('Too many dependencies'))).toBe(true);
+    });
+
+    it('catches validation errors', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md']);
+      jest.spyOn(fs, 'readFileSync').mockImplementation(() => { throw new Error('disk read fail'); });
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake', 'test');
+      expect(result.errors.some(e => e.includes('Validation failed'))).toBe(true);
+    });
+
+    it('uses fallback metadata for sparse skill.md', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\nname: sparse\nversion: 2.0.0\nauthor: me\ndescription: a very short skill that needs ten chars\nriskLevel: medium\n---\n# Sparse'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake', 'sparse');
+      expect(result.valid).toBe(true);
+      expect(result.metadata.version).toBe('2.0.0');
+      expect(result.metadata.riskLevel).toBe('medium');
+      expect(result.metadata.dependencies).toEqual([]);
+    });
+
+    it('applies fallback metadata defaults when fields missing', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\nname: missing-fields\ndescription: a very short skill that needs ten chars\n---\n# Missing'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake', 'missing-fields');
+      expect(result.metadata.version).toBe('1.0.0');
+      expect(result.metadata.riskLevel).toBe('low');
+      expect(result.metadata.pure).toBe(false);
+      expect(result.metadata.dependencies).toEqual([]);
+    });
+
+    it('skips dependency limit check when no dependencies', async () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'readdirSync').mockReturnValue(['skill.md', 'index.js']);
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(
+        '---\nname: nodeps\nversion: 1.0.0\nauthor: me\ndescription: a test skill\nriskLevel: low\n---\n# NoDeps'
+      );
+      jest.spyOn(fs, 'statSync').mockReturnValue({ isDirectory: () => false, mode: 0o644 });
+      const result = await validator.validateSkillDirectory('/fake', 'nodeps');
+      expect(result.valid).toBe(true);
+      expect(result.metadata.dependencies).toEqual([]);
+    });
   });
 
   describe('generateReport', () => {
@@ -378,6 +581,14 @@ describe('SkillValidator', () => {
       expect(report.securityScore).toBe(85);
       expect(report.summary.errors).toBe(1);
       expect(report.timestamp).toBeDefined();
+    });
+
+    it('handles missing files in report', () => {
+      const report = validator.generateReport({
+        valid: true, securityScore: 100, riskLevel: 'low',
+        errors: [], warnings: []
+      });
+      expect(report.summary.files).toBe(0);
     });
   });
 
@@ -392,6 +603,15 @@ describe('SkillValidator', () => {
     it('ignores missing directory', () => {
       jest.spyOn(fs, 'existsSync').mockReturnValue(false);
       expect(() => validator._cleanupTempDir('/tmp/test')).not.toThrow();
+    });
+
+    it('warns on cleanup failure', () => {
+      jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+      jest.spyOn(fs, 'rmSync').mockImplementation(() => { throw new Error('permission'); });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      validator._cleanupTempDir('/tmp/test');
+      expect(warnSpy).toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
   });
 });
