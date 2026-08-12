@@ -1186,3 +1186,19 @@ Session 锚点: 2026-08-12 (BrowserAgent 全覆盖 100/100/100/100)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 326/4/0 (15,996, 较基线 15,977 +19 = 18 新增 + 1 独立文件) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (browser-agent.test.js + browser-agent-init-throw.test.js + AGENTS.md), src/agent/BrowserAgent.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/browser-agent.test.js` (89→107), `tests/unit/browser-agent-init-throw.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第2次 — SelfLearningSystem 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **327 passed suites / 4 skipped / 0 failed** (16,026 passed / 46 skipped) 全量稳定 (首轮×2 各 1 失败均为预存 personality-manager flaky, 单独跑 48/48 通过, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/SelfLearningSystem.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (877 行, 93 tests 主文件 71→93 + 8 新存储文件)
+- **全量 src 覆盖扫描**: 0% 文件仍是已记录的低价值项 (index/entry, MobileAPI, daemon, game-agents, openclaw); 非零最低分支 = SelfLearningSystem 76.8% (被 src/index.js:14 + src/agent/BrainAgent.js:15 生产引用)
+- **新增 30 测试 (gap→test 映射)**:
+  - **独立文件 `self-learning-system-storage.test.js`** (8 tests): 覆盖 L682-799 真实 `_loadFromStorage`/`_saveToStorage` — 主套件在 beforeEach 用 `jest.spyOn(...prototype).mockReturnValue()` 屏蔽了这两个方法, 无法在同文件内测真实实现 → 独立文件用真实 fs + `fs.mkdtempSync` + `process.chdir` 临时目录 (afterEach chdir 还原 + rmSync)
+  - 加载: 全量数据 (intents/suggestions/skills/patterns/responses/feedback/adjustments 恢复 + Set 转换 + slice) / 文件缺失 / 损坏 JSON (console.warn) / 稀疏数据缺字段 + 非数组 responses/feedback → `[]` / intents+skills 缺 variants/contexts → 空 Set
+  - 保存: 建目录 + Set→Array 序列化 / 复用目录跳过 Set 转换 / `_isSaving` 递归锁 (console.warn + 不写盘) / writeFileSync 抛错 → catch + finally 解锁
+  - 主文件 (22 tests): 4 个 record 方法 disabled 早退 (L172/216/263/287); recordIntent/recordSkillLoad 的 variants/contexts 已是 Set 或 undefined 的 else-if 分支; recordResponse 非数字 quality → 0.5; `_autoAdjust` 中段 successRate(0.5) 与中段质量(0.7) 的 else-if fallthrough; getImprovements avgQuality≥0.6 无 response 改进; getContextualRecommendations Set-contexts/低成功率/pattern 不匹配/missing contexts 字段 (`contexts || []` 兜底)/多推荐排序回调; `_calculateSuggestionPriority` 未知 action→0 delta + 记录不存在; `_identifyPatterns` quality≤0.8 忽略; afterDecision 无 action + success:false
+- **断言坑**: recordIntent/recordSkillLoad 存储时 `variants/contexts = Array.from(...)` → 调用后是 Array 非 Set (断言 Array); `contexts.has(context)` 是精确匹配非子串, `'coding'.includes('code')`=false → 用 context='code' 才同时命中 skill 精确 + pattern 子串; storage 测试须在 `new SelfLearningSystem()` 前 `writeStorage` (构造器 L90 自动 `_loadFromStorage`)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,026, 较基线 15,996 +30 = 22 + 8) 稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (self-learning-system.test.js + self-learning-system-storage.test.js + AGENTS.md), src/core/SelfLearningSystem.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/self-learning-system.test.js` (71→93), `tests/unit/self-learning-system-storage.test.js` (新)

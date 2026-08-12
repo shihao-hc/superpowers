@@ -537,4 +537,164 @@ describe('SelfLearningSystem', () => {
       expect(mockBrainInstance.setConfig).toHaveBeenCalledWith({ key: 'val' });
     });
   });
+
+  describe('record methods - disabled guard', () => {
+    test('recordSuggestion does nothing when disabled', () => {
+      system.enabled = false;
+      system.recordSuggestion({ type: 't', name: 'n' }, 'adopted');
+      expect(system.data.suggestions.size).toBe(0);
+    });
+
+    test('recordSkillLoad does nothing when disabled', () => {
+      system.enabled = false;
+      system.recordSkillLoad('sk', 'ctx', true);
+      expect(system.data.skills.size).toBe(0);
+    });
+
+    test('recordResponse does nothing when disabled', () => {
+      system.enabled = false;
+      system.recordResponse('m', 'r', 0.8);
+      expect(system.data.responses).toHaveLength(0);
+    });
+
+    test('recordFeedback does nothing when disabled', () => {
+      system.enabled = false;
+      system.recordFeedback({ type: 't', content: 'c' });
+      expect(system.data.feedback).toHaveLength(0);
+    });
+  });
+
+  describe('recordIntent - variants edge cases', () => {
+    test('keeps variants when record already has a Set', () => {
+      system.data.intents.set('k', { count: 1, successCount: 1, variants: new Set(['a']) });
+      system.recordIntent('k', 'b', false);
+      const record = system.data.intents.get('k');
+      expect(record.count).toBe(2);
+      expect(record.variants).toEqual(['a', 'b']);
+    });
+
+    test('migrates record with undefined variants', () => {
+      system.data.intents.set('k', { count: 1, successCount: 1 });
+      system.recordIntent('k', 'b', false);
+      const record = system.data.intents.get('k');
+      expect(record.count).toBe(2);
+      expect(record.variants).toEqual(['b']);
+    });
+  });
+
+  describe('recordSkillLoad - contexts edge cases', () => {
+    test('keeps contexts when record already has a Set', () => {
+      system.data.skills.set('k', { loaded: 1, helpfulCount: 1, contexts: new Set(['a']) });
+      system.recordSkillLoad('k', 'b', true);
+      const record = system.data.skills.get('k');
+      expect(record.loaded).toBe(2);
+      expect(record.contexts).toEqual(['a', 'b']);
+    });
+
+    test('migrates record with undefined contexts', () => {
+      system.data.skills.set('k', { loaded: 1, helpfulCount: 1 });
+      system.recordSkillLoad('k', 'b', true);
+      const record = system.data.skills.get('k');
+      expect(record.loaded).toBe(2);
+      expect(record.contexts).toEqual(['b']);
+    });
+  });
+
+  describe('recordResponse - quality default', () => {
+    test('uses 0.5 default for non-number quality', () => {
+      system.recordResponse('a', 'b', 'high');
+      expect(system.data.responses[0].quality).toBe(0.5);
+    });
+  });
+
+  describe('_autoAdjust - fallthrough branches', () => {
+    test('does not adjust skill threshold for mid-range success rate', () => {
+      system.data.skills.set('mid', { loaded: 10, helpfulCount: 5, contexts: [] });
+      const adjustments = system._autoAdjust();
+      expect(adjustments.some((a) => a.includes('skill_threshold'))).toBe(false);
+    });
+
+    test('does not adjust frequency for mid-range response quality', () => {
+      for (let i = 0; i < 20; i++) {
+        system.data.responses.push({ message: 'm', response: 'r', quality: 0.7 });
+      }
+      const adjustments = system._autoAdjust();
+      expect(adjustments.some((a) => a.includes('suggestion_freq'))).toBe(false);
+    });
+  });
+
+  describe('getImprovements - response quality boundary', () => {
+    test('no response improvement when avg quality is at least 0.6', () => {
+      for (let i = 0; i < 15; i++) {
+        system.data.responses.push({ message: 'm', response: 'r', quality: 0.8 });
+      }
+      const improvements = system.getImprovements();
+      expect(improvements.some((i) => i.type === 'response')).toBe(false);
+    });
+  });
+
+  describe('getContextualRecommendations - edge cases', () => {
+    test('handles contexts stored as a Set', () => {
+      system.data.skills.set('s', { loaded: 10, helpfulCount: 8, contexts: new Set(['coding']) });
+      const recs = system.getContextualRecommendations('coding');
+      expect(recs.some((r) => r.type === 'skill')).toBe(true);
+    });
+
+    test('skips skill with low success rate', () => {
+      system.data.skills.set('s', { loaded: 10, helpfulCount: 4, contexts: new Set(['coding']) });
+      const recs = system.getContextualRecommendations('coding');
+      expect(recs.some((r) => r.type === 'skill')).toBe(false);
+    });
+
+    test('handles skill with missing contexts field', () => {
+      system.data.skills.set('s', { loaded: 10, helpfulCount: 8 });
+      const recs = system.getContextualRecommendations('coding');
+      expect(recs.some((r) => r.type === 'skill')).toBe(false);
+    });
+
+    test('skips pattern not present in context', () => {
+      system.data.patterns.set('nomatch', { successRate: 0.8, recommended: 'x' });
+      const recs = system.getContextualRecommendations('testing');
+      expect(recs.some((r) => r.type === 'pattern')).toBe(false);
+    });
+
+    test('sorts multiple recommendations by priority', () => {
+      system.data.skills.set('s', { loaded: 10, helpfulCount: 8, contexts: ['code'] });
+      system.data.patterns.set('code', { successRate: 0.9, recommended: 'use x' });
+      const recs = system.getContextualRecommendations('code');
+      expect(recs.length).toBeGreaterThanOrEqual(2);
+      for (let i = 0; i < recs.length - 1; i++) {
+        expect(recs[i].priority).toBeGreaterThanOrEqual(recs[i + 1].priority);
+      }
+    });
+  });
+
+  describe('_calculateSuggestionPriority - edge cases', () => {
+    test('uses 0 delta for unknown action', () => {
+      system.data.suggestions.set('tip:x', { shown: 1, adopted: 0, ignored: 0, rejected: 0, priority: 0.5 });
+      system._calculateSuggestionPriority('tip:x', 'unknown');
+      expect(system.data.suggestions.get('tip:x').priority).toBe(0.5);
+    });
+
+    test('no-ops when suggestion does not exist', () => {
+      system._calculateSuggestionPriority('tip:missing', 'adopted');
+      expect(system.data.suggestions.has('tip:missing')).toBe(false);
+    });
+  });
+
+  describe('_identifyPatterns - low quality response', () => {
+    test('ignores low quality responses', () => {
+      system.data.responses.push({ message: 'complex howto debug code', response: 'x', quality: 0.5 });
+      system._identifyPatterns();
+      expect(system.data.patterns.size).toBe(0);
+    });
+  });
+
+  describe('afterDecision - edge cases', () => {
+    test('handles failure result without action', () => {
+      system.afterDecision('ctx', { success: false });
+      expect(system.data.responses[0].quality).toBe(0.4);
+      expect(mockBrainInstance.evolution.learn).toHaveBeenCalled();
+    });
+  });
 });
