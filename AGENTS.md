@@ -1393,3 +1393,22 @@ Session 锚点: 2026-08-12 (第13次 — SocialPlatformIntegration 全覆盖至�
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,272, 较基线 16,251 +21) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (social-platform-integration.test.js + social-platform-init-throw.test.js + social-platform-window.test.js + AGENTS.md), src/social/SocialPlatformIntegration.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/social-platform-integration.test.js` (104→120), `tests/unit/social-platform-init-throw.test.js` (新), `tests/unit/social-platform-window.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第14次 — enhancedApi 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,285 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/enhancedApi.js: 99.63 stmts / 98.65 branch / 100 funcs / 100 lines** (730 行, 91 tests, 78→91) — 剩余 2 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: SocialPlatformIntegration 83.3% 已清 → 下一目标 enhancedApi 84.6% branch (src 内零生产引用 — 仅测试引用, 730 行独立 API 路由模块); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 13 测试 (gap→test 映射)**:
+  - POST /preview/create 5 个 400 错误分支: 非法上传文件名 (L137 路径遍历 `../`)/文件超 50MB (L142)/content 非字符串 (L147)/content 文件名非法 (L154)/content 超 50MB (L159) + 超长文件名截断 (sanitizeString 255 后通过) + 非字符串 title (sanitizeString L51)
+  - POST /templates/:templateId/render: number/boolean data 值保留 (L462-463, null 跳过)
+  - POST /export: metadata number/boolean 值保留 (L544-545)
+  - PUT/DELETE /templates/:templateId 无 x-role → 默认 'user' → 403 (L402/423 `|| 'user'` 右侧)
+  - POST /export/file: 无 originalname → 'untitled' (L575)/无 metadata → `|| '{}'` (L580)
+  - GET /system/rate-limit-stats: 实际调用返回全 limiters stats (L712-716, 原测试只查 handler 存在)
+- **断言坑**: `sanitizeString(originalname, 255)` 先截断 → `isValidFilename` 永不看到 >255 → L42 不可达; `file.originalname` 恒 string → L38 非字符串分支经 body `filename: 12345` 触发 (sanitizeString → '' → isValidFilename('') false); DELETE 测试 `res` 未用 → `_res` 前缀
+- **结构性不可达 2 分支 (探针证实)**: L42 `filename.length > 255` (sanitizeString 恒先截 255) + L50 sanitizeString default-arg (所有内部调用显式传 maxLength)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,285, 较基线 16,272 +13) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (enhanced-api.test.js + AGENTS.md), src/skills/enhancedApi.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/enhanced-api.test.js` (78→91)

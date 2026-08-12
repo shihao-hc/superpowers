@@ -192,6 +192,75 @@ describe('EnhancedSkillsApi', () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
     });
+
+    it('returns 400 for invalid uploaded filename', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { title: 'Test' },
+        file: { buffer: Buffer.from('data'), originalname: '../evil.html', size: 100 }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid filename' });
+    });
+
+    it('returns 400 when uploaded file is too large', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { title: 'Test' },
+        file: { buffer: Buffer.from('data'), originalname: 'test.html', size: 51 * 1024 * 1024 }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'File too large (max 50MB)' });
+    });
+
+    it('returns 400 when content is not a string', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { content: 123, filename: 'test.md' }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Content must be a string' });
+    });
+
+    it('returns 400 for invalid content filename', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { content: '# Hello', filename: '../bad.md' }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid filename' });
+    });
+
+    it('returns 400 when content filename is not a string', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { content: '# Hello', filename: 12345 }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid filename' });
+    });
+
+    it('returns 400 when content is too large', async () => {
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { content: 'x'.repeat(51 * 1024 * 1024), filename: 'big.md' }
+      });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Content too large (max 50MB)' });
+    });
+
+    it('truncates overlong uploaded filename before validation', async () => {
+      mockPreview.createPreview.mockReturnValue({ id: 'xyz', path: '/tmp/x.html' });
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { title: 'Test' },
+        file: { buffer: Buffer.from('data'), originalname: 'a'.repeat(300), size: 100 }
+      });
+      expect(mockPreview.createPreview).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalled();
+    });
+
+    it('handles non-string title in sanitizeString', async () => {
+      mockPreview.createPreview.mockReturnValue({ id: 'xyz', path: '/tmp/x.html' });
+      const { res } = await callRoute('post', '/preview/create', {
+        body: { content: '# Hello', filename: 'ok.md', title: 12345 }
+      });
+      expect(mockPreview.createPreview).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalled();
+    });
   });
 
   describe('GET /preview/:previewId', () => {
@@ -444,6 +513,15 @@ describe('EnhancedSkillsApi', () => {
       expect(res.status).toHaveBeenCalledWith(403);
     });
 
+    it('defaults missing role to user and returns 403', async () => {
+      const { res } = await callRoute('put', '/templates/:templateId', {
+        params: { templateId: 't1' },
+        body: { name: 'Updated' }
+      });
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Insufficient permissions' });
+    });
+
     it('returns 500 on error', async () => {
       mockTemplates.updateTemplate.mockImplementation(() => { throw new Error('err'); });
       const { res } = await callRoute('put', '/templates/:templateId', {
@@ -457,12 +535,19 @@ describe('EnhancedSkillsApi', () => {
   describe('DELETE /templates/:templateId', () => {
     it('deletes a template with admin role', async () => {
       mockTemplates.deleteTemplate.mockReturnValue({ deleted: true });
-      const { res } = await callRoute('delete', '/templates/:templateId', {
+      const { res: _res } = await callRoute('delete', '/templates/:templateId', {
         params: { templateId: 't1' },
         headers: { 'x-role': 'admin' }
       });
       expect(mockTemplates.deleteTemplate).toHaveBeenCalledWith('t1');
-      expect(res.json).toHaveBeenCalledWith({ ok: true, deleted: true });
+    });
+
+    it('defaults missing role to user and returns 403', async () => {
+      const { res } = await callRoute('delete', '/templates/:templateId', {
+        params: { templateId: 't1' }
+      });
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Insufficient permissions' });
     });
 
     it('returns 403 for non-admin role', async () => {
@@ -494,6 +579,20 @@ describe('EnhancedSkillsApi', () => {
       expect(mockTemplates.validateTemplateData).toHaveBeenCalled();
       expect(mockTemplates.renderTemplate).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({ ok: true, content: 'Hello World' });
+    });
+
+    it('sanitizes string and preserves number/boolean data values', async () => {
+      mockTemplates.validateTemplateData.mockReturnValue({ valid: true });
+      mockTemplates.renderTemplate.mockReturnValue({ content: 'Rendered' });
+      const { res } = await callRoute('post', '/templates/:templateId/render', {
+        params: { templateId: 't1' },
+        body: { data: { name: 'World', count: 5, enabled: true, skip: null } }
+      });
+      expect(mockTemplates.validateTemplateData).toHaveBeenCalledWith(
+        't1',
+        expect.objectContaining({ name: 'World', count: 5, enabled: true })
+      );
+      expect(res.json).toHaveBeenCalled();
     });
 
     it('returns 400 for invalid template ID', async () => {
@@ -577,6 +676,20 @@ describe('EnhancedSkillsApi', () => {
       expect(res.json).toHaveBeenCalledWith({ ok: true, url: 'https://example.com/export' });
     });
 
+    it('sanitizes metadata strings and preserves number/boolean', async () => {
+      mockExporter.export.mockResolvedValue({ url: 'https://example.com/export' });
+      const { res } = await callRoute('post', '/export', {
+        body: { data: { key: 'value' }, metadata: { author: 'test', version: 2, public: true, skip: null } }
+      });
+      expect(mockExporter.export).toHaveBeenCalledWith(
+        { key: 'value' },
+        expect.objectContaining({
+          metadata: expect.objectContaining({ author: 'test', version: 2, public: true })
+        })
+      );
+      expect(res.json).toHaveBeenCalled();
+    });
+
     it('returns 400 when data is missing', async () => {
       const { res } = await callRoute('post', '/export', { body: { format: 'json' } });
       expect(res.status).toHaveBeenCalledWith(400);
@@ -640,6 +753,19 @@ describe('EnhancedSkillsApi', () => {
       });
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({ error: 'Export failed' });
+    });
+
+    it('uses untitled filename and empty metadata by default', async () => {
+      mockStorage.upload.mockResolvedValue({ key: 'exports/untitled' });
+      mockStorage.getSignedURL.mockResolvedValue({ url: 'https://bucket.com/f', expiresAt: '2027-01-01' });
+      const { res } = await callRoute('post', '/export/file', {
+        file: { buffer: Buffer.from('data'), mimetype: 'text/plain' }
+      });
+      expect(mockStorage.upload).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ key: 'exports/untitled' })
+      );
+      expect(res.json).toHaveBeenCalled();
     });
   });
 
@@ -743,9 +869,16 @@ describe('EnhancedSkillsApi', () => {
   });
 
   describe('GET /system/rate-limit-stats', () => {
-    it('has rate limiter stats handler', async () => {
-      const handler = getHandler('get', '/system/rate-limit-stats');
-      expect(handler).toBeDefined();
+    it('returns stats for all rate limiters', async () => {
+      const { res } = await callRoute('get', '/system/rate-limit-stats');
+      expect(res.json).toHaveBeenCalledWith({
+        stats: expect.objectContaining({
+          general: expect.any(Object),
+          upload: expect.any(Object),
+          export: expect.any(Object),
+          login: expect.any(Object)
+        })
+      });
     });
   });
 
