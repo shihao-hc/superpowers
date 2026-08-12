@@ -1309,3 +1309,19 @@ Session 锚点: 2026-08-12 (第8次 — EvolutionCycle 全覆盖 100/100/100/100
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,186, 较基线 16,175 +11) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (evolution-cycle.test.js + AGENTS.md), src/utils/EvolutionCycle.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/evolution-cycle.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第9次 — CachePreheater 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **329 passed suites / 4 skipped / 0 failed** (16,204 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/performance/CachePreheater.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (281 行, 48 tests, 30→48) — 含 CachePreheater 类 + createMCPToolPreheater 工厂 + _generateSampleParams/_getSampleValue
+- **全量 src 覆盖扫描账本**: EvolutionCycle 80% 已清 → 下一目标 CachePreheater 80.4% branch (被 src/performance/index.js:4 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 18 测试 (gap→test 映射)**:
+  - addWarmupItem 无 data → 默认 `{}` (L39 default-arg); `_preheatStrategy` 直接调无 options (L125 default-arg)
+  - 策略无 executor (L149 false → 仅 items 计入 preheated); item 无 key 用 name (L152)/无 key+name JSON.stringify (L152); 失败侧同样 (L156)
+  - `_warmupItem`: 无 executor + bridge._isCacheable 真 → return (L173 true); 无 executor + bridge 无 _isCacheable → 落空 (L173 false + L178 false)
+  - MCP executor: 无 fullName/无 _isCacheable → 跳过 (L221 false 两侧); serverName 缺失 → fullName.split (L222 右侧); sampleParams 缺失 → `{}` (L226 右侧); inner _isCacheable false → 跳过; call 抛错吞掉; items() 无 serverToTools → `[]` (L235 false); inputSchema 空对象 (L256 true 侧); 无 required → `{}` (L259 右侧)
+- **断言坑**: `_isCacheable: () => false` 是**truthy 函数** → L173 true 分支; 要测 L173 false 须桥对象完全无 `_isCacheable` 属性; `_generateSampleParams` 未导出 → 用 `inputSchema: {}` 经 items() 触发 L256 true; executor 是 async 函数 → `await expect(...).resolves`
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,204, 较基线 16,186 +18) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (cache-preheater.test.js + AGENTS.md), src/performance/CachePreheater.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/cache-preheater.test.js` (30→48)

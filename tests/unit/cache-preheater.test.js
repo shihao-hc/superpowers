@@ -72,6 +72,12 @@ describe('CachePreheater', () => {
     it('should throw for invalid data', () => {
       expect(() => preheater.addWarmupItem('name', 'key', 'string')).toThrow();
     });
+
+    it('should default data to empty object', () => {
+      preheater.addWarmupItem('test-key', 'cache-key');
+      expect(preheater.warmupQueue).toHaveLength(1);
+      expect(preheater.warmupQueue[0].data).toEqual({});
+    });
   });
 
   describe('preheat', () => {
@@ -170,6 +176,41 @@ describe('CachePreheater', () => {
       expect(result.preheated).toHaveLength(0);
     });
 
+    it('should handle strategy without executor', async () => {
+      preheater.registerStrategy('noexec', {
+        priority: 10,
+        items: [{ key: 'item1' }, { key: 'item2' }]
+      });
+
+      const result = await preheater.preheat({});
+      expect(result.preheated).toHaveLength(2);
+    });
+
+    it('should use name fallback when item has no key', async () => {
+      const executor = jest.fn().mockResolvedValue();
+      preheater.registerStrategy('nameless', {
+        priority: 10,
+        items: [{ name: 'just-name' }, { name: 'other' }],
+        executor
+      });
+
+      const result = await preheater.preheat({});
+      expect(result.preheated).toContain('just-name');
+      expect(result.preheated).toContain('other');
+    });
+
+    it('should JSON stringify items without key or name', async () => {
+      const executor = jest.fn().mockResolvedValue();
+      preheater.registerStrategy('raw', {
+        priority: 10,
+        items: [{ someField: 'value' }],
+        executor
+      });
+
+      const result = await preheater.preheat({});
+      expect(result.preheated).toContain(JSON.stringify({ someField: 'value' }));
+    });
+
     it('should emit preheat-complete event', async () => {
       const handler = jest.fn();
       preheater.on('preheat-complete', handler);
@@ -265,13 +306,148 @@ describe('CachePreheater', () => {
       expect(mockCall).toHaveBeenCalled();
     });
 
-    it('should handle MCP preheater when bridge has no serverToTools', () => {
+    it('should handle MCP preheater when bridge has no serverToTools', async () => {
       const mockBridge = {
         clients: new Map([['server1', {}]])
       };
       const p = createMCPToolPreheater(mockBridge);
       const strategy = p.warmupStrategies.get('mcp-tools');
       expect(strategy.condition()).toBe(true);
+      expect(await strategy.items()).toEqual([]);
+    });
+
+    it('should skip executor when tool has no fullName or bridge not cacheable', async () => {
+      const mockCall = jest.fn().mockResolvedValue({});
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ sampleParams: {} }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      await strategy.executor(mockBridge, { sampleParams: {} });
+      expect(mockCall).not.toHaveBeenCalled();
+    });
+
+    it('should skip executor when bridge not cacheable', async () => {
+      const mockCall = jest.fn().mockResolvedValue({});
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        _isCacheable: undefined,
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      await strategy.executor(mockBridge, { fullName: 'server1:tool1' });
+      expect(mockCall).not.toHaveBeenCalled();
+    });
+
+    it('should use fullName split when serverName missing', async () => {
+      const mockCall = jest.fn().mockResolvedValue({});
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      await strategy.executor(mockBridge, { fullName: 'server1:tool1' });
+      expect(mockBridge._isCacheable).toHaveBeenCalledWith('server1', 'tool1');
+    });
+
+    it('should default sampleParams to empty when missing', async () => {
+      const mockCall = jest.fn().mockResolvedValue({});
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      await strategy.executor(mockBridge, { fullName: 'server1:tool1' });
+      expect(mockCall).toHaveBeenCalledWith('server1:tool1', {}, { skipCache: false });
+    });
+
+    it('should skip inner call when tool not cacheable', async () => {
+      const mockCall = jest.fn().mockResolvedValue({});
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1', serverName: 'server1' }]]]),
+        _isCacheable: jest.fn().mockReturnValue(false),
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      await strategy.executor(mockBridge, items[0]);
+      expect(mockCall).not.toHaveBeenCalled();
+    });
+
+    it('should ignore call errors during preheating', async () => {
+      const mockCall = jest.fn().mockRejectedValue(new Error('call failed'));
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1' }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: mockCall
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      await expect(strategy.executor(mockBridge, items[0])).resolves.toBeUndefined();
+    });
+
+    it('should handle items with no inputSchema', async () => {
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1' }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: jest.fn().mockResolvedValue({})
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      expect(items[0].sampleParams).toEqual({});
+    });
+
+    it('should handle empty inputSchema object', async () => {
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1', inputSchema: {} }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: jest.fn().mockResolvedValue({})
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      expect(items[0].sampleParams).toEqual({});
+    });
+
+    it('should return empty params when no required fields', async () => {
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1', inputSchema: { properties: { optional: { type: 'number' } } } }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: jest.fn().mockResolvedValue({})
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      expect(items[0].sampleParams).toEqual({});
+    });
+
+    it('should only include required schema properties', async () => {
+      const mockBridge = {
+        clients: new Map([['server1', {}]]),
+        serverToTools: new Map([['server1', [{ fullName: 'server1:tool1', inputSchema: { properties: { required: { type: 'string' }, optional: { type: 'number' } }, required: ['required'] } }]]]),
+        _isCacheable: jest.fn().mockReturnValue(true),
+        call: jest.fn().mockResolvedValue({})
+      };
+      const p = createMCPToolPreheater(mockBridge);
+      const strategy = p.warmupStrategies.get('mcp-tools');
+      const items = await strategy.items();
+      expect(items[0].sampleParams).toEqual({ required: '' });
     });
   });
 
@@ -303,6 +479,58 @@ describe('CachePreheater', () => {
       preheater.registerStrategy('noop', { items: [], executor: jest.fn() });
       const result = await preheater.preheat({});
       expect(result.preheated).toContain('ok-key');
+    });
+
+    it('should skip item without executor when bridge is cacheable', async () => {
+      preheater.warmupQueue.push({
+        name: 'noexec-item',
+        key: 'noexec-key',
+        data: {},
+        addedAt: Date.now()
+      });
+      preheater.registerStrategy('noop', { items: [], executor: jest.fn() });
+      const mockBridge = { _isCacheable: () => true };
+      const result = await preheater.preheat(mockBridge);
+      expect(result.preheated).toContain('noexec-key');
+    });
+
+    it('should proceed when item without executor and bridge not cacheable', async () => {
+      preheater.warmupQueue.push({
+        name: 'plain-item',
+        key: 'plain-key',
+        data: {},
+        addedAt: Date.now()
+      });
+      preheater.registerStrategy('noop', { items: [], executor: jest.fn() });
+      const mockBridge = {};
+      const result = await preheater.preheat(mockBridge);
+      expect(result.preheated).toContain('plain-key');
+    });
+
+    it('should JSON stringify failing items without key or name', async () => {
+      const failingExecutor = jest.fn().mockRejectedValue(new Error('boom'));
+      preheater.registerStrategy('raw-fail', {
+        priority: 10,
+        items: [{ someField: 'value' }],
+        executor: failingExecutor
+      });
+      const result = await preheater.preheat({});
+      expect(result.failed[0].key).toBe(JSON.stringify({ someField: 'value' }));
+    });
+  });
+
+  describe('_preheatStrategy direct', () => {
+    it('should work with default options', async () => {
+      const executor = jest.fn().mockResolvedValue();
+      preheater.registerStrategy('direct', {
+        priority: 10,
+        items: [{ key: 'k1' }],
+        executor
+      });
+      const strategy = preheater.warmupStrategies.get('direct');
+      const result = await preheater._preheatStrategy(strategy, {});
+      expect(result.preheated).toContain('k1');
+      expect(executor).toHaveBeenCalled();
     });
   });
 
