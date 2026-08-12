@@ -1258,3 +1258,23 @@ Session 锚点: 2026-08-12 (第5次 — StaticAnalyzer 全覆盖 100/100/100/100
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,096, 较基线 16,082 +14) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (static-analyzer.test.js + AGENTS.md), src/skills/security/StaticAnalyzer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/static-analyzer.test.js` (111→125)
+
+---
+
+Session 锚点: 2026-08-12 (第6次 — CanvasExecutor 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **327 passed suites / 4 skipped / 0 failed** (16,161 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/executors/CanvasExecutor.js: 100 stmts / 99.58 branch / 100 funcs / 100 lines** (1607 行, 161 tests, 96→161) — 剩余 2 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: StaticAnalyzer 77.6% 已清 → 下一目标 CanvasExecutor 77.9% branch (被 api.js:107 + SkillToNode.js:283/312 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 65 测试 (gap→test 映射)**:
+  - execute 默认 action (L12 `inputs.action || 'create'`); createCanvas gradient 方向缺省 (L81)/未知方向 (L96 false) / filePath (L139); createCanvasWithElements 空 elements+mkdir (L192)/absolute 缺 x/y 用 padding (L227-228)/filePath (L243)
+  - createChart 默认 chartType/data/labels (L272-274 default-arg)/未知类型 (L316)/filePath (L325)/skill 无 name (L285)/bar+line label 回退 (L372/L424)/line showValues:false (L427)
+  - createIcon 全 8 图标 fill:true 分支 (直接调 draw 方法 — check/cross/star/heart/user/settings/default 用 ctx.fill, arrow-right/cross 用 lineWidth+stroke)/filePath (L584)/mkdir (L534/587)
+  - createBanner filePath (L882)/skill name (L824)/背景图加载失败 warn (L858)/mkdir (L826/885)
+  - editCanvas/addText/addShape/applyFilter/resize/addGradient: filePath 缺失 throw (`!filePath` 短路 L958/1011/1066/1127/1228/1287) + outputDir mkdir
+  - addGradient 空 colors (L1318 false, 无 addColorStop)
+  - drawElement 全默认值兜底: rectangle 默认尺寸 (L1380)/stroke:false (L1382)/roundedRectangle 默认 (L1388)/ellipse 默认半径 (L1404)/triangle 默认 (L1415-1417)/polygon+star 默认 (L1428/1432)/text+strokeText 空 text `|| ''` (L1446/1448/1464)/lineWidth+opacity (L1369/1373)/image width-only/height-only/no-dim/src 缺失
+- **断言坑**: icon fill 分支不全是 ctx.fill — cross/arrow-right 的 fill=true 走 lineWidth+stroke (断言 lineWidth 3/4 而非 fill); `drawStarIcon` 默认 fill=true 导致 stroke 分支需显式 fill=false; addGradient invalid direction 会 crash (L1307/1310 false 不可达); createChart L273 default-arg 是 `data` 非 labels
+- **结构性不可达 2 分支 (探针证实)**: L1307 (direction 非 horizontal/diagonal) + L1310 (gradientType 非 linear/radial) → `gradient` undefined → L1316 `gradient.addColorStop` 抛 TypeError
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,161, 较基线 16,096 +65) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (canvas-executor.test.js + AGENTS.md), src/skills/executors/CanvasExecutor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/canvas-executor.test.js` (96→161)

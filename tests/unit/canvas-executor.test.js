@@ -69,6 +69,13 @@ describe('CanvasExecutor', () => {
       spy.mockRestore();
     });
 
+    it('defaults action to create when missing', async () => {
+      const spy = jest.spyOn(CanvasExecutor, 'createCanvas').mockResolvedValue({});
+      await CanvasExecutor.execute({});
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
     it('dispatches to createCanvasWithElements for "createWithElements"', async () => {
       const spy = jest.spyOn(CanvasExecutor, 'createCanvasWithElements').mockResolvedValue({});
       await CanvasExecutor.execute({ action: 'createWithElements' });
@@ -218,6 +225,23 @@ describe('CanvasExecutor', () => {
       expect(fs.mkdirSync).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
+
+    it('defaults gradient direction to vertical when missing', async () => {
+      await CanvasExecutor.createCanvas({ backgroundColor: 'gradient::#ff0,#00f' });
+      expect(mockCtx.createLinearGradient).toHaveBeenCalledWith(0, 0, 0, 600);
+    });
+
+    it('ignores unknown gradient direction', async () => {
+      await CanvasExecutor.createCanvas({ backgroundColor: 'gradient:diag:#ff0,#00f' });
+      expect(mockCtx.createLinearGradient).not.toHaveBeenCalled();
+      expect(mockCtx.createRadialGradient).not.toHaveBeenCalled();
+    });
+
+    it('uses filePath for output when provided', async () => {
+      const result = await CanvasExecutor.createCanvas({ filePath: 'out.png' });
+      expect(result.path).toContain('out.png');
+      expect(fs.writeFileSync).toHaveBeenCalled();
+    });
   });
 
   // ===================== createCanvasWithElements =====================
@@ -250,6 +274,30 @@ describe('CanvasExecutor', () => {
     it('draws title when provided', async () => {
       await CanvasExecutor.createCanvasWithElements({ elements, title: 'My Grid' });
       expect(mockCtx.fillText).toHaveBeenCalledWith('My Grid', 400, 50);
+    });
+
+    it('works with default empty elements and creates uploads dir', async () => {
+      fs.existsSync.mockReturnValue(false);
+      const result = await CanvasExecutor.createCanvasWithElements({});
+      expect(fs.mkdirSync).toHaveBeenCalled();
+      expect(result.elementsCount).toBe(0);
+    });
+
+    it('uses element x/y when provided in absolute layout', async () => {
+      const absElements = [{ type: 'circle', x: 50, y: 100, color: '#f00' }];
+      await CanvasExecutor.createCanvasWithElements({ elements: absElements, layout: 'absolute' });
+      expect(mockCtx.arc).toHaveBeenCalledWith(50, 100, 25, 0, 2 * Math.PI);
+    });
+
+    it('uses padding defaults when element x/y missing in absolute layout', async () => {
+      const absElements = [{ type: 'circle', color: '#f00' }];
+      await CanvasExecutor.createCanvasWithElements({ elements: absElements, layout: 'absolute' });
+      expect(mockCtx.arc).toHaveBeenCalledWith(40, 40, 25, 0, 2 * Math.PI);
+    });
+
+    it('uses filePath for output when provided', async () => {
+      const result = await CanvasExecutor.createCanvasWithElements({ elements, filePath: 'grid.png' });
+      expect(result.path).toContain('grid.png');
     });
   });
 
@@ -293,6 +341,58 @@ describe('CanvasExecutor', () => {
     it('skips value labels when showValues is false', async () => {
       const result = await CanvasExecutor.createChart({ chartType: 'bar', data, labels, showValues: false });
       expect(result.chartType).toBe('bar');
+    });
+
+    it('uses default chartType when not provided', async () => {
+      const result = await CanvasExecutor.createChart({ data });
+      expect(result.chartType).toBe('bar');
+    });
+
+    it('uses default data when not provided', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'bar' });
+      expect(result.dataPoints).toBe(0);
+    });
+
+    it('uses default labels when not provided', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'bar', data });
+      expect(result.chartType).toBe('bar');
+    });
+
+    it('handles unknown chartType gracefully', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'scatter', data, labels });
+      expect(result.chartType).toBe('scatter');
+    });
+
+    it('uses filePath for output when provided', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'bar', data, labels, filePath: 'chart.png' });
+      expect(result.path).toContain('chart.png');
+    });
+
+    it('falls back to point numbers when labels shorter than data', async () => {
+      await CanvasExecutor.createChart({ chartType: 'bar', data: [10, 20, 30], labels: ['A'] });
+      expect(mockCtx.fillText).toHaveBeenCalled();
+    });
+
+    it('falls back to point numbers in line chart labels', async () => {
+      await CanvasExecutor.createChart({ chartType: 'line', data: [10, 20, 30], labels: ['A'] });
+      expect(mockCtx.fillText).toHaveBeenCalled();
+    });
+
+    it('skips value labels in line chart when showValues is false', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'line', data, labels, showValues: false });
+      expect(result.chartType).toBe('line');
+    });
+
+    it('falls back to unknown skill name when inputs.skill has no name', async () => {
+      const result = await CanvasExecutor.createChart({ chartType: 'bar', data, labels, skill: {} });
+      expect(result).toBeDefined();
+    });
+
+    it('creates uploads directory when missing', async () => {
+      fs.existsSync.mockReturnValue(false);
+      const result = await CanvasExecutor.createChart({ chartType: 'bar', data, labels });
+      expect(fs.mkdirSync).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
   });
 
@@ -344,6 +444,47 @@ describe('CanvasExecutor', () => {
       await CanvasExecutor.createIcon({ iconType: 'check', backgroundColor: '#fff', size: 128 });
       expect(mockCtx.fillRect).toHaveBeenCalledWith(0, 0, 128, 128);
     });
+
+    it('fills each icon type when fill is true', async () => {
+      CanvasExecutor.drawCheckIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawCrossIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.lineWidth).toBe(4);
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawArrowRightIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.lineWidth).toBe(3);
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawStarIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawStarIcon(mockCtx, 32, 32, 1, false);
+      expect(mockCtx.stroke).toHaveBeenCalled();
+      mockCtx.stroke.mockClear();
+      CanvasExecutor.drawHeartIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawUserIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawSettingsIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+      mockCtx.fill.mockClear();
+      CanvasExecutor.drawDefaultIcon(mockCtx, 32, 32, 1, true);
+      expect(mockCtx.fill).toHaveBeenCalled();
+    });
+
+    it('creates uploads directory when missing', async () => {
+      fs.existsSync.mockReturnValue(false);
+      const result = await CanvasExecutor.createIcon({ iconType: 'check' });
+      expect(fs.mkdirSync).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('uses filePath for output when provided', async () => {
+      const result = await CanvasExecutor.createIcon({ iconType: 'check', filePath: 'icon.png' });
+      expect(result.path).toContain('icon.png');
+    });
   });
 
   // ===================== createBanner =====================
@@ -381,6 +522,25 @@ describe('CanvasExecutor', () => {
       expect(loadImage).toHaveBeenCalledWith(imgPath);
       expect(mockCtx.drawImage).toHaveBeenCalled();
     });
+
+    it('warns when background image fails to load', async () => {
+      fs.existsSync.mockReturnValueOnce(true);
+      loadImage.mockRejectedValueOnce(new Error('corrupt image'));
+      await CanvasExecutor.createBanner({ backgroundImage: '/tmp/bg.png' });
+      expect(console.warn).toHaveBeenCalled();
+    });
+
+    it('creates uploads directory when missing', async () => {
+      fs.existsSync.mockReturnValue(false);
+      const result = await CanvasExecutor.createBanner({});
+      expect(fs.mkdirSync).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it('uses filePath for output and skill name', async () => {
+      const result = await CanvasExecutor.createBanner({ filePath: 'banner.png', skill: { name: 'design' } });
+      expect(result.path).toContain('banner.png');
+    });
   });
 
   // ===================== editCanvas =====================
@@ -399,6 +559,16 @@ describe('CanvasExecutor', () => {
       fs.existsSync.mockReturnValueOnce(false);
       await expect(CanvasExecutor.editCanvas({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.editCanvas({})).rejects.toThrow('File not found');
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.editCanvas({ filePath: '/tmp/old.png', elements: [] });
+      expect(fs.mkdirSync).toHaveBeenCalled();
     });
   });
 
@@ -424,6 +594,16 @@ describe('CanvasExecutor', () => {
       await expect(CanvasExecutor.addTextToCanvas({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
     });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.addTextToCanvas({})).rejects.toThrow('File not found');
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.addTextToCanvas({ filePath: '/tmp/img.png', text: 'hi' });
+      expect(fs.mkdirSync).toHaveBeenCalled();
+    });
   });
 
   // ===================== addShapeToCanvas =====================
@@ -440,6 +620,16 @@ describe('CanvasExecutor', () => {
       fs.existsSync.mockReturnValueOnce(false);
       await expect(CanvasExecutor.addShapeToCanvas({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.addShapeToCanvas({})).rejects.toThrow('File not found');
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.addShapeToCanvas({ filePath: '/tmp/img.png', shape: 'rectangle' });
+      expect(fs.mkdirSync).toHaveBeenCalled();
     });
   });
 
@@ -490,6 +680,16 @@ describe('CanvasExecutor', () => {
       await expect(CanvasExecutor.applyFilter({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
     });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.applyFilter({})).rejects.toThrow('File not found');
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.applyFilter({ filePath: '/tmp/img.png', filter: 'grayscale' });
+      expect(fs.mkdirSync).toHaveBeenCalled();
+    });
   });
 
   // ===================== resizeCanvas =====================
@@ -512,6 +712,22 @@ describe('CanvasExecutor', () => {
       fs.existsSync.mockReturnValueOnce(false);
       await expect(CanvasExecutor.resizeCanvas({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.resizeCanvas({})).rejects.toThrow('File not found');
+    });
+
+    it('resizes when aspect ratio constraint requires height reduction', async () => {
+      const result = await CanvasExecutor.resizeCanvas({ filePath: '/tmp/img.png', width: 300, height: 200 });
+      expect(createCanvas).toHaveBeenCalled();
+      expect(result.originalHeight).toBe(100);
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.resizeCanvas({ filePath: '/tmp/img.png', width: 200, height: 300 });
+      expect(fs.mkdirSync).toHaveBeenCalled();
     });
   });
 
@@ -542,10 +758,25 @@ describe('CanvasExecutor', () => {
       await CanvasExecutor.addGradient({ filePath: '/tmp/img.png', colors: ['#f00'] });
     });
 
+    it('handles empty colors without color stops', async () => {
+      await CanvasExecutor.addGradient({ filePath: '/tmp/img.png', colors: [] });
+      expect(mockCtx.fillRect).toHaveBeenCalled();
+    });
+
     it('throws if file not found', async () => {
       fs.existsSync.mockReturnValueOnce(false);
       await expect(CanvasExecutor.addGradient({ filePath: '/tmp/none.png' }))
         .rejects.toThrow('File not found');
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(CanvasExecutor.addGradient({})).rejects.toThrow('File not found');
+    });
+
+    it('creates output directory when missing', async () => {
+      fs.existsSync.mockReturnValueOnce(true).mockReturnValue(false);
+      await CanvasExecutor.addGradient({ filePath: '/tmp/img.png' });
+      expect(fs.mkdirSync).toHaveBeenCalled();
     });
   });
 
@@ -646,6 +877,151 @@ describe('CanvasExecutor', () => {
     it('warns for unknown element type', async () => {
       await CanvasExecutor.drawElement(mockCtx, { type: 'unknownType', color: '#f00' });
       expect(console.warn).toHaveBeenCalledWith('Unknown element type: unknownType');
+    });
+
+    it('applies lineWidth and opacity when provided', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'circle', x: 0, y: 0, lineWidth: 3, opacity: 0.5, color: '#f00' });
+      expect(mockCtx.lineWidth).toBe(3);
+      expect(mockCtx.globalAlpha).toBe(0.5);
+    });
+
+    it('draws circle with fill=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'circle', x: 10, y: 10, radius: 5, fill: false });
+      expect(mockCtx.fill).not.toHaveBeenCalled();
+      expect(mockCtx.stroke).toHaveBeenCalled();
+    });
+
+    it('draws circle with stroke=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'circle', x: 10, y: 10, radius: 5, stroke: false });
+      expect(mockCtx.fill).toHaveBeenCalled();
+      expect(mockCtx.stroke).not.toHaveBeenCalled();
+    });
+
+    it('draws ellipse with fill=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'ellipse', x: 50, y: 50, radiusX: 40, radiusY: 20, fill: false });
+      expect(mockCtx.fill).not.toHaveBeenCalled();
+      expect(mockCtx.stroke).toHaveBeenCalled();
+    });
+
+    it('draws ellipse with stroke=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'ellipse', x: 50, y: 50, radiusX: 40, radiusY: 20, stroke: false });
+      expect(mockCtx.fill).toHaveBeenCalled();
+      expect(mockCtx.stroke).not.toHaveBeenCalled();
+    });
+
+    it('draws triangle with fill=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'triangle', x: 0, y: 0, width: 100, height: 100, fill: false });
+      expect(mockCtx.fill).not.toHaveBeenCalled();
+      expect(mockCtx.stroke).toHaveBeenCalled();
+    });
+
+    it('draws triangle with stroke=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'triangle', x: 0, y: 0, width: 100, height: 100, stroke: false });
+      expect(mockCtx.fill).toHaveBeenCalled();
+      expect(mockCtx.stroke).not.toHaveBeenCalled();
+    });
+
+    it('draws text with maxWidth', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'text', x: 10, y: 20, text: 'long', maxWidth: 80 });
+      expect(mockCtx.fillText).toHaveBeenCalledWith('long', 10, 20, 80);
+    });
+
+    it('draws text with maxWidth and empty text fallback', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'text', x: 10, y: 20, maxWidth: 80 });
+      expect(mockCtx.fillText).toHaveBeenCalledWith('', 10, 20, 80);
+    });
+
+    it('draws strokeText with lineWidth', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'strokeText', x: 10, y: 20, text: 'hi', lineWidth: 2 });
+      expect(mockCtx.lineWidth).toBe(2);
+      expect(mockCtx.strokeText).toHaveBeenCalledWith('hi', 10, 20);
+    });
+
+    it('draws line with default endpoints', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'line', x: 0, y: 0 });
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(100, 100);
+    });
+
+    it('draws bezier with default control points', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'bezier', x: 0, y: 0 });
+      expect(mockCtx.bezierCurveTo).toHaveBeenCalled();
+    });
+
+    it('draws image with width only', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'image', x: 0, y: 0, src: '/tmp/photo.png', width: 50 });
+      expect(mockCtx.drawImage).toHaveBeenCalled();
+    });
+
+    it('draws image with height only', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'image', x: 0, y: 0, src: '/tmp/photo.png', height: 40 });
+      expect(mockCtx.drawImage).toHaveBeenCalled();
+    });
+
+    it('draws image without dimensions', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'image', x: 0, y: 0, src: '/tmp/photo.png' });
+      expect(mockCtx.drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0);
+    });
+
+    it('skips image when src missing', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'image', x: 0, y: 0 });
+      expect(mockCtx.drawImage).not.toHaveBeenCalled();
+    });
+
+    it('draws arc with default angles', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'arc', x: 50, y: 50 });
+      expect(mockCtx.arc).toHaveBeenCalled();
+    });
+
+    it('draws arcFill with default angles', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'arcFill', x: 50, y: 50 });
+      expect(mockCtx.arc).toHaveBeenCalled();
+    });
+
+    it('draws rectangle with default dimensions and stroke=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'rectangle', x: 0, y: 0 });
+      expect(mockCtx.fillRect).toHaveBeenCalledWith(0, 0, 100, 50);
+      expect(mockCtx.strokeRect).toHaveBeenCalledWith(0, 0, 100, 50);
+    });
+
+    it('draws rectangle with stroke=false', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'rectangle', x: 0, y: 0, width: 40, height: 20, stroke: false });
+      expect(mockCtx.fillRect).toHaveBeenCalledWith(0, 0, 40, 20);
+      expect(mockCtx.strokeRect).not.toHaveBeenCalled();
+    });
+
+    it('draws roundedRectangle with default dimensions', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'roundedRectangle', x: 0, y: 0 });
+      expect(mockCtx.quadraticCurveTo).toHaveBeenCalled();
+    });
+
+    it('draws ellipse with default radii', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'ellipse', x: 50, y: 50 });
+      expect(mockCtx.ellipse).toHaveBeenCalledWith(50, 50, 50, 30, 0, 0, 2 * Math.PI);
+    });
+
+    it('draws triangle with default dimensions', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'triangle', x: 0, y: 0 });
+      expect(mockCtx.closePath).toHaveBeenCalled();
+    });
+
+    it('draws polygon with default radius and sides', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'polygon', x: 50, y: 50 });
+      expect(mockCtx.closePath).toHaveBeenCalled();
+    });
+
+    it('draws star with default radii and points', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'star', x: 50, y: 50 });
+      expect(mockCtx.closePath).toHaveBeenCalled();
+    });
+
+    it('draws text with default props and empty text', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'text', x: 10, y: 20 });
+      expect(mockCtx.fillText).toHaveBeenCalledWith('', 10, 20);
+    });
+
+    it('draws strokeText with empty text', async () => {
+      await CanvasExecutor.drawElement(mockCtx, { type: 'strokeText', x: 10, y: 20 });
+      expect(mockCtx.strokeText).toHaveBeenCalledWith('', 10, 20);
     });
   });
 
