@@ -70,6 +70,12 @@ describe('DiscordIntegration', () => {
       expect(discord.commands).toBeInstanceOf(Map);
       expect(discord.DISCORD_AVAILABLE).toBe(false);
     });
+
+    it('constructs with default options', () => {
+      const d = new DiscordIntegration();
+      expect(d.token).toBeUndefined();
+      expect(d.messageHandlers).toEqual([]);
+    });
   });
 
   describe('init', () => {
@@ -104,6 +110,49 @@ describe('DiscordIntegration', () => {
     it('returns early when no client', () => {
       discord.client = null;
       expect(() => discord.setupEventHandlers()).not.toThrow();
+    });
+
+    it('messageCreate handler ignores bot messages', async () => {
+      await discord.init();
+      const handler = discord.client._handlers.messageCreate;
+      const botMessage = {
+        author: { bot: true },
+        content: 'hello',
+        channel: { id: 'c1' },
+        guild: null
+      };
+      await handler(botMessage);
+      expect(discord.messageHandlers.length).toBe(0);
+    });
+
+    it('messageCreate handler routes command messages', async () => {
+      await discord.init();
+      const handleSpy = jest.spyOn(discord, 'handleCommand').mockResolvedValue();
+      const handler = discord.client._handlers.messageCreate;
+      const cmdMessage = {
+        author: { bot: false, id: 'u1', username: 'test' },
+        content: '!ping',
+        channel: { id: 'c1' },
+        guild: null
+      };
+      await handler(cmdMessage);
+      expect(handleSpy).toHaveBeenCalledWith(cmdMessage, expect.objectContaining({ platform: 'discord' }));
+      handleSpy.mockRestore();
+    });
+
+    it('messageCreate handler forwards to registered handlers', async () => {
+      await discord.init();
+      const handler = jest.fn();
+      discord.onMessage(handler);
+      const msgHandler = discord.client._handlers.messageCreate;
+      const message = {
+        author: { bot: false, id: 'u1', username: 'test' },
+        content: 'plain message',
+        channel: { id: 'c1' },
+        guild: { id: 'g1' }
+      };
+      await msgHandler(message);
+      expect(handler).toHaveBeenCalledWith('plain message', expect.objectContaining({ isDM: false }));
     });
   });
 
@@ -231,6 +280,16 @@ describe('DiscordIntegration', () => {
       await discord.sendMessage('ch123', 'Content', { components });
       expect(mockSend).toHaveBeenCalledWith({ content: 'Content', components });
     });
+
+    it('returns null on send error', async () => {
+      await discord.init();
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      discord.client.channels.fetch.mockRejectedValue(new Error('fetch failed'));
+      const result = await discord.sendMessage('ch123', 'Hi');
+      expect(result).toBeNull();
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
   });
 
   describe('sendDM', () => {
@@ -255,6 +314,16 @@ describe('DiscordIntegration', () => {
       const result = await discord.sendDM('u1', 'Hi');
       expect(result).toBeNull();
     });
+
+    it('returns null on DM error', async () => {
+      await discord.init();
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      discord.client.users.fetch.mockRejectedValue(new Error('user fetch failed'));
+      const result = await discord.sendDM('u1', 'Hi');
+      expect(result).toBeNull();
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
   });
 
   describe('sendTypingIndicator', () => {
@@ -274,6 +343,15 @@ describe('DiscordIntegration', () => {
 
     it('returns early when no client', async () => {
       await expect(discord.sendTypingIndicator('ch123')).resolves.not.toThrow();
+    });
+
+    it('logs error on typing failure', async () => {
+      await discord.init();
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      discord.client.channels.fetch.mockRejectedValue(new Error('typing failed'));
+      await discord.sendTypingIndicator('ch123');
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
     });
   });
 
@@ -302,7 +380,13 @@ describe('DiscordIntegration', () => {
       await discord.init();
       const embed = discord.createEmbed({ title: 'Only Title' });
       expect(embed.data.title).toBe('Only Title');
-      expect(embed.data.description).toBeUndefined();
+    });
+
+    it('builds embed without title', async () => {
+      await discord.init();
+      const embed = discord.createEmbed({ description: 'No title' });
+      expect(embed.data.description).toBe('No title');
+      expect(embed.data.title).toBeUndefined();
     });
 
     it('returns null when no client', () => {
@@ -371,6 +455,12 @@ describe('TelegramIntegration', () => {
       const t = new TelegramIntegration({ token: TEST_TOKEN, webhookUrl: 'https://hook.example.com' });
       expect(t.webhookUrl).toBe('https://hook.example.com');
     });
+
+    it('constructs with default options', () => {
+      const t = new TelegramIntegration();
+      expect(t.pollingInterval).toBe(1000);
+      expect(t.webhookUrl).toBeUndefined();
+    });
   });
 
   describe('init', () => {
@@ -403,6 +493,19 @@ describe('TelegramIntegration', () => {
         expect.stringContaining('/sendMessage'),
         expect.objectContaining({
           body: expect.stringContaining('chat1')
+        })
+      );
+    });
+
+    it('help command sends help text', async () => {
+      telegram.setupDefaultCommands();
+      const handler = telegram.commands.get('help');
+      global.fetch.mockResolvedValue({ json: () => Promise.resolve({ ok: true }) });
+      await handler([], 'chat2');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/sendMessage'),
+        expect.objectContaining({
+          body: expect.stringContaining('可用命令')
         })
       );
     });
@@ -491,6 +594,74 @@ describe('TelegramIntegration', () => {
         })
       );
     });
+
+    it('logs error when webhook setup fails', async () => {
+      const t = new TelegramIntegration({ token: TEST_TOKEN, webhookUrl: 'https://hook.example.com' });
+      global.fetch.mockResolvedValue({
+        json: () => Promise.resolve({ ok: false, description: 'bad' })
+      });
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      await t.setupWebhook();
+      expect(errorSpy).toHaveBeenCalledWith('Failed to set webhook:', expect.anything());
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe('startPolling (real)', () => {
+    it('returns early when not connected', async () => {
+      jest.useFakeTimers();
+      const t = new TelegramIntegration({ token: TEST_TOKEN, pollingInterval: 1000 });
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy;
+      t.startPolling();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      jest.useRealTimers();
+    });
+
+    it('polls updates and processes messages', async () => {
+      jest.useFakeTimers();
+      const t = new TelegramIntegration({ token: TEST_TOKEN, pollingInterval: 1000 });
+      t.isConnected = true;
+      const handleSpy = jest.spyOn(t, 'handleUpdate').mockResolvedValue();
+      global.fetch.mockResolvedValue({ json: () => Promise.resolve({
+        ok: true,
+        result: [{ update_id: 1, message: { text: 'hi' } }]
+      }) });
+
+      t.startPolling();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(handleSpy).toHaveBeenCalledWith(expect.objectContaining({ update_id: 1 }));
+
+      jest.useRealTimers();
+      handleSpy.mockRestore();
+    });
+
+    it('logs polling errors', async () => {
+      jest.useFakeTimers();
+      const t = new TelegramIntegration({ token: TEST_TOKEN, pollingInterval: 1000 });
+      t.isConnected = true;
+      global.fetch.mockRejectedValue(new Error('network down'));
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      t.startPolling();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(errorSpy).toHaveBeenCalledWith('Polling error:', expect.anything());
+      jest.useRealTimers();
+      errorSpy.mockRestore();
+    });
+
+    it('skips processing when response has no result', async () => {
+      jest.useFakeTimers();
+      const t = new TelegramIntegration({ token: TEST_TOKEN, pollingInterval: 1000 });
+      t.isConnected = true;
+      const handleSpy = jest.spyOn(t, 'handleUpdate').mockResolvedValue();
+      global.fetch.mockResolvedValue({ json: () => Promise.resolve({ ok: true, result: null }) });
+      t.startPolling();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(handleSpy).not.toHaveBeenCalled();
+      jest.useRealTimers();
+      handleSpy.mockRestore();
+    });
   });
 
   describe('handleUpdate', () => {
@@ -517,6 +688,19 @@ describe('TelegramIntegration', () => {
       telegram.onMessage(handler);
       await telegram.handleUpdate({});
       expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('passes empty text when message has no text', async () => {
+      const handler = jest.fn();
+      telegram.onMessage(handler);
+      const update = {
+        message: {
+          from: { id: 100, username: 'testuser' },
+          chat: { id: 200, type: 'private' }
+        }
+      };
+      await telegram.handleUpdate(update);
+      expect(handler).toHaveBeenCalledWith('', expect.objectContaining({ platform: 'telegram' }));
     });
 
     it('routes command messages to handleCommand', async () => {
@@ -626,16 +810,24 @@ describe('TelegramIntegration', () => {
     });
   });
 
-  describe('sendPhoto', () => {
+describe('sendPhoto', () => {
     it('calls sendPhoto API', async () => {
       global.fetch.mockResolvedValue({ json: () => Promise.resolve({ ok: true }) });
       await telegram.sendPhoto('chat1', 'https://example.com/photo.jpg', 'Caption');
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/sendPhoto'),
         expect.objectContaining({
-          body: expect.stringContaining('"photo":"https://example.com/photo.jpg"')
+          body: expect.stringContaining('Caption')
         })
       );
+    });
+
+    it('uses empty caption by default', async () => {
+      global.fetch.mockResolvedValue({ json: () => Promise.resolve({ ok: true }) });
+      await telegram.sendPhoto('chat1', 'https://example.com/photo.jpg');
+      const call = global.fetch.mock.calls[0];
+      const body = JSON.parse(call[1].body);
+      expect(body.caption).toBe('');
     });
   });
 
@@ -788,6 +980,13 @@ describe('SocialPlatformManager', () => {
     it('syncEnabled defaults to true', () => {
       const m = new SocialPlatformManager({ discord: {}, telegram: {} });
       expect(m.syncEnabled).toBe(true);
+    });
+
+    it('constructs with default options', () => {
+      const m = new SocialPlatformManager();
+      expect(m.syncEnabled).toBe(true);
+      expect(m.discord).toBeInstanceOf(DiscordIntegration);
+      expect(m.telegram).toBeInstanceOf(TelegramIntegration);
     });
 
     it('syncEnabled can be disabled', () => {

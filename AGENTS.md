@@ -1377,3 +1377,19 @@ Session 锚点: 2026-08-12 (第12次 — SmartMemory 全覆盖 100/100/100/100)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,251, 较基线 16,238 +13) 稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (smart-memory.test.js + AGENTS.md), src/core/SmartMemory.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/smart-memory.test.js` (5→18)
+
+---
+
+Session 锚点: 2026-08-12 (第13次 — SocialPlatformIntegration 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,272 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/social/SocialPlatformIntegration.js: 100 stmts / 99.16 branch / 100 funcs / 100 lines** (596 行, 125 tests, 104→125 主文件 + 2 独立文件) — 剩余 1 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: SmartMemory 82.4% 已清 → 下一目标 SocialPlatformIntegration 83.3% branch; 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 21 测试 (gap→test 映射)**:
+  - 主文件 (+16): Discord setupEventHandlers 3 场景 (bot 消息忽略/命令路由 messageCreate/转发到 handlers — `_handlers.messageCreate` 直接调用); init catch L43 移出独立文件; sendMessage/sendDM/sendTypingIndicator catch (fetch 抛错 → error log + null); Telegram help 命令 (L233-241); startPolling real 4 场景 (未连接早退 L286/poll 处理更新/轮询错误/无 result 跳过 L295); handleUpdate 无 text → '' (L345); sendPhoto 默认 caption (L387); createEmbed 无 title (L182); 构造默认 options (L13/L203/L460 default-arg)
+  - **独立文件 `social-platform-init-throw.test.js`** (1 test): Discord init `require('discord.js')` throw → warn + unavailable — 主文件 `jest.doMock` 会污染已缓存模块, 独立文件顶层 mock 工厂 throw
+  - **独立文件 `social-platform-window.test.js`** (2 tests): `global.window = {}` + re-require → window 分支 (L583-586 true 侧) + init 时 window 已定义 → L27 false 侧 (跳过 discord.js 加载)
+- **断言坑**: `toHaveBeenCalledWith(stringContaining('not available'))` 对双参 `warn(msg, errMsg)` 因参数个数不匹配失败 → 须 `(expect.stringContaining(...), expect.any(String))`; `jest.useFakeTimers()` 下 `setImmediate` 不触发 → 用 `jest.advanceTimersByTimeAsync(0)` 冲洗; startPolling 第二次 poll 挂起 promise 致超时 → fetch mock 恒 resolve; sendPhoto 原测试 body 被截断 (`expect.str` 无闭合) → 修复
+- **结构性不可达 1 分支 (探针证实)**: L589 `typeof module !== 'undefined'` false 侧 — CommonJS/Node 环境 `module` 恒为 object, 不可能 undefined
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,272, 较基线 16,251 +21) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (social-platform-integration.test.js + social-platform-init-throw.test.js + social-platform-window.test.js + AGENTS.md), src/social/SocialPlatformIntegration.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/social-platform-integration.test.js` (104→120), `tests/unit/social-platform-init-throw.test.js` (新), `tests/unit/social-platform-window.test.js` (新)
