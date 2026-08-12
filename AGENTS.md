@@ -1242,3 +1242,19 @@ Session 锚点: 2026-08-12 (第4次 — MultiDimensionPredictor 全覆盖至可�
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,082, 较基线 16,053 +29) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (multi-dimension-predictor.test.js + AGENTS.md), src/core/MultiDimensionPredictor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/multi-dimension-predictor.test.js` (5→34)
+
+---
+
+Session 锚点: 2026-08-12 (第5次 — StaticAnalyzer 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **327 passed suites / 4 skipped / 0 failed** (16,096 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/security/StaticAnalyzer.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (1213 行, 125 tests, 111→125)
+- **全量 src 覆盖扫描账本**: MultiDimensionPredictor 77.6% 已清 → 下一目标 StaticAnalyzer 77.6% branch (src 内零生产引用 — 仅 `OptimizationDashboard.js:229` 注释提及, 但 07-30 批次已有专属测试 111 条); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 14 测试 (gap→test 映射)**:
+  - `analyzeJavaScript` 集成 ESLint 路径: `mockSafeExec.mockReturnValue(JSON)` → `_isESLintAvailable()` true → L99 true 侧 (`_runESLint` 输出并入 errors/warnings); `mockSafeExec.mockImplementation(throw)` → L99 false 侧 (跳过 ESLint, 内置 NO_EVAL 仍检出)
+  - `analyzePython` 集成 Bandit 路径: 同上 L145 true/false 两侧 (B201 并入 errors / 跳过 Bandit 保留 NO_EXEC)
+  - `_runBandit` 边界: `JSON.parse` 输出无 `results` 字段 → `banditResults.results || []` 兜底 (L1086); result 无 `test_id` → `'BANDIT'` 兜底 (L1088)
+  - `analyzeSkillPackage` switch 补齐: `.java`/`.go`/`.rs` (spy 各 analyzer 断言被调) / `.cpp`+`.h` (analyzeCpp ×2) / `.c` (analyzeCpp 单次); 风险等级阶梯: score<50→high / <70→medium / ≥85→minimal (现有 70→low 已覆盖)
+- **断言坑**: `mockSafeExec` 默认 `mockImplementation(() => '')` 恒 truthy → `_isESLintAvailable`/`_isBanditAvailable` 默认 true, 集成测试必须显式 mock JSON 或 throw 才能分别命中 true/false 侧; analyzeSkillPackage 的 `.h` 归属 cpp 组 (analyzeCpp 调用次数 ×2), `.c` 单独走 analyzeCpp
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,096, 较基线 16,082 +14) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (static-analyzer.test.js + AGENTS.md), src/skills/security/StaticAnalyzer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/static-analyzer.test.js` (111→125)

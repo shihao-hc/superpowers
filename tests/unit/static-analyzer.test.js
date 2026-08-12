@@ -195,6 +195,20 @@ describe('StaticAnalyzer', () => {
       expect(res.errors).toHaveLength(0);
       expect(res.score).toBe(100);
     });
+
+    it('runs ESLint when available', async () => {
+      mockSafeExec.mockReturnValue(JSON.stringify([{ messages: [
+        { ruleId: 'no-eval', message: 'eval is bad', severity: 2, line: 1, column: 1 }
+      ]}]));
+      const res = await analyzer.analyzeJavaScript('eval("x")');
+      expect(res.errors.some((e) => e.rule === 'no-eval')).toBe(true);
+    });
+
+    it('skips ESLint when not available', async () => {
+      mockSafeExec.mockImplementation(() => { throw new Error('eslint not found'); });
+      const res = await analyzer.analyzeJavaScript('eval("x")');
+      expect(res.errors.some((e) => e.rule === 'NO_EVAL')).toBe(true);
+    });
   });
 
   /* ========== PYTHON ========== */
@@ -329,6 +343,20 @@ describe('StaticAnalyzer', () => {
     it('returns clean for safe Python code', async () => {
       const res = await analyzer.analyzePython('import os\nx = 1\nprint(x)');
       expect(res.errors).toHaveLength(0);
+    });
+
+    it('runs Bandit when available', async () => {
+      mockSafeExec.mockReturnValue(JSON.stringify({ results: [
+        { test_id: 'B201', issue_text: 'exec used', issue_severity: 'HIGH', line_number: 5, issue_confidence: 'HIGH' }
+      ]}));
+      const res = await analyzer.analyzePython('exec("x")');
+      expect(res.errors.some((e) => e.rule === 'B201')).toBe(true);
+    });
+
+    it('skips Bandit when not available', async () => {
+      mockSafeExec.mockImplementation(() => { throw new Error('bandit not found'); });
+      const res = await analyzer.analyzePython('exec("x")');
+      expect(res.errors.some((e) => e.rule === 'NO_EXEC')).toBe(true);
     });
   });
 
@@ -876,6 +904,21 @@ describe('StaticAnalyzer', () => {
       expect(res.errors).toHaveLength(0);
       expect(res.warnings).toHaveLength(0);
     });
+
+    it('handles bandit output without results field', async () => {
+      mockSafeExec.mockReturnValue(JSON.stringify({ issue: 'no results key' }));
+      const res = await analyzer._runBandit('x = 1', 'safe.py');
+      expect(res.errors).toHaveLength(0);
+      expect(res.warnings).toHaveLength(0);
+    });
+
+    it('defaults rule to BANDIT when test_id missing', async () => {
+      mockSafeExec.mockReturnValue(JSON.stringify({ results: [
+        { issue_text: 'generic issue', issue_severity: 'HIGH', line_number: 3, issue_confidence: 'MEDIUM' }
+      ]}));
+      const res = await analyzer._runBandit('exec("x")', 'test.py');
+      expect(res.errors[0].rule).toBe('BANDIT');
+    });
   });
 
   /* ========== ANALYZE SKILL PACKAGE ========== */
@@ -930,6 +973,102 @@ describe('StaticAnalyzer', () => {
       const report = await analyzer.analyzeSkillPackage('/some/skill');
       expect(report.overallScore).toBe(70);
       expect(report.riskLevel).toBe('low');
+    });
+
+    it('analyzes Java files', async () => {
+      fs.readdirSync.mockReturnValue(['Main.java']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('public class Main {}');
+      const spy = jest.spyOn(analyzer, 'analyzeJava').mockResolvedValue({
+        filename: 'Main.java', errors: [], warnings: [], info: [], score: 100, riskLevel: 'low', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(spy).toHaveBeenCalled();
+      expect(report.summary.filesAnalyzed).toBe(1);
+    });
+
+    it('analyzes Go files', async () => {
+      fs.readdirSync.mockReturnValue(['main.go']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('package main');
+      const spy = jest.spyOn(analyzer, 'analyzeGo').mockResolvedValue({
+        filename: 'main.go', errors: [], warnings: [], info: [], score: 100, riskLevel: 'low', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(spy).toHaveBeenCalled();
+      expect(report.summary.filesAnalyzed).toBe(1);
+    });
+
+    it('analyzes Rust files', async () => {
+      fs.readdirSync.mockReturnValue(['lib.rs']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('fn main() {}');
+      const spy = jest.spyOn(analyzer, 'analyzeRust').mockResolvedValue({
+        filename: 'lib.rs', errors: [], warnings: [], info: [], score: 100, riskLevel: 'low', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(spy).toHaveBeenCalled();
+      expect(report.summary.filesAnalyzed).toBe(1);
+    });
+
+    it('analyzes C++ files', async () => {
+      fs.readdirSync.mockReturnValue(['main.cpp', 'util.h']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('int main() { return 0; }');
+      const spy = jest.spyOn(analyzer, 'analyzeCpp').mockResolvedValue({
+        filename: 'main.cpp', errors: [], warnings: [], info: [], score: 100, riskLevel: 'low', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(report.summary.filesAnalyzed).toBe(2);
+    });
+
+    it('analyzes C files', async () => {
+      fs.readdirSync.mockReturnValue(['main.c']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('int main() { return 0; }');
+      const spy = jest.spyOn(analyzer, 'analyzeCpp').mockResolvedValue({
+        filename: 'main.c', errors: [], warnings: [], info: [], score: 100, riskLevel: 'low', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(spy).toHaveBeenCalled();
+      expect(report.summary.filesAnalyzed).toBe(1);
+    });
+
+    it('marks risk level high when score below 50', async () => {
+      fs.readdirSync.mockReturnValue(['a.js']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('eval("x")');
+      jest.spyOn(analyzer, 'analyzeJavaScript').mockResolvedValue({
+        filename: 'a.js', errors: [{ severity: 'error' }], warnings: [], info: [], score: 40, riskLevel: 'high', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(report.overallScore).toBe(40);
+      expect(report.riskLevel).toBe('high');
+    });
+
+    it('marks risk level medium when score below 70', async () => {
+      fs.readdirSync.mockReturnValue(['a.js']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('eval("x")');
+      jest.spyOn(analyzer, 'analyzeJavaScript').mockResolvedValue({
+        filename: 'a.js', errors: [{ severity: 'error' }], warnings: [], info: [], score: 60, riskLevel: 'medium', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(report.overallScore).toBe(60);
+      expect(report.riskLevel).toBe('medium');
+    });
+
+    it('marks risk level minimal when score at least 85', async () => {
+      fs.readdirSync.mockReturnValue(['a.js']);
+      fs.statSync.mockReturnValue({ isFile: () => true });
+      fs.readFileSync.mockReturnValue('const x = 1');
+      jest.spyOn(analyzer, 'analyzeJavaScript').mockResolvedValue({
+        filename: 'a.js', errors: [], warnings: [], info: [], score: 90, riskLevel: 'minimal', suggestions: []
+      });
+      const report = await analyzer.analyzeSkillPackage('/some/skill');
+      expect(report.overallScore).toBe(90);
+      expect(report.riskLevel).toBe('minimal');
     });
   });
 
