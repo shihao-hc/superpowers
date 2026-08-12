@@ -1292,3 +1292,20 @@ Session 锚点: 2026-08-12 (第7次 — SkillToNode 全覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 328/4/0 (16,175, 较基线 16,161 +14 = 11 主文件 + 3 独立) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (skill-to-node.test.js + skill-to-node-global-skip.test.js + AGENTS.md), src/skills/SkillToNode.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/skill-to-node.test.js` (73→84), `tests/unit/skill-to-node-global-skip.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第8次 — EvolutionCycle 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **329 passed suites / 4 skipped / 0 failed** (16,186 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/utils/EvolutionCycle.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (99 行, 11 tests, 新文件 `tests/unit/evolution-cycle.test.js`)
+- **全量 src 覆盖扫描账本**: SkillToNode 78.2% 已清 → 下一目标 EvolutionCycle 80% branch (100% stmts, 被 BrainSystem.js:211 生产引用 `this._evolutionCycle = require('../utils/EvolutionCycle')`); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 无专属测试文件 — 现有覆盖来自 `tests/BrainSystem.test.js` 经 BrainSystem 跑到 80% (predictIssues + _runEvolutionCycle 已覆盖, 缺 startEvolutionLoop/stopEvolutionLoop 的循环管理分支) → 新增直接测单例 `EvolutionCycle` (module.exports = new EvolutionCycle()) + `makeMockBrain()` helper mock bs
+- **新增 11 测试 (gap→test 映射)**:
+  - predictIssues 4 场景: 干净状态 (lesson total≤10 + decisionCount≤20 + recentLearnings 非空 → 全空) / low-lesson-usage (total 20/applied 3 → `applied/total<0.3`) / pattern-extraction (decisionCount 30) / no-learning (recentLearnings `[]` → `===0`)
+  - startEvolutionLoop 3 场景: 启动+初始周期+定时触发 (fake timers 推进 5000ms 断言 _runEvolutionCycle 2 次) / 默认 interval 300000 (log 含 '300000') / 已在运行早退 (bs.evolutionLoop 预置 → log '已在运行' + 不调用)
+  - stopEvolutionLoop 2 场景: 运行时清除+log / 无循环 no-op
+  - _runEvolutionCycle 2 场景: 全周期 (monitor/predict/plan/complete 4 steps + evolution.learn + duration) / autoExecuted 失败 log '失败' (L80 cond-expr 双侧)
+- **断言坑**: `evolution.getStats().recentLearnings` 默认 `[]` 会触发 no-learning 风险 → 干净状态 mock 必须给非空 recentLearnings 才能断言全空; fake timers 测试须在断言后 `jest.useRealTimers()` + `clearInterval` 防泄漏
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,186, 较基线 16,175 +11) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (evolution-cycle.test.js + AGENTS.md), src/utils/EvolutionCycle.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/evolution-cycle.test.js` (新)
