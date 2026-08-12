@@ -1202,3 +1202,23 @@ Session 锚点: 2026-08-12 (第2次 — SelfLearningSystem 全覆盖 100/100/100
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,026, 较基线 15,996 +30 = 22 + 8) 稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (self-learning-system.test.js + self-learning-system-storage.test.js + AGENTS.md), src/core/SelfLearningSystem.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/self-learning-system.test.js` (71→93), `tests/unit/self-learning-system-storage.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第3次 — ProactiveThinking 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **327 passed suites / 4 skipped / 0 failed** (16,053 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/ProactiveThinking.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (185 行, 32 tests, 5→32) — 工厂 `createProactiveThinking(persistence)` 返回对象字面量
+- **全量 src 覆盖扫描账本**: SelfLearningSystem 76.8% 已清 → 下一目标 ProactiveThinking 76% branch (被 BrainSystem.js:31 生产引用 `createProactiveThinking(Persistence)`); 更低项均为低价值 (IntegrationTests 测试工具 / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 原测试只走 BrainSystem 静态方法 (`proactiveThink`/`getProactiveStatus`), 隔离跑仅 5 tests / 62.66% branch → 新增直接测工厂 describe: `pt = factory(persistence)` + 手塞 `pt._patternLearner` mock (注入 predict/getTopIntent/_intentCount 可控), persistence mock 注入 load/save
+- **新增 27 测试 (gap→test 映射)**:
+  - `think()` 无参 → default-arg L48 (userInput=''/context={})
+  - `_saveState` catch L44 (persistence.save 抛错 → console.error); `_init` load 抛错用默认值
+  - `predict()` 返回 falsy → `|| {}` 兜底 (L98/L118); nextPossible 长度>0 但 confidence ≤0.7 (L98)/≤0.5 (L118) 不推送
+  - 打印分支: insights 存在 (L87 forEach 打印); predictions.topIntent 真 + nextPossible[0] 无 confidence → 'N/A' (L84); 建议存在 questions 空 → L77 false 侧; 全空不打印
+  - generateQuestions 三类型 (prediction/review/clarification); generateSuggestions 关键词组 (中文 '优化一下性能' 匹配 `/优化|性能|速度/`) + 空输入
+  - generateInsights `_intentCount>5` 有/无; maybeReview 10 倍数有/无
+  - getStatus: saved 值优先 + live getTopIntent 覆盖 / saved 全 0 → live 值 / 无 patternLearner (L160/162 false) / load 抛错 catch → live / catch 时 getTopIntent null → L175 `|| null` 右侧
+- **断言坑**: 关键词正则用中文 (`/优化|性能|速度/`), 'optimize performance' 不匹配; `'coding'.includes('code')`=false; `jest.clearAllMocks()` 必须加进直接 describe beforeEach (否则 predict mockReturnValue 跨测试泄漏致 think 日志误判); `pt._patternLearner` 在 think 内惰性创建 → beforeEach 直接赋值覆盖; afterEach restoreAllMocks 清 console spy
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,053, 较基线 16,026 +27) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (proactive-thinking.test.js + AGENTS.md), src/core/ProactiveThinking.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/proactive-thinking.test.js` (5→32)
