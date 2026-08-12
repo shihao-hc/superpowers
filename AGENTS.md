@@ -1222,3 +1222,23 @@ Session 锚点: 2026-08-12 (第3次 — ProactiveThinking 全覆盖 100/100/100/
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,053, 较基线 16,026 +27) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (proactive-thinking.test.js + AGENTS.md), src/core/ProactiveThinking.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/proactive-thinking.test.js` (5→32)
+
+---
+
+Session 锚点: 2026-08-12 (第4次 — MultiDimensionPredictor 全覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **327 passed suites / 4 skipped / 0 failed** (16,082 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/MultiDimensionPredictor.js: 100 stmts / 95.52 branch / 100 funcs / 100 lines** (174 行, 34 tests, 5→34) — 剩余 3 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: ProactiveThinking 76% 已清 → 下一目标 MultiDimensionPredictor 77.6% branch (被 BrainSystem.js:24 + UnifiedIntelligence.js:9 生产引用); 更低项均为低价值 (IntegrationTests 测试工具 / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 原测试只走 BrainSystem 静态方法 (`predict`/`learnInteraction`), 隔离跑仅 5 tests / 50.74% branch → 新增直接测类 describe: `new MultiDimensionPredictor()` + `jest.useFakeTimers().setSystemTime()` 控制 `new Date().getHours()` 时段分支
+- **新增 29 测试 (gap→test 映射)**:
+  - 构造默认 dimensions; learn 记录/默认 arg (null skill/action)/历史超限 shift (`_maxHistory=3` + 4 条)
+  - `_getTimeSlot` 4 时段边界 (6/12/18/22 + 5) — 用 fake timers 控 Date
+  - `predict()` 无参默认 context; 4 关键词意图分支 (写/创建, 优化/性能, 安全) + history_trend fallback + no_data; `_predictSkill` history_trend + time_based; `_predictNextAction` 有/无 action; `_predictTimeBased` 无数据/有活动 (fake timers morning); `_findSlotActivity` 空/无 intent/top intent; `_getTop` 空; `_getTopFromArray` 空/entry 数组/plain 数组; `_countOccurrences`; predict 置信度聚合
+- **结构性不可达 3 分支 (探针证实, 参考 SandboxRunner/BrainSystem 最大可达模式)**:
+  - L71 `scores.length > 0 ? avg : 0` 的 `: 0` — `_predictSkill` 恒返回 time_based 0.4 → scores 恒非空
+  - L115 `timeMap[timeSlot] || null` 的 `|| null` — `_getTimeSlot` 恒返回 4 个合法 key, timeMap[slot] 恒 truthy
+  - L163 `sorted.length > 0 ? sorted[0][0] : null` 的 `: null` — L159 守卫 `entries.length===0` 已拦, 三元两侧均保留 ≥1 项
+- **断言坑**: `predict('test')` 命中 `测试|test` 关键词 → 置信度 0.55 非 0 (别用 'test' 测空); `_findSlotActivity('morning')` 按 `h.hour` 过滤 → 必须 fake timers 固定 learn 时区, 否则真实当前小时不匹配 target slot; `jest.spyOn(Date,'now')` 不影响 `new Date().getHours()` → 用 `jest.useFakeTimers().setSystemTime()`
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 327/4/0 (16,082, 较基线 16,053 +29) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (multi-dimension-predictor.test.js + AGENTS.md), src/core/MultiDimensionPredictor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/multi-dimension-predictor.test.js` (5→34)
