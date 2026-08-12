@@ -1361,3 +1361,19 @@ Session 锚点: 2026-08-12 (第11次 — SkillValidator 全覆盖至可达上限
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,238, 较基线 16,212 +26) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (skill-validator.test.js + AGENTS.md), src/skills/SkillValidator.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/skill-validator.test.js` (46→72)
+
+---
+
+Session 锚点: 2026-08-12 (第12次 — SmartMemory 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **329 passed suites / 4 skipped / 0 failed** (16,251 passed / 46 skipped) 稳定 clean exit (第2轮 1 失败为预存 personality-manager flaky, 第3轮复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/SmartMemory.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (85 行, 18 tests, 5→18)
+- **全量 src 覆盖扫描账本**: SkillValidator 81.9% 已清 → 下一目标 SmartMemory 82.4% branch (被 BrainSystem.js:23 生产引用 `require('./SmartMemory')`); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 原测试只走 BrainSystem 静态方法 (`smartStore`/`smartSearch`), 隔离跑仅 5 tests / 52.94% branch → 新增直接测类 describe: `new SmartMemory()`
+- **新增 13 测试 (gap→test 映射)**:
+  - store 超 maxSize 淘汰 (L26-27, `_maxSize=2` + 3 store → shift+delete); store 基本
+  - search: key 命中 score 2 > value 命中 score 1 (L45/46); 单字符词跳过 (`word.length<2` L44 continue); value-only 命中; 无词命中 → score 0 → L49 false 侧返回空
+  - getRecent 默认 limit 10 (L58 default-arg) + 显式 limit; getKeys (L63); getStats (L78); _extractTags 命中关键词 (function/class/fix/bug/code L71) + 无关键词空
+- **断言坑**: `_index` 以 `timestamp` 为 key — 同毫秒多次 store 会互相覆盖 (仅 1 条) → 淘汰测试须 `jest.useFakeTimers().setSystemTime()` 推进毫秒区分
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 329/4/0 (16,251, 较基线 16,238 +13) 稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (smart-memory.test.js + AGENTS.md), src/core/SmartMemory.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/smart-memory.test.js` (5→18)
