@@ -65,6 +65,13 @@ describe('SkillAutoLoader', () => {
       expect(autoLoader.metrics.loadSuccess).toBe(0);
       expect(autoLoader.metrics.loadFailure).toBe(0);
     });
+
+    it('should use default configPath when not provided', () => {
+      fs.existsSync.mockReturnValue(false);
+      autoLoader = new SkillAutoLoader();
+      expect(autoLoader.configPath).toContain('skill-auto-load.json');
+      expect(autoLoader.config).toBeTruthy();
+    });
   });
 
   describe('isEnabled', () => {
@@ -108,6 +115,15 @@ describe('SkillAutoLoader', () => {
       autoLoader = new SkillAutoLoader({ configPath });
       expect(autoLoader.getStartupSkills()).toEqual(['using-superpowers']);
     });
+
+    it('should fall back to default when loadOnStartup missing', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({
+        skillAutoLoad: { enabled: true },
+      }));
+      autoLoader = new SkillAutoLoader({ configPath });
+      expect(autoLoader.getStartupSkills()).toEqual(['using-superpowers']);
+    });
   });
 
   describe('getConfiguredSkills', () => {
@@ -132,6 +148,13 @@ describe('SkillAutoLoader', () => {
       expect(skills).toHaveProperty('using-superpowers');
       expect(skills).toHaveProperty('brainstorming');
       expect(skills).toHaveProperty('systematic-debugging');
+    });
+
+    it('should return empty when behavior missing', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({ skillAutoLoad: {} }));
+      autoLoader = new SkillAutoLoader({ configPath });
+      expect(autoLoader.getConfiguredSkills()).toEqual({});
     });
   });
 
@@ -234,6 +257,13 @@ describe('SkillAutoLoader', () => {
         expect(s).toHaveProperty('description');
       }
     });
+
+    it('should use default priority 999 when skill has no priority', () => {
+      autoLoader.config.behavior.skills['no-priority'] = { trigger: 'always' };
+      const skills = autoLoader.getSkillsForTaskType('anything');
+      const skill = skills.find((s) => s.name === 'no-priority');
+      expect(skill.priority).toBe(999);
+    });
   });
 
   describe('getSkillsForMessage', () => {
@@ -272,6 +302,15 @@ describe('SkillAutoLoader', () => {
 
     it('should return defaults when config missing', () => {
       fs.existsSync.mockReturnValue(false);
+      autoLoader = new SkillAutoLoader({ configPath });
+      const rules = autoLoader.getRules();
+      expect(rules.requireSkillBeforeAction).toBe(true);
+      expect(rules.fallbackSkill).toBe('using-superpowers');
+    });
+
+    it('should return defaults when config has no rules', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({ skillAutoLoad: { enabled: true } }));
       autoLoader = new SkillAutoLoader({ configPath });
       const rules = autoLoader.getRules();
       expect(rules.requireSkillBeforeAction).toBe(true);
@@ -317,6 +356,16 @@ describe('SkillAutoLoader', () => {
       const metrics = autoLoader.getMetrics();
       expect(metrics.successRate).toBe('66.67%');
     });
+
+    it('should accumulate metrics for existing skill', () => {
+      fs.existsSync.mockReturnValue(false);
+      autoLoader = new SkillAutoLoader({ configPath });
+      autoLoader.recordInteraction('user1', 'skill-a', 'ctx', true);
+      autoLoader.recordInteraction('user1', 'skill-a', 'ctx', false);
+      const metrics = autoLoader.getMetrics();
+      expect(metrics.bySkill['skill-a'].total).toBe(2);
+      expect(metrics.bySkill['skill-a'].success).toBe(1);
+    });
   });
 
   describe('recordInteraction', () => {
@@ -340,6 +389,15 @@ describe('SkillAutoLoader', () => {
         'ctx', 'user1', ['s1'], [], 3
       );
     });
+
+    it('should default conversationHistory to empty array', () => {
+      fs.existsSync.mockReturnValue(false);
+      autoLoader = new SkillAutoLoader({ configPath });
+      autoLoader.getRLRecommendations('ctx', 'user1', ['s1']);
+      expect(autoLoader.rlRecommender.recommendSkills).toHaveBeenCalledWith(
+        'ctx', 'user1', ['s1'], [], 3
+      );
+    });
   });
 
   describe('validateSkill', () => {
@@ -357,6 +415,13 @@ describe('SkillAutoLoader', () => {
       fs.existsSync.mockReturnValue(false);
       autoLoader = new SkillAutoLoader({ configPath });
       autoLoader.getProactiveSuggestion('ctx', 'user1', []);
+      expect(autoLoader.rlRecommender.getProactiveSuggestion).toHaveBeenCalledWith('ctx', 'user1', []);
+    });
+
+    it('should default conversationHistory to empty array', () => {
+      fs.existsSync.mockReturnValue(false);
+      autoLoader = new SkillAutoLoader({ configPath });
+      autoLoader.getProactiveSuggestion('ctx', 'user1');
       expect(autoLoader.rlRecommender.getProactiveSuggestion).toHaveBeenCalledWith('ctx', 'user1', []);
     });
   });
