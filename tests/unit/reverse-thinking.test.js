@@ -382,5 +382,31 @@ describe('ReverseThinking', () => {
     test('prioritize with index beyond array returns medium urgency', () => {
       expect(rt.prioritize('p', 5).urgency).toBe('medium');
     });
+
+    test('generateRecommendations skips fix when no root cause', () => {
+      const recs = rt.generateRecommendations({
+        fiveWhys: [{ answer: null }, { answer: null }],
+        premortem: { mitigation: ['m1'] },
+        successAnalysis: {}
+      });
+      expect(recs.some(r => r.type === 'fix')).toBe(false);
+      expect(recs.some(r => r.type === 'prevent')).toBe(true);
+    });
+
+    test('getDomainCause returns default when domain matches but no problem', () => {
+      const causes = rt.getDomainCause('我想了解代码相关的内容但没有具体问题');
+      expect(causes.length).toBeGreaterThan(0);
+    });
+
+    test('reverseInfer returns causes for unknown observation', () => {
+      const result = rt.reverseInfer('完全未知的观察xyz');
+      expect(result.conclusion).toContain('可能原因');
+      expect(result.causes.length).toBeGreaterThan(0);
+    });
+
+    test('deepSearchCauses handles unknown observation', () => {
+      const result = rt.deepSearchCauses('完全未知的观察xyz');
+      expect(Array.isArray(result)).toBe(true);
+    });
   });
 });

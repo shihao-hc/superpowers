@@ -1524,3 +1524,19 @@ Session 锚点: 2026-08-12 (第20次 — AdaptiveOptimizer 覆盖至可达上限
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,369, 较基线 16,361 +8) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (adaptive-optimizer.test.js + AGENTS.md), src/skills/optimization/AdaptiveOptimizer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/adaptive-optimizer.test.js` (70→78)
+
+---
+
+Session 锚点: 2026-08-12 (第21次 — ReverseThinking 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,373 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/ReverseThinking.js: 100 stmts / 88.52 branch / 100 funcs / 100 lines** (599 行, 58 tests, 54→58) — 剩余 7 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: AdaptiveOptimizer 86.8% 已清 → 下一目标 ReverseThinking 86.9% branch (100% stmts, 被 BrainSystem.js:18/97 + BrainAgent 引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 4 测试 (gap→test 映射)**:
+  - generateRecommendations 无根因 → 跳过 fix 保留 prevent (L290 false)
+  - getDomainCause 领域匹配但无具体 problem → 仍返回默认 (L326 true 侧经 matches.some)
+  - reverseInfer/deepSearchCauses 未知观察 → 恒有 causes (验证 findCauses 恒 ≥5)
+- **结构性不可达 7 分支 (探针证实)**: L115/116 (reverseSteps/fiveWhys 恒 ≥5 非空); L150 (getDomainCause 恒 ≥5); L326 (`matches.some` 恒 true 当进入领域块); L355 (`findCauses` 恒补 getDomainCause ≥5 → causes 恒非空); L372 (`getDomainCause` 恒 ≥1); L551 (`fiveWhys` 恒 5 非空)
+- **断言坑**: 测试别期望 "需要更多信息" — findCauses/getDomainCause 恒返回默认 causes (L355 右侧不可达); fromResult 的 reverseSteps/fiveWhys 恒 5 项 → L115/116 fallback 不可达
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,373, 较基线 16,369 +4) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (reverse-thinking.test.js + AGENTS.md), src/core/ReverseThinking.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/reverse-thinking.test.js` (54→58)
