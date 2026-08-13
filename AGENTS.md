@@ -1505,3 +1505,22 @@ Session 锚点: 2026-08-12 (第19次 — middleware/auth 覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,361, 较基线 16,356 +5) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (middleware-auth.test.js + middleware-auth-bcrypt-missing.test.js + AGENTS.md), src/middleware/auth.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/middleware-auth.test.js` (44→48), `tests/unit/middleware-auth-bcrypt-missing.test.js` (新)
+
+---
+
+Session 锚点: 2026-08-12 (第20次 — AdaptiveOptimizer 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,369 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/optimization/AdaptiveOptimizer.js: 100 stmts / 91.91 branch / 100 funcs / 100 lines** (685 行, 78 tests, 70→78) — 剩余 11 分支 v8 探针证实全部为隐式 else (loc2 空)
+- **全量 src 覆盖扫描账本**: auth.js 86.8% 已清 → 下一目标 AdaptiveOptimizer 86.8% branch; 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 8 测试 (gap→test 映射)**:
+  - runOptimizationCycle: 高通过率 (approved 190/rejected 10 → approvalRate 0.95) 触发 review_threshold 调整 (L166-167); 高错误率 (errors 600/total 5000 → 0.12) + 低下载触发 reward_multiplier (L173-174); `_collectMonitorData` 抛错 → catch (L195-196, `jest.spyOn(optimizer,'_collectMonitorData')` throw → result.error)
+  - `_startAutoOptimization`: setInterval 推进触发 runOptimizationCycle (L130)/disabled 早退 (fake timers, 须 `jest.clearAllTimers()` 防上测泄漏)
+  - `_applyReviewThresholdAdjustments`: updateConfig 抛错 → warn (L475, 双参 `expect.any(String)`)
+  - `_loadData`: historyFile 无 optimizations key → `|| []` 右侧 (L101)
+  - `_collectMonitorData`: reviewStats 缺 avgScore → `|| 0` 右侧 (L251)
+  - `generateReport`: history 条目缺 adjustments/recommendations → `|| []`/`?.length || 0` 右侧 (L657/662/678)
+- **结构性不可达 11 分支 (v8 探针证实)**: L179/305/323/349/365/382/411/431/450/499/562 — 全部 `if` 无 else, loc2 为空对象 (隐式 else 无语句)
+- **断言坑**: runOptimizationCycle 的 console.error/warn 双参 → `expect.any(String)` 第二参; fake timers 下 setInterval 跨测试泄漏 → `jest.clearAllTimers()`; 编辑时误把 describe 开头替换成新 describe 致 `_analyzeAndAdjustReviewThresholds` 内容孤儿 → 补回 describe 包裹
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,369, 较基线 16,361 +8) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (adaptive-optimizer.test.js + AGENTS.md), src/skills/optimization/AdaptiveOptimizer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/adaptive-optimizer.test.js` (70→78)

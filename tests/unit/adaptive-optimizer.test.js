@@ -171,6 +171,20 @@ describe('AdaptiveOptimizer', () => {
       expect(optimizer.history[0].timestamp).toBe('2026-06-01T00:00:00Z');
       expect(optimizer.lastOptimization).toBe('2026-06-01T00:00:00Z');
     });
+
+    it('handles history file without optimizations key', () => {
+      jest.clearAllMocks();
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockImplementation((p) => {
+        if (p.includes('optimization-history.json')) {
+          return JSON.stringify({ lastOptimization: '2026-06-01T00:00:00Z' });
+        }
+        return '{}';
+      });
+
+      optimizer._loadData();
+      expect(optimizer.history).toEqual([]);
+    });
   });
 
   describe('_saveData', () => {
@@ -268,6 +282,24 @@ describe('AdaptiveOptimizer', () => {
     });
   });
 
+  describe('_startAutoOptimization', () => {
+    it('starts interval and runs optimization on tick', () => {
+      jest.spyOn(optimizer, 'runOptimizationCycle').mockResolvedValue({});
+      optimizer._startAutoOptimization();
+      jest.advanceTimersByTime(optimizer.config.analysisInterval);
+      expect(optimizer.runOptimizationCycle).toHaveBeenCalled();
+    });
+
+    it('does nothing when disabled', () => {
+      jest.clearAllTimers();
+      optimizer.config.enabled = false;
+      const spy = jest.spyOn(optimizer, 'runOptimizationCycle');
+      optimizer._startAutoOptimization();
+      jest.advanceTimersByTime(optimizer.config.analysisInterval * 2);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getHistory', () => {
     it('returns empty array when no history', () => {
       expect(optimizer.getHistory()).toEqual([]);
@@ -327,6 +359,14 @@ describe('AdaptiveOptimizer', () => {
       expect(report.summary.adjustmentsByType.reward_multiplier).toBe(1);
       expect(report.summary.lastOptimization).toBe('2026-06-15T12:00:00Z');
       expect(report.recentOptimizations).toHaveLength(2);
+    });
+
+    it('handles history entries missing adjustments and recommendations', () => {
+      optimizer.history.push({ timestamp: '2026-06-16T00:00:00Z' });
+      const report = optimizer.generateReport();
+      expect(report.summary.totalAdjustments).toBe(0);
+      expect(report.recentOptimizations[0].adjustments).toBe(0);
+      expect(report.recentOptimizations[0].recommendations).toBe(0);
     });
   });
 
@@ -434,6 +474,14 @@ describe('AdaptiveOptimizer', () => {
       mockRewardSystem.getStats.mockImplementation(() => { throw new Error('fail'); });
       const data = optimizer._collectMonitorData();
       expect(data.rewards.totalPoints).toBe(0);
+    });
+
+    it('defaults review avgScore to 0 when missing', () => {
+      mockReviewWorkflow.getStats.mockReturnValue({
+        pending: 10, approved: 100, rejected: 30
+      });
+      const data = optimizer._collectMonitorData();
+      expect(data.reviews.avgScore).toBe(0);
     });
   });
 
@@ -597,6 +645,19 @@ describe('AdaptiveOptimizer', () => {
           oldValue: 70, newValue: 75, reason: 'test'
         }]);
       }).not.toThrow();
+    });
+
+    it('warns when updateConfig fails', () => {
+      mockReviewWorkflow.updateConfig.mockImplementation(() => {
+        throw new Error('config error');
+      });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      optimizer._applyReviewThresholdAdjustments([{
+        type: 'review_threshold', criterion: 'codeQuality',
+        oldValue: 70, newValue: 75, reason: 'test'
+      }]);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to update review workflow config'), expect.any(String));
+      warnSpy.mockRestore();
     });
   });
 
@@ -775,6 +836,35 @@ describe('AdaptiveOptimizer', () => {
       expect(result.timestamp).toBeDefined();
       expect(Array.isArray(result.adjustments)).toBe(true);
       expect(Array.isArray(result.recommendations)).toBe(true);
+    });
+
+    it('applies review and reward adjustments when detected', async () => {
+      mockReviewWorkflow.getStats.mockReturnValue({
+        pending: 10, approved: 190, rejected: 10, avgScore: 75
+      });
+      mockMonitor.getExecutionStats.mockReturnValue({
+        total: 5000, successful: 4900, failed: 100, avgDuration: 500
+      });
+      mockMonitor.getDownloadStats.mockReturnValue({
+        total: 100, topSkills: ['skill-a']
+      });
+      mockMonitor.getErrorStats.mockReturnValue({
+        total: 600, byType: { timeout: 300, crash: 300 }
+      });
+      const result = await optimizer.runOptimizationCycle();
+      expect(result.adjustments.some((a) => a.type === 'review_threshold')).toBe(true);
+      expect(result.adjustments.some((a) => a.type === 'reward_multiplier')).toBe(true);
+    });
+
+    it('records error when monitor collection throws', async () => {
+      jest.spyOn(optimizer, '_collectMonitorData').mockImplementation(() => {
+        throw new Error('monitor broken');
+      });
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const result = await optimizer.runOptimizationCycle();
+      expect(result.error).toBe('monitor broken');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('优化失败'), expect.any(String));
+      errorSpy.mockRestore();
     });
   });
 });
