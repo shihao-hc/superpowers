@@ -1434,3 +1434,22 @@ Session 锚点: 2026-08-12 (第15次 — BaseLLMAdapter 全覆盖 100/100/100/10
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,309, 较基线 16,285 +24) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (base-llm-adapter.test.js + AGENTS.md), src/multiagent/patterns/BaseLLMAdapter.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/base-llm-adapter.test.js` (53→77)
+
+---
+
+Session 锚点: 2026-08-12 (第16次 — WorkflowTemplate 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,318 passed / 46 skipped) 两次运行一致 clean exit (首轮 1 失败为预存 personality-manager flaky, 复跑通过) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/workflows/WorkflowTemplate.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (708 行, 83 tests, 74→83)
+- **全量 src 覆盖扫描账本**: BaseLLMAdapter 84.7% 已清 → 下一目标 WorkflowTemplate 84.9% branch (99.4% stmts, src 内零生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 利用既有 `createWT({ fileExists: true, preloadTemplates })` 机制注入**缺字段模板** (无 rating/downloads/category) → 触发各 `|| fallback` 右侧; `fs.writeFileSync` mock 抛错触发 `_saveData` catch
+- **新增 9 测试 (gap→test 映射)**:
+  - 构造默认 options (L11 default-arg + L12 dataDir fallback) / templatesFile 无 templates key → `|| {}` 右侧 + 默认初始化 (L32)
+  - getCategories: category 缺失 → 'general' (L621 右侧) / 重复 category 聚合 (L622 false 侧)
+  - getRecommendedTemplates: 缺 rating/downloads (L638-639)/默认 limit 5 (L634 default-arg)
+  - getStats: 缺 downloads/rating (L652/654 右侧)
+  - listTemplates: 缺 rating/downloads 的模板排序 (L496-497) — **须 2+ 模板** (Array.sort 对 ≤1 元素不调 comparator)
+  - _saveData catch: writeFileSync 抛错 → warn (L47)
+- **断言坑**: `createWT({ preloadTemplates })` 默认 `fileExists:false` → 须显式 `fileExists:true` 才走 _loadData; readFileSync mock 须在构造前设置; 空 templates 加载后 `_initDefaultTemplates` 仍会补 4 个默认 (断言 size>0 非 0); `_saveData` warn 双参 → `expect.any(String)` 第二参
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,318, 较基线 16,309 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (workflow-template.test.js + AGENTS.md), src/skills/workflows/WorkflowTemplate.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/workflow-template.test.js` (74→83)

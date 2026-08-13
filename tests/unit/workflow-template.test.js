@@ -92,6 +92,13 @@ describe('WorkflowTemplate', () => {
       expect(wt.getTemplate('weekly-report-workflow')).toBeTruthy();
     });
 
+    test('uses default dataDir when not provided', () => {
+      fs.existsSync.mockReturnValue(false);
+      const wt = new WorkflowTemplate();
+      expect(wt.dataDir).toContain('workflows');
+      expect(wt.templates.size).toBeGreaterThan(0);
+    });
+
     test('loads existing templates from file', () => {
       const existing = { 'custom-1': makeTemplate('custom-1') };
       const wt = createWT({ fileExists: true, preloadTemplates: existing });
@@ -684,6 +691,89 @@ describe('WorkflowTemplate', () => {
       const wt = createWT();
       const id = wt._generateTemplateId('Hello World! @#$', 'user');
       expect(id).toBe('user-hello-world------aabbccdd');
+    });
+  });
+
+  describe('missing-field fallbacks', () => {
+    test('getCategories defaults missing category to general', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'no-cat': { id: 'no-cat', name: 'No Cat', isPublic: true }
+      } });
+      const cats = wt.getCategories();
+      expect(cats.some((c) => c.id === 'general')).toBe(true);
+    });
+
+    test('listTemplates sorts templates without rating/downloads', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'bare1': { id: 'bare1', name: 'Bare One', isPublic: true },
+        'bare2': { id: 'bare2', name: 'Bare Two', isPublic: true }
+      } });
+      const result = wt.listTemplates();
+      expect(result.templates.some((t) => t.id === 'bare1')).toBe(true);
+      expect(result.total).toBe(2);
+    });
+
+    test('loads templates file without templates key and initializes defaults', () => {
+      fs.readFileSync.mockImplementation((p) => {
+        if (p === TEST_TEMPLATES_FILE) {
+          return JSON.stringify({ otherKey: 'x' });
+        }
+        return '';
+      });
+      const wt = createWT({ fileExists: true });
+      expect(wt.templates.size).toBeGreaterThan(0);
+    });
+
+    test('getCategories aggregates duplicate categories', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'a': { id: 'a', name: 'A', category: 'data', isPublic: true },
+        'b': { id: 'b', name: 'B', category: 'data', isPublic: true }
+      } });
+      const cats = wt.getCategories();
+      const dataCat = cats.find((c) => c.id === 'data');
+      expect(dataCat.count).toBe(2);
+    });
+
+    test('getRecommendedTemplates handles templates without rating/downloads', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'bare': { id: 'bare', name: 'Bare', isPublic: true }
+      } });
+      const recs = wt.getRecommendedTemplates(5);
+      expect(recs.some((t) => t.id === 'bare')).toBe(true);
+    });
+
+    test('getRecommendedTemplates uses default limit of 5', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'a': { id: 'a', name: 'A', isPublic: true },
+        'b': { id: 'b', name: 'B', isPublic: true },
+        'c': { id: 'c', name: 'C', isPublic: true },
+        'd': { id: 'd', name: 'D', isPublic: true },
+        'e': { id: 'e', name: 'E', isPublic: true },
+        'f': { id: 'f', name: 'F', isPublic: true }
+      } });
+      const recs = wt.getRecommendedTemplates();
+      expect(recs.length).toBe(5);
+    });
+
+    test('getStats handles templates without downloads/rating', () => {
+      const wt = createWT({ fileExists: true, preloadTemplates: {
+        'bare': { id: 'bare', name: 'Bare', isPublic: true }
+      } });
+      const stats = wt.getStats();
+      expect(stats.totalTemplates).toBe(1);
+      expect(stats.totalDownloads).toBe(0);
+      expect(stats.averageRating).toBe(0);
+    });
+  });
+
+  describe('_saveData error handling', () => {
+    test('warns when save fails', () => {
+      fs.writeFileSync.mockImplementation(() => { throw new Error('disk full'); });
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const wt = createWT();
+      wt.createTemplate({ name: 'Test Save', author: 'me' });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to save workflow templates'), expect.any(String));
+      warnSpy.mockRestore();
     });
   });
 });
