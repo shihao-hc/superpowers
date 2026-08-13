@@ -271,6 +271,22 @@ describe('monkey-patching', () => {
     expect(console.error).toHaveBeenCalled();
   });
 
+  it('addThought works without options argument', () => {
+    thinkingChain.chains.set('c-nopts', { thoughts: [], branches: [], metadata: {} });
+    thinkingChain.addThought('c-nopts', 'thought');
+    expect(fs.appendFileSync).toHaveBeenCalled();
+  });
+
+  it('addThought skips persistence when result is falsy', () => {
+    thinkingChain.addThought('missing-chain', 'thought');
+    expect(fs.appendFileSync).not.toHaveBeenCalled();
+  });
+
+  it('createChain works without metadata argument', () => {
+    thinkingChain.createChain('first thought');
+    expect(fs.appendFileSync).toHaveBeenCalled();
+  });
+
   it('deleteChain cleans up storage and calls original', () => {
     thinkingChain.deleteChain('c1');
     expect(fs.existsSync).toHaveBeenCalled();

@@ -1557,3 +1557,19 @@ Session 锚点: 2026-08-12 (第22次 — DeepIntentAnalyzer 全覆盖 100/100/10
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,382, 较基线 16,373 +9) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (deep-intent-analyzer.test.js + AGENTS.md), src/core/DeepIntentAnalyzer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/deep-intent-analyzer.test.js` (10→19)
+
+---
+
+Session 锚点: 2026-08-12 (第23次 — ThinkingChainStorage 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,385 passed / 46 skipped) 稳定 clean exit (首轮 1 失败为预存 personality-manager flaky, 复跑通过) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/mcp/engines/ThinkingChainStorage.js: 100 stmts / 96.77 branch / 100 funcs / 100 lines** (207 行, 30 tests, 27→30) — 剩余 1 分支探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: DeepIntentAnalyzer 87.1% 已清 → 下一目标 ThinkingChainStorage 87.1% branch (100% stmts, 被 BridgeHealthMonitor.js:8 引用 + module 级 monkey-patch ThinkingChain); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 3 测试 (gap→test 映射)**:
+  - addThought 无 options → default-arg (L139)
+  - addThought 缺失 chain → mock 返回 null → `if (result)` false 跳过持久化 (L142)
+  - createChain 无 metadata → default-arg (L159)
+- **结构性不可达 1 分支 (探针证实)**: L162 createChain wrapper `if (result)` false — 模块加载时 `originalCreateChain` 从 ThinkingChain mock 捕获, mock 恒返回 chain; `jest.spyOn(thinkingChain.createChain)` 会替换 patch 本身而非底层 mock, 无法让 originalCreateChain 返回 falsy
+- **断言坑**: module 级 monkey-patch 在 require 时捕获 `originalAddThought`/`originalCreateChain` (bind 后丢失原 jest.fn 引用) → 无法从外部控制其返回值; `jest.spyOn` patched 函数替换的是 wrapper 非底层 mock
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,385, 较基线 16,382 +3) 稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (mcp-thinking-chain-storage.test.js + AGENTS.md), src/mcp/engines/ThinkingChainStorage.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/mcp-thinking-chain-storage.test.js` (27→30)
