@@ -1453,3 +1453,21 @@ Session 锚点: 2026-08-12 (第16次 — WorkflowTemplate 全覆盖 100/100/100/
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,318, 较基线 16,309 +9) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (workflow-template.test.js + AGENTS.md), src/skills/workflows/WorkflowTemplate.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/workflow-template.test.js` (74→83)
+
+---
+
+Session 锚点: 2026-08-12 (第17次 — NodeWorkflowEngine 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,334 passed / 46 skipped) 两次运行一致 clean exit (首轮 1 失败为预存 personality-manager flaky, 复跑通过) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/workflow/NodeWorkflowEngine.js: 97.79 stmts / 92.26 branch / 100 funcs / 98.97 lines** (770 行, 98 tests, 82→98) — 剩余 2 stmt 区块探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: WorkflowTemplate 84.9% 已清 → 下一目标 NodeWorkflowEngine 85.1% branch (被 SkillToNode.js:1 + workflow/index.js:11 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 16 测试 (gap→test 映射)**:
+  - registerNodeType 无 inputs/outputs/category → `|| []`/`|| '其他'` 右侧 (L275/276/621); text node 无 data → `''` (L86); condition true/false 经 `_executeNode(node.id, inputs)` 直传 (L211 — `_executeSingleNode` 内部 `_getInputs` 忽略传参); loop 无 items → `[]` (L223)
+  - execute 无 workflowId (L339 default-arg); deleteNode 删 target 节点 → 连接过滤第二操作数 (L308); fromJSON 空数据 → `|| []` 右侧 (L664/667)
+  - sequential/parallel 删源节点后残留连接 → 跳过 (L385 防御 guard); 多层依赖并行图
+  - _getInputs: 源节点存在但 output 缺失 → L568 false 侧 (先 connect 真节点再改 connection.output, 不能 push 幽灵连接 — connect 会 throw)
+  - compileExecutionPlan 菱形共享依赖
+- **结构性不可达 2 区块 (探针证实)**: L486-487 并行 `else` 分支 — `checkAndSchedule` 预调度所有 ready 节点进 nodePromises → `available` (pending ∩ 不在 nodePromises) 恒空 → `available.length > 0` 永假; L696 assignLevel 递归 — 初始调用仅限无依赖根节点 (L700-705), 根节点无 deps → 递归永不触发; L385/402/422 `if(!node)` 防御 guard 同理不可达 (`_topologicalSort` 仅产出存在节点)
+- **断言坑**: `_executeSingleNode(node, {inputs})` 不读传参 — inputs 经 `_getInputs` 计算; condition 测试用 `_executeNode(node.id, inputs)` 直传; deleteNode 测第二操作数须删 target 非 source
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,334, 较基线 16,318 +16) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (node-workflow-engine.test.js + AGENTS.md), src/workflow/NodeWorkflowEngine.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/node-workflow-engine.test.js` (82→98)

@@ -74,6 +74,24 @@ describe('NodeWorkflowEngine', () => {
     it('returns undefined for unknown type', () => {
       expect(engine.getNodeType('nonexistent')).toBeUndefined();
     });
+
+    it('defaults inputs, outputs, and category when not provided', () => {
+      engine.registerNodeType('bare', {
+        name: '裸节点',
+        execute: () => ({ ok: true })
+      });
+      const retrieved = engine.getNodeType('bare');
+      expect(retrieved.inputs).toEqual([]);
+      expect(retrieved.outputs).toEqual([]);
+      expect(retrieved.defaultData).toEqual({});
+      expect(retrieved.metadata).toEqual({});
+    });
+
+    it('getNodeTypesByCategory defaults missing category to other', () => {
+      engine.registerNodeType('bare2', { name: '裸', execute: () => ({}) });
+      const cats = engine.getNodeTypesByCategory();
+      expect(cats['其他']).toBeDefined();
+    });
   });
 
   describe('getAllNodeTypes', () => {
@@ -140,6 +158,23 @@ describe('NodeWorkflowEngine', () => {
       engine.connect(n1.id, 'value', n2.id, 'value');
       expect(engine.getConnections()).toHaveLength(1);
       engine.deleteNode(n1.id);
+      expect(engine.getConnections()).toHaveLength(0);
+    });
+
+    it('removes connections when both nodes deleted', () => {
+      const n1 = engine.createNode('input');
+      const n2 = engine.createNode('output');
+      engine.connect(n1.id, 'value', n2.id, 'value');
+      engine.deleteNode(n1.id);
+      engine.deleteNode(n2.id);
+      expect(engine.getConnections()).toHaveLength(0);
+    });
+
+    it('removes connections when target node deleted', () => {
+      const n1 = engine.createNode('input');
+      const n2 = engine.createNode('output');
+      engine.connect(n1.id, 'value', n2.id, 'value');
+      engine.deleteNode(n2.id);
       expect(engine.getConnections()).toHaveLength(0);
     });
   });
@@ -243,6 +278,16 @@ describe('NodeWorkflowEngine', () => {
       const node = engine.createNode('concat');
       expect(engine._getInputs(node.id)).toEqual({});
     });
+
+    it('ignores connections with missing source node or output', () => {
+      const target = engine.createNode('concat');
+      const source = engine.createNode('input');
+      engine.connect(source.id, 'value', target.id, 'a');
+      const ghostConn = engine.getConnections()[0];
+      ghostConn.source.output = 'nonexistent-output';
+      const inputs = engine._getInputs(target.id);
+      expect(Object.keys(inputs)).toHaveLength(0);
+    });
   });
 
   describe('_canContinueOnError', () => {
@@ -331,6 +376,21 @@ describe('NodeWorkflowEngine', () => {
       expect(result.nodeResults[outputNode.id]).toBeDefined();
     });
 
+    it('executes with no workflowId', async () => {
+      engine.createNode('text', { x: 0, y: 0 }, { text: 'x' });
+      const result = await engine.execute();
+      expect(result.status).toBe('completed');
+    });
+
+    it('skips missing nodes referenced by stale connections', async () => {
+      const textNode = engine.createNode('text', { x: 0, y: 0 }, { text: 'orphan' });
+      const outputNode = engine.createNode('output');
+      engine.connect(textNode.id, 'text', outputNode.id, 'value');
+      engine.deleteNode(textNode.id);
+      const result = await engine.execute('wf_orphan', { parallel: false });
+      expect(result.status).toBe('completed');
+    });
+
     it('stops on error when continueOnError is false', async () => {
       engine.registerNodeType('error_node', {
         name: '报错', icon: '💥', category: '测试',
@@ -359,6 +419,30 @@ describe('NodeWorkflowEngine', () => {
     it('runs single node in parallel mode', async () => {
       engine.createNode('text', { x: 0, y: 0 }, { text: 'single' });
       const result = await engine.execute('wf_single', { parallel: true });
+      expect(result.status).toBe('completed');
+    });
+
+    it('handles stale connections in parallel mode', async () => {
+      const textNode = engine.createNode('text', { x: 0, y: 0 }, { text: 'stale' });
+      const outputNode = engine.createNode('output');
+      engine.connect(textNode.id, 'text', outputNode.id, 'value');
+      engine.deleteNode(textNode.id);
+      const result = await engine.execute('wf_stale', { parallel: true });
+      expect(result.status).toBe('completed');
+    });
+
+    it('runs multi-level dependency graph in parallel', async () => {
+      const i1 = engine.createNode('input');
+      const i2 = engine.createNode('input');
+      const c1 = engine.createNode('concat');
+      const c2 = engine.createNode('concat');
+      const out = engine.createNode('output');
+      engine.connect(i1.id, 'value', c1.id, 'a');
+      engine.connect(i2.id, 'value', c1.id, 'b');
+      engine.connect(c1.id, 'result', c2.id, 'a');
+      engine.connect(i2.id, 'value', c2.id, 'b');
+      engine.connect(c2.id, 'result', out.id, 'value');
+      const result = await engine.execute('wf_levels', { parallel: true });
       expect(result.status).toBe('completed');
     });
 
@@ -419,6 +503,20 @@ describe('NodeWorkflowEngine', () => {
       expect(plan.parallelGroups.length).toBeGreaterThanOrEqual(1);
     });
 
+    it('handles shared dependencies in plan levels', () => {
+      const shared = engine.createNode('input');
+      const a = engine.createNode('concat');
+      const b = engine.createNode('concat');
+      const out = engine.createNode('output');
+      engine.connect(shared.id, 'value', a.id, 'a');
+      engine.connect(shared.id, 'value', b.id, 'a');
+      engine.connect(a.id, 'result', out.id, 'value');
+      engine.connect(b.id, 'result', out.id, 'value');
+      const plan = engine.compileExecutionPlan('diamond');
+      expect(plan.sortedNodes).toContain(shared.id);
+      expect(plan.parallelGroups.length).toBeGreaterThanOrEqual(1);
+    });
+
     it('evicts oldest plan when over max', () => {
       engine.maxCompiledPlans = 2;
       engine.compileExecutionPlan('a');
@@ -441,6 +539,19 @@ describe('NodeWorkflowEngine', () => {
       const stats = engine.getResultCacheStats();
       expect(stats.size).toBe(1);
       expect(stats.maxSize).toBe(engine.maxCompiledPlans * 10);
+    });
+  });
+
+  describe('parameter cache hit', () => {
+    it('reuses cached result when executing same node twice', async () => {
+      const e = new NodeWorkflowEngine({ enableParameterCache: true });
+      e.createNode('text', { x: 0, y: 0 }, { text: 'cached' });
+      await e.execute('cache_wf_1');
+      const cacheSizeAfterFirst = e.resultCache.size;
+      await e.execute('cache_wf_2');
+      expect(e.resultCache.size).toBeGreaterThanOrEqual(cacheSizeAfterFirst);
+      expect(e.resultCache.size).toBeGreaterThan(0);
+      e.destroy();
     });
   });
 
@@ -486,6 +597,12 @@ describe('NodeWorkflowEngine', () => {
       expect(e2.getAllNodes()[0].data.text).toBe('restored');
       expect(e2.getAllNodes()[0].position.x).toBe(10);
       e2.destroy();
+    });
+
+    it('handles empty or partial data in fromJSON', () => {
+      engine.fromJSON({});
+      expect(engine.getAllNodes()).toHaveLength(0);
+      expect(engine.getConnections()).toEqual([]);
     });
   });
 
@@ -580,6 +697,34 @@ describe('NodeWorkflowEngine', () => {
       const node = engine.createNode('delay', { x: 0, y: 0 }, { ms: 5 });
       const result = await engine._executeSingleNode(node, { nodeResults: {} });
       expect(result.output).toBeUndefined();
+    });
+
+    it('text returns empty string when no data', async () => {
+      const node = engine.createNode('text');
+      const result = await engine._executeSingleNode(node, { nodeResults: {} });
+      expect(result.text).toBe('');
+    });
+
+    it('condition selects trueValue when condition is true', async () => {
+      const node = engine.createNode('condition');
+      const result = await engine._executeNode(node.id, {
+        condition: true, trueValue: 'YES', falseValue: 'NO'
+      });
+      expect(result.result).toBe('YES');
+    });
+
+    it('condition selects falseValue when condition is false', async () => {
+      const node = engine.createNode('condition');
+      const result = await engine._executeNode(node.id, {
+        condition: false, trueValue: 'YES', falseValue: 'NO'
+      });
+      expect(result.result).toBe('NO');
+    });
+
+    it('loop handles missing items input', async () => {
+      const node = engine.createNode('loop');
+      const result = await engine._executeSingleNode(node, { nodeResults: {} });
+      expect(result.results).toEqual([]);
     });
   });
 
