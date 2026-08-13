@@ -1412,3 +1412,25 @@ Session 锚点: 2026-08-12 (第14次 — enhancedApi 全覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,285, 较基线 16,272 +13) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (enhanced-api.test.js + AGENTS.md), src/skills/enhancedApi.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/enhanced-api.test.js` (78→91)
+
+---
+
+Session 锚点: 2026-08-12 (第15次 — BaseLLMAdapter 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,309 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/multiagent/patterns/BaseLLMAdapter.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (460 行, 77 tests, 53→77) — 含 BaseLLMAdapter + OpenAI/DeepSeek/Google/DashScope/OpenClaw 适配器 + createLLMAdapter 工厂
+- **全量 src 覆盖扫描账本**: enhancedApi 84.6% 已清 → 下一目标 BaseLLMAdapter 84.7% branch (被 multiagent/index.js:18 + examples 引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: mock 传输层 `jest.spyOn(http/https,'request')` 捕获 impl, `impl` 同步 `cb(res)` + 手动 emit data/end/timeout 事件; mockStream 用于 SSE
+- **新增 24 测试 (gap→test 映射)**:
+  - 各适配器构造默认 options (OpenAI/DeepSeek/Google/DashScope/OpenClaw — L56/232/244/333/411 default-arg)
+  - temperature 三阶 `config ?? options ?? 0.7` (L72/87): config=null+options 覆盖 / config=null 无 options → 0.7 / stream 同样 — 关键: BaseLLMAdapter 构造器 L20 已设 `temperature ?? 0.7`, 须传 `temperature: null` 经 `...config` 覆盖后才可达 options/0.7 分支
+  - HTTP error 无 message → `json.error?.message || data` 右侧 (OpenAI L140/Google L297/DashScope L367)
+  - 2xx 非 JSON body → JSON.parse catch → `HTTP status: raw` (Google L300/DashScope L370)
+  - request timeout → req.destroy + reject (Google L307-308/DashScope L377-378)
+  - port falsy: baseUrl 无端口 → `|| 80`/`|| 443` (OpenAI L123/L167/Google L268)
+  - GoogleAdapter http transport → `isHttps ? https : http` false 侧 (L268)
+  - parseResponse content 缺失 → `|| ''` (OpenAI L222/Google L323/DashScope L401)
+  - createLLMAdapter switch 'google'/'dashscope' 直接字符串 (L432/L436, 原只测 gemini/qwen 别名)
+- **断言坑**: `URL.port` 返回**字符串** → `toBe('8888')` 非数字; 超长 filename 经 sanitizeString 先截断后校验, 不触发 isValidFilename>255; 测试编辑时深嵌套 describe 易出现括号失衡/孤儿测试 (OpenClaw/DeepSeek 各 1 次, 均修复)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,309, 较基线 16,285 +24) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (base-llm-adapter.test.js + AGENTS.md), src/multiagent/patterns/BaseLLMAdapter.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/base-llm-adapter.test.js` (53→77)

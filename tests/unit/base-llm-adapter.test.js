@@ -81,6 +81,13 @@ describe('OpenAIAdapter', () => {
     expect(adapter.config.model).toBe('gpt-3.5-turbo');
   });
 
+  test('constructs with default options', () => {
+    const adapter = new OpenAIAdapter();
+    expect(adapter.type).toBe('openai');
+    expect(adapter.config.model).toBe('gpt-3.5-turbo');
+    expect(adapter.config.baseUrl).toContain('api.openai.com');
+  });
+
   describe('_formatMessages', () => {
     test('wraps string in role user', () => {
       const adapter = new OpenAIAdapter({ apiKey: 'test' });
@@ -131,6 +138,14 @@ describe('OpenAIAdapter', () => {
       });
       expect(result.finishReason).toBe('stop');
     });
+
+    test('extracts empty content when message content missing', () => {
+      const adapter = new OpenAIAdapter({ apiKey: 'test' });
+      const result = adapter._parseResponse({
+        choices: [{ message: {} }]
+      });
+      expect(result.content).toBe('');
+    });
   });
 
   describe('generate', () => {
@@ -142,11 +157,60 @@ describe('OpenAIAdapter', () => {
   });
 });
 
+describe('OpenAIAdapter temperature resolution', () => {
+  test('uses options.temperature when config temperature is null', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{"choices":[{"message":{"content":"x"}}]}'] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999', temperature: null });
+    await adapter.generate([{ role: 'user', content: 'hi' }], { temperature: 0.9 });
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.temperature).toBe(0.9);
+  });
+
+  test('uses 0.7 default when neither config nor options temperature set', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{"choices":[{"message":{"content":"x"}}]}'] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999', temperature: null });
+    await adapter.generate([{ role: 'user', content: 'hi' }]);
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.temperature).toBe(0.7);
+  });
+
+  test('uses options.temperature in stream when config temperature is null', async () => {
+    const { req, res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999', temperature: null });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], jest.fn(), { temperature: 0.5 });
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.temperature).toBe(0.5);
+    res.emit('data', 'data: [DONE]\n\n');
+    res.emit('end');
+    await p;
+  });
+
+  test('uses 0.7 default temperature in stream', async () => {
+    const { req, res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999', temperature: null });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], jest.fn());
+    const body = JSON.parse(req.write.mock.calls[0][0]);
+    expect(body.temperature).toBe(0.7);
+    res.emit('data', 'data: [DONE]\n\n');
+    res.emit('end');
+    await p;
+  });
+});
+
 describe('DeepSeekAdapter', () => {
   test('sets type deepseek and default model', () => {
     const adapter = new DeepSeekAdapter({ apiKey: 'test' });
     expect(adapter.type).toBe('deepseek');
     expect(adapter.config.model).toBe('deepseek-chat');
+  });
+
+  test('constructs with default options', () => {
+    const adapter = new DeepSeekAdapter();
+    expect(adapter.type).toBe('deepseek');
   });
 
   test('uses deepseek baseUrl', () => {
@@ -158,6 +222,12 @@ describe('DeepSeekAdapter', () => {
 describe('GoogleAdapter', () => {
   test('sets type google', () => {
     const adapter = new GoogleAdapter({ apiKey: 'test' });
+    expect(adapter.type).toBe('google');
+    expect(adapter.config.model).toBe('gemini-pro');
+  });
+
+  test('constructs with default options', () => {
+    const adapter = new GoogleAdapter();
     expect(adapter.type).toBe('google');
     expect(adapter.config.model).toBe('gemini-pro');
   });
@@ -187,6 +257,14 @@ describe('GoogleAdapter', () => {
       expect(result.usage.promptTokenCount).toBe(5);
     });
 
+    test('extracts empty content when candidate text missing', () => {
+      const adapter = new GoogleAdapter({ apiKey: 'test' });
+      const result = adapter._parseResponse({
+        candidates: [{ content: { parts: [{}] }, finishReason: 'STOP' }]
+      });
+      expect(result.content).toBe('');
+    });
+
     test('throws when no candidates', () => {
       const adapter = new GoogleAdapter({ apiKey: 'test' });
       expect(() => adapter._parseResponse({})).toThrow('No response candidates');
@@ -197,6 +275,12 @@ describe('GoogleAdapter', () => {
 describe('DashScopeAdapter', () => {
   test('sets type dashscope', () => {
     const adapter = new DashScopeAdapter({ apiKey: 'test' });
+    expect(adapter.type).toBe('dashscope');
+    expect(adapter.config.model).toBe('qwen-turbo');
+  });
+
+  test('constructs with default options', () => {
+    const adapter = new DashScopeAdapter();
     expect(adapter.type).toBe('dashscope');
     expect(adapter.config.model).toBe('qwen-turbo');
   });
@@ -214,6 +298,15 @@ describe('DashScopeAdapter', () => {
       expect(result.usage.input_tokens).toBe(3);
     });
 
+    test('extracts empty content when message content missing', () => {
+      const adapter = new DashScopeAdapter({ apiKey: 'test' });
+      const result = adapter._parseResponse({
+        output: { choices: [{ message: {}, finish_reason: 'stop' }] },
+        model: 'qwen-turbo'
+      });
+      expect(result.content).toBe('');
+    });
+
     test('throws when no output', () => {
       const adapter = new DashScopeAdapter({ apiKey: 'test' });
       expect(() => adapter._parseResponse({})).toThrow('No output');
@@ -227,6 +320,12 @@ describe('OpenClawAdapter', () => {
     expect(adapter.type).toBe('openclaw');
     expect(adapter.config.baseUrl).toContain('3002');
     expect(adapter.config.model).toBe('deepseek-web/deepseek-chat');
+  });
+
+  test('constructs with default options', () => {
+    const adapter = new OpenClawAdapter();
+    expect(adapter.type).toBe('openclaw');
+    expect(adapter.config.baseUrl).toContain('3002');
   });
 });
 
@@ -243,8 +342,16 @@ describe('createLLMAdapter', () => {
     expect(createLLMAdapter('gemini', { apiKey: 'k' }).type).toBe('google');
   });
 
+  test('creates Google adapter for "google"', () => {
+    expect(createLLMAdapter('google', { apiKey: 'k' }).type).toBe('google');
+  });
+
   test('creates DashScope adapter for "qwen"', () => {
     expect(createLLMAdapter('qwen', { apiKey: 'k' }).type).toBe('dashscope');
+  });
+
+  test('creates DashScope adapter for "dashscope"', () => {
+    expect(createLLMAdapter('dashscope', { apiKey: 'k' }).type).toBe('dashscope');
   });
 
   test('creates DashScope adapter for "alibaba"', () => {
@@ -330,6 +437,15 @@ describe('OpenAIAdapter HTTP requests', () => {
     expect(body.max_tokens).toBe(512);
   });
 
+  test('generate uses default port when baseUrl has no port', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{"choices":[{"message":{"content":"x"}}]}'] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost' });
+    await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(impl.mock.calls[0][0].port).toBe(80);
+    expect(JSON.parse(req.write.mock.calls[0][0]).messages).toBeDefined();
+  });
+
   test('generate rejects with HTTP error message from JSON', async () => {
     const { impl } = mockResponse({ statusCode: 400, chunks: [JSON.stringify({ error: { message: 'Bad request' } })] });
     installTransport(impl);
@@ -344,6 +460,14 @@ describe('OpenAIAdapter HTTP requests', () => {
     const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
     await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
       .rejects.toThrow('HTTP 500: oops');
+  });
+
+  test('generate rejects with raw body when error message is missing', async () => {
+    const { impl } = mockResponse({ statusCode: 400, chunks: [JSON.stringify({ error: {} })] });
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost:9999' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 400: {"error":{}}');
   });
 
   test('generate rejects on request error', async () => {
@@ -388,6 +512,18 @@ describe('OpenAIAdapter HTTP streaming', () => {
     await p;
     expect(received).toHaveLength(1);
     expect(received[0].choices[0].delta.content).toBe('a');
+  });
+
+  test('streams via http with no port uses default 80', async () => {
+    const { req, res, impl } = mockStream();
+    installTransport(impl);
+    const adapter = new OpenAIAdapter({ apiKey: 'k', baseUrl: 'http://localhost' });
+    const p = adapter.stream([{ role: 'user', content: 'hi' }], jest.fn());
+    expect(impl.mock.calls[0][0].port).toBe(80);
+    expect(JSON.parse(req.write.mock.calls[0][0]).stream).toBe(true);
+    res.emit('data', 'data: [DONE]\n\n');
+    res.emit('end');
+    await p;
   });
 
   test('streams via http and skips malformed JSON lines', async () => {
@@ -456,6 +592,40 @@ describe('GoogleAdapter HTTP requests', () => {
     await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
       .rejects.toThrow('HTTP 429: rate limited');
   });
+
+  test('generate rejects with raw body when 2xx body is not JSON', async () => {
+    const { impl } = mockResponse({ statusCode: 200, chunks: ['not-json-at-all'] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 200: not-json-at-all');
+  });
+
+  test('generate rejects on request timeout', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{}'], emitEnd: false });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k' });
+    const p = adapter.generate([{ role: 'user', content: 'hi' }]);
+    req.emit('timeout');
+    await expect(p).rejects.toThrow('Request timeout');
+    expect(req.destroy).toHaveBeenCalled();
+  });
+
+  test('generate rejects with raw body when error message missing', async () => {
+    const { impl } = mockResponse({ statusCode: 400, chunks: [JSON.stringify({ error: {} })] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 400: {"error":{}}');
+  });
+
+  test('generate uses http transport for http baseUrl', async () => {
+    const { impl } = mockResponse({ statusCode: 200, chunks: ['{"candidates":[{"content":{"parts":[{"text":"x"}]}}]}'] });
+    jest.spyOn(http, 'request').mockImplementation(impl);
+    const adapter = new GoogleAdapter({ apiKey: 'k', baseUrl: 'http://localhost:8888' });
+    await adapter.generate([{ role: 'user', content: 'hi' }]);
+    expect(impl.mock.calls[0][0].port).toBe('8888');
+  });
 });
 
 describe('DashScopeAdapter HTTP requests', () => {
@@ -480,6 +650,32 @@ describe('DashScopeAdapter HTTP requests', () => {
     const adapter = new DashScopeAdapter({ apiKey: 'k' });
     await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
       .rejects.toThrow('HTTP 401: no auth');
+  });
+
+  test('generate rejects with raw body when 2xx body is not JSON', async () => {
+    const { impl } = mockResponse({ statusCode: 200, chunks: ['plain-text-body'] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new DashScopeAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 200: plain-text-body');
+  });
+
+  test('generate rejects on request timeout', async () => {
+    const { req, impl } = mockResponse({ statusCode: 200, chunks: ['{}'], emitEnd: false });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new DashScopeAdapter({ apiKey: 'k' });
+    const p = adapter.generate([{ role: 'user', content: 'hi' }]);
+    req.emit('timeout');
+    await expect(p).rejects.toThrow('Request timeout');
+    expect(req.destroy).toHaveBeenCalled();
+  });
+
+  test('generate rejects with raw body when error message missing', async () => {
+    const { impl } = mockResponse({ statusCode: 401, chunks: [JSON.stringify({ error: {} })] });
+    jest.spyOn(https, 'request').mockImplementation(impl);
+    const adapter = new DashScopeAdapter({ apiKey: 'k' });
+    await expect(adapter.generate([{ role: 'user', content: 'hi' }]))
+      .rejects.toThrow('HTTP 401: {"error":{}}');
   });
 });
 
