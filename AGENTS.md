@@ -1540,3 +1540,20 @@ Session 锚点: 2026-08-12 (第21次 — ReverseThinking 覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,373, 较基线 16,369 +4) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (reverse-thinking.test.js + AGENTS.md), src/core/ReverseThinking.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/reverse-thinking.test.js` (54→58)
+
+---
+
+Session 锚点: 2026-08-12 (第22次 — DeepIntentAnalyzer 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,382 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/DeepIntentAnalyzer.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (189 行, 19 tests, 10→19)
+- **全量 src 覆盖扫描账本**: ReverseThinking 86.9% 已清 → 下一目标 DeepIntentAnalyzer 87.1% branch (被 BrainSystem.js:22/1445 + UnifiedIntelligence.js:8/38 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **核心模式**: 原测试只走 BrainSystem.analyzeIntent 静态方法, 隔离跑仅 10 tests / 87.09% branch → 新增直接测类 describe: `new DeepIntentAnalyzer()`
+- **新增 9 测试 (gap→test 映射)**:
+  - analyze pattern 匹配 (写一个函数 → code_create)/keyword 匹配 (理解原理 → learn_principle)
+  - context.lastIntent 相同 → confidence +0.2 (L88 true, clamp 0.95); lastIntent 不同 → 不 boost (L88 false)
+  - contextStack > 10 → shift (L98, 12 次 analyze → 10 条); getCurrentIntent (L181); getContextHistory (L185)
+  - 未知意图 → suggestions `[]`
+- **断言坑**: `analyze('')` 在 L77 早退 → suggestions undefined 非 `[]` → 用 `'zzz unknown input'` 测空建议
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,382, 较基线 16,373 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (deep-intent-analyzer.test.js + AGENTS.md), src/core/DeepIntentAnalyzer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/deep-intent-analyzer.test.js` (10→19)
