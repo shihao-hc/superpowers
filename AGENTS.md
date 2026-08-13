@@ -1487,3 +1487,21 @@ Session 锚点: 2026-08-12 (第18次 — MultiLevelCache 全覆盖 100/100/100/1
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,356, 较基线 16,334 +22) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (multi-level-cache.test.js + AGENTS.md), src/multiagent/patterns/MultiLevelCache.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/multi-level-cache.test.js` (93→115)
+
+---
+
+Session 锚点: 2026-08-12 (第19次 — middleware/auth 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,361 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/middleware/auth.js: 96.24 stmts / 93.4 branch / 95.65 funcs / 96.18 lines** (391 行, 49 tests 主文件 44→48 + 新独立文件 1) — 剩余 L14/L356-360 探针证实结构性不可达/死代码
+- **全量 src 覆盖扫描账本**: MultiLevelCache 85.8% 已清 → 下一目标 auth.js 86.8% branch (被 api.js:11 + enhancedApi.js:14 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 5 测试 (gap→test 映射)**:
+  - `new JWTManager()` 无 options → default-arg (L49) + `options.secret || getJWTSecret()` 右侧 (L50)
+  - 第二次 getJWTSecret 调用跳过 re-warn (L27 false) — 用 `jest.isolateModules` 加载 + `new JWTManager()` 触发, 断言 warnLog 计数不变
+  - `createAuthMiddleware()` 无 options → default-arg (L174) + `excludePaths || [...]` 右侧 (L176)
+  - authenticate token 含 `id` 无 `sub` → `payload.sub || payload.id` 右侧 (L206)
+  - **独立文件 `middleware-auth-bcrypt-missing.test.js`** (1 test): 顶层 `jest.mock('bcrypt', () => { throw })` → bcrypt null fallback 路径 (L14)
+- **结构性不可达/死代码 (探针证实)**: L209 `PERMISSIONS[...] || []` 右侧 — 所有 role 均在 PERMISSIONS 定义; L356-360 `_hashPassword` 定义 1 次且未导出未调用 (死代码); L14 bcrypt-null 经独立文件仍未计入 (jest mock 工厂 throw 不按 catchable error 传播)
+- **断言坑**: warnLog 在模块加载时打 2 次 (L28+L29) → 断言计数用 `callsAfterLoad` 快照非 toHaveBeenCalledTimes(1); loginHandler 闭包引用外层 `jwtManager` 变量 → 替换 `ctx.jwtManager` 无效
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,361, 较基线 16,356 +5) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (middleware-auth.test.js + middleware-auth-bcrypt-missing.test.js + AGENTS.md), src/middleware/auth.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/middleware-auth.test.js` (44→48), `tests/unit/middleware-auth-bcrypt-missing.test.js` (新)

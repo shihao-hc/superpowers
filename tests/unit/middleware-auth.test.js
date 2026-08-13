@@ -59,6 +59,12 @@ describe('middleware/auth', () => {
       expect(manager.algorithm).toBe('HS256');
     });
 
+    test('constructor falls back to env secret when not provided', () => {
+      const m = new auth.JWTManager();
+      expect(m.secret).toBeDefined();
+      expect(m.secret.length).toBeGreaterThanOrEqual(32);
+    });
+
     test('sign and verify roundtrip', () => {
       const token = manager.sign({ sub: 'u1', username: 'alice', role: 'admin' });
       const payload = manager.verify(token);
@@ -195,6 +201,26 @@ describe('middleware/auth', () => {
         process.env.JWT_SECRET = prevSecret;
       }
     });
+
+    test('second getJWTSecret call skips re-warning', () => {
+      const prevEnv = process.env.NODE_ENV;
+      const prevSecret = process.env.JWT_SECRET;
+      delete process.env.JWT_SECRET;
+      process.env.NODE_ENV = 'test';
+      try {
+        let loaded;
+        jest.isolateModules(() => {
+          loaded = require('../../src/middleware/auth');
+        });
+        const callsAfterLoad = warnLog.mock.calls.length;
+        const m = new loaded.JWTManager();
+        expect(m.secret.length).toBeGreaterThanOrEqual(32);
+        expect(warnLog.mock.calls.length).toBe(callsAfterLoad);
+      } finally {
+        process.env.NODE_ENV = prevEnv;
+        process.env.JWT_SECRET = prevSecret;
+      }
+    });
   });
 
   describe('createAuthMiddleware', () => {
@@ -206,6 +232,19 @@ describe('middleware/auth', () => {
     const mockRes = () => ({
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
+    });
+
+    test('createAuthMiddleware works without options', () => {
+      const c = auth.createAuthMiddleware();
+      expect(c.jwtManager).toBeDefined();
+    });
+
+    test('authenticate uses payload.id when sub missing', () => {
+      const token = ctx.jwtManager.sign({ id: 'custom-id', username: 'alice', role: 'user' });
+      const req = { path: '/api/skills', headers: { authorization: `Bearer ${token}` }, cookies: {} };
+      const next = jest.fn();
+      ctx.authenticate(req, mockRes(), next);
+      expect(req.user.id).toBe('custom-id');
     });
 
     test('authenticate skips excluded paths', () => {
