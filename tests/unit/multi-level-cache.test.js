@@ -213,6 +213,21 @@ describe('MemoryCache', () => {
       cache.delete('a');
       expect(cache.accessOrder).toEqual([cache._generateKey('b')]);
     });
+
+    it('should handle delete when key missing from accessOrder', () => {
+      const hash = cache._generateKey('a');
+      cache.cache.set(hash, new CacheEntry(1, 60000));
+      cache.delete('a');
+      expect(cache.get('a')).toBeNull();
+    });
+
+    it('should handle update when key missing from accessOrder', () => {
+      const hash = cache._generateKey('a');
+      cache.cache.set(hash, new CacheEntry(1, 60000));
+      cache.accessOrder = [];
+      cache.set('a', 2);
+      expect(cache.get('a')).toBe(2);
+    });
   });
 
   describe('clear', () => {
@@ -243,6 +258,18 @@ describe('MemoryCache', () => {
       expect(cache.get('d')).toBe(4);
     });
 
+    it('should skip eviction when oldest key already removed', () => {
+      cache.set('a', 1, 100);
+      cache.set('b', 2);
+      now += 101;
+      cache.get('a'); // expired -> cache.delete(hash) but accessOrder keeps it
+      cache.set('c', 3);
+      cache.set('d', 4);
+      cache.set('e', 5); // triggers eviction; 'a' in accessOrder but not cache
+      expect(cache.get('a')).toBeNull();
+      expect(cache.stats.evictions).toBeGreaterThanOrEqual(1);
+    });
+
     it('should NOT evict recently accessed key', () => {
       cache.set('a', 1);
       cache.set('b', 2);
@@ -256,6 +283,14 @@ describe('MemoryCache', () => {
     it('should track eviction count in stats', () => {
       for (let i = 0; i < 10; i++) { cache.set(`k${i}`, i); }
       expect(cache.stats.evictions).toBe(7);
+    });
+
+    it('should handle re-set after expired entry removal', () => {
+      cache.set('k', 'old', 100);
+      now += 101;
+      cache.get('k'); // deletes cache entry, keeps accessOrder
+      cache.set('k', 'new'); // cache.has false -> new entry
+      expect(cache.get('k')).toBe('new');
     });
   });
 
@@ -401,6 +436,14 @@ describe('FileCache', () => {
       expect(writeArg.value).toBe('value');
       expect(writeArg.ttl).toBe(5000);
     });
+
+    it('should use default TTL when not specified', async () => {
+      fs.mkdir.mockResolvedValueOnce();
+      fs.writeFile.mockResolvedValueOnce();
+      await fileCache.set('key', 'value');
+      const writeArg = JSON.parse(fs.writeFile.mock.calls[0][1]);
+      expect(writeArg.ttl).toBe(3600000);
+    });
   });
 
   describe('delete', () => {
@@ -419,18 +462,27 @@ describe('FileCache', () => {
 
   describe('clear', () => {
     it('should clear all files recursively', async () => {
-      fs.readdir.mockResolvedValueOnce(['ab', 'cd']);
+      fs.readdir.mockResolvedValueOnce(['subdir']);
+      fs.readdir.mockResolvedValueOnce(['file1.json', 'file2.json']);
       fs.stat.mockImplementation((p) => {
-        if (p.includes('ab')) return Promise.resolve({ isDirectory: () => true });
+        if (p.endsWith('subdir')) return Promise.resolve({ isDirectory: () => true });
         return Promise.resolve({ isDirectory: () => false });
       });
-      fs.readdir.mockResolvedValueOnce(['file1.json', 'file2.json']);
-      fs.stat.mockResolvedValue({ isDirectory: () => false });
       fs.unlink.mockResolvedValue();
       fs.rmdir.mockResolvedValue();
 
       const count = await fileCache.clear();
       expect(count).toBe(2);
+      expect(fs.rmdir).toHaveBeenCalled();
+    });
+
+    it('should log and skip when directory read fails', async () => {
+      fs.readdir.mockRejectedValueOnce(new Error('EACCES'));
+      const logger = { debug: jest.fn() };
+      fileCache.logger = logger;
+      const count = await fileCache.clear();
+      expect(count).toBe(0);
+      expect(logger.debug).toHaveBeenCalled();
     });
   });
 
@@ -440,6 +492,26 @@ describe('FileCache', () => {
       fs.stat.mockResolvedValue({ isDirectory: () => false, size: 1024 });
       const size = await fileCache.getSize();
       expect(size).toBe(1024);
+    });
+
+    it('should recurse into subdirectories', async () => {
+      fs.readdir.mockResolvedValueOnce(['subdir']);
+      fs.stat.mockImplementation((p) => {
+        if (p.endsWith('subdir')) return Promise.resolve({ isDirectory: () => true, size: 0 });
+        return Promise.resolve({ isDirectory: () => false, size: 2048 });
+      });
+      fs.readdir.mockResolvedValueOnce(['file.json']);
+      const size = await fileCache.getSize();
+      expect(size).toBe(2048);
+    });
+
+    it('should log and return 0 when read fails', async () => {
+      fs.readdir.mockRejectedValueOnce(new Error('EACCES'));
+      const logger = { debug: jest.fn() };
+      fileCache.logger = logger;
+      const size = await fileCache.getSize();
+      expect(size).toBe(0);
+      expect(logger.debug).toHaveBeenCalled();
     });
   });
 });
@@ -471,6 +543,20 @@ describe('RedisCache', () => {
       expect(redisCache.prefix).toBe('test:');
       expect(redisCache.defaultTTL).toBe(60000);
       expect(redisCache.stats).toEqual({ hits: 0, misses: 0 });
+    });
+
+    it('should use defaults when no options provided', () => {
+      const c = new RedisCache();
+      expect(c.prefix).toBe('cache:');
+      expect(c.defaultTTL).toBe(3600000);
+    });
+  });
+
+  describe('_prefixKey', () => {
+    it('should stringify non-string keys', () => {
+      redisMock.get.mockResolvedValueOnce(null);
+      redisCache.get({ id: 5 });
+      expect(redisMock.get).toHaveBeenCalledWith(expect.stringMatching(/^test:[0-9a-f]{64}$/));
     });
   });
 
@@ -735,6 +821,25 @@ describe('MultiLevelCache', () => {
       await cache.get('key');
       expect(redisMock.set).toHaveBeenCalled();
     });
+
+    it('should skip L1 promotion when L1 disabled on L2 hit', async () => {
+      redisMock.get.mockResolvedValueOnce(JSON.stringify(new CacheEntry('l2val', 60000).toJSON()));
+      const c = new MultiLevelCache({ l2Redis: redisMock, enableL1: false });
+      c.l1.set = jest.fn();
+      const result = await c.get('key');
+      expect(result).toBe('l2val');
+      expect(c.l1.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('get with L3 disabled', () => {
+    it('should skip L3 when disabled', async () => {
+      cache = new MultiLevelCache({ enableL3: false });
+      cache.l3.get = jest.fn().mockResolvedValue('should-not-be-read');
+      const result = await cache.get('key');
+      expect(result).toBeNull();
+      expect(cache.l3.get).not.toHaveBeenCalled();
+    });
   });
 
   describe('set', () => {
@@ -775,6 +880,14 @@ describe('MultiLevelCache', () => {
       expect(rm.set).toHaveBeenCalled();
       expect(cache.stats.writes.l2).toBe(1);
     });
+
+    it('should skip disabled L3 on set', async () => {
+      cache = new MultiLevelCache({ enableL3: false });
+      cache.l3.set = jest.fn();
+      await cache.set('key', 'val');
+      expect(cache.l3.set).not.toHaveBeenCalled();
+      expect(cache.stats.writes.l3).toBe(0);
+    });
   });
 
   describe('delete', () => {
@@ -793,6 +906,42 @@ describe('MultiLevelCache', () => {
       const count = await cache.delete('nope');
       expect(count).toBe(0);
     });
+
+    it('should count L2 delete that returns falsy', async () => {
+      cache = new MultiLevelCache({ l2Redis: {} });
+      cache.l2 = { delete: jest.fn().mockResolvedValue(false) };
+      cache.l1.set('a', 1);
+      cache.l3.delete = jest.fn().mockResolvedValue(false);
+      const count = await cache.delete('a');
+      expect(count).toBe(1);
+      expect(cache.l2.delete).toHaveBeenCalledWith('a');
+    });
+
+    it('should count L2 delete that returns truthy', async () => {
+      cache = new MultiLevelCache({ l2Redis: {} });
+      cache.l2 = { delete: jest.fn().mockResolvedValue(true) };
+      cache.l1.set('a', 1);
+      cache.l3.delete = jest.fn().mockResolvedValue(false);
+      const count = await cache.delete('a');
+      expect(count).toBe(2);
+    });
+
+    it('should skip disabled L3 on delete', async () => {
+      cache = new MultiLevelCache({ enableL3: false });
+      cache.l1.set('a', 1);
+      cache.l3.delete = jest.fn().mockResolvedValue(true);
+      const count = await cache.delete('a');
+      expect(count).toBe(1);
+      expect(cache.l3.delete).not.toHaveBeenCalled();
+    });
+
+    it('should skip disabled L1 on delete', async () => {
+      cache = new MultiLevelCache({ enableL1: false });
+      cache.l3.delete = jest.fn().mockResolvedValue(true);
+      const count = await cache.delete('a');
+      expect(count).toBe(1);
+      expect(cache.l1.get('a')).toBeNull();
+    });
   });
 
   describe('clear', () => {
@@ -804,6 +953,16 @@ describe('MultiLevelCache', () => {
       cache.l3.clear = jest.fn().mockResolvedValue(5);
       const count = await cache.clear();
       expect(count).toBe(9);
+    });
+
+    it('should skip disabled levels on clear', async () => {
+      cache = new MultiLevelCache({ enableL1: false, enableL3: false });
+      cache.l1.clear = jest.fn().mockReturnValue(10);
+      cache.l3.clear = jest.fn().mockResolvedValue(10);
+      const count = await cache.clear();
+      expect(count).toBe(0);
+      expect(cache.l1.clear).not.toHaveBeenCalled();
+      expect(cache.l3.clear).not.toHaveBeenCalled();
     });
   });
 
@@ -824,6 +983,14 @@ describe('MultiLevelCache', () => {
       const result = await cache.getOrFetch('key', fetchFn, {});
       expect(result).toEqual({ hit: false, value: 'computed' });
       expect(cache.l1.get('key')).toBe('computed');
+    });
+
+    it('should work without options argument', async () => {
+      cache = new MultiLevelCache();
+      cache.l3.set = jest.fn().mockResolvedValue();
+      const fetchFn = jest.fn().mockResolvedValue('plain');
+      const result = await cache.getOrFetch('key', fetchFn);
+      expect(result).toEqual({ hit: false, value: 'plain' });
     });
 
     it('should skip store when fetch returns null', async () => {
@@ -858,6 +1025,27 @@ describe('MultiLevelCache', () => {
       cache = new MultiLevelCache({ l2Redis: rm });
       const s = cache.getStats();
       expect(s.l2).not.toBeNull();
+    });
+
+    it('should return null for disabled levels in stats', async () => {
+      cache = new MultiLevelCache({ enableL1: false, enableL3: false });
+      const s = cache.getStats();
+      expect(s.l1).toBeNull();
+      expect(s.l3).toBeNull();
+    });
+
+    it('should report checking size when l3 has getSize', async () => {
+      cache = new MultiLevelCache();
+      cache.l3.getSize = jest.fn();
+      const s = cache.getStats();
+      expect(s.l3.size).toBe('checking...');
+    });
+
+    it('should report 0 size when l3 has no getSize', async () => {
+      cache = new MultiLevelCache();
+      cache.l3.getSize = undefined;
+      const s = cache.getStats();
+      expect(s.l3.size).toBe(0);
     });
   });
 });

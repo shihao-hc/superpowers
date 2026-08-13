@@ -1471,3 +1471,19 @@ Session 锚点: 2026-08-12 (第17次 — NodeWorkflowEngine 覆盖至可达上�
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,334, 较基线 16,318 +16) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (node-workflow-engine.test.js + AGENTS.md), src/workflow/NodeWorkflowEngine.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/node-workflow-engine.test.js` (82→98)
+
+---
+
+Session 锚点: 2026-08-12 (第18次 — MultiLevelCache 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **331 passed suites / 4 skipped / 0 failed** (16,356 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/multiagent/patterns/MultiLevelCache.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (531 行, 115 tests, 93→115) — 含 CacheEntry + MemoryCache + FileCache + RedisCache + MultiLevelCache
+- **全量 src 覆盖扫描账本**: NodeWorkflowEngine 85.1% 已清 → 下一目标 MultiLevelCache 85.8% branch (被 multiagent/index.js:19 + examples 引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 22 测试 (gap→test 映射)**:
+  - MemoryCache: 过期 entry 后 accessOrder 残留 → `_evictLRU` 跳过已删 key (L84 false)/`_updateAccess` idx -1 (L93)/delete 不在 accessOrder (L137); 直接注入 cache Map + 手动 accessOrder
+  - FileCache: set 无 ttl → 默认 defaultTTL (L207 default-arg); clear 递归子目录 + rmdir (L237-238, 修复原测试 `includes('ab')` 路径 bug → `endsWith('subdir')` + 移除覆盖 mockResolvedValue 冲突)/readdir 抛错 → catch (L245); getSize 递归子目录 (L263)/readdir 抛错 catch (L269)
+  - RedisCache: 默认构造 (L279 default-arg)/对象 key → JSON.stringify (L288)
+  - MultiLevelCache: L2 命中时 L1 禁用 → 不提升 (L410 false); L3 禁用 → 跳过 get/set/delete/clear (L417/452/461/469/479/483/487 false); delete L2 falsy/truthy (L466 两侧); getOrFetch 无 options (L494); getStats 禁用级 null + l3 getSize checking/0 (L510/512/514)
+- **断言坑**: FileCache clear `fs.stat.mockResolvedValue` 会覆盖 `mockImplementation` → 只能用 mockImplementation 区分目录/文件; path.join 在 win32 用反斜杠 → `endsWith('/ab')` 失败须 `endsWith('subdir')`; RedisCache.delete 恒返回 true (L339 忽略 del 结果) → L466 falsy 侧须注入自定义 l2 mock (`cache.l2 = {...}`)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 331/4/0 (16,356, 较基线 16,334 +22) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (multi-level-cache.test.js + AGENTS.md), src/multiagent/patterns/MultiLevelCache.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/multi-level-cache.test.js` (93→115)
