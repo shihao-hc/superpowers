@@ -1593,3 +1593,19 @@ Session 锚点: 2026-08-12 (第24次 — DiscordBot 覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,398, 较基线 16,385 +13) 稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (discord-bot.test.js + AGENTS.md), src/social/DiscordBot.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/discord-bot.test.js` (144→157)
+
+---
+
+Session 锚点: 2026-08-12 (第25次 — RewardSystem 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,401 passed / 46 skipped) 三次运行稳定 (第2次 1 失败为预存 personality-manager flaky, 单独跑 48/48 通过, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/community/RewardSystem.js: 100 stmts / 93.33 branch / 100 funcs / 100 lines** (434 行, 68 tests, 65→68) — 剩余 7 分支 v8 探针证实结构性不可达 (隐式 else)
+- **全量 src 覆盖扫描账本**: DiscordBot 87.4% 已清 → 下一目标 RewardSystem 87.6% branch (src 内零生产引用 — 仅测试引用, 独立社区奖励模块); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 3 测试 (gap→test 映射)**:
+  - checkAndAwardBadges downloads_10000: totalDownloads=10000 → 徽章 小有名气/广受欢迎/万人追捧 (L294-296 三 stmt + L296 if)
+  - getLeaderboard 无效 sortBy ('bogus') → 回落 points 排序 (L374 fallback return)
+  - _loadData 文件存在但缺 key: profilesFile 无 profiles / rewardsFile 无 rewards → `data.profiles || {}` / `data.rewards || []` 右侧 (L88/93)
+- **结构性不可达 7 分支 (v8 探针证实)**: L270/274/278/282/288/292/296 — checkAndAwardBadges 各 badge 的 `if (condition)` 无 else, loc2 全为 `{"start":{},"end":{}}` 隐式 else (无语句), 与 Round 20 AdaptiveOptimizer 11 个隐式 else 分支同理
+- **断言坑**: downloads_10000 徽章名是 '万人追捧' 非直觉名 (badges 配置在 L434 前, 先 grep 再断言); totalDownloads=1000 已由既有 "awards download badges progressively" 覆盖, 10000 是唯一缺口
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,401, 较基线 16,398 +3) 三次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (reward-system.test.js + AGENTS.md), src/skills/community/RewardSystem.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/reward-system.test.js` (65→68)

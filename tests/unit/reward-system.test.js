@@ -112,6 +112,18 @@ describe('RewardSystem', () => {
       expect(s.profiles.size).toBe(0);
       expect(console.warn).toHaveBeenCalled();
     });
+
+    it('uses empty defaults when files lack expected keys', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockImplementation((p) => {
+        if (p.includes('profiles.json')) return JSON.stringify({ other: 'x' });
+        if (p.includes('rewards.json')) return JSON.stringify({ other: 'y' });
+        return '{}';
+      });
+      const s = new RewardSystem({ dataDir: '/fake/rewards' });
+      expect(s.profiles.size).toBe(0);
+      expect(s.rewards).toEqual([]);
+    });
   });
 
   describe('_saveData', () => {
@@ -354,6 +366,16 @@ describe('RewardSystem', () => {
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('多产作者');
     });
+
+    it('awards downloads_10000 badge at 10000 downloads', () => {
+      system.getOrCreateProfile('u1', 'testuser');
+      system.profiles.get('u1').stats.totalDownloads = 10000;
+      const result = system.checkAndAwardBadges('u1');
+      const names = result.map((b) => b.name);
+      expect(names).toContain('小有名气');
+      expect(names).toContain('广受欢迎');
+      expect(names).toContain('万人追捧');
+    });
   });
 
   describe('recordSkillPublished', () => {
@@ -460,6 +482,15 @@ describe('RewardSystem', () => {
       system.profiles.get('u1').stats.totalDownloads = 100;
       system.profiles.get('u2').stats.totalDownloads = 50;
       const board = system.getLeaderboard({ sortBy: 'downloads' });
+      expect(board[0].userId).toBe('u1');
+    });
+
+    it('falls back to points sort for unknown sortBy', () => {
+      system.getOrCreateProfile('u1', 'user1');
+      system.getOrCreateProfile('u2', 'user2');
+      system.profiles.get('u1').points = 200;
+      system.profiles.get('u2').points = 100;
+      const board = system.getLeaderboard({ sortBy: 'bogus' });
       expect(board[0].userId).toBe('u1');
     });
 
