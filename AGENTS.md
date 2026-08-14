@@ -1573,3 +1573,23 @@ Session 锚点: 2026-08-12 (第23次 — ThinkingChainStorage 覆盖至可达上
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,385, 较基线 16,382 +3) 稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (mcp-thinking-chain-storage.test.js + AGENTS.md), src/mcp/engines/ThinkingChainStorage.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/mcp-thinking-chain-storage.test.js` (27→30)
+
+---
+
+Session 锚点: 2026-08-12 (第24次 — DiscordBot 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,398 passed / 46 skipped) 稳定 clean exit (首轮 1 失败为预存 promise-tracker flaky, 复跑通过) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/social/DiscordBot.js: 99.61 stmts / 90.05 branch / 97.05 funcs / 99.59 lines** (1279 行, 157 tests, 144→157) — 剩余 2 stmt 探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: ThinkingChainStorage 87.1% 已清 → 下一目标 DiscordBot 87.4% branch (被 src/index.js + daemon 引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 13 测试 (gap→test 映射)**:
+  - setupGameNotifications 6 事件回调体 (捕获 handlers 后逐一触发 → notifyGameEvent 调用)
+  - handleCommand 无 memory: recall/forget/memories 未配置分支 (L987-988/1009-1010/1014-1015/1026-1027) + forget 缺 key
+  - chat rate-window 时间推进重置 (L1130-1131, `jest.spyOn(Date,'now')` + userMemoryCounts 预置)
+  - broadcast/sendToChannel no-client 早退 (L1172/1191) + broadcast 多 guild systemChannel (L1180)
+  - cmdMemory list 含 discord_ 前缀 key (L700-701) + handleCommand memories userKeys 过滤 (L1031)
+  - poll 8 选项第二行按钮 (L933); messageReactionRemove bot 跳过 (L99)
+- **测试基础设施修复**: MockEmbedBuilder 补 `setImage/setThumbnail/setFooter/setURL` → 解锁 cmdAvatar/userinfo/serverinfo 的 reply (L860/882/907) + switch break (L400/403); "userinfo with member" 的 `roles.cache` 补 `.map` 方法 (真实 Map 无 map → 抛错 → 走 catch)
+- **结构性不可达 (探针证实)**: L741-745 cmdMemory clear 非 admin — handleSlashCommand L358-366 前置 admin 检查拦截, 到达 L740 时必为 admin (防御性冗余); 各 `[X,0]` binary-expr 为 `|| fallback` 右侧 (mock 数据恒提供值)
+- **断言坑**: makeInteraction 的 user 缺 createdTimestamp (在 interaction 上) → cmdUserInfo `new Date(undefined)` 有效不抛; discord.js EmbedBuilder mock 缺链式方法会导致命令抛错被 catch → reply 路径不可达
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,398, 较基线 16,385 +13) 稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (discord-bot.test.js + AGENTS.md), src/social/DiscordBot.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/discord-bot.test.js` (144→157)

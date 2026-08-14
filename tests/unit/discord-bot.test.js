@@ -6,6 +6,10 @@ jest.mock('discord.js', () => {
     setColor(c) { this.data.color = c; return this; }
     setTimestamp() { this.data.timestamp = true; return this; }
     addFields(f) { this.data.fields = f; return this; }
+    setImage(i) { this.data.image = i; return this; }
+    setThumbnail(t) { this.data.thumbnail = t; return this; }
+    setFooter(f) { this.data.footer = f; return this; }
+    setURL(u) { this.data.url = u; return this; }
   }
   class MockButtonBuilder {
     constructor() { this.data = {}; }
@@ -188,6 +192,29 @@ describe('DiscordBot', () => {
       expect(mockMessage.reply).toHaveBeenCalledWith('记忆系统未配置');
     });
 
+    it('reports memory not configured for recall', async () => {
+      const b = new DiscordBot({ agents: {} });
+      await b.handleCommand(mockMessage, 'recall', ['k']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('记忆系统未配置');
+    });
+
+    it('reports memory not configured for forget', async () => {
+      const b = new DiscordBot({ agents: {} });
+      await b.handleCommand(mockMessage, 'forget', ['k']);
+      expect(mockMessage.reply).toHaveBeenCalledWith('记忆系统未配置');
+    });
+
+    it('reports memory not configured for memories', async () => {
+      const b = new DiscordBot({ agents: {} });
+      await b.handleCommand(mockMessage, 'memories', []);
+      expect(mockMessage.reply).toHaveBeenCalledWith('记忆系统未配置');
+    });
+
+    it('requires key for !forget', async () => {
+      await bot.handleCommand(mockMessage, 'forget', []);
+      expect(mockMessage.reply).toHaveBeenCalledWith('用法: !forget <key>');
+    });
+
     it('requires key for !remember', async () => {
       await bot.handleCommand(mockMessage, 'remember', []);
       expect(mockMessage.reply).toHaveBeenCalledWith('用法: !remember <key> <value>');
@@ -220,6 +247,12 @@ describe('DiscordBot', () => {
     it('processes !memories', async () => {
       await bot.handleCommand(mockMessage, 'memories', []);
       expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('记忆统计'));
+    });
+
+    it('processes !memories with user keys', async () => {
+      bot.agents.memory.dump.mockReturnValue({ 'discord_user1_k1': 'v1', 'other': 'x' });
+      await bot.handleCommand(mockMessage, 'memories', []);
+      expect(mockMessage.reply).toHaveBeenCalledWith(expect.stringContaining('你的记忆: 1'));
     });
 
     it('processes !personality list', async () => {
@@ -296,6 +329,17 @@ describe('DiscordBot', () => {
       await bot.handleChat(mockMessage, 'first');
       await bot.handleChat(mockMessage, 'second');
       expect(bot.agents.memory.remember).toHaveBeenCalledTimes(2);
+    });
+
+    it('resets rate window when time advances', async () => {
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000000);
+      bot.MEMORY_RATE_WINDOW = 5000;
+      bot.userMemoryCounts.set('user1', { count: 5, windowStart: 1000000 });
+      await bot.handleChat(mockMessage, 'first');
+      nowSpy.mockReturnValue(2000000);
+      await bot.handleChat(mockMessage, 'second');
+      expect(bot.agents.memory.remember).toHaveBeenCalledTimes(2);
+      nowSpy.mockRestore();
     });
   });
 
@@ -399,6 +443,27 @@ describe('DiscordBot', () => {
 
     it('handles null gameAgent', () => {
       expect(() => bot.setupGameNotifications(null)).not.toThrow();
+    });
+
+    it('fires notifyGameEvent on game events', async () => {
+      const handlers = {};
+      const on = jest.fn((event, handler) => { handlers[event] = handler; });
+      const gameAgent = { on };
+      bot.setupGameNotifications(gameAgent);
+      const spy = jest.spyOn(bot, 'notifyGameEvent').mockResolvedValue(undefined);
+      handlers.hurt({ hp: 50 });
+      handlers.died({ cause: 'boss' });
+      handlers.playerJoined({ name: 'p1' });
+      handlers.playerLeft({ name: 'p1' });
+      handlers.connected();
+      handlers.disconnected();
+      expect(spy).toHaveBeenCalledWith('hurt', expect.any(Object));
+      expect(spy).toHaveBeenCalledWith('died', expect.any(Object));
+      expect(spy).toHaveBeenCalledWith('playerJoined', expect.any(Object));
+      expect(spy).toHaveBeenCalledWith('playerLeft', expect.any(Object));
+      expect(spy).toHaveBeenCalledWith('connected');
+      expect(spy).toHaveBeenCalledWith('disconnected');
+      spy.mockRestore();
     });
   });
 
@@ -725,6 +790,13 @@ describe('DiscordBot', () => {
       delete process.env.DISCORD_ADMIN_ROLES;
     });
 
+    it('memory list with user keys', async () => {
+      bot.agents.memory.dump.mockReturnValue({ 'discord_u1_k1': 'v1', 'discord_u1_k2': 'v2', 'other': 'x' });
+      const i = makeInteraction('memory', { values: { action: 'list' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+    });
+
     it('memory clear as admin', async () => {
       const i = makeInteraction('memory', { values: { action: 'clear' } });
       await bot.handleSlashCommand(i);
@@ -811,6 +883,7 @@ describe('DiscordBot', () => {
         nickname: 'Nick',
         roles: { cache: new Map([['@everyone', { name: '@everyone' }], ['r1', { name: 'role1' }]]) }
       };
+      member.roles.cache.map = function (fn) { return Array.from(this.values()).map(fn); };
       const i = makeInteraction('userinfo');
       i.guild = { members: { fetch: jest.fn().mockResolvedValue(member) } };
       await bot.handleSlashCommand(i);
@@ -852,6 +925,12 @@ describe('DiscordBot', () => {
 
     it('poll with options', async () => {
       const i = makeInteraction('poll', { values: { question: 'Q', options: 'a,b,c' } });
+      await bot.handleSlashCommand(i);
+      expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ components: [expect.any(Object)] }));
+    });
+
+    it('poll with many options renders second row', async () => {
+      const i = makeInteraction('poll', { values: { question: 'Q', options: 'a,b,c,d,e,f,g,h' } });
       await bot.handleSlashCommand(i);
       expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ components: [expect.any(Object)] }));
     });
@@ -920,6 +999,7 @@ describe('DiscordBot', () => {
       const msg = { author: { bot: false, id: 'u1' }, content: '!ping', channel: { send: jest.fn().mockResolvedValue({ delete: jest.fn().mockResolvedValue(undefined) }) } };
       await handlers.messageCreate(msg);
       expect(msg.channel.send).toHaveBeenCalledWith(expect.objectContaining({ embeds: [expect.any(Object)] }));
+      jest.advanceTimersByTime(3000);
       await startPromise;
     });
 
@@ -984,6 +1064,14 @@ describe('DiscordBot', () => {
       await startPromise;
     });
 
+    it('messageReactionRemove skips bots', async () => {
+      const { startPromise, handlers } = await setupStartedBot();
+      bot.handleReaction = jest.fn().mockResolvedValue(undefined);
+      await handlers.messageReactionRemove({}, { bot: true }, {});
+      expect(bot.handleReaction).not.toHaveBeenCalled();
+      await startPromise;
+    });
+
     it('error handler logs', async () => {
       const { startPromise, handlers } = await setupStartedBot();
       const err = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -1033,6 +1121,20 @@ describe('DiscordBot', () => {
       expect(err).toHaveBeenCalledWith('[DiscordBot] Broadcast error:', 'fail');
       err.mockRestore();
     });
+
+    it('returns early when no client', async () => {
+      bot.client = null;
+      await bot.broadcast('Hello!', 'ch');
+    });
+
+    it('broadcasts to all guild system channels', async () => {
+      const sysSend = jest.fn().mockResolvedValue();
+      bot.client = {
+        guilds: { cache: new Map([['g1', { systemChannel: { send: sysSend } }]]) }
+      };
+      await bot.broadcast('Hi all');
+      expect(sysSend).toHaveBeenCalledWith('Hi all');
+    });
   });
 
   describe('sendToChannel edge cases', () => {
@@ -1047,6 +1149,11 @@ describe('DiscordBot', () => {
       await bot.sendToChannel('ch', 'text');
       expect(err).toHaveBeenCalledWith('[DiscordBot] Send error:', 'fail');
       err.mockRestore();
+    });
+
+    it('returns early when no client', async () => {
+      bot.client = null;
+      await bot.sendToChannel('ch', 'text');
     });
   });
 
