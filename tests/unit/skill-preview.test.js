@@ -122,6 +122,21 @@ describe('SkillPreview', () => {
     });
   });
 
+  describe('auto cleanup interval tick', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test('fires cleanup callback when interval elapses', () => {
+      jest.useFakeTimers();
+      const r = createPreview();
+      const spyCleanup = jest.spyOn(r, '_cleanupExpiredCache');
+      jest.advanceTimersByTime(3600000);
+      expect(spyCleanup).toHaveBeenCalled();
+      r._stopAutoCleanup();
+    });
+  });
+
   describe('getPreviewType', () => {
     test('returns image for image extensions', () => {
       expect(preview.getPreviewType('photo.png')).toBe('image');
@@ -285,6 +300,12 @@ describe('SkillPreview', () => {
       const writtenContent = fs.writeFileSync.mock.calls[0][1];
       expect(writtenContent).toContain('My Custom Title');
     });
+
+    test('coerces non-string title to string', () => {
+      preview.createHTMLPreview('<p>test</p>', filename, { title: 123 });
+      const writtenContent = fs.writeFileSync.mock.calls[0][1];
+      expect(writtenContent).toContain('123');
+    });
   });
 
   describe('createMarkdownPreview', () => {
@@ -421,6 +442,30 @@ describe('SkillPreview', () => {
         {}
       );
     });
+
+    test('converts buffer data to string for html', () => {
+      const spy = jest.spyOn(preview, 'createHTMLPreview');
+      preview.createPreview(buffer, 'page.html');
+      expect(spy).toHaveBeenCalledWith(buffer.toString(), 'page.html', {});
+    });
+
+    test('converts buffer data to string for markdown', () => {
+      const spy = jest.spyOn(preview, 'createMarkdownPreview');
+      preview.createPreview(buffer, 'doc.md');
+      expect(spy).toHaveBeenCalledWith(buffer.toString(), 'doc.md', {});
+    });
+
+    test('converts string data to buffer for pdf', () => {
+      const spy = jest.spyOn(preview, 'createPDFPreview');
+      preview.createPreview('cGQ=', 'doc.pdf');
+      expect(spy).toHaveBeenCalledWith(Buffer.from('cGQ=', 'base64'), 'doc.pdf', {});
+    });
+
+    test('converts buffer data to string for unknown type', () => {
+      const spy = jest.spyOn(preview, 'createTextPreview');
+      preview.createPreview(buffer, 'file.xyz');
+      expect(spy).toHaveBeenCalledWith(buffer.toString(), 'file.xyz', {});
+    });
   });
 
   describe('getPreview', () => {
@@ -483,6 +528,14 @@ describe('SkillPreview', () => {
       expect(result.size).toBe(500);
       expect(result.modifiedAt).toBe(mtime.toISOString());
     });
+
+    test('returns null and warns when path escapes previewDir', () => {
+      const previewId = 'abc';
+      fs.readdirSync.mockReturnValue(['abc/../../escape.html']);
+      const result = preview.getPreview(previewId);
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalled();
+    });
   });
 
   describe('deletePreview', () => {
@@ -518,6 +571,15 @@ describe('SkillPreview', () => {
       // Since file starts with previewId, it'll be processed
       // isPathSafe will be called - if it returns false, it should warn and skip
       expect(result.deleted).toBe(1);
+    });
+
+    test('warns and skips when matched file escapes previewDir', () => {
+      const previewId = 'abc';
+      fs.readdirSync.mockReturnValue(['abc/../../escape.html']);
+      const result = preview.deletePreview(previewId);
+      expect(result.deleted).toBe(1);
+      expect(console.warn).toHaveBeenCalled();
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
     });
 
     test('returns 0 when no matching files', () => {
@@ -564,6 +626,12 @@ describe('SkillPreview', () => {
 
       const result = preview.cleanupExpiredPreviews(86400000);
       expect(result.deleted).toBe(1);
+    });
+
+    test('skips files that escape previewDir', () => {
+      fs.readdirSync.mockReturnValue(['../escape.html']);
+      const result = preview.cleanupExpiredPreviews();
+      expect(result.deleted).toBe(0);
     });
 
     test('handles empty directory', () => {

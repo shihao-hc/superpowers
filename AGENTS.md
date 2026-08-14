@@ -1609,3 +1609,21 @@ Session 锚点: 2026-08-12 (第25次 — RewardSystem 覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,401, 较基线 16,398 +3) 三次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (reward-system.test.js + AGENTS.md), src/skills/community/RewardSystem.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/reward-system.test.js` (65→68)
+
+---
+
+Session 锚点: 2026-08-12 (第26次 — SkillPreview 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,410 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/preview/SkillPreview.js: 99.42 stmts / 96.73 branch / 100 funcs / 99.41 lines** (676 行, 110 tests, 101→110) — 剩余 L147 探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: RewardSystem 87.6% 已清 → 下一目标 SkillPreview 87% branch (被 enhancedApi.js:10 生产引用 `getSkillPreview()`); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 9 测试 (gap→test 映射)**:
+  - createPreview dispatcher cond-expr false 侧: html/markdown/unknown + buffer → `data.toString()` (L322/329/351); pdf + string → `Buffer.from(data,'base64')` (L344)
+  - escapeHtml 非字符串 (L24): createHTMLPreview 传 `title: 123` → `String(123)` 写入 '123' (经 `_wrapHTMLForPreview` L534)
+  - 路径逃逸 isPathSafe false 侧: 文件名含 `../../` 逃出 previewDir → getPreview warn+null (L384-386) / deletePreview warn+continue (L423-425) / cleanupExpiredPreviews continue (L448-449) — 同时覆盖 L40 binary-expr B 侧 (`|| resolvedTarget===resolvedBase` 求值)
+  - setInterval 回调体 (L74-76): 独立 describe fake timers `advanceTimersByTime(3600000)` → `_cleanupExpiredCache` + console.log
+- **结构性不可达 (探针证实)**: L146-147 createImagePreview isPathSafe false — previewId 恒 sha256 hex `[a-f0-9]{32}` + ext 经 L140 白名单校验, join 后恒在 previewDir 下; L80 `cleanupInterval.unref` false — 真实 setInterval 恒返回带 unref 对象
+- **babel 映射假象**: L44 `constructor(options={})` default-arg 显示 [0], 但现有 "uses default options when none provided" 已 `new SkillPreview()` 通过 — v8 + babel default-param 覆盖映射不准
+- **断言坑**: deletePreview 的 `deleted` = `previewFiles.length` (L433 源码语义) — isPathSafe 跳过文件仍计数, 断言 deleted:1 而非 0 (验证 warn 调用 + unlinkSync 未调用); `path.join` 会 normalize `..`, 逃逸文件名须用 `'abc/../../escape.html'` 形式才真正逃出 (单层 `..` 会被 join 吞掉)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,410, 较基线 16,401 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-preview.test.js + AGENTS.md), src/skills/preview/SkillPreview.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-preview.test.js` (101→110)
