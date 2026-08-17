@@ -1627,3 +1627,69 @@ Session 锚点: 2026-08-12 (第26次 — SkillPreview 覆盖至可达上限)
 - **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,410, 较基线 16,401 +9) 两次稳定 clean exit
 - **工作树审计**: 提交只含本会话文件 (skill-preview.test.js + AGENTS.md), src/skills/preview/SkillPreview.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
 - 相关文件: `tests/unit/skill-preview.test.js` (101→110)
+
+---
+
+Session 锚点: 2026-08-12 (第27次 — SkillManager 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,415 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/SkillManager.js: 100 stmts / 100 branch / 100 funcs / 100 lines** (178 行, 38 tests, 33→38)
+- **全量 src 覆盖扫描账本**: SkillPreview 87% 已清 → 下一目标 SkillManager 87.9% branch (被 ChatWebSocketHandler.js:8 生产引用); 更低项均为低价值 (IntegrationTests / SandboxRunner+BrainSystem 已记录最大可达 / learnEvalFinal 脚本)
+- **新增 5 测试 (gap→test 映射)** — 独立 setupWatcher describe 捕获 `fs.watch` 回调:
+  - 路径不存在早退 (fs.existsSync false → fs.watch 不被调)
+  - 注册 watcher + 存储 (fs.watch 被调 + watchers.has)
+  - change 事件回调体 → console.log 含 skillName (L111-112)
+  - rename 事件回调体 → console.log (L111)
+  - 其他事件类型 (other) → 不 log (L111 false 侧)
+- **核心模式**: `fs.watch.mockImplementation((p, cb) => { watchCb = cb; return { close }; })` 捕获回调 → 手动 `watchCb('change', 'file.js')` 触发回调体 (缺口在 L110-116 回调内, 现有测试用 mockReturnValue 从不触发回调)
+- **断言坑**: skillsDir 是 `/fake/skills`, `path.join` 在 Windows 产生 `\\fake\\skills\\s1` 反斜杠 → 断言用 `expect.stringContaining('s1')` 非精确路径
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,415, 较基线 16,410 +5) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-manager-core.test.js + AGENTS.md), src/skills/SkillManager.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-manager-core.test.js` (33→38)
+
+---
+
+## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
+
+### 背景问题
+- opencode 桌面 APP (v1.16.2, Electron) 发消息无显示/无回复, 只能新建会话
+- 根因 1: 快照仓库 packed-refs 被写成 46 字节全零 → git 报 `fatal: unterminated line` → snapshot 服务每 3-5 秒失败一次, 阻塞消息处理 (日志 85+ 条重复错误)
+- 根因 2: opencode.db 达 6.4GB 膨胀 (event 表 44.5万行, message.part.updated.1 事件 34.5万条), C盘空间紧张
+
+### 数据布局 (最终)
+| 位置 | 用途 | 状态 |
+|------|------|------|
+| `D:\opencode-data\opencode` | **正式数据** (桌面APP正在使用) | ✅ 活跃 |
+| `C:\Users\Administrator\.local\share\opencode` | C盘原数据 | 🛡️ 备份 (未使用) |
+| `D:\opencode-backup-20260815` | 迁移时快照备份 (6.4GB) | 🛡️ 备用 |
+
+### 迁移机制 (关键)
+- opencode 数据目录由 `XDG_DATA_HOME` 环境变量控制 (已验证: `opencode debug paths` 显示 data 跟随)
+- 已设置用户级环境变量: `XDG_DATA_HOME=D:\opencode-data` (桌面APP sidecar 会继承)
+- 验证方法: D盘 opencode.db 被 OpenCode 进程锁定使用中 = 迁移生效; C盘 DB 未被锁定 = 已切走
+- 桌面APP (v1.16.2) 与 CLI opencode (v1.2.27) 版本不同, 但共享同一数据目录机制
+- `opencode debug paths` / `opencode session list` / `opencode db` / `opencode export` 是官方工具
+
+### 本次修复动作
+1. 修复 packed-refs: 损坏文件备份为 `packed-refs.bak-zero` 后移除, git fsck 全过
+2. 迁移到 D 盘: robocopy + SQLite backup API (一致性), snapshot 中途中断曾致 680/2801 文件缺失 → 已用 C盘完整快照 /MIR 补全 (objects 2130, index 310988)
+3. 数据库体检: integrity_check=ok, quick_check=ok, foreign_key_check=0, 632 会话/5.5万消息完整
+
+### 验证命令
+`powershell
+opencode debug paths          # 确认 data=D:\opencode-data\opencode
+opencode session list         # 632 个历史会话
+python -c "..."               # DB 完整性检查 (readOnly)
+`
+
+### 回滚方法
+- 删除用户环境变量 XDG_DATA_HOME → opencode 回到 C 盘原数据, 一切如初
+- C盘原数据 + D:\opencode-backup-20260815 双保险
+- 确认稳定后可删除 C盘原数据 (~6.4GB) 和 D:\opencode-backup-20260815 释放空间
+
+### 升级后续 (2026-08-18)
+- 桌面 APP 从 v1.16.2 升级到 **v1.18.18** (手动下载安装，绕过代理对 GitHub CDN 限速)
+  - 根因: opencode 更新器 ERR_CONNECTION_RESET (代理对 github.com 页面可达但 CDN 下载被限速 ~44KB/s)
+  - 方案: 6 段分段 curl 下载 (每段 20.1MB) + 拼接，SHA256 验证后 GUI 安装
+- **UI 渲染 bug 修复确认**: 之前"消息发送无响应"会话在 v1.18.18 下正常显示/回复 (根因是 v1.16.2 前端渲染 bug，非引擎/数据问题)
+- 数据库: integrity=ok, 632 会话/55712 消息完整, events 从 44万降至 290 (v1.18.18 事件溯源迁移, 正常)
+- D盘 DB 6301MB 活跃使用, C盘原数据 + D盘备份 + 会话存档(D:\opencode-exports\) 三重保障

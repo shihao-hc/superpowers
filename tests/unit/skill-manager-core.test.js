@@ -298,4 +298,50 @@ describe('SkillManager', () => {
       expect(result).toEqual([{ name: 's1' }]);
     });
   });
+
+  describe('setupWatcher', () => {
+    let watchCb;
+    let closeFn;
+
+    beforeEach(() => {
+      watchCb = null;
+      closeFn = jest.fn();
+      fs.watch.mockImplementation((p, cb) => {
+        watchCb = cb;
+        return { close: closeFn };
+      });
+      fs.existsSync.mockReturnValue(true);
+      jest.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    it('should not create watcher when path does not exist', () => {
+      fs.existsSync.mockReturnValue(false);
+      manager.setupWatcher('s1');
+      expect(fs.watch).not.toHaveBeenCalled();
+    });
+
+    it('should register watcher and store it', () => {
+      manager.setupWatcher('s1');
+      expect(fs.watch).toHaveBeenCalledWith(expect.stringContaining('s1'), expect.any(Function));
+      expect(manager.watchers.has('s1')).toBe(true);
+    });
+
+    it('should log reloading message on change event', () => {
+      manager.setupWatcher('s1');
+      watchCb('change', 'file.js');
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('s1'));
+    });
+
+    it('should log reloading message on rename event', () => {
+      manager.setupWatcher('s1');
+      watchCb('rename', 'file.js');
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('s1'));
+    });
+
+    it('should ignore unrelated event types', () => {
+      manager.setupWatcher('s1');
+      watchCb('other', 'file.js');
+      expect(console.log).not.toHaveBeenCalled();
+    });
+  });
 });
