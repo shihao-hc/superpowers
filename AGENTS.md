@@ -1648,6 +1648,26 @@ Session 锚点: 2026-08-12 (第27次 — SkillManager 全覆盖 100/100/100/100)
 
 ---
 
+Session 锚点: 2026-08-12 (第28次 — H-ops 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,423 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/agent/comprehensiveChecks/H-ops.js: 75/57.89 → 96.15 stmts / 92.1 branch / 80 funcs / 97.87 lines** (105 行) — 剩余 L91-95 `_hasRecoveryCode` 探针证实死代码不可达
+- **全量 src 覆盖扫描账本 (重扫)**: SkillManager 87.9% 已清 → 下一目标 H-ops 86.8% branch (被 ComprehensiveCheckImpls.js:18 聚合生产引用); 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 8 测试 (gap→test 映射)** — 全走真实临时目录 `fs.mkdtempSync`:
+  - checkBackup 无备份目录 + 文件无 backup/dump → warning + `_hasBackupCode` 回调体 (L19-22, files.some 真实 readFileSync)
+  - checkBackup scripts/backup 目录 → passed (L14/15 `||` 的 scripts 侧)
+  - checkMonitoring 文件含 metrics+prometheus → passed (L37/38 true + break + L46)
+  - checkMonitoring 文件含 monitor → passed (L37 true)
+  - checkAlerts 文件含 alert/notify → passed (L54 true + L55/56 break + L64)
+  - checkLogLevels 2 种级别 → passed (L84)
+  - checkDisasterRecovery 无文档 + 传文件 → warning (L97/98)
+- **结构性不可达 (探针证实)**: L91-95 `_hasRecoveryCode` — 定义为箭头函数但零调用点 (grep 仅 1 次=定义处), 死代码; 注意 `_hasBackupCode` (L19) 是 `files.some(...)` 立即执行非函数定义所以可达
+- **断言坑**: checkDisasterRecovery 签名 `async (root)` 只接收 root — 第二个 files 参数被忽略, `_hasRecoveryCode` 无法经传参触发; 各 check 的 files 数组被真实 readFileSync 读取 → 必须传真实临时目录文件
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,423, 较基线 16,415 +8) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (comprehensive-checks-branches.test.js + AGENTS.md), src/agent/comprehensiveChecks/H-ops.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/comprehensive-checks-branches.test.js` (48→56)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
@@ -1693,3 +1713,14 @@ python -c "..."               # DB 完整性检查 (readOnly)
 - **UI 渲染 bug 修复确认**: 之前"消息发送无响应"会话在 v1.18.18 下正常显示/回复 (根因是 v1.16.2 前端渲染 bug，非引擎/数据问题)
 - 数据库: integrity=ok, 632 会话/55712 消息完整, events 从 44万降至 290 (v1.18.18 事件溯源迁移, 正常)
 - D盘 DB 6301MB 活跃使用, C盘原数据 + D盘备份 + 会话存档(D:\opencode-exports\) 三重保障
+
+### 长期增强 (2026-08-18)
+- 建立 opencode 自动维护机制 (方案B: Windows 任务计划)
+- 脚本位置: `D:\opencode-tools\`
+  - `maintain-opencode.ps1` (主脚本): 调用 Python 检查 + 版本检查 + 汇总日志
+  - `check_opencode.py` (Python): DB integrity/fk 检查 + 快照 git fsck + 在线备份(保留5份) + 磁盘检查
+  - `reports/` (检查报告) + `maintain.log` (运行日志)
+- 定时任务: `OpenCode-Maintain` (每周日 3:00, 自动运行, 全自动)
+- 备份位置: `D:\opencode-backup-20260815\auto\` (SQLite 在线一致性备份, 自动保留最近5份)
+- 设计原则: **只读+复制, 绝不删除用户数据** (仅自动清理自身旧备份)
+- 验证: 手动+定时触发均成功, DB integrity=ok, 快照3仓库健康, 版本检查正常

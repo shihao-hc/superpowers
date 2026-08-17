@@ -227,6 +227,56 @@ describe('H-ops 分支', () => {
     const r = await CHECK_IMPLEMENTATIONS.checkDisasterRecovery(root);
     expect(r.status).toBe('passed');
   });
+
+  test('checkBackup: 无备份目录且文件无backup/dump → warning', async () => {
+    const f = write('a.js', 'module.exports = {};');
+    const r = await CHECK_IMPLEMENTATIONS.checkBackup(root, [f]);
+    expect(r.status).toBe('warning');
+    expect(r.message).toContain('缺少备份机制');
+  });
+
+  test('checkBackup: scripts/backup目录存在 → passed', async () => {
+    mkdir('scripts/backup');
+    const r = await CHECK_IMPLEMENTATIONS.checkBackup(root, []);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkMonitoring: 文件含metrics和prometheus → passed', async () => {
+    const f = write('a.js', 'const metrics = 1; const prometheus = true;');
+    const r = await CHECK_IMPLEMENTATIONS.checkMonitoring(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkMonitoring: 文件含monitor → passed', async () => {
+    const f = write('a.js', 'function monitor() { return 1; }');
+    const r = await CHECK_IMPLEMENTATIONS.checkMonitoring(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkAlerts: 文件含alert关键词 → passed', async () => {
+    const f = write('a.js', 'function sendAlert() { return 1; }');
+    const r = await CHECK_IMPLEMENTATIONS.checkAlerts(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkAlerts: 文件含notify关键词 → passed', async () => {
+    const f = write('a.js', 'notify("hi");');
+    const r = await CHECK_IMPLEMENTATIONS.checkAlerts(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkLogLevels: 2种日志级别 → passed', async () => {
+    const f = write('a.js', 'console.error("x"); console.info("y");');
+    const r = await CHECK_IMPLEMENTATIONS.checkLogLevels(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkDisasterRecovery: 无恢复文档且文件无recovery关键词 → warning', async () => {
+    const f = write('a.js', 'module.exports = {};');
+    const r = await CHECK_IMPLEMENTATIONS.checkDisasterRecovery(root, [f]);
+    expect(r.status).toBe('warning');
+    expect(r.message).toContain('缺少容灾恢复文档');
+  });
 });
 
 describe('I-compliance 分支', () => {
