@@ -270,6 +270,13 @@ describe('StorageAdapter', () => {
         const result = await a.upload(file);
         expect(result.key).toMatch(/^exports\d+_auto_[a-f0-9]+\.csv$/);
       });
+
+      it('creates local directory when it does not exist', async () => {
+        // existsSync defaults to false in beforeEach
+        const a = new StorageAdapter();
+        await a.upload(Buffer.from('x'), { key: 'nested.txt' });
+        expect(fs.mkdirSync).toHaveBeenCalled();
+      });
     });
 
     describe('S3', () => {

@@ -1668,6 +1668,19 @@ Session 锚点: 2026-08-12 (第28次 — H-ops 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第29次 — StorageAdapter 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,424 passed / 46 skipped) 两次运行稳定 clean exit (第2次 1 失败为预存 personality-manager flaky, 单独跑 48/48 通过, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/export/StorageAdapter.js: 97.1/87.65 → 97.52 stmts / 88.27 branch / 100 funcs / 97.89 lines** (803 行, 82 tests, 81→82) — 剩余 5 缺口探针证实结构性不可达
+- **全量 src 覆盖扫描账本**: H-ops 86.8% 已清 → 下一目标 StorageAdapter 87.7% branch (被 enhancedApi.js:12 生产引用 `MultiFormatExporter`); 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 1 测试 (gap→test 映射)**: `creates local directory when it does not exist` — `_uploadToLocal` L265-266 mkdir 侧; 现有 local 测试全部 `fs.existsSync.mockReturnValue(true)` 走 L265 false 侧, 该测试保持 beforeEach 默认 false 触发 L265 true + L266 mkdirSync
+- **结构性不可达 5 缺口 (探针证实)**: L260/368/437/526/541 — 各 `validatePath(this.config.localPath, filePath)` false 侧. **根因**: `sanitizeFilename` 移除所有 `/` `\` `..` (L27-28) → key/prefix 恒为单段安全名 → `path.join(BASE_PATH, sanitized)` 恒在 BASE_PATH 下 → validatePath 恒 true. 与 SkillPreview 不同 (那里文件名来自 readdirSync 可含逃逸, 这里 key 恒先 sanitize). 空 key/`..` 时 dirSafe false 但 fileSafe 恒 true
+- **L37 escapeHtml 非字符串侧不可达**: 调用点 L730 `escapeHtml(JSON.stringify(...))` + L753 `escapeHtml(String(data))` 都先转 string → escapeHtml 恒收 string → `typeof str !== 'string'` true 侧永不执行
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,424, 较基线 16,423 +1) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (storage-adapter.test.js + AGENTS.md), src/skills/export/StorageAdapter.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/storage-adapter.test.js` (81→82)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
