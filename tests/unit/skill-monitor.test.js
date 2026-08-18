@@ -370,6 +370,12 @@ describe('SkillMonitor', () => {
       expect(emptyStats.successRate).toBe('0%');
       expect(emptyStats.avgDuration).toBe(0);
     });
+
+    it('should treat missing duration as zero', () => {
+      monitor.recordExecution({ skillId: 's1', success: true });
+      const stats = monitor.getExecutionStats({ timeRange: '24h', skillId: 's1' });
+      expect(stats.avgDuration).toBe(100);
+    });
   });
 
   describe('getDownloadStats', () => {
@@ -590,6 +596,60 @@ describe('SkillMonitor', () => {
       const result = await monitor.cleanupOldVersions(versionManager);
 
       expect(result.error).toBe('fail');
+    });
+
+    it('should keep versions within minimum retention period even if beyond keepLastVersions', async () => {
+      const versionManager = {
+        getAllVersions: jest.fn().mockReturnValue([
+          // 6 versions, all 10 days old (within 30-day retention), keepLastVersions=5
+          makeVersion('skill-a', '1.0.0', 10),
+          makeVersion('skill-a', '1.1.0', 10),
+          makeVersion('skill-a', '1.2.0', 10),
+          makeVersion('skill-a', '1.3.0', 10),
+          makeVersion('skill-a', '1.4.0', 10),
+          makeVersion('skill-a', '1.5.0', 10)
+        ]),
+        _compareVersions: jest.fn((a, b) => {
+          const pa = a.split('.').map(Number);
+          const pb = b.split('.').map(Number);
+          for (let i = 0; i < 3; i++) {
+            if (pa[i] !== pb[i]) return pa[i] - pb[i];
+          }
+          return 0;
+        }),
+        updateVersionStatus: jest.fn().mockResolvedValue(true)
+      };
+
+      const result = await monitor.cleanupOldVersions(versionManager);
+
+      expect(result.kept).toBe(6);
+      expect(versionManager.updateVersionStatus).not.toHaveBeenCalled();
+    });
+
+    it('should record failure when archive update throws', async () => {
+      const versionManager = {
+        getAllVersions: jest.fn().mockReturnValue([
+          makeVersion('skill-a', '1.0.0', 100),
+          makeVersion('skill-a', '1.1.0', 80),
+          makeVersion('skill-a', '1.2.0', 60),
+          makeVersion('skill-a', '1.3.0', 40),
+          makeVersion('skill-a', '1.4.0', 10),
+          makeVersion('skill-a', '1.5.0', 5)
+        ]),
+        _compareVersions: jest.fn((a, b) => {
+          const pa = a.split('.').map(Number);
+          const pb = b.split('.').map(Number);
+          for (let i = 0; i < 3; i++) {
+            if (pa[i] !== pb[i]) return pa[i] - pb[i];
+          }
+          return 0;
+        }),
+        updateVersionStatus: jest.fn().mockRejectedValue(new Error('archive boom'))
+      };
+
+      const result = await monitor.cleanupOldVersions(versionManager);
+
+      expect(result.details.some((d) => d.action === 'failed' && d.error === 'archive boom')).toBe(true);
     });
   });
 

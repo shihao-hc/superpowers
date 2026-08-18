@@ -1754,6 +1754,22 @@ Session 锚点: 2026-08-12 (第33次 — GameWebSocket 全覆盖 100/100/100/100
 
 ---
 
+Session 锚点: 2026-08-12 (第34次 — SkillMonitor 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,480 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/monitoring/SkillMonitor.js: 98.11/88.67 → 100 stmts / 90.56 branch / 100 funcs / 100 lines** (601 行, 55 tests, 52→55)
+- **全量 src 覆盖扫描账本 (重扫)**: GameWebSocket 88.2% 已清 → 下一目标 ReverseThinking 88.5% (已确认最大可达, Round 21) → 实际下一 SkillMonitor 88.7% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 3 测试 (gap→test 映射)** — cleanupOldVersions 保留/归档策略 + getExecutionStats:
+  - keepLastVersions 之外但在 minDaysToKeep 保留期内 → L465 `createdDate > minKeepDate` true 侧 (kept + details 'Within minimum retention period')
+  - updateVersionStatus 抛错 → L487 catch → details action 'failed' + error (需 ≥6 版本使第 6 个走出 toKeep 进入归档)
+  - getExecutionStats execution 无 duration → L227 `(e.duration || 0)` 右侧 → avgDuration 用 0
+- **结构性不可达 (探针证实)**: L95 `if (Array.isArray(metrics[key]))` no-else 隐式 else (false 无语句); L438 `if (keepMajorVersions)` no-else 隐式 else; L211-212/244-245/280-281/316-317 default-arg 为 v8/babel 映射假象 (现有测试已 `new SkillMonitor()` 通过)
+- **断言坑**: cleanupOldVersions 归档失败需 ≥6 版本 (keepLastVersions=5 保留 5 个, 第 6 个不在 toKeep 才走归档); 无 duration execution avgDuration = (100+200+0)/3 = 100
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,480, 较基线 16,477 +3) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-monitor.test.js + AGENTS.md), src/skills/monitoring/SkillMonitor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-monitor.test.js` (52→55)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
