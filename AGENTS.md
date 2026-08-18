@@ -1737,6 +1737,23 @@ Session 锚点: 2026-08-12 (第32次 — AutonomousLearning 覆盖至可达上�
 
 ---
 
+Session 锚点: 2026-08-12 (第33次 — GameWebSocket 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,477 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/game/GameWebSocket.js: 98.69/88.23 → 100 stmts / 100 branch / 100 funcs / 100 lines** (298 行, 79 tests, 73→79)
+- **全量 src 覆盖扫描账本**: AutonomousLearning 88.2% 已清 → 下一目标 GameWebSocket 88.2% branch (src 内零生产引用, 独立 WS 模块); 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 6 测试 (gap→test 映射)**:
+  - getGameStatus 空状态: `getStatus`/`game.getStatus` 返回 `{}` → 全字段 `|| fallback` 右侧 (L202-208, username 'Bot'/health 0/position 0,0,0/isAlive true/task null)
+  - getGameStatus 无 getStatus 方法 → `|| {}` (L197)
+  - getGameStatus eventHandler 无 getEventHistory → recentEvents `|| []` (L211)
+  - events 消息时 eventHandler 缺失 → data `|| []` (L179)
+  - startStatusBroadcast 回调体: fake timers 推进 + clients 存在 → broadcastStatus (L89-90 true); 无 clients → 不广播 (L89 false)
+- **断言坑**: `clients` 是 Set 非 Map → 用 `ws.clients.add({...})` 非 set; 空状态测试的 recentEvents 仍走 eventHandler (有 2 事件) → 断言 toHaveLength(2) 非 []
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,477, 较基线 16,471 +6) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (game-websocket.test.js + AGENTS.md), src/game/GameWebSocket.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/game-websocket.test.js` (73→79)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

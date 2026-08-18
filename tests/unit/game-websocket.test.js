@@ -459,6 +459,13 @@ describe('GameWebSocket', () => {
       expect(client.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'events' }));
     });
 
+    it('handles events type when eventHandler is absent', () => {
+      delete gameManager.eventHandler;
+      ws = new GameWebSocket(server, gameManager, personalityManager);
+      ws.handleMessage(client, { type: 'events' });
+      expect(client.send).toHaveBeenCalledWith(expect.objectContaining({ type: 'events', data: [] }));
+    });
+
     it('handles game_command type', () => {
       const cmdSpy = jest.spyOn(ws, 'handleGameCommand');
       ws.handleMessage(client, { type: 'game_command', command: 'dig' });
@@ -518,6 +525,36 @@ describe('GameWebSocket', () => {
       const status = ws.getGameStatus();
       expect(status.bot.username).toBe('TestBot');
       expect(status.bot.health).toBe(20);
+    });
+
+    it('falls back to defaults when status fields are empty', () => {
+      gameManager.getStatus.mockReturnValue({});
+      gameManager.game.getStatus.mockReturnValue({});
+      ws = new GameWebSocket(server, gameManager, personalityManager);
+      const status = ws.getGameStatus();
+      expect(status.enabled).toBe(true);
+      expect(status.connected).toBe(false);
+      expect(status.bot.username).toBe('Bot');
+      expect(status.bot.health).toBe(0);
+      expect(status.bot.position).toEqual({ x: 0, y: 0, z: 0 });
+      expect(status.bot.isAlive).toBe(true);
+      expect(status.task).toBeNull();
+      expect(status.recentEvents).toHaveLength(2);
+    });
+
+    it('handles game without getStatus method', () => {
+      delete gameManager.getStatus;
+      ws = new GameWebSocket(server, gameManager, personalityManager);
+      const status = ws.getGameStatus();
+      expect(status.enabled).toBe(true);
+      expect(status.bot.username).toBe('GameBot');
+    });
+
+    it('returns empty recentEvents when eventHandler lacks getEventHistory', () => {
+      gameManager.eventHandler = {};
+      ws = new GameWebSocket(server, gameManager, personalityManager);
+      const status = ws.getGameStatus();
+      expect(status.recentEvents).toEqual([]);
     });
   });
 
@@ -724,6 +761,28 @@ describe('GameWebSocket', () => {
       ws.startStatusBroadcast();
       expect(ws.broadcastInterval).not.toBeNull();
       expect(ws.broadcastInterval).not.toBe(prev);
+    });
+
+    it('broadcasts status when clients exist', () => {
+      jest.useFakeTimers();
+      const spy = jest.spyOn(ws, 'broadcastStatus').mockImplementation(() => {});
+      ws.clients.add({ id: 1, socket: {} });
+      ws.startStatusBroadcast();
+      jest.advanceTimersByTime(2000);
+      expect(spy).toHaveBeenCalled();
+      jest.useRealTimers();
+      ws.stopStatusBroadcast();
+    });
+
+    it('does not broadcast status when no clients', () => {
+      jest.useFakeTimers();
+      const spy = jest.spyOn(ws, 'broadcastStatus').mockImplementation(() => {});
+      ws.clients.clear();
+      ws.startStatusBroadcast();
+      jest.advanceTimersByTime(2000);
+      expect(spy).not.toHaveBeenCalled();
+      jest.useRealTimers();
+      ws.stopStatusBroadcast();
     });
 
     it('stopStatusBroadcast clears the interval', () => {
