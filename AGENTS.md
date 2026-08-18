@@ -1699,6 +1699,27 @@ Session 锚点: 2026-08-12 (第30次 — PdfExecutor 全覆盖 100/100/100/100)
 
 ---
 
+Session 锚点: 2026-08-12 (第31次 — api.js 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,462 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/api.js: 99.34/87.92 → 99.78 stmts / 99.51 branch / 100 funcs / 99.77 lines** (985 行, 155 tests, 132→155) — 被 skills/index.js:9 生产引用
+- **全量 src 覆盖扫描账本**: PdfExecutor 87.8% 已清 → 下一目标 api.js 87.9% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 23 测试 (gap→test 映射)**:
+  - 两个 getRouter 方法 (SkillsApi + SkillAutoRouter)
+  - skillLoader 无 getSkill → /test (L85 cond-expr false)、/nodes、/dependencies (L133/149) → 需 `new SkillsApi({...mockSkillManager, skillLoader:{}})` + **getLastHandler helper** (共享 mockRouter, find 取最后一个匹配)
+  - skill 无 riskLevel → /test gate 通过 (L86); skill 缺 riskLevel/dependencies → dependencies 默认 low/[] (L157/158)
+  - upload: body.role fallback (L210)、默认 user 403、uploadsDir 存在跳过 mkdir (L229)、autoLoad+validate=true (L250)、loadSkill null → skill null (L260)
+  - import/git: body.role fallback (L289)、默认 user 403、validate=true+valid 含 report (L374 true)、autoLoad+loadSkill null (L355)
+  - custom: 既非 zip 文件也非目录跳过 (L426 isDirectory false)
+  - marketplace: 无 visitor-id → 'anonymous' (L487)、publish body.role + 默认 user (L503)
+  - versions: author 已提供 (L709 false)、body.role + 默认 user (L693)
+- **结构性不可达 (探针证实)**: L329-330 git import dest 逃逸 — sanitizedSkillName 只含 `[a-zA-Z0-9_-]` (L320 replace 移除所有特殊字符) → `path.join(cwd,'uploads','skills-custom', s)` 恒 startsWith allowedBase → L330 永不执行
+- **关键陷阱**: 共享 express.Router mock → 多个 SkillsApi 实例注册同 pathPattern, `getHandler`(find 第一个) 拿到旧实例 handler; 测新实例必须 `getLastHandler` (reverse find 最后一个); helper 放错 describe 作用域 (误加到 SkillAutoRouter) 导致 ReferenceError
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,462, 较基线 16,439 +23) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skills-api.test.js + AGENTS.md), src/skills/api.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skills-api.test.js` (132→155)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

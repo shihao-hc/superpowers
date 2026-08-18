@@ -131,6 +131,10 @@ describe('SkillsApi', () => {
       const bare = new SkillsApi({ getAllSkills: jest.fn(() => []) });
       expect(bare.skillLoader).toBeNull();
     });
+
+    it('getRouter returns the router', () => {
+      expect(_skillsApi.getRouter()).toBe(mockRouter);
+    });
   });
 
   describe('auth middleware', () => {
@@ -191,6 +195,11 @@ describe('SkillsApi', () => {
       };
       await handler(req, res);
       return { req, res };
+    }
+
+    function getLastHandler(method, pathPattern) {
+      const calls = mockRouter[method].mock.calls;
+      return [...calls].reverse().find(([p]) => p === pathPattern)?.[1];
     }
 
     it('GET / lists skills', async () => {
@@ -323,6 +332,22 @@ describe('SkillsApi', () => {
         expect(res.status).toHaveBeenCalledWith(500);
         expect(_skillsApi.metrics.recordExecution).toHaveBeenCalledWith('x', expect.objectContaining({ success: false }));
       });
+
+      it('uses null skillLoader when skillLoader lacks getSkill', async () => {
+        const _bare = new SkillsApi({ ...mockSkillManager, skillLoader: {} });
+        const handler = getLastHandler('post', '/:skillName/test');
+        fs.existsSync.mockReturnValue(false);
+        const { res } = await callHandler(handler, { req: { params: { skillName: 'x' }, headers: {}, body: { inputs: {} } } });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      });
+
+      it('allows skill with no riskLevel through gate', async () => {
+        mockSkillManager.skillLoader.getSkill.mockReturnValue({ name: 'norisk' });
+        fs.existsSync.mockReturnValue(false);
+        const handler = getHandler('post', '/:skillName/test');
+        const { res } = await callHandler(handler, { req: { params: { skillName: 'norisk' }, headers: {}, body: { inputs: {} } } });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      });
     });
 
     describe('GET /:skillName/nodes', () => {
@@ -348,6 +373,13 @@ describe('SkillsApi', () => {
         const { res } = await callHandler(handler, { req: { params: { skillName: 's2' } } });
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ skill: 's2' }));
       });
+
+      it('returns 404 when skillLoader lacks getSkill', async () => {
+        const _bare = new SkillsApi({ ...mockSkillManager, skillLoader: {} });
+        const handler = getLastHandler('get', '/:skillName/nodes');
+        const { res } = await callHandler(handler, { req: { params: { skillName: 'x' } } });
+        expect(res.status).toHaveBeenCalledWith(404);
+      });
     });
 
     describe('GET /:skillName/dependencies', () => {
@@ -363,6 +395,20 @@ describe('SkillsApi', () => {
         const handler = getHandler('get', '/:skillName/dependencies');
         const { res } = await callHandler(handler, { req: { params: { skillName: 's' } } });
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ name: 's', riskLevel: 'high' }));
+      });
+
+      it('defaults missing riskLevel and dependencies', async () => {
+        mockSkillManager.skillLoader.getSkill.mockReturnValue({ name: 's', version: '1.0.0' });
+        const handler = getHandler('get', '/:skillName/dependencies');
+        const { res } = await callHandler(handler, { req: { params: { skillName: 's' } } });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ riskLevel: 'low', dependencies: [] }));
+      });
+
+      it('returns 404 when skillLoader lacks getSkill', async () => {
+        const _bare = new SkillsApi({ ...mockSkillManager, skillLoader: {} });
+        const handler = getLastHandler('get', '/:skillName/dependencies');
+        const { res } = await callHandler(handler, { req: { params: { skillName: 'x' } } });
+        expect(res.status).toHaveBeenCalledWith(404);
       });
     });
 
@@ -466,6 +512,51 @@ describe('SkillsApi', () => {
           req: { headers: { 'x-role': 'admin' }, body: { name: 'z', payloadBase64: Buffer.from('abc').toString('base64'), validate: false } }
         });
         expect(res.status).toHaveBeenCalledWith(500);
+      });
+
+      it('uses body.role when x-role header absent', async () => {
+        const handler = getHandler('post', '/upload');
+        const { res } = await callHandler(handler, { req: { headers: {}, body: { role: 'developer' } } });
+        expect(res.status).not.toHaveBeenCalledWith(403);
+        expect(res.status).toHaveBeenCalledWith(400);
+      });
+
+      it('defaults to user role when neither header nor body provides role', async () => {
+        const handler = getHandler('post', '/upload');
+        const { res } = await callHandler(handler, { req: { headers: {}, body: {} } });
+        expect(res.status).toHaveBeenCalledWith(403);
+      });
+
+      it('skips mkdir when uploads dir already exists', async () => {
+        _skillsApi.validator.validateZipPackage.mockResolvedValue({ valid: true });
+        fs.existsSync.mockReturnValue(true);
+        const handler = getHandler('post', '/upload');
+        const { res } = await callHandler(handler, {
+          req: { headers: { 'x-role': 'admin' }, body: { name: 'zip1', payloadBase64: Buffer.from('abc').toString('base64'), validate: true } }
+        });
+        expect(fs.mkdirSync).not.toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
+      });
+
+      it('auto-loads with validate=true and valid result', async () => {
+        fs.existsSync.mockReturnValue(false);
+        _skillsApi.validator.validateZipPackage.mockResolvedValue({ valid: true });
+        mockSkillManager.skillLoader.loadSkill.mockReturnValue({ name: 'z', version: '1.0.0', description: 'd' });
+        const handler = getHandler('post', '/upload');
+        const { res } = await callHandler(handler, {
+          req: { headers: { 'x-role': 'admin' }, body: { name: 'z', payloadBase64: Buffer.from('abc').toString('base64'), validate: true, autoLoad: true } }
+        });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ skill: expect.objectContaining({ loaded: true }) }));
+      });
+
+      it('auto-load with no skill returned leaves skill null', async () => {
+        fs.existsSync.mockReturnValue(false);
+        mockSkillManager.skillLoader.loadSkill.mockReturnValue(null);
+        const handler = getHandler('post', '/upload');
+        const { res } = await callHandler(handler, {
+          req: { headers: { 'x-role': 'admin' }, body: { name: 'z', payloadBase64: Buffer.from('abc').toString('base64'), validate: false, autoLoad: true } }
+        });
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, skill: null }));
       });
     });
 
@@ -571,6 +662,45 @@ describe('SkillsApi', () => {
         });
         expect(res.status).toHaveBeenCalledWith(500);
       });
+
+      it('uses body.role when x-role header absent', async () => {
+        const handler = getHandler('post', '/import/git');
+        const { res } = await callHandler(handler, { req: { headers: {}, body: { role: 'developer' } } });
+        expect(res.status).not.toHaveBeenCalledWith(403);
+        expect(res.status).toHaveBeenCalledWith(400);
+      });
+
+      it('defaults to user role when no role provided', async () => {
+        const handler = getHandler('post', '/import/git');
+        const { res } = await callHandler(handler, { req: { headers: {}, body: {} } });
+        expect(res.status).toHaveBeenCalledWith(403);
+      });
+
+      it('clones with validation passing and includes report', async () => {
+        const child = makeGitChild();
+        _skillsApi.validator.validateGitRepository.mockResolvedValue({ valid: true });
+        _skillsApi.validator.generateReport.mockReturnValue({ report: 1 });
+        require('../../src/utils/SafeExec').safeSpawn.mockReturnValue(child);
+        const handler = getHandler('post', '/import/git');
+        const { res } = await callHandler(handler, {
+          req: { headers: { 'x-role': 'admin' }, body: { repo: 'https://github.com/a/b.git', validate: true, autoLoad: false } }
+        });
+        child.emit('close', 0);
+        expect(_skillsApi.validator.generateReport).toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, validation: { report: 1 } }));
+      });
+
+      it('auto-loads when loadSkill returns null', async () => {
+        const child = makeGitChild();
+        require('../../src/utils/SafeExec').safeSpawn.mockReturnValue(child);
+        mockSkillManager.skillLoader.loadSkill.mockReturnValue(null);
+        const handler = getHandler('post', '/import/git');
+        const { res } = await callHandler(handler, {
+          req: { headers: { 'x-role': 'admin' }, body: { repo: 'https://github.com/a/b.git', validate: false, autoLoad: true } }
+        });
+        child.emit('close', 0);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, skill: null }));
+      });
     });
 
     describe('POST /validate', () => {
@@ -624,6 +754,15 @@ describe('SkillsApi', () => {
         const { res } = await callHandler(handler);
         expect(res.status).toHaveBeenCalledWith(500);
       });
+
+      it('skips items that are neither zip files nor directories', async () => {
+        fs.existsSync.mockReturnValue(true);
+        fs.readdirSync.mockReturnValue(['odd.bin']);
+        fs.statSync.mockReturnValue({ isFile: () => false, isDirectory: () => false, size: 0, mtime: new Date() });
+        const handler = getHandler('get', '/custom');
+        const { res } = await callHandler(handler);
+        expect(res.json).toHaveBeenCalledWith({ skills: [] });
+      });
     });
   });
 
@@ -670,6 +809,16 @@ describe('SkillsApi', () => {
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ skill: { name: 's' } }));
     });
 
+    it('GET /marketplace/:skillId falls back to anonymous visitor', async () => {
+      _skillsApi.marketplace.getSkill.mockReturnValue({ name: 's' });
+      _skillsApi.marketplace.getStats.mockReturnValue({});
+      _skillsApi.marketplace.getReviews.mockReturnValue([]);
+      const handler = getHandler('get', '/marketplace/:skillId');
+      const { res } = await callHandler(handler, { req: { params: { skillId: 's' }, headers: {} } });
+      expect(_skillsApi.metrics.recordView).toHaveBeenCalledWith('s', 'anonymous');
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ skill: { name: 's' } }));
+    });
+
     it('GET /marketplace/:skillId returns 404 when missing', async () => {
       _skillsApi.marketplace.getSkill.mockReturnValue(null);
       const handler = getHandler('get', '/marketplace/:skillId');
@@ -687,6 +836,19 @@ describe('SkillsApi', () => {
     it('POST /marketplace/publish blocks unauthorized roles', async () => {
       const handler = getHandler('post', '/marketplace/publish');
       const { res } = await callHandler(handler, { req: { headers: { 'x-role': 'user' } } });
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('POST /marketplace/publish uses body.role when header absent', async () => {
+      _skillsApi.marketplace.publishSkill.mockResolvedValue({ id: '1' });
+      const handler = getHandler('post', '/marketplace/publish');
+      const { res } = await callHandler(handler, { req: { headers: {}, body: { name: 's', role: 'developer' } } });
+      expect(res.json).toHaveBeenCalledWith({ ok: true, skill: { id: '1' } });
+    });
+
+    it('POST /marketplace/publish defaults to user role when none provided', async () => {
+      const handler = getHandler('post', '/marketplace/publish');
+      const { res } = await callHandler(handler, { req: { headers: {}, body: {} } });
       expect(res.status).toHaveBeenCalledWith(403);
     });
 
@@ -949,6 +1111,33 @@ describe('SkillsApi', () => {
       expect(res.json).toHaveBeenCalled();
     });
 
+    it('POST /versions/:skillName keeps provided author', async () => {
+      _skillsApi.versionManager.createVersion.mockResolvedValue({ version: '1.0.0' });
+      const handler = getHandler('post', '/versions/:skillName');
+      const { res } = await callHandler(handler, {
+        req: { headers: { 'x-role': 'admin' }, params: { skillName: 's' }, body: { version: '1.0.0', author: 'alice' } }
+      });
+      expect(_skillsApi.versionManager.createVersion).toHaveBeenCalledWith('s', expect.objectContaining({ author: 'alice' }));
+      expect(res.json).toHaveBeenCalled();
+    });
+
+    it('POST /versions/:skillName uses body.role when header absent', async () => {
+      _skillsApi.versionManager.createVersion.mockResolvedValue({ version: '1.0.0' });
+      const handler = getHandler('post', '/versions/:skillName');
+      const { res } = await callHandler(handler, {
+        req: { headers: {}, params: { skillName: 's' }, body: { version: '1.0.0', role: 'maintainer' } }
+      });
+      expect(res.json).toHaveBeenCalled();
+    });
+
+    it('POST /versions/:skillName defaults to user role when none provided', async () => {
+      const handler = getHandler('post', '/versions/:skillName');
+      const { res } = await callHandler(handler, {
+        req: { headers: {}, params: { skillName: 's' }, body: {} }
+      });
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
     it('POST /versions/:skillName handles error', async () => {
       _skillsApi.versionManager.createVersion.mockRejectedValue(new Error('x'));
       const handler = getHandler('post', '/versions/:skillName');
@@ -1172,17 +1361,18 @@ describe('SkillAutoRouter', () => {
     return calls.find(([p]) => p === pathPattern)?.[1];
   }
 
-  async function callHandler(handler, overrides = {}) {
-    const req = { body: {}, params: {}, query: {}, headers: {}, ...overrides.req };
-    const res = {
-      json: jest.fn(),
-      status: jest.fn(() => res),
-      send: jest.fn(),
-      sendStatus: jest.fn()
-    };
-    await handler(req, res);
-    return { req, res };
-  }
+    async function callHandler(handler, overrides = {}) {
+      const req = { body: {}, params: {}, query: {}, headers: {}, ...overrides.req };
+      const res = {
+        json: jest.fn(),
+        status: jest.fn(() => res),
+        send: jest.fn(),
+        sendStatus: jest.fn()
+      };
+      await handler(req, res);
+      return { req, res };
+    }
+
 
   it('registers routes', () => {
     expect(getHandler('post', '/auto-detect')).toBeDefined();
@@ -1247,5 +1437,9 @@ describe('SkillAutoRouter', () => {
     const handler = getHandler('get', '/type/:taskType');
     const { res } = await callHandler(handler, { req: { params: { taskType: 'code' } } });
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('getRouter returns the router', () => {
+    expect(_autoRouter.getRouter()).toBe(mockRouter);
   });
 });
