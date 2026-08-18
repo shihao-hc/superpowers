@@ -258,6 +258,28 @@ describe('PdfExecutor', () => {
       expect(mockPdfDoc.text).toHaveBeenCalledWith('Name: Alice');
       expect(result.formFieldsCount).toBe(1);
     });
+
+    test('should handle unknown form field type via default case', async () => {
+      const result = await PdfExecutor.createPDFWithForm({
+        title: 'Test Form',
+        formFields: [{ label: 'Custom', type: 'radio' }],
+        skill: { name: 'test' }
+      });
+
+      expect(mockPdfDoc.moveDown).toHaveBeenCalled();
+      expect(result.formFieldsCount).toBe(1);
+    });
+
+    test('should use defaults when title, skill, and field type are omitted', async () => {
+      const result = await PdfExecutor.createPDFWithForm({
+        formFields: [{ label: 'Defaulted' }]
+      });
+
+      const docCall = PDFDocument.mock.calls[0][0];
+      expect(docCall.info.Title).toBe('PDF Form');
+      expect(result.type).toBe('file');
+      expect(result.formFieldsCount).toBe(1);
+    });
   });
 
   describe('createPDFWithTable', () => {
@@ -289,6 +311,28 @@ describe('PdfExecutor', () => {
 
       expect(result.tableRows).toBe(0);
       expect(result.tableColumns).toBe(1);
+    });
+
+    test('should skip non-array row when drawing table cells', async () => {
+      const result = await PdfExecutor.createPDFWithTable({
+        title: 'Mixed',
+        headers: ['Name'],
+        tableData: [['Alice'], { not: 'array' }],
+        skill: { name: 'test' }
+      });
+
+      expect(result.type).toBe('file');
+      expect(result.tableRows).toBe(2);
+    });
+
+    test('should use defaults when title and skill are omitted', async () => {
+      const result = await PdfExecutor.createPDFWithTable({
+        headers: ['Col1'],
+        tableData: [['x']]
+      });
+
+      expect(result.type).toBe('file');
+      expect(result.tableRows).toBe(1);
     });
   });
 
@@ -330,6 +374,32 @@ describe('PdfExecutor', () => {
       const result = await PdfExecutor.createPDFReport({
         sections: [{ content: 'Only content' }],
         skill: { name: 'test' }
+      });
+
+      expect(result.sectionsCount).toBe(1);
+      expect(result.type).toBe('file');
+    });
+
+    test('should handle sections without content and subsections without title', async () => {
+      const result = await PdfExecutor.createPDFReport({
+        sections: [
+          { title: 'No content' },
+          {
+            title: 'Sub',
+            subsections: [{ title: 'Title only' }]
+          }
+        ]
+      });
+
+      expect(result.sectionsCount).toBe(2);
+      expect(result.type).toBe('file');
+    });
+
+    test('should handle empty subsection objects', async () => {
+      const result = await PdfExecutor.createPDFReport({
+        sections: [
+          { title: 'Sub', subsections: [{}] }
+        ]
       });
 
       expect(result.sectionsCount).toBe(1);
@@ -382,6 +452,49 @@ describe('PdfExecutor', () => {
       expect(mockPdfDoc.text).toHaveBeenCalledWith('Bob Smith\n456 Oak Ave');
       expect(result.itemsCount).toBe(1);
     });
+
+    test('should handle items with missing fields and object discount/tax', async () => {
+      const result = await PdfExecutor.createPDFInvoice({
+        invoiceNumber: 'INV-003',
+        from: 'ACME Inc',
+        to: 'Bob',
+        items: [{ description: '' }, {}],
+        discount: { amount: 10 },
+        tax: { amount: 5 }
+      });
+
+      expect(mockPdfDoc.text).toHaveBeenCalledWith('$0.00', expect.any(Number), expect.any(Number), expect.any(Object));
+      expect(result.type).toBe('file');
+      expect(result.itemsCount).toBe(2);
+    });
+
+    test('should handle numeric discount', async () => {
+      const result = await PdfExecutor.createPDFInvoice({
+        invoiceNumber: 'INV-004',
+        from: 'ACME Inc',
+        to: 'Bob',
+        items: [{ description: 'A', quantity: 1, price: 100 }],
+        discount: 10,
+        tax: 5
+      });
+
+      expect(result.itemsCount).toBe(1);
+      expect(result.type).toBe('file');
+    });
+
+    test('should handle discount and tax objects without values', async () => {
+      const result = await PdfExecutor.createPDFInvoice({
+        invoiceNumber: 'INV-005',
+        from: 'ACME Inc',
+        to: 'Bob',
+        items: [{ description: 'A' }],
+        discount: {},
+        tax: {}
+      });
+
+      expect(result.itemsCount).toBe(1);
+      expect(result.type).toBe('file');
+    });
   });
 
   describe('readPDF', () => {
@@ -430,6 +543,10 @@ describe('PdfExecutor', () => {
     test('should throw for missing file', async () => {
       await expect(PdfExecutor.editPDF({ filePath: 'missing.pdf' })).rejects.toThrow('File not found: missing.pdf');
     });
+
+    test('should throw when filePath is undefined', async () => {
+      await expect(PdfExecutor.editPDF({})).rejects.toThrow('File not found: undefined');
+    });
   });
 
   describe('addWatermark', () => {
@@ -448,6 +565,10 @@ describe('PdfExecutor', () => {
 
     test('should throw for missing file', async () => {
       await expect(PdfExecutor.addWatermark({ filePath: 'missing.pdf' })).rejects.toThrow('File not found: missing.pdf');
+    });
+
+    test('should throw when filePath is undefined', async () => {
+      await expect(PdfExecutor.addWatermark({})).rejects.toThrow('File not found: undefined');
     });
   });
 
@@ -472,6 +593,17 @@ describe('PdfExecutor', () => {
 
       expect(result.message).toContain('top-right');
     });
+
+    test('should throw when page number file does not exist', async () => {
+      fs.existsSync.mockReturnValue(false);
+      await expect(PdfExecutor.addPageNumbers({ filePath: 'missing.pdf' }))
+        .rejects.toThrow(/File not found/);
+    });
+
+    test('should throw when page number filePath is undefined', async () => {
+      await expect(PdfExecutor.addPageNumbers({}))
+        .rejects.toThrow(/File not found/);
+    });
   });
 
   describe('addBookmarks', () => {
@@ -495,6 +627,17 @@ describe('PdfExecutor', () => {
       const result = await PdfExecutor.addBookmarks({ filePath: 'doc.pdf' });
 
       expect(result.bookmarksCount).toBe(0);
+    });
+
+    test('should throw when bookmarks file does not exist', async () => {
+      fs.existsSync.mockReturnValue(false);
+      await expect(PdfExecutor.addBookmarks({ filePath: 'missing.pdf' }))
+        .rejects.toThrow(/File not found/);
+    });
+
+    test('should throw when bookmarks filePath is undefined', async () => {
+      await expect(PdfExecutor.addBookmarks({}))
+        .rejects.toThrow(/File not found/);
     });
   });
 });

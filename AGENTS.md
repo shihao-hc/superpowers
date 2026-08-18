@@ -1681,6 +1681,24 @@ Session 锚点: 2026-08-12 (第29次 — StorageAdapter 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第30次 — PdfExecutor 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,439 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/executors/PdfExecutor.js: 99.03/87.77 → 100 stmts / 100 branch / 100 funcs / 100 lines** (994 行, 56 tests, 41→56) — 被 api.js:104 + SkillToNode.js:281/305 生产引用
+- **全量 src 覆盖扫描账本**: StorageAdapter 87.7% 已清 → 下一目标 PdfExecutor 87.8% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 15 测试 (gap→test 映射)**:
+  - createPDFWithForm 未知 field type → switch default (L249-250 doc.moveDown); 无 title/skill/field type → 默认 'PDF Form' (info.Title) + `|| 'unknown'` fallback (L170) + if(title) false (L198) + type='text' default-arg (L211)
+  - createPDFWithTable row 非数组 → L360 Array.isArray false; 无 title/skill → L293 fallback + L318 false
+  - createPDFReport section 无 content (L501 false); subsection 只有 title (L537 false) / 只有 content (L527 false) / 空对象; 无 skill → L414 fallback
+  - createPDFInvoice item 缺 description/quantity/price → L707/L718-720 fallback; discount 对象 amount (L749) / 数字 (L748 cond false) / 空对象 (L749 `|| 0` 右侧); tax 对象 amount / 空对象 (L759 `|| 0` 右侧); 无 skill → L593 fallback
+  - addPageNumbers/addBookmarks 文件不存在抛错 (L958-959/979-980) + filePath undefined (`|| 'undefined'` 右侧)
+  - addWatermark/editPDF filePath undefined (L843/936 `|| 'undefined'` 右侧)
+- **断言坑**: createPDFWithForm 无 title 时 L182 `Title: title || 'PDF Form'` 是 PDFDocument info 配置非 doc.text → 断言 `PDFDocument.mock.calls[0][0].info.Title`; createPDFInvoice item 全缺字段时 itemTotal=0 → `$0.00` 经 mockPdfDoc.text 断言; discount/tax 空对象 → `|| 0` 右侧走 0
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,439, 较基线 16,424 +15) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (pdf-executor.test.js + AGENTS.md), src/skills/executors/PdfExecutor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/pdf-executor.test.js` (41→56)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
