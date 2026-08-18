@@ -1720,6 +1720,23 @@ Session 锚点: 2026-08-12 (第31次 — api.js 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第32次 — AutonomousLearning 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,471 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/core/AutonomousLearning.js: 97.74/88.23 → 99.43 stmts / 99.01 branch / 100 funcs / 100 lines** (545 行, 56 tests, 47→56) — 被 BrainSystem.js:21 生产引用
+- **全量 src 覆盖扫描账本**: api.js 87.9% 已清 → 下一目标 AutonomousLearning 88.2% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 9 测试 (gap→test 映射)**:
+  - _discoverPatterns: peakHours sort 回调 (L246, 多小时分布使 sort 触发 + peak[0][1]>=5)、error_cluster count<2 false 侧 (L270)、confidence 稳定未退化 (L294 false)、恰好 5 个 confidence 无 prevSlice (L291 false)
+  - learn: 无参数调用 (L34 default-arg)、low confidence 无 intent → area 'unknown' (L69 `|| 'unknown'` 右侧)
+  - persistence: data 缺字段 → 空默认 (L517-521 `|| []` 右侧)、目录不存在 mkdir (L530-531)
+  - getRecommendations: 多条 recommendation 排序 (L453 sort 回调)
+- **结构性不可达 (探针证实)**: L309 `if (seen.has(key))` true 侧 — _discoverPatterns 单次调用内各 pattern (repeated_intent 每 intent 1 个 / error_cluster 每 intent 1 个 / peak_usage 1 个 / confidence_degradation 1 个) 的 key `type_intent` 天然唯一, 无法产生重复 key, dedupe 是防御性冗余
+- **断言坑**: peak_usage 需某小时计数 >=5 (L249 `peakHours[0][1] >= 5`), 且多小时触发 sort; edit 误插入测试致 describe 提前关闭 → 悬空测试语法错误, 需修复结构 (把 learn 测试移到 learn describe)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,471, 较基线 16,462 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (autonomous-learning.test.js + AGENTS.md), src/core/AutonomousLearning.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/autonomous-learning.test.js` (47→56)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

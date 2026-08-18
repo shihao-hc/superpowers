@@ -260,6 +260,47 @@ describe('AutonomousLearning', () => {
       const repeated = patterns.filter((p) => p.type === 'repeated_intent');
       expect(repeated.length).toBe(1);
     });
+
+    test('sorts peak usage hours and includes multiple', () => {
+      const h12 = new Date('2026-01-01T12:00:00').getTime();
+      const h13 = h12 + 3600000;
+      const h14 = h12 + 7200000;
+      for (let i = 0; i < 6; i++) al._learningHistory.push({ intent: 'a', timestamp: h12 });
+      for (let i = 0; i < 5; i++) al._learningHistory.push({ intent: 'b', timestamp: h13 });
+      al._learningHistory.push({ intent: 'c', timestamp: h14 });
+      const patterns = al._discoverPatterns();
+      const peak = patterns.find((p) => p.type === 'peak_usage');
+      expect(peak).toBeDefined();
+      expect(peak.hours.length).toBeGreaterThan(1);
+    });
+
+    test('error_cluster only triggers for count >= 2', () => {
+      for (let i = 0; i < 3; i++) {
+        al._learningHistory.push({ intent: `err${i}`, error: 'x', timestamp: Date.now() - i * 1000 });
+      }
+      const patterns = al._discoverPatterns();
+      const cluster = patterns.find((p) => p.type === 'error_cluster');
+      expect(cluster).toBeUndefined();
+    });
+
+    test('does not degrade when recent confidence is stable', () => {
+      const now = Date.now();
+      for (let i = 0; i < 5; i++) {
+        al._learningHistory.push({ intent: 'test', confidence: 0.8, timestamp: now - (10 - i) * 1000 });
+      }
+      const patterns = al._discoverPatterns();
+      const degrade = patterns.find((p) => p.type === 'confidence_degradation');
+      expect(degrade).toBeUndefined();
+    });
+
+    test('handles exactly 5 recent confidences without previous slice', () => {
+      const now = Date.now();
+      for (let i = 0; i < 5; i++) {
+        al._learningHistory.push({ intent: 'test', confidence: 0.9, timestamp: now - i * 1000 });
+      }
+      const patterns = al._discoverPatterns();
+      expect(Array.isArray(patterns)).toBe(true);
+    });
   });
 
   describe('_activeLearn', () => {
@@ -374,6 +415,17 @@ describe('AutonomousLearning', () => {
       al.learn({ intent: 'c', confidence: 0.7 });
       expect(al._learningHistory.length).toBeGreaterThanOrEqual(3);
     });
+
+    test('learn with no arguments uses empty interaction', () => {
+      const result = al.learn();
+      expect(result).toHaveProperty('gaps');
+      expect(result).toHaveProperty('patterns');
+    });
+
+    test('low confidence without intent defaults area to unknown', () => {
+      const result = al.learn({ confidence: 0.5 });
+      expect(result.gaps.some((g) => g.area === 'unknown')).toBe(true);
+    });
   });
 
   describe('getRecommendations', () => {
@@ -407,6 +459,22 @@ describe('AutonomousLearning', () => {
       const recs = al.getRecommendations();
       expect(recs.length).toBe(1);
       expect(recs[0].type).toBe('learning_application');
+    });
+
+    test('sorts recommendations by priority', () => {
+      al._knowledgeGaps = [
+        { type: 'repeated_error', area: 'a', urgency: 'critical', suggestion: 'x' },
+        { type: 'error', area: 'b', urgency: 'high', suggestion: 'y' },
+        { type: 'periodic_review', area: 'c', urgency: 'low', suggestion: 'z' }
+      ];
+      al._improvements = [
+        { area: 'd', action: 'deep_dive', status: 'planned', expectedOutcome: 'w' }
+      ];
+      const recs = al.getRecommendations();
+      expect(recs.length).toBeGreaterThan(1);
+      for (let i = 1; i < recs.length; i++) {
+        expect(recs[i - 1].priority).toBeLessThanOrEqual(recs[i].priority);
+      }
     });
   });
 
@@ -484,6 +552,26 @@ describe('AutonomousLearning', () => {
       const loaded = new AutonomousLearning({ persistenceFile: file });
       expect(loaded._learningHistory).toEqual([]);
       try { require('fs').unlinkSync(file); } catch (e) { /* ignore */ }
+    });
+
+    test('uses empty defaults when data lacks fields', () => {
+      const file = path.join(os.tmpdir(), `al_sparse_${Date.now()}.json`);
+      require('fs').writeFileSync(file, JSON.stringify({ other: 'x' }));
+      const loaded = new AutonomousLearning({ persistenceFile: file });
+      expect(loaded._learningHistory).toEqual([]);
+      expect(loaded._knowledgeGaps).toEqual([]);
+      expect(loaded._discoveredPatterns).toEqual([]);
+      expect(loaded._improvements).toEqual([]);
+      try { require('fs').unlinkSync(file); } catch (e) { /* ignore */ }
+    });
+
+    test('creates directory when missing on save', () => {
+      const dir = path.join(os.tmpdir(), `al_mkdir_${Date.now()}`);
+      const file = path.join(dir, 'sub', 'file.json');
+      const saved = new AutonomousLearning({ persistenceFile: file });
+      saved.learn({ intent: 'x', confidence: 0.5 });
+      expect(require('fs').existsSync(file)).toBe(true);
+      try { require('fs').rmSync(dir, { recursive: true, force: true }); } catch (e) { /* ignore */ }
     });
   });
 });
