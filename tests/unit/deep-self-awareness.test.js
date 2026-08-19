@@ -82,6 +82,13 @@ describe('DeepSelfAwareness', () => {
       const result = dsa.reflect({ success: false });
       expect(result.selfEvaluation.performance).toBe('待改进');
     });
+
+    it('should handle reflect with no arguments', () => {
+      const result = dsa.reflect();
+      expect(result).toHaveProperty('consciousness', 1);
+      expect(result).toHaveProperty('selfRecognition');
+      expect(result).toHaveProperty('selfImprovement');
+    });
   });
 
   describe('_recognizeSelf', () => {
