@@ -236,6 +236,15 @@ describe('TaskPlanner', () => {
     it('should return false on eval error gracefully', () => {
       expect(planner._evaluateCondition('')).toBe(false);
     });
+
+    it('should handle less-than-or-equal operator', () => {
+      expect(planner._evaluateCondition('food <= 20')).toBe(true);
+      expect(planner._evaluateCondition('health <= 5')).toBe(false);
+    });
+
+    it('should handle whitespace-only expression', () => {
+      expect(planner._evaluateCondition('   ')).toBe(false);
+    });
   });
 
   describe('_parseCoords', () => {

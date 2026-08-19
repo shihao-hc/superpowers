@@ -1836,6 +1836,25 @@ Session 锚点: 2026-08-12 (第38次 — PythonEnvManager 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第39次 — TaskPlanner 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,518 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/game/TaskPlanner.js: 96.88/89.56 → 97.45 stmts / 90.86 branch / 81.57 funcs / 98.01 lines** (589 行, 101 tests, 99→101) — 被 GameManager.js:2 生产引用
+- **全量 src 覆盖扫描账本**: PythonEnvManager 89.3% 已清 → 下一目标 TaskPlanner 89.6% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 2 测试 (gap→test 映射)**:
+  - `<=` 操作符 (L337/338, 现有只覆盖 `>=`)
+  - whitespace-only 表达式 → 空 tokens → parsePrimary L348 `if (!tok)` true 侧 (空串会走 L232 allowedChars 抛错, 空格 `\s` 通过校验到达 L348)
+- **结构性不可达 (探针证实)**:
+  - L254-259 `_operators` 6 个比较函数 = **死代码** (grep 仅 1 次定义处, 条件求值走独立 evaluateTokens L335-341 直接比较, _operators 零调用)
+  - L226 parseValue 数字分支 — parseValue 收到 var token 名恒为字母 (L350 parsePrimary var 类型), parseFloat(字母)=NaN → `!isNaN` 恒 false
+  - L241 has() replace 回调 — `has("x")` 含 `"` 引号, allowedChars `[a-zA-Z0-9_<>=!&|().\s]` 不含引号 → L232 抛错拦截, 回调永不执行
+  - L249 token 数字校验 — 纯字母 token parseFloat 恒 NaN → `!isNaN` 恒 false
+- **断言坑**: 空表达式 `''` 走 L232 allowedChars 抛错 (正则 `+` 需≥1字符), 空格 `'  '` 的 `\s` 通过校验到达 L348; has() 条件因引号被 allowedChars 拦截无法进入替换逻辑
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,518, 较基线 16,516 +2) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (task-planner.test.js + AGENTS.md), src/game/TaskPlanner.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/task-planner.test.js` (99→101)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
