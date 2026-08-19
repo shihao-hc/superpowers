@@ -1817,6 +1817,25 @@ Session 锚点: 2026-08-12 (第37次 — OpenClawRouter 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第38次 — PythonEnvManager 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,516 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/performance/PythonEnvManager.js: 97.5/89.34 → 100 stmts / 96.72 branch / 100 funcs / 100 lines** (582 行, 89 tests, 77→89) — 被 SkillToNode.js:6 生产引用
+- **全量 src 覆盖扫描账本**: OpenClawRouter 89.3% 已清 → 下一目标 PythonEnvManager 89.3% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 12 测试 (gap→test 映射)**:
+  - 构造 docker 检查: close code 1 → dockerAvailable false + 'Docker not available' log (L44); child.on('error') → false (L62); safeSpawn 抛错 → Promise catch (L47)
+  - _run 字符串命令 → cond false 侧 (L104/105, cmd 非数组)
+  - _getCacheKey/_runLocal/_runInDocker 空 inputJson → `|| {}` 右侧 (L119/313/381)
+  - buildDockerImage: tempDir 不存在 mkdir (L485, `fs.existsSync.mockImplementation(p=>p.includes('Dockerfile'))` 区分 Dockerfile 与 tempDir); stdout data 回调体 (L517); 构建失败 stderr 空用 stdout (L537)
+  - removeEnvironment docker rmi error 事件 → 正常完成 (L568)
+  - 超时 kill 后 error 事件不重复 reject (L407 `if (!killed)` false 侧)
+- **结构性不可达 (探针证实)**: L302 `process.platform === 'win32' ? Scripts : bin` — 测试恒在 Windows, bin 分支不可达; L340 `if (input)` — input 恒 `JSON.stringify(inputJson || {})` 非空, false 侧不可达; L348 default-arg 映射假象; L359 `if (!fs.existsSync(tempDir))` false 隐式 else
+- **断言坑**: buildDockerImage 的 L476 检查 Dockerfile 与 L484 检查 tempDir 共用同一 existsSync → 须 `mockImplementation(p=>p.includes('Dockerfile'))` 区分; makeSpawnMock 默认 close(0) → dockerAvailable true, 需独立 safeSpawn mock 触发 error/close≠0 测 docker 不可用
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,516, 较基线 16,504 +12) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (python-env-manager.test.js + AGENTS.md), src/performance/PythonEnvManager.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/python-env-manager.test.js` (77→89)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
