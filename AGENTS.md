@@ -1781,6 +1781,23 @@ Session 锚点: 2026-08-12 (第35次 — DeepSelfAwareness 全覆盖 100/100/100
 
 ---
 
+Session 锚点: 2026-08-12 (第36次 — SkillTemplates 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,488 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/templates/SkillTemplates.js: 97.85/88.88 → 99.28 stmts / 96.96 branch / 100 funcs / 100 lines** (765 行, 81 tests, 74→81) — 被 enhancedApi.js:11 生产引用 `getSkillTemplates()`
+- **全量 src 覆盖扫描账本**: DeepSelfAwareness 88.9% 已清 → 下一目标 SkillTemplates 88.9% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 7 测试 (gap→test 映射)**:
+  - edge cases: _saveTemplates catch (L85, writeFileSync 抛错 → warn); renderTemplate 传非对象数据 123 (L37 isPrototypePollutionSafe true 侧 `typeof obj !== 'object'`)
+  - validateTemplateData: 可选字段传 null/'' → L707 `value === null || value === ''` 右侧 (4-loc binary-expr 末两位)
+  - constructor: 无 templatesDir → 默认 (L47 `||` 右侧); saved data 缺 templates/categories key → 默认 (L68/69 `|| {}` 右侧)
+  - renderTemplate: html 模板 undefined value → `''` (L666 cond false 侧); markdown undefined → String(value)
+- **结构性不可达 (探针证实)**: L24 escapeHtml 非字符串 — 调用点 L666 恒 `escapeHtml(String(value))`, String() 恒产出 string → `typeof str !== 'string'` true 侧永不执行; L46/754 default-arg 为 v8/babel 映射假象
+- **断言坑**: renderTemplate(null) 会抛 TypeError (L661 Object.entries(null)) → 用数字 123 触发 L37 true 侧 (Object.entries(123)=[] 不抛错); L666 escapeHtml 仅对 html 类型模板 (markdown 走 L669 String) → 需 html 模板测 undefined value
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,488, 较基线 16,481 +7) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (skill-templates.test.js + AGENTS.md), src/skills/templates/SkillTemplates.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/skill-templates.test.js` (74→81)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

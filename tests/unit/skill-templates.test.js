@@ -70,6 +70,20 @@ describe('SkillTemplates', () => {
       expect(instance.listTemplates().total).toBe(6);
     });
 
+    it('uses defaults when saved data lacks templates/categories keys', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({ other: 'x' }));
+      const instance = new SkillTemplates({ templatesDir: TEST_DIR });
+      expect(instance.listTemplates().total).toBe(6);
+      expect(instance.listCategories()).toHaveLength(6);
+    });
+
+    it('uses default templatesDir when none provided', () => {
+      const instance = new SkillTemplates({});
+      expect(instance.templatesDir).toContain('data');
+      expect(instance.templatesDir).toContain('templates');
+    });
+
     it('saves default templates to file', () => {
       new SkillTemplates({ templatesDir: TEST_DIR });
       expect(fs.writeFileSync).toHaveBeenCalledWith(
@@ -525,6 +539,22 @@ describe('SkillTemplates', () => {
       expect(result.content).toContain('W01');
       expect(result.content).not.toContain('{{week}}');
     });
+
+    it('replaces undefined-valued variables with empty string', () => {
+      const result = instance.renderTemplate('weekly-report', { week: undefined, author: undefined });
+      expect(result.content).not.toContain('{{week}}');
+    });
+
+    it('replaces undefined values in html template with empty string', () => {
+      instance.createTemplate({
+        id: 'html-undef',
+        name: 'HTML Undef',
+        template: '<div>{{content}}</div>',
+        type: 'html'
+      });
+      const result = instance.renderTemplate('html-undef', { content: undefined });
+      expect(result.content).toBe('<div></div>');
+    });
   });
 
   // =============================================
@@ -586,6 +616,20 @@ describe('SkillTemplates', () => {
       });
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.field === 'week')).toBe(true);
+    });
+
+    it('warns for optional fields provided as null or empty string', () => {
+      const result = instance.validateTemplateData('weekly-report', {
+        week: 'W01',
+        author: 'A',
+        completedTasks: 'C',
+        nextWeekPlan: 'P',
+        inProgressTasks: null,
+        issues: ''
+      });
+      const warnFields = result.warnings.map((w) => w.field);
+      expect(warnFields).toContain('inProgressTasks');
+      expect(warnFields).toContain('issues');
     });
   });
 
@@ -699,6 +743,28 @@ describe('SkillTemplates', () => {
         description: ''
       });
       expect(result.description).toBe('');
+    });
+
+    it('logs warning when saving templates fails', () => {
+      const instance = new SkillTemplates({ templatesDir: TEST_DIR });
+      jest.clearAllMocks();
+      fs.writeFileSync.mockImplementation(() => { throw new Error('disk full'); });
+      instance.createTemplate({
+        id: 'fail-save',
+        name: 'Fail',
+        template: 'x'
+      });
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to save templates'),
+        expect.any(String)
+      );
+    });
+
+    it('accepts non-object data in renderTemplate via prototype safety guard', () => {
+      const instance = new SkillTemplates({ templatesDir: TEST_DIR });
+      jest.clearAllMocks();
+      const result = instance.renderTemplate('weekly-report', 123);
+      expect(result).toBeTruthy();
     });
   });
 });
