@@ -1798,6 +1798,25 @@ Session 锚点: 2026-08-12 (第36次 — SkillTemplates 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第37次 — OpenClawRouter 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,504 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/integrations/openclaw/OpenClawRouter.js: 90.04/89.34 → 100 stmts / 99.18 branch / 100 funcs / 100 lines** (462 行, 77 tests, 61→77) — 被 launch-router.js:11 + index.js:14 生产引用
+- **全量 src 覆盖扫描账本**: SkillTemplates 88.9% 已清 → 下一目标 OpenClawRouter 89.3% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 16 测试 (gap→test 映射)**:
+  - middleware 回调体: XSS header (L117-118, mw[4])、logging finish (L122-127, mw[5] res.on finish)、CORS localhost/127.0.0.1/external origin + OPTIONS preflight (L138-148, mw[6])
+  - rate limiting ip fallback: connection.remoteAddress (L95 中位) / unknown (connection:{} remoteAddress undefined)
+  - 4 个路由 500 catch: /v1/completions (L299)、/api/openclaw/models (L328)、/api/openclaw/ask-once (L372)、/api/openclaw/ask (L403) — mock 服务抛错
+  - chat completions 非字符串 content → `''` (L247 cond false)
+  - ask-once 非字符串 model 过滤 + models 非数组 → `[]` (L388 cond false 两侧)
+  - 构造 setInterval 回调 (L72, fake timers 推进触发 rateLimiter.cleanup)
+- **结构性不可达 (探针证实)**: L356 `if (content)` stream delta no-else 隐式 else (false 无语句)
+- **断言坑**: `req.connection.remoteAddress` 在 req 无 connection 时抛 TypeError → 'unknown' 分支需传 `connection:{}` (remoteAddress undefined) 而非无 connection; middleware 索引: rate(0) json(1) urlencoded(2) helmet(3) XSS(4) logging(5) CORS(6) api-auth(7)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,504, 较基线 16,488 +16) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (openclaw-router.test.js + AGENTS.md), src/integrations/openclaw/OpenClawRouter.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/openclaw-router.test.js` (61→77)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

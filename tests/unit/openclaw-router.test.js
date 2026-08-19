@@ -224,6 +224,16 @@ describe('OpenClawRouter', () => {
       expect(r._cleanupInterval.unref).toBeDefined();
       clearInterval(r._cleanupInterval);
     });
+
+    it('should call rateLimiter.cleanup when interval elapses', () => {
+      jest.useFakeTimers();
+      const r = new OpenClawRouter();
+      const cleanupSpy = jest.spyOn(r.rateLimiter, 'cleanup');
+      jest.advanceTimersByTime(120001);
+      expect(cleanupSpy).toHaveBeenCalled();
+      jest.useRealTimers();
+      clearInterval(r._cleanupInterval);
+    });
   });
 
   describe('initialize', () => {
@@ -280,6 +290,22 @@ describe('OpenClawRouter', () => {
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Too many requests' }));
       expect(next).not.toHaveBeenCalled();
     });
+
+    it('should fall back to connection address when ip is absent', () => {
+      const req = { method: 'GET', path: '/health', connection: { remoteAddress: '192.168.1.5' } };
+      const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+      const next = jest.fn();
+      rateLimitMw(req, res, next);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should fall back to unknown when neither ip nor address present', () => {
+      const req = { method: 'GET', path: '/health', connection: {} };
+      const res = { json: jest.fn(), status: jest.fn().mockReturnThis() };
+      const next = jest.fn();
+      rateLimitMw(req, res, next);
+      expect(next).toHaveBeenCalled();
+    });
   });
 
   describe('middleware - API key auth', () => {
@@ -335,6 +361,73 @@ describe('OpenClawRouter', () => {
       expect(res.status).toHaveBeenCalledWith(401);
     });
   });
+
+  describe('middleware - security headers', () => {
+    let mw;
+
+    beforeEach(async () => {
+      await router.initialize();
+      mw = mockApp._middleware;
+    });
+
+    it('sets X-XSS-Protection header', () => {
+      const req = { ip: '10.0.0.10', method: 'GET', path: '/health' };
+      const res = { setHeader: jest.fn(), json: jest.fn(), status: jest.fn().mockReturnThis() };
+      const next = jest.fn();
+      mw[4](req, res, next);
+      expect(res.setHeader).toHaveBeenCalledWith('X-XSS-Protection', '1; mode=block');
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('logs request on finish', () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const req = { ip: '10.0.0.10', method: 'GET', path: '/health' };
+      const res = { on: jest.fn((evt, cb) => { if (evt === 'finish') cb(); }), setHeader: jest.fn() };
+      const next = jest.fn();
+      mw[5](req, res, next);
+      expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
+      expect(next).toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+
+    it('sets CORS headers for localhost origin', () => {
+      const req = { method: 'GET', path: '/health', headers: { origin: 'http://localhost:3000' } };
+      const res = { setHeader: jest.fn(), end: jest.fn() };
+      const next = jest.fn();
+      mw[6](req, res, next);
+      expect(res.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Origin', 'http://localhost:3000');
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('sets CORS headers for 127.0.0.1 origin', () => {
+      const req = { method: 'GET', path: '/health', headers: { origin: 'http://127.0.0.1:8080' } };
+      const res = { setHeader: jest.fn(), end: jest.fn() };
+      const next = jest.fn();
+      mw[6](req, res, next);
+      expect(res.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Origin', 'http://127.0.0.1:8080');
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('does not set CORS headers for external origin', () => {
+      const req = { method: 'GET', path: '/health', headers: { origin: 'https://evil.com' } };
+      const res = { setHeader: jest.fn(), end: jest.fn() };
+      const next = jest.fn();
+      mw[6](req, res, next);
+      expect(res.setHeader).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('handles OPTIONS preflight request', () => {
+      const req = { method: 'OPTIONS', path: '/health', headers: { origin: 'http://localhost:3000' } };
+      const res = { setHeader: jest.fn(), status: jest.fn().mockReturnThis(), end: jest.fn() };
+      const next = jest.fn();
+      mw[6](req, res, next);
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.end).toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
 
   async function findAndCallRoute(method, path, req, resOverrides = {}) {
     const routes = mockApp._routes[method] || [];
@@ -534,6 +627,17 @@ describe('OpenClawRouter', () => {
       });
       expect(mockResponseCacheInstance.set).not.toHaveBeenCalled();
     });
+
+    it('should coerce non-string message content to empty string', async () => {
+      mockResponseCacheInstance.get.mockReturnValue(null);
+      mockChatCompletions.mockResolvedValue({ id: 'fresh', choices: [{ message: { content: 'ok' } }] });
+      await findAndCallRoute('post', '/v1/chat/completions', {
+        body: { model: 'gpt-4', messages: [{ role: 'user', content: 123 }] }
+      });
+      expect(mockChatCompletions).toHaveBeenCalledWith(expect.objectContaining({
+        messages: [{ role: 'user', content: '' }]
+      }));
+    });
   });
 
   describe('POST /v1/completions', () => {
@@ -564,6 +668,15 @@ describe('OpenClawRouter', () => {
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         id: 'cmpl-1'
       }));
+    });
+
+    it('should return 500 when completions service throws', async () => {
+      mockCompletions.mockRejectedValue(new Error('boom'));
+      const res = await findAndCallRoute('post', '/v1/completions', {
+        body: { model: 'gpt-4', prompt: 'Hello' }
+      });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
     });
   });
 
@@ -617,6 +730,13 @@ describe('OpenClawRouter', () => {
       expect(mockFilterModels).toHaveBeenCalledWith({ provider: 'deepseek-web' });
       expect(res.json).toHaveBeenCalledWith([{ id: 'deepseek-chat' }]);
     });
+
+    it('should return 500 when getModels throws', async () => {
+      mockGetModels.mockRejectedValue(new Error('boom'));
+      const res = await findAndCallRoute('get', '/api/openclaw/models', { query: {} });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    });
   });
 
   describe('POST /api/openclaw/ask', () => {
@@ -659,6 +779,16 @@ describe('OpenClawRouter', () => {
       expect(writeFn).toHaveBeenLastCalledWith('data: [DONE]\n\n');
       expect(endFn).toHaveBeenCalled();
     });
+
+    it('should return 500 when ask service throws', async () => {
+      mockInitialize.mockResolvedValue();
+      mockAsk.mockRejectedValue(new Error('boom'));
+      const res = await findAndCallRoute('post', '/api/openclaw/ask', {
+        body: { prompt: 'Hi', model: 'gpt-4' }
+      });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    });
   });
 
   describe('POST /api/openclaw/ask-once', () => {
@@ -688,6 +818,36 @@ describe('OpenClawRouter', () => {
         prompt: 'Hello',
         results: [{ model: 'gpt-4', content: 'A' }, { model: 'claude', content: 'B' }]
       }));
+    });
+
+    it('should return 500 when ask-once service throws', async () => {
+      mockInitialize.mockResolvedValue();
+      mockAskOnce.mockRejectedValue(new Error('boom'));
+      const res = await findAndCallRoute('post', '/api/openclaw/ask-once', {
+        body: { prompt: 'Hello', models: ['gpt-4'] }
+      });
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    });
+
+    it('should filter non-string models and handle non-array models', async () => {
+      mockInitialize.mockResolvedValue();
+      mockAskOnce.mockResolvedValue([]);
+      const res = await findAndCallRoute('post', '/api/openclaw/ask-once', {
+        body: { prompt: 'Hello', models: ['gpt-4', 123, null] }
+      });
+      expect(mockAskOnce).toHaveBeenCalledWith('Hello', ['gpt-4'], expect.any(Object));
+      expect(res.json).toHaveBeenCalled();
+    });
+
+    it('should default to empty models when not an array', async () => {
+      mockInitialize.mockResolvedValue();
+      mockAskOnce.mockResolvedValue([]);
+      const res = await findAndCallRoute('post', '/api/openclaw/ask-once', {
+        body: { prompt: 'Hello', models: 'not-array' }
+      });
+      expect(mockAskOnce).toHaveBeenCalledWith('Hello', [], expect.any(Object));
+      expect(res.json).toHaveBeenCalled();
     });
   });
 
