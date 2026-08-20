@@ -195,6 +195,13 @@ describe('MCP Router', () => {
       expect(res.body.error).toBe('Invalid token');
     });
 
+    it('returns 401 with generic error when auth result lacks error message', async () => {
+      mockAuth.mockReturnValue({ valid: false });
+      const res = await api('get', '/permissions').set('Authorization', 'Bearer bad-token');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('Invalid token');
+    });
+
     it('returns 500 when authMiddleware is not configured', async () => {
       setAuthMiddleware(null);
       const res = await api('post', '/call').set(auth()).send({ toolFullName: 'fs:read' });
@@ -266,6 +273,14 @@ describe('MCP Router', () => {
       const res = await request(app).get('/health');
       expect(res.status).toBe(503);
     });
+
+    it('reports unhealthy status and zero servers when getStatus lacks fields', async () => {
+      mockPlugin.getStatus.mockReturnValue({ status: 'not-loaded' });
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('unhealthy');
+      expect(res.body.servers).toBe(0);
+    });
   });
 
   describe('GET /health/:serverName', () => {
@@ -303,6 +318,27 @@ describe('MCP Router', () => {
       const res = await request(app).get('/health/fs-server');
       expect(res.status).toBe(503);
     });
+
+    it('reports toolsCount 0 when client has no tools field', async () => {
+      mockPlugin.bridge.clients.set('toolsless-server', {
+        connected: true, ready: true,
+        listTools: jest.fn().mockResolvedValue({ tools: [] }),
+      });
+      const res = await request(app).get('/health/toolsless-server');
+      expect(res.status).toBe(200);
+      expect(res.body.toolsCount).toBe(0);
+    });
+
+    it('returns 503 when health check times out', async () => {
+      mockPlugin.bridge.clients.set('slow-server', {
+        connected: false, ready: false, tools: [],
+        listTools: jest.fn(() => new Promise(() => {})),
+      });
+      const res = await request(app).get('/health/slow-server');
+      expect(res.status).toBe(503);
+      expect(res.body.status).toBe('unhealthy');
+      expect(res.body.error).toBe('Timeout');
+    }, 15000);
   });
 
   describe('GET /tools', () => {
@@ -376,6 +412,14 @@ describe('MCP Router', () => {
       const res = await request(app).get('/servers');
       expect(res.status).toBe(503);
     });
+
+    it('returns empty servers when bridge and status servers are missing', async () => {
+      delete mockPlugin.bridge;
+      mockPlugin.getStatus.mockReturnValue({ status: 'loaded' });
+      const res = await request(app).get('/servers');
+      expect(res.status).toBe(200);
+      expect(res.body.servers).toEqual([]);
+    });
   });
 
   describe('GET /servers/:name', () => {
@@ -439,6 +483,18 @@ describe('MCP Router', () => {
 
     it('returns 400 for invalid config', async () => {
       const res = await api('post', '/servers').set(auth()).send({ name: '', command: '' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid server configuration');
+    });
+
+    it('returns 400 when command is not a string', async () => {
+      const res = await api('post', '/servers').set(auth()).send({ name: 'ns', command: 123, args: [] });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid server configuration');
+    });
+
+    it('returns 400 when args is not an array', async () => {
+      const res = await api('post', '/servers').set(auth()).send({ name: 'ns', command: 'node', args: 'not-array' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Invalid server configuration');
     });
@@ -572,6 +628,38 @@ describe('MCP Router', () => {
       expect(res.status).toBe(429);
       expect(res.body.error).toBe('Too many requests');
     });
+
+    it('returns 400 for non-string tool name', async () => {
+      const res = await api('post', '/call').set(auth()).send({ toolFullName: 123, params: {} });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid tool name format');
+    });
+
+    it('executes tool with missing params and user info', async () => {
+      mockAuth.mockReturnValue({ valid: true });
+      const res = await api('post', '/call').set(auth()).send({ toolFullName: 'filesystem:read_file' });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(mockPlugin.executeTool).toHaveBeenCalledWith('filesystem:read_file', {}, expect.any(Object));
+    });
+
+    it('uses viewer/anonymous fallbacks in denied log when user info missing', async () => {
+      mockAuth.mockReturnValue({ valid: true });
+      mockPlugin.permissionManager.checkToolAccess.mockReturnValue({ allowed: false, reason: 'restricted' });
+      const res = await api('post', '/call').set(auth()).send({ toolFullName: 'filesystem:write_file' });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Tool access denied');
+      expect(metrics.logMCPCall).toHaveBeenCalledWith(expect.objectContaining({
+        params: {}, username: 'anonymous', role: 'viewer',
+      }));
+    });
+
+    it('allows tool call when permission manager is not configured', async () => {
+      setPermissionManager(null);
+      const res = await api('post', '/call').set(auth()).send({ toolFullName: 'filesystem:read_file' });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
   });
 
   describe('POST /batch-call', () => {
@@ -663,6 +751,43 @@ describe('MCP Router', () => {
         calls: [{ toolFullName: 'fs:read', params: {} }],
       });
       expect(res.status).toBe(503);
+    });
+
+    it('executes batch calls without per-call params', async () => {
+      const res = await api('post', '/batch-call').set(auth()).send({
+        calls: [{ toolFullName: 'filesystem:read_file' }],
+      });
+      expect(res.status).toBe(200);
+      const callsArg = mockPlugin.bridge.batchCall.mock.calls[0][0];
+      expect(callsArg).toEqual([{ toolFullName: 'filesystem:read_file', params: {} }]);
+    });
+
+    it('uses viewer/anonymous fallbacks when batch denied and user info missing', async () => {
+      mockAuth.mockReturnValue({ valid: true });
+      mockPlugin.permissionManager.checkToolAccess.mockReturnValue({ allowed: false, reason: 'restricted' });
+      const res = await api('post', '/batch-call').set(auth()).send({
+        calls: [{ toolFullName: 'filesystem:write_file' }],
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Batch call contains unauthorized tool');
+    });
+
+    it('allows batch call when permission manager is not configured', async () => {
+      setPermissionManager(null);
+      const res = await api('post', '/batch-call').set(auth()).send({
+        calls: [{ toolFullName: 'filesystem:read_file', params: {} }],
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('uses viewer/anonymous fallbacks when batch user info missing', async () => {
+      mockAuth.mockReturnValue({ valid: true });
+      const res = await api('post', '/batch-call').set(auth()).send({
+        calls: [{ toolFullName: 'filesystem:read_file', params: {} }],
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
     });
   });
 
@@ -1151,6 +1276,15 @@ describe('MCP Router', () => {
     it('POST /roles creates role with specific level', async () => {
       const res = await api('post', '/roles').set(auth()).send({ name: 'admin-role', level: 'admin' });
       expect(res.status).toBe(200);
+    });
+
+    it('POST /roles creates role with write level', async () => {
+      const res = await api('post', '/roles').set(auth()).send({ name: 'writer', level: 'write' });
+      expect(res.status).toBe(200);
+      expect(mockPlugin.permissionManager.addCustomRole).toHaveBeenCalledWith('writer', expect.objectContaining({
+        level: 'write',
+        allowedTools: ['filesystem:read*', 'github:read*', 'brave-search:*'],
+      }));
     });
 
     it('POST /roles defaults invalid level to read', async () => {

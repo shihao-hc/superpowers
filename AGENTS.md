@@ -1872,6 +1872,25 @@ Session 锚点: 2026-08-12 (第40次 — F-maintainability 全覆盖 100/100/100
 
 ---
 
+Session 锚点: 2026-08-12 (第41次 — mcp/router.js 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,540 passed / 46 skipped) 两次运行一致 clean exit (第2次 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/mcp/router.js: 99.02/89.83 → 99.8 stmts / 97.37 branch / 100 funcs / 100 lines** (999 行, 170 tests, 154→170) — MCP API 聚合路由 (src/mcp 模块)
+- **全量 src 覆盖扫描账本**: F-maintainability 89.7% 已清 → 下一目标 mcp/router 89.8% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 16 测试 (gap→test 映射)** — 部分经 subagent 批量补齐 + 人工修复:
+  - auth 无 error message → `result?.error || 'Invalid token'` 右侧 (L179)
+  - /health 无 status.servers → `|| {}` (L211); /health/:serverName client 无 tools → toolsCount 0 (L245); health check 超时 → L232 setTimeout 回调 (真实 5s, `it()` 第三参 timeout 15000 避开 jest 默认 5000ms testTimeout)
+  - /servers 无 bridge/status.servers → `|| {}` (L297-298)
+  - /call 非字符串 tool name → validateToolName L80 true; /call 缺 params/user → L415-416 `|| 'viewer'/'anonymous'` + L427 `params || {}`; denied log 缺 user → L101-103 fallback; 无 permissionManager → cond false 侧 (L115/131)
+  - /batch-call 缺 per-call params → L496 `c.params || {}`; 缺 user → L479-480 fallback; 无 permissionManager → L131 cond false
+  - /roles POST write level → L942 inner ternary 'write' 分支
+- **结构性不可达 (探针证实)**: L87 validateServerConfig `!config || typeof config !== 'object'` — router 恒传对象字面量; L18 `_cleanup` if 隐式 else; L49 default-arg; L50/51/54 `|| default` 右侧 (options/req.ip 恒提供); L273 `if (validTags.length)` 隐式 else; L368 `args || []` 右侧 (validateServerConfig 保证 args 恒数组)
+- **关键坑**: 真实 5s 超时测试撞 jest 默认 testTimeout 5000ms → 必须用 `it(name, fn, 15000)` 第三参数延长 (jest.setTimeout 在测试内不生效); 全量运行该套件 7.5s (含 5s 超时)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,540, 较基线 16,524 +16) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (mcp-router.test.js + AGENTS.md), src/mcp/router.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/mcp-router.test.js` (154→170)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
