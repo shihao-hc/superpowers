@@ -217,6 +217,14 @@ describe('DocxExecutor', () => {
       expectFileResult(result);
     });
 
+    it('handles content array with non-string items', async () => {
+      const result = await DocxExecutor.createDocument({
+        content: ['line1', { custom: 'object' }, 42], skill: { name: 's' }
+      });
+      expectFileResult(result);
+      expect(mockDocx.Paragraph).toHaveBeenCalled();
+    });
+
     it('uses default author and subject when not provided', async () => {
       await DocxExecutor.createDocument({
         title: 'Untitled', skill: { name: 's' }
@@ -277,6 +285,14 @@ describe('DocxExecutor', () => {
       });
       expect(result.path).toContain('heading-test.docx');
     });
+
+    it('uses "unknown" skill name when skill is missing', async () => {
+      const result = await DocxExecutor.createDocumentWithHeadings({
+        headings: [{ level: 1, text: 'A' }]
+      });
+      expectFileResult(result);
+      expect(result.path).toContain('unknown');
+    });
   });
 
   // ========== createDocumentWithTable ==========
@@ -332,6 +348,14 @@ describe('DocxExecutor', () => {
         tableData: [['a']], filePath: 'table-test.docx', skill: { name: 's' }
       });
       expect(result.path).toContain('table-test.docx');
+    });
+
+    it('uses "unknown" skill name when skill is missing', async () => {
+      const result = await DocxExecutor.createDocumentWithTable({
+        tableData: [['a']]
+      });
+      expectFileResult(result);
+      expect(result.path).toContain('unknown');
     });
   });
 
@@ -413,6 +437,22 @@ describe('DocxExecutor', () => {
         filePath: 'image-test.docx', images: [], skill: { name: 's' }
       });
       expect(result.path).toContain('image-test.docx');
+    });
+
+    it('uses "unknown" skill name when skill is missing', async () => {
+      const result = await DocxExecutor.createDocumentWithImage({
+        images: [{ path: imagePath }]
+      });
+      expectFileResult(result);
+      expect(result.path).toContain('unknown');
+    });
+
+    it('handles missing images field', async () => {
+      const result = await DocxExecutor.createDocumentWithImage({
+        title: 'No images', skill: { name: 's' }
+      });
+      expectFileResult(result);
+      expect(result.imagesCount).toBe(0);
     });
   });
 
@@ -499,6 +539,14 @@ describe('DocxExecutor', () => {
       });
       expect(result.path).toContain('report-test.docx');
     });
+
+    it('uses "unknown" skill name when skill is missing', async () => {
+      const result = await DocxExecutor.createReport({
+        title: 'No Skill', sections: []
+      });
+      expectFileResult(result);
+      expect(result.path).toContain('unknown');
+    });
   });
 
   // ========== readDocument ==========
@@ -566,6 +614,10 @@ describe('DocxExecutor', () => {
         'File not found: nope.docx'
       );
     });
+
+    it('throws when filePath is missing', async () => {
+      await expect(DocxExecutor.editDocument({})).rejects.toThrow('File not found: undefined');
+    });
   });
 
   // ========== addTableOfContents ==========
@@ -581,6 +633,12 @@ describe('DocxExecutor', () => {
     it('throws when file is missing', async () => {
       await expect(DocxExecutor.addTableOfContents({ filePath: 'nope.docx' })).rejects.toThrow(
         'File not found: nope.docx'
+      );
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(DocxExecutor.addTableOfContents({})).rejects.toThrow(
+        'File not found: undefined'
       );
     });
   });
@@ -609,6 +667,10 @@ describe('DocxExecutor', () => {
       await expect(DocxExecutor.addHeaderFooter({ filePath: 'nope.docx' })).rejects.toThrow(
         'File not found: nope.docx'
       );
+    });
+
+    it('throws when filePath is missing', async () => {
+      await expect(DocxExecutor.addHeaderFooter({})).rejects.toThrow('File not found: undefined');
     });
   });
 });

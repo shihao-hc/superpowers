@@ -1891,6 +1891,22 @@ Session 锚点: 2026-08-12 (第41次 — mcp/router.js 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第42次 — DocxExecutor 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,549 passed / 46 skipped) 两次运行一致 clean exit (第2次 1 失败为预存 personality-manager flaky, 单独跑 48/48 通过, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/executors/DocxExecutor.js: 99.53/89.91 → 100 stmts / 93.95 branch / 100 funcs / 100 lines** (889 行, 68 tests, 59→68) — 被 SkillToNode.js/api.js 生产引用
+- **全量 src 覆盖扫描账本**: mcp/router 89.8% 已清 → 下一目标 DocxExecutor 89.9% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 9 测试 (gap→test 映射)** — 部分经 subagent 批量补齐:
+  - createDocument content 数组含非字符串 item → L89 else 分支
+  - createDocumentWithHeadings/Table/Image/Report 无 skill → `|| 'unknown'` 右侧 (L161/258/387/502)
+  - createDocumentWithImage 无 images 字段 → L489 cond `: 0`
+  - editDocument/addTableOfContents/addHeaderFooter 缺 filePath → L747/849/872 `|| 'undefined'`
+- **结构性不可达 15 分支 (探针证实)**: L55/136/163/233/260/361/389/416/477/504/574/605/613/694/823 — 全部 no-else `if` 隐式 else (false 侧无语句, loc1 空)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,549, 较基线 16,540 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (docx-executor.test.js + AGENTS.md), src/skills/executors/DocxExecutor.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/docx-executor.test.js` (59→68)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
