@@ -149,6 +149,43 @@ describe('F-maintainability 分支', () => {
     expect(r.status).toBe('warning');
     expect(r.message).toContain('模块过大');
   });
+
+  test('checkReadability: 无超长行 → passed', async () => {
+    const f = write('a.js', 'const x = 1;\n'.repeat(3));
+    const r = await CHECK_IMPLEMENTATIONS.checkReadability(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkCommentCoverage: 低注释率 → warning', async () => {
+    const f = write('a.js', 'const x = 1;\n'.repeat(50));
+    const r = await CHECK_IMPLEMENTATIONS.checkCommentCoverage(root, [f]);
+    expect(r.status).toBe('warning');
+    expect(r.message).toContain('注释覆盖率过低');
+  });
+
+  test('checkNamingConsistency: 无 camelCase 常量 → passed', async () => {
+    const f = write('a.js', 'const FOO = 1;\nconst BAR = 2;\n');
+    const r = await CHECK_IMPLEMENTATIONS.checkNamingConsistency(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkModularization: 小模块 → passed', async () => {
+    const f = fwd(write('core/small.js', 'const x = 1;\n'));
+    const r = await CHECK_IMPLEMENTATIONS.checkModularization(root, [f]);
+    expect(r.status).toBe('passed');
+  });
+
+  test('checkCommentCoverage: 空文件列表 → 0覆盖率', async () => {
+    const r = await CHECK_IMPLEMENTATIONS.checkCommentCoverage(root, []);
+    expect(r.status).toBe('warning');
+  });
+
+  test('checkModularization: 非核心文件被过滤', async () => {
+    const big = 'x'.repeat(6000);
+    const f = fwd(write('utils/helper.js', big));
+    const r = await CHECK_IMPLEMENTATIONS.checkModularization(root, [f]);
+    expect(r.status).toBe('passed');
+  });
 });
 
 describe('G-testability 分支', () => {

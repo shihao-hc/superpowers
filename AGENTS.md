@@ -1855,6 +1855,23 @@ Session 锚点: 2026-08-12 (第39次 — TaskPlanner 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第40次 — F-maintainability 全覆盖 100/100/100/100)
+- ESLint: 0/0 (相关文件) | Tests: **332 passed suites / 4 skipped / 0 failed** (16,524 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/agent/comprehensiveChecks/F-maintainability.js: 92.15/62.06 → 100 stmts / 100 branch / 100 funcs / 100 lines** (113 行) — 被 ComprehensiveCheckImpls.js:16 聚合生产引用
+- **全量 src 覆盖扫描账本**: TaskPlanner 89.6% 已清 → 下一目标 F-maintainability 89.7% branch; 更低项均为低价值 (0% 入口/诊断 20 文件 + IntegrationTests/SandboxRunner/BrainSystem 已记录最大可达 + learnEvalFinal 脚本)
+- **新增 6 测试 (gap→test 映射)** — F-maintainability describe (comprehensive-checks-branches.test.js):
+  - checkReadability 无超长行 → passed (L29)
+  - checkCommentCoverage 低注释率 → warning (L63, effectiveCoverage < 5)
+  - checkCommentCoverage 空文件列表 → 0 覆盖率 warning (L56/57 cond false 侧)
+  - checkNamingConsistency 无 camelCase 常量 → passed (L91)
+  - checkModularization 小模块 → passed (L109) + 非核心文件被过滤 (L95 filter false 侧)
+- **断言坑**: checkCommentCoverage 空文件时 totalLines=0 → coverage=0 → effectiveCoverage=0 → L62 warning; checkModularization 只统计含 /core/ 或 /agent/ 的文件 (L95)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 332/4/0 (16,524, 较基线 16,518 +6) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (comprehensive-checks-branches.test.js + AGENTS.md), src/agent/comprehensiveChecks/F-maintainability.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/comprehensive-checks-branches.test.js` (56→62)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
