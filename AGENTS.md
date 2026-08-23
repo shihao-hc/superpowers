@@ -1907,6 +1907,18 @@ Session 锚点: 2026-08-12 (第42次 — DocxExecutor 覆盖至可达上限)
 
 ---
 
+Session 锚点: 2026-08-12 (第43次 — 0% 文件审计 + WorkflowOptimizer 误归档回归修复)
+- ESLint: 0/0 | Tests: 相关 190/0/0 | 全量回归 (见下)
+- **0% 文件全量审计 (20 文件四分类)**: INTEGRATED 4 (src/i18n/index.js 被 staticServer.js:9 引用 / src/skills/SkillLoader.js 旧版被 ChatWebSocketHandler.js:8 链引用 / AsyncBatchWriter.js + RedisCache.js 经 barrel ← mcp-stress-test.js) + ENTRY 6 (learnEval/brain-full-check/daemon/launch-router/preview/render 脚本, 保留) + DEAD 10 (src/index.js/MobileAPI/FactorioAgent/TerrariaAgent/openclaw AuthManager+index/monitoring Metrics/multiagent examples/security index/workflow PluginManager, 零调用)
+- **P0 回归修复 (5.3 发现即修复)**: `src/performance/WorkflowOptimizer.js` 误归档 — Round 4 (08-04) 已判定**存活** (经 src/performance/index.js ← scripts/mcp-stress-test.js 中转), 但 Round 15 (`09c89ce`) 声称 0 引用误归档 → barrel `require('./src/performance')` MODULE_NOT_FOUND + mcp-stress-test.js:10/488 构造实例崩溃
+  - 修复: `git mv test/archive/performance-WorkflowOptimizer.js src/performance/WorkflowOptimizer.js` (git 识别 rename R)
+  - 验证: barrel OK + mcp-stress-test loads OK + 相关 4 套件 190 tests 全过 (workflow-optimizer.test.js 测的是 src/agent/WorkflowOptimizer 非 performance 版)
+  - **教训**: 归档前必须 grep 含 barrel 在内的全引用, 不能只看直连 require; Round 4 判定与 Round 15 归档矛盾未互查
+- **后续决策**: 归档 10 死代码前需严格引用验证 (吸取本回归教训); 恢复的 WorkflowOptimizer 为 0% 活跃文件待补测试
+- 相关文件: `test/archive/performance-WorkflowOptimizer.js` (→回 src/performance/WorkflowOptimizer.js), `src/performance/index.js`, `scripts/mcp-stress-test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
