@@ -1955,6 +1955,19 @@ Session 锚点: 2026-08-12 (第43次c — 9 死代码归档 + Metrics.js 审计�
 
 ---
 
+Session 锚点: 2026-08-12 (第43次d — 4 个 INTEGRATED 0% 文件补测)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,735 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **审计发现 (0% 文件分类)**: 4 个 INTEGRATED 生产活跃文件经查实际 0% 覆盖 (i18n.test.js 测的是 src/i18n/I18n.js 非 index.js; skill-manager-core.test.js mock 了旧版 SkillLoader; AsyncBatchWriter/RedisCache 经 barrel ← mcp-stress-test.js) → 补测
+- **src/i18n/index.js: 0 → 100 stmts / 100 branch / 100 funcs / 100 lines** (91 行, 33 tests, 新 `tests/unit/i18n-index.test.js`) — 被 staticServer.js:9 生产引用; singleton 模块级 require 时执行 loadAll() → console.warn spy 须在 require 前设置
+- **src/skills/SkillLoader.js (旧版): 0 → 100 stmts / 100 branch / 100 funcs / 100 lines** (162 行, 31 tests, 新 `tests/unit/skill-loader-legacy.test.js`) — 被 SkillManager.js:3 链引用; 注意与 loaders/SkillLoader.js (新版, skill-loader-direct.test.js) 是不同文件; 关键行为: `inputs:` 正则要求每行 `- name:` 后跟 `\n` 否则最后一项不捕获; `## Next` 匹配 `## ` 前缀被当新标题
+- **src/performance/AsyncBatchWriter.js: 0 → 100 stmts / 100 branch / 100 funcs / 100 lines** (278 行, 45 tests, 新 `tests/unit/async-batch-writer.test.js`) — 零不可达分支; 含 AsyncBatchWriter + BufferedAuditWriter
+- **src/performance/RedisCache.js: 0 → 87.59 stmts / 100 branch / 86.36 funcs / 87.2 lines** (267 行, 46 tests, 新 `tests/unit/redis-cache.test.js`) — 含 RedisCacheAdapter + DistributedCacheManager; 结构性不可达: L35-66 connect 成功路径 (redis 包未安装 + `await import('redis')` 原生动态 import 无法被 jest.mock virtual 拦截, jest VM 抛 "dynamic import callback invoked without --experimental-vm-modules"); connected 模式逻辑经注入 fake client + connected=true 全盖
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 337/4/0 (16,735, 较基线 16,580 +155) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (4 个新测试文件 + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/{i18n-index,skill-loader-legacy,async-batch-writer,redis-cache}.test.js` (4 新)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
