@@ -1919,6 +1919,22 @@ Session 锚点: 2026-08-12 (第43次 — 0% 文件审计 + WorkflowOptimizer 误
 
 ---
 
+Session 锚点: 2026-08-12 (第43次b — 恢复的 WorkflowOptimizer 覆盖至可达上限)
+- ESLint: 0/0 (相关文件) | Tests: **333 passed suites / 4 skipped / 0 failed** (16,580 passed / 46 skipped) 全量多次稳定 (偶发 1 失败为预存 flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/performance/WorkflowOptimizer.js: 0% → 100 stmts / 90.69 branch / 100 funcs / 100 lines** (277 行, 31 tests, 新文件 `tests/unit/workflow-optimizer-perf.test.js`) — 第43次误归档恢复后补测
+- **注意命名**: `workflow-optimizer.test.js` 测的是 `src/agent/WorkflowOptimizer` (agent 版), 新文件 `workflow-optimizer-perf.test.js` 测的是 `src/performance/WorkflowOptimizer` (performance 版), 两文件同名类不同
+- **新增 31 测试 (gap→test 映射)**:
+  - 构造默认/自定义; compileWorkflow 5 校验分支 (引擎未设/非字符串/非法字符/null 默认 id/缓存命中) + evict oldest + hot 不驱逐 (L126 false) + workflow-compiled 事件
+  - _analyzeWorkflow 3 场景 (低并行/side-effect/大工作流); preheat 跳过 hot + preheat-complete 事件; markHot/markCold
+  - recordExecution/getExecutionStats (成功/空/null/maxHistorySize 裁剪/失败计数); getRecommendations (空/性能/可靠性/优化提示)
+  - getCompiledPlan/getAllCompiledPlans/getStats/clearCache 事件/destroy
+- **结构性不可达 (探针证实)**: L26/132 default-arg 映射假象; L88 `if (avgParallel < 1.5)` no-else 隐式 else; L191-195 `durations[...] || 0` 右侧 (history 非空 → durations 恒非空)
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 333/4/0 (16,580, 较基线 16,549 +31) 多次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (workflow-optimizer-perf.test.js + AGENTS.md), src/performance/WorkflowOptimizer.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/workflow-optimizer-perf.test.js` (新)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
