@@ -1985,6 +1985,18 @@ Session 锚点: 2026-08-12 (第44次 — OptimizationDashboard 覆盖至可达�
 
 ---
 
+Session 锚点: 2026-08-12 (第45次 — 全面复查 + LessonInitEngine 崩溃 bug 修复)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,745 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **全面复查 (验证所有声明)**: git 同步 (ahead/behind 0)、工作树仅外部预存工作、ESLint 全库 0/0、全量 Jest 337/4/0、Security 0 HIGH、npm audit 0 (优于记录的 10 MEDIUM — 此前 transitive 修复已生效)、归档后模块全部正常加载、git stash 空
+- **P0 崩溃 bug 修复 (5.3 发现即修复)**: `src/utils/LessonInitEngine.js:18` `l.lesson.includes(...)` — 当 lessonLibrary.lessons 含缺 `lesson` 字段条目时抛 TypeError "Cannot read properties of undefined (reading 'includes')", 经 BrainSystem._initDefaultLessons 传播致服务器启动时 [SelfLearning] 初始化失败 (此前被误判为环境警告)
+  - 修复: 17 处 `l.lesson.includes` → `l.lesson?.includes` (可选链, 缺字段返回 undefined/falsy 不抛错)
+  - 验证: 原始崩溃场景复现 init OK; 新增回归测试 (lessons 含缺 lesson 字段条目不抛错); 全量 337/4/0 无回归
+- **ChromaDB "Invalid URL: ./chromadb" 评估为非 bug**: SemanticMemory.js + SemanticMemorySystem.js 用 `path: persistDirectory` 传给期望 HTTP URL 的 ChromaClient, 但均有 try-catch 兜底 (降级到内存 Map / 返回 false) — 设计内优雅降级, 非缺陷
+- **工作树审计**: 提交只含本会话文件 (LessonInitEngine.js + lesson-init-engine.test.js + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `src/utils/LessonInitEngine.js`, `tests/unit/lesson-init-engine.test.js` (3→4)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

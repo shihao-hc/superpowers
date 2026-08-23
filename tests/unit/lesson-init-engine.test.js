@@ -50,5 +50,17 @@ describe('LessonInitEngine', () => {
       addMock.mockReturnValue(undefined);
       expect(() => engine._initDefaultLessons()).not.toThrow();
     });
+
+    it('does not crash when lessons lack lesson field', () => {
+      bs.lessonLibrary.getStats.mockReturnValue({ total: 5 });
+      bs.lessonLibrary.lessons = [
+        { id: 'partial', applied: false },
+        { lesson: '需要感知层来提高AI认知', applied: false },
+        { lesson: 'normal lesson', applied: false }
+      ];
+      expect(() => engine._initDefaultLessons()).not.toThrow();
+      const applied = bs.lessonLibrary.lessons.filter(l => l.applied);
+      expect(applied).toHaveLength(1);
+    });
   });
 });

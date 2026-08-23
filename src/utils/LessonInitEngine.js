@@ -15,23 +15,23 @@ class LessonInitEngine {
 
     if (existingStats.total > 0) {
       const designNotes = bs.lessonLibrary.lessons.filter((l) =>
-        l.lesson.includes('需要感知层') ||
-        l.lesson.includes('需要执行器') ||
-        l.lesson.includes('需要意识控制') ||
-        l.lesson.includes('需要静默思考') ||
-        l.lesson.includes('需要超越会话') ||
-        l.lesson.includes('需要情感系统') ||
-        l.lesson.includes('需要价值观') ||
-        l.lesson.includes('需要人格系统') ||
-        l.lesson.includes('需要关系系统') ||
-        l.lesson.includes('需要目标系统') ||
-        l.lesson.includes('需要伦理系统') ||
-        l.lesson.includes('需要自动验证') ||
-        l.lesson.includes('唯一测试教训') ||
-        l.lesson.includes('模块间协作正常') ||
-        l.lesson.includes('AI大脑能够') ||
-        l.lesson.includes('这是一个测试教训') ||
-        l.lesson.includes('执行 shouldSell')
+        l.lesson?.includes('需要感知层') ||
+        l.lesson?.includes('需要执行器') ||
+        l.lesson?.includes('需要意识控制') ||
+        l.lesson?.includes('需要静默思考') ||
+        l.lesson?.includes('需要超越会话') ||
+        l.lesson?.includes('需要情感系统') ||
+        l.lesson?.includes('需要价值观') ||
+        l.lesson?.includes('需要人格系统') ||
+        l.lesson?.includes('需要关系系统') ||
+        l.lesson?.includes('需要目标系统') ||
+        l.lesson?.includes('需要伦理系统') ||
+        l.lesson?.includes('需要自动验证') ||
+        l.lesson?.includes('唯一测试教训') ||
+        l.lesson?.includes('模块间协作正常') ||
+        l.lesson?.includes('AI大脑能够') ||
+        l.lesson?.includes('这是一个测试教训') ||
+        l.lesson?.includes('执行 shouldSell')
       );
 
       if (designNotes.length > 0) {
