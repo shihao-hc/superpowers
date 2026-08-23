@@ -1968,6 +1968,23 @@ Session 锚点: 2026-08-12 (第43次d — 4 个 INTEGRATED 0% 文件补测)
 
 ---
 
+Session 锚点: 2026-08-12 (第44次 — OptimizationDashboard 覆盖至可达上限 + 收尾)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,744 passed / 46 skipped) 两次运行一致 clean exit 零警告 | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **src/skills/optimization/OptimizationDashboard.js: 97.82/90.78 → 100 stmts / 96.05 branch / 100 funcs / 100 lines** (459 行, 50 tests, 41→50) — 收尾全量重扫时发现的此前漏记目标
+- **全量 src 覆盖扫描账本 (收尾重扫)**: 新增 OptimizationDashboard 88.2% branch (此前被其他测试间接覆盖/漏记) → 处理; 其余非零 <90% 全部清零, 只剩已记录低价值 (0% ENTRY 7 文件: learnEval/brain-full-check/daemon/launch-router/preview/render/Metrics.js 脚本依赖) + 最大可达 (IntegrationTests/SandboxRunner/BrainSystem/learnEvalFinal/StorageAdapter/ReverseThinking)
+- **新增 9 测试 (gap→test 映射)**:
+  - getSystemHealth: lastOptimization 缺失跳过天数检查 (L78 false); approved/rejected 全 0 → approvalRate 除零保护 `|| 1` (L125 右侧)
+  - getTrendData: 确定性 'down' (mockReturnValueOnce 0.9→0.1) + 'up' (0.1→0.9) — Math.random spy 控制首末值
+  - generateOptimizationReport: optimization section catch (L189, optimizer.getStats 抛错)、codeQuality catch (L202, _countSecurityPatterns 抛错)、community catch (L215, rewardSystem.getStats 抛错)
+  - runOptimizationAndReport: 文件存在但无 reports 字段 → `|| []` (L338 右侧)
+  - getReportHistory: 数据无 reports 字段 → `|| []` (L365 右侧)
+- **映射假象**: L10/276 default-arg; L306 嵌套 ternary `change > 0 ? 'up' : change < 0 ? 'down' : 'stable'` — down/up/stable 三分支均被测试断言覆盖 (down 测试断言 'down' 等通过), 但 v8 对嵌套 ternary 只记外层 cond branch count, down 分支显示 0 为映射假象
+- **验证**: 相关文件 ESLint 0/0 + 全量 Jest 337/4/0 (16,744, 较基线 16,735 +9) 两次稳定 clean exit
+- **工作树审计**: 提交只含本会话文件 (optimization-dashboard.test.js + AGENTS.md), src/skills/optimization/OptimizationDashboard.js 零改动 (纯测试补齐), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `tests/unit/optimization-dashboard.test.js` (41→50)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

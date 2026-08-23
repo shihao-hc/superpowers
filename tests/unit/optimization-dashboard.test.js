@@ -233,6 +233,31 @@ describe('OptimizationDashboard', () => {
 
       expect(health.status).toBe('degraded');
     });
+
+    it('should skip optimizer age check when lastOptimization is absent', async () => {
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500 });
+      mockMonitor.getErrorStats.mockReturnValue({ total: 5 });
+      mockOptimizer.getStats.mockReturnValue({ totalOptimizations: 10 });
+      mockTrustScore.getStats.mockReturnValue({ totalSkills: 20, averageScore: 85 });
+      mockReviewWorkflow.getStats.mockReturnValue({ pending: 5, approved: 40, rejected: 5 });
+
+      const health = await dashboard.getSystemHealth();
+
+      expect(health.issues).toEqual([]);
+      expect(health.status).toBe('healthy');
+    });
+
+    it('should handle zero approved/rejected in approvalRate', async () => {
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500 });
+      mockMonitor.getErrorStats.mockReturnValue({ total: 5 });
+      mockOptimizer.getStats.mockReturnValue({ totalOptimizations: 10, lastOptimization: new Date().toISOString() });
+      mockTrustScore.getStats.mockReturnValue({ totalSkills: 20, averageScore: 85 });
+      mockReviewWorkflow.getStats.mockReturnValue({ pending: 5, approved: 0, rejected: 0 });
+
+      const health = await dashboard.getSystemHealth();
+
+      expect(health.components.reviewWorkflow.status).toBe('operational');
+    });
   });
 
   describe('generateOptimizationReport', () => {
@@ -275,6 +300,44 @@ describe('OptimizationDashboard', () => {
       expect(report.sections.optimization).toBeUndefined();
       expect(report.sections.codeQuality).toBeUndefined();
       expect(report.sections.community).toBeUndefined();
+    });
+
+    it('should handle optimization section error', async () => {
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500 });
+      mockOptimizer.getStats.mockImplementation(() => { throw new Error('Opt fail'); });
+
+      const report = await dashboard.generateOptimizationReport();
+
+      expect(report.sections.optimization.error).toBe('Opt fail');
+    });
+
+    it('should handle codeQuality section error', async () => {
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500 });
+      mockOptimizer.getStats.mockReturnValue({ totalOptimizations: 10, lastOptimization: new Date().toISOString() });
+      mockOptimizer.getCurrentConfig.mockReturnValue({});
+      mockOptimizer.getHistory.mockReturnValue([]);
+      mockTrustScore.getStats.mockReturnValue({ totalSkills: 20, averageScore: 85 });
+      mockRewardSystem.getStats.mockReturnValue({ totalRewards: 50 });
+      mockReviewWorkflow.getStats.mockReturnValue({ pending: 5, approved: 40, rejected: 5 });
+      dashboard._countSecurityPatterns = jest.fn(() => { throw new Error('Pattern fail'); });
+
+      const report = await dashboard.generateOptimizationReport();
+
+      expect(report.sections.codeQuality.error).toBe('Pattern fail');
+    });
+
+    it('should handle community section error', async () => {
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500 });
+      mockOptimizer.getStats.mockReturnValue({ totalOptimizations: 10, lastOptimization: new Date().toISOString() });
+      mockOptimizer.getCurrentConfig.mockReturnValue({});
+      mockOptimizer.getHistory.mockReturnValue([]);
+      mockTrustScore.getStats.mockReturnValue({ totalSkills: 20, averageScore: 85 });
+      mockRewardSystem.getStats.mockImplementation(() => { throw new Error('Reward fail'); });
+      mockReviewWorkflow.getStats.mockReturnValue({ pending: 5, approved: 40, rejected: 5 });
+
+      const report = await dashboard.generateOptimizationReport();
+
+      expect(report.sections.community.error).toBe('Reward fail');
     });
   });
 
@@ -346,6 +409,26 @@ describe('OptimizationDashboard', () => {
       const trends = await dashboard.getTrendData('metric', 0);
 
       expect(trends.data.length).toBe(1);
+    });
+
+    it('should report downward trend when value decreases', async () => {
+      jest.useRealTimers();
+      const randomSpy = jest.spyOn(Math, 'random');
+      randomSpy.mockReturnValueOnce(0.9).mockReturnValue(0.1);
+
+      const trends = await dashboard.getTrendData('metric', 1);
+
+      expect(trends.summary.trend).toBe('down');
+    });
+
+    it('should report upward trend when value increases', async () => {
+      jest.useRealTimers();
+      const randomSpy = jest.spyOn(Math, 'random');
+      randomSpy.mockReturnValueOnce(0.1).mockReturnValue(0.9);
+
+      const trends = await dashboard.getTrendData('metric', 1);
+
+      expect(trends.summary.trend).toBe('up');
     });
   });
 
@@ -430,6 +513,28 @@ describe('OptimizationDashboard', () => {
       const writeArg = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
       expect(writeArg.reports).toHaveLength(1);
     });
+
+    it('should handle existing data without reports field', async () => {
+      mockOptimizer.runOptimizationCycle.mockResolvedValue({ success: true });
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({ other: 'x' }));
+      mockMonitor.getPerformanceStats.mockReturnValue({ dataPoints: 500, avgResponseTime: 42 });
+      mockMonitor.getErrorStats.mockReturnValue({ total: 5 });
+      mockMonitor.getExecutionStats.mockReturnValue({ total: 100 });
+      mockMonitor.getDownloadStats.mockReturnValue({ total: 200 });
+      mockMonitor.getAlerts.mockReturnValue([]);
+      mockOptimizer.getStats.mockReturnValue({ totalOptimizations: 10, lastOptimization: new Date().toISOString() });
+      mockOptimizer.getCurrentConfig.mockReturnValue({ reviewThresholds: { quality: 70 }, rewardMultipliers: { bonus: 1.2 } });
+      mockOptimizer.getHistory.mockReturnValue([]);
+      mockTrustScore.getStats.mockReturnValue({ totalSkills: 20, averageScore: 85 });
+      mockRewardSystem.getStats.mockReturnValue({ totalRewards: 50 });
+      mockReviewWorkflow.getStats.mockReturnValue({ pending: 5, approved: 40, rejected: 5 });
+
+      const _result = await dashboard.runOptimizationAndReport();
+
+      const writeArg = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
+      expect(writeArg.reports).toHaveLength(1);
+    });
   });
 
   describe('getReportHistory', () => {
@@ -459,6 +564,15 @@ describe('OptimizationDashboard', () => {
     it('should handle corrupt data gracefully', () => {
       fs.existsSync.mockReturnValue(true);
       fs.readFileSync.mockReturnValue('{{{');
+
+      const history = dashboard.getReportHistory();
+
+      expect(history).toEqual([]);
+    });
+
+    it('should return empty when data lacks reports field', () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockReturnValue(JSON.stringify({ other: 'x' }));
 
       const history = dashboard.getReportHistory();
 
