@@ -1935,6 +1935,26 @@ Session 锚点: 2026-08-12 (第43次b — 恢复的 WorkflowOptimizer 覆盖至�
 
 ---
 
+Session 锚点: 2026-08-12 (第43次c — 9 死代码归档 + Metrics.js 审计纠正)
+- ESLint: 0/0 (相关文件) | Tests: **333 passed suites / 4 skipped / 0 failed** (16,580 passed / 46 skipped) 全量多次稳定 (间歇 1 失败为预存 flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH, 0 MEDIUM**
+- **9 个死代码归档完成 (git mv rename)**, 每文件全引用验证 (含 barrel 与 server/scripts/config) 通过后才归档:
+  - `src/index.js` → `test/archive/src-index.js` (package.json main 是 server/index.js, 零引用; UltraWorkCLI.js:267 仅为代码生成字符串)
+  - `src/api/MobileAPI.js` → `test/archive/api-MobileAPI.js` (mock Router 无 listen/require.main; AGENTS.md "独立 express 服务" 说法纠正为错误)
+  - `src/game/FactorioAgent.js` → `test/archive/game-FactorioAgent.js` (RCON 连接类, 零实例化)
+  - `src/game/TerrariaAgent.js` → `test/archive/game-TerrariaAgent.js`
+  - `src/integrations/openclaw/AuthManager.js` → `test/archive/integrations-openclaw-AuthManager.js` (仅经死 barrel 可达)
+  - `src/integrations/openclaw/index.js` → `test/archive/integrations-openclaw-index.js` (死 barrel; launch-router 直接 require OpenClawRouter/ModelServiceAdapter)
+  - `src/multiagent/examples/index.js` → `test/archive/multiagent-examples-index.js` (仅 require.main===module)
+  - `src/security/index.js` → `test/archive/security-index.js` (死 barrel; 成员被直接 require, 如 scripts/uw.js:33 → SecurityHardening)
+  - `src/workflow/PluginManager.js` → `test/archive/workflow-PluginManager.js` (活跃版是 src/plugins/PluginManager.js)
+- **审计纠正**: `src/monitoring/Metrics.js` **不归档** — 审计误判"零调用", 实际 `tests/performance/benchmark.js:6` + `monitoring-report.js:8` 真实 require → 保留
+- **验证**: 归档路径 require 仅 MODULE_NOT_FOUND (预期); 保留模块 (Metrics/PluginManager/OutputEncoder/OpenClawRouter/multiagent) 正常加载; src/server 无残留引用; check-io.js + security-audit.js 无需更新; 全量 Jest 333/4/0 (16,580) 无回归
+- **教训应用**: 归档前严格验证含 barrel 在内的全引用 (WorkflowOptimizer 回归教训), 且审计结论须被实际 require 扫描复核 (Metrics 案例)
+- **工作树审计**: 提交只含本会话文件 (9 归档 rename + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `test/archive/{src-index,api-MobileAPI,game-FactorioAgent,game-TerrariaAgent,integrations-openclaw-AuthManager,integrations-openclaw-index,multiagent-examples-index,security-index,workflow-PluginManager}.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
