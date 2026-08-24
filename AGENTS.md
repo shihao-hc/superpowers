@@ -1997,6 +1997,20 @@ Session 锚点: 2026-08-12 (第45次 — 全面复查 + LessonInitEngine 崩溃 
 
 ---
 
+Session 锚点: 2026-08-12 (第46次 — 深度核查: IntrospectionEngine 同款崩溃 + BrainFlow 死引用清理)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,745 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **核查发现 2 个额外问题 (5.3 发现即修复)**:
+  - **IntrospectionEngine.js:56 同款崩溃**: `l.lesson.substring(0, 50)` — 与 LessonInitEngine 相同模式, lessons 含缺 `lesson` 字段条目时 `undefined.substring` 抛错. 修复: `(l.lesson || '').substring(...)`. 注意 LessonLibrary.js:48 的 search 已有 `l.lesson &&` 防御但返回结果仍可含缺字段条目
+  - **BrainFlow 死引用 (从未存在的模块)**: `src/core/BrainFlow.js` 在 git 历史中从未存在, 但被 `server/index.js:29` 从 `src/core` 解构 + L173 `new BrainFlow()` → 每次启动报 "BrainFlow is not a constructor" 警告 + BrainFlow 自动监控功能静默失效. `src/core/index.js:7` 用 try-catch 吞掉 require 错误导出 null
+    - 清理: `src/core/index.js` 移除 BrainFlow try-catch 导出; `server/index.js` 移除 L29 导入 + L45 声明 + L171-179 启动块 + L222-224 停止块 + L247 导出引用 + 块编号 4→3, 5→4
+    - 验证: server 启动 BrainFlow 警告消失 + booted; 相关 4 套件 222 tests 全过; 全量 337/4/0 无回归
+- **全量覆盖重扫确认无漏记**: OptimizationDashboard 已处理不再出现在 <90% 列表; 剩余仅已记录低价值 (0% ENTRY 7 文件) + 最大可达 (IntegrationTests/SandboxRunner/BrainSystem/learnEvalFinal/StorageAdapter/ReverseThinking)
+- **chromadb 包核实**: `^3.4.0` 已安装, ChromaClient 可加载 — "Invalid URL" 警告确认为设计内优雅降级 (SemanticMemory/SemanticMemorySystem 均有 try-catch 内存回退), 非缺陷
+- **工作树审计**: 提交只含本会话文件 (src/utils/IntrospectionEngine.js + src/core/index.js + server/index.js + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `src/utils/IntrospectionEngine.js`, `src/core/index.js`, `server/index.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

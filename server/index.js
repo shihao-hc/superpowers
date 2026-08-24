@@ -26,7 +26,7 @@ const { FuzzyMatcher } = require('../src/utils');
 const { defaultManager: hooksManager } = require('../src/hooks');
 const { UnifiedMemory } = require('../src/memory');
 const { SettingsSync } = require('../src/config');
-const { SelfLearningSystem, BrainFlow } = require('../src/core');
+const { SelfLearningSystem } = require('../src/core');
 const { BrainSystem } = require('../src/core/BrainSystem');
 const { BrainBridge } = require('../src/core/BrainBridge');
 const { MCPManager } = require('../src/mcp');
@@ -42,7 +42,6 @@ let selfLearning = null;
 let mcpManager = null;
 let inferenceBridge = null;
 let brainBridge = null;
-let brainFlow = null;
 let brainCodeImprover = null;
 let brainProactiveAdvisor = null;
 let securityWatcher = null;
@@ -168,17 +167,7 @@ function initializeModules() {
     logger.warn('[BrainBridge] 初始化失败:', e.message);
   }
 
-  // 3. 启动 BrainFlow 自动监控（每5分钟健康检查）
-  try {
-    const bFlow = new BrainFlow();
-    bFlow.startAutoMonitor(5 * 60 * 1000);
-    brainFlow = bFlow;
-    logger.info('[BrainFlow] 自动监控已启动 (间隔: 5分钟)');
-  } catch (e) {
-    logger.warn('[BrainFlow] 启动失败:', e.message);
-  }
-
-  // 4. 启动 SelfCodeImprover 自动代码改进（每小时）
+  // 3. 启动 SelfCodeImprover 自动代码改进（每小时）
   try {
     const SelfCodeImprover = require('../src/core/SelfCodeImprover');
     const sci = new SelfCodeImprover();
@@ -189,7 +178,7 @@ function initializeModules() {
     logger.warn('[SelfCodeImprover] 启动失败:', e.message);
   }
 
-  // 5. 启动 ProactiveAdvisor 定期扫描（每小时）
+  // 4. 启动 ProactiveAdvisor 定期扫描（每小时）
   try {
     const ProactiveAdvisor = require('../src/core/ProactiveAdvisor');
     const pa = new ProactiveAdvisor();
@@ -219,9 +208,6 @@ function cleanupModules() {
   if (brainCodeImprover) {
     try { brainCodeImprover.stopAutoImprovementLoop(); } catch (e) { /* */ }
   }
-  if (brainFlow) {
-    try { brainFlow.stopAutoMonitor(); } catch (e) { /* */ }
-  }
   if (BrainSystem.isHooksConnected()) {
     try { BrainSystem.disconnectHooks(); } catch (e) { /* */ }
   }
@@ -244,7 +230,7 @@ const app = express();
 app.getModules = () => ({
   messageService, fuzzyMatcher, suggestionPipeline, unifiedMemory,
   settingsSync, selfLearning, mcpManager, inferenceBridge, hooksManager,
-  brainBridge, brainFlow, brainCodeImprover, brainProactiveAdvisor
+  brainBridge, brainCodeImprover, brainProactiveAdvisor
 });
 const port = config.get('server.port');
 const host = config.get('server.host');

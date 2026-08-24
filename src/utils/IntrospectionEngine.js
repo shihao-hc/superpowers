@@ -53,7 +53,7 @@ class IntrospectionEngine {
 
     const highPriority = this._bs.lessonLibrary.search('', { limit: 5, type: 'success' }).filter((l) => l.priority === 'high');
     knowledge.topLessons = highPriority.map((l) => ({
-      lesson: `${l.lesson.substring(0, 50)}...`, category: l.category, applied: l.applied
+      lesson: `${(l.lesson || '').substring(0, 50)}...`, category: l.category, applied: l.applied
     }));
 
     return knowledge;
