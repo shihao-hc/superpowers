@@ -155,7 +155,7 @@ class LongTermMemory {
    * 搜索记忆
    */
   async search(query, options = {}) {
-    const { tags = [], entityId = null, limit = 20 } = options;
+    const { tags = [], entityId = null, userId = null, limit = 20 } = options;
 
     const results = [];
 
@@ -167,6 +167,10 @@ class LongTermMemory {
       }
 
       if (entityId && meta.entityId !== entityId) {
+        match = false;
+      }
+
+      if (userId && meta.userId !== userId) {
         match = false;
       }
 

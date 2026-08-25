@@ -224,6 +224,9 @@ class PersonalityManager {
       const others = Object.keys(this.personalities).filter((k) => k !== name);
       if (others.length > 0) {
         this.setActive(others[0]);
+      } else {
+        this.activeName = null;
+        this.active = null;
       }
     }
 

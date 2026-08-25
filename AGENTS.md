@@ -2023,6 +2023,19 @@ Session 锚点: 2026-08-12 (第47次 — 垃圾清理: 8 废弃脚本归档 + 5 
 
 ---
 
+Session 锚点: 2026-08-12 (第48次 — 外部预存工作提交: memory/personality 功能增强)
+- ESLint: 0/0 | Tests: **337 passed suites / 4 skipped / 0 failed** (16,745 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH**
+- **外部预存工作调查 (第47次标记为"原样保留"的遗留)**: 确认是独立功能开发, 非垃圾 — 有实质源码改动 + 完整配套测试, 单独跑 4 套件 156 tests 全过, 与全量其他测试无冲突 (full run 仅预存 flaky)
+  - `src/memory/LongTermMemory.js`: search 增加 `userId` 过滤参数 (与 entityId 过滤对称, L173 `userId && meta.userId !== userId` → 排除)
+  - `src/personality/PersonalityManager.js`: deletePersonality 删除当前激活 personality 且无其他可选时清空 activeName/active (L228-229, 避免指向已删除项)
+  - 4 个未跟踪测试文件: graph-memory (405行/GraphMemory)、long-term-memory (395行/LongTermMemory)、personality-manager (493行/PersonalityManager)、unified-memory (194行/src/memory/index)
+- **决策**: 用户确认按推荐方案提交保存 (不混入覆盖驱动历史, 作为独立功能提交); 测试覆盖确认 (userId 48处/deletePersonality 9处/activeName 11处引用)
+- **验证**: 相关 4 套件 156 tests 全过 + 全量 337/4/0 (16,745) 无回归
+- **工作树审计**: 本次提交后工作树仅剩零残留 (外部预存工作已全部提交), 后续全库复查闭环
+- 相关文件: `src/memory/LongTermMemory.js`, `src/personality/PersonalityManager.js`, `tests/unit/{graph-memory,long-term-memory,personality-manager,unified-memory}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
