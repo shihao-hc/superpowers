@@ -2011,6 +2011,18 @@ Session 锚点: 2026-08-12 (第46次 — 深度核查: IntrospectionEngine 同�
 
 ---
 
+Session 锚点: 2026-08-12 (第47次 — 垃圾清理: 8 废弃脚本归档 + 5 备份/日志删除 + eslint test/archive ignore)
+- ESLint: 0/0 (全库) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,745 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH**
+- **全面复查第5阶段 (工作树与残留清理)**:
+  - **8 个已跟踪废弃脚本归档到 test/archive/** (git mv rename, 全库零引用, 最后一次改动在 686892b 之前): `analyze-v1-v9.js`、`cleanup-duplicate-agents.js`、`tests/unit/analyze-branches.js` (非 .test.js 不被 jest 加载)、`tools/cleanup-baseline.js`、`tools/debug-npm-test.js`、`tools/debug-npm-test2.js`、`tools/debug-test-c.js`、`tools/debug-vitest.js`
+  - **5 个未跟踪垃圾删除**: `scripts/auto-fix/index.js.bak`、`server/index.js.bak`、`src/integrations/openclaw/OpenClawRouter.js.bak` (被 .gitignore *.bak 忽略的备份残留) + `.logs/errors.log`、`.logs/tradingagents.log` (运行时日志)
+  - **eslint.config.mjs**: ignores 加 `'test/archive/'` — 归档的废弃脚本有 lint 错误 (此前在根目录被精确忽略), 归档后不再忽略导致全库 ESLint 3 errors; 归档文件是历史快照不应参与 lint (与 scripts/tools/examples 忽略模式一致)
+- **验证**: 全库 ESLint 0/0 + 全量 Jest 337/4/0 (16,745) 无回归; test/archive/AgentTeam.js 等归档文件不受影响
+- **工作树审计**: 提交只含本会话文件 (8 归档 rename + eslint.config.mjs + AGENTS.md), 外部预存工作 (LongTermMemory/PersonalityManager + 4 memory 测试) 原样保留
+- 相关文件: `test/archive/{analyze-v1-v9,cleanup-duplicate-agents,unit-analyze-branches,tools-cleanup-baseline,tools-debug-npm-test,tools-debug-npm-test2,tools-debug-test-c,tools-debug-vitest}.js`, `eslint.config.mjs`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

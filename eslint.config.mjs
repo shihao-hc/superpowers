@@ -240,6 +240,7 @@ export default [
       'examples/',
       'tests/performance/',
       '.opencode/',
+      'test/archive/',
       'test-agents.js',
       'track-missing.js',
       'ultimate-check.js',
