@@ -252,6 +252,45 @@ describe('MCPBridge', () => {
       expect(r1).toEqual(r2);
     });
 
+    it('should fire PRE_TOOL_USE and POST_TOOL_USE hooks on successful call', async () => {
+      const hooks = require('../../src/hooks');
+      const triggerSpy = jest.spyOn(hooks, 'triggerHook');
+      await bridge.call('test-server:read_file', { path: '/hook.txt' });
+      expect(triggerSpy).toHaveBeenCalledWith('BeforeTool', expect.objectContaining({
+        toolName: 'test-server:read_file',
+        args: { path: '/hook.txt' }
+      }));
+      expect(triggerSpy).toHaveBeenCalledWith('AfterTool', expect.objectContaining({
+        toolName: 'test-server:read_file'
+      }));
+      triggerSpy.mockRestore();
+    });
+
+    it('should fire TOOL_ERROR hook when tool call fails', async () => {
+      const hooks = require('../../src/hooks');
+      const triggerSpy = jest.spyOn(hooks, 'triggerHook');
+      await expect(bridge.call('test-server:fail_tool', {})).rejects.toThrow('Tool execution failed');
+      expect(triggerSpy).toHaveBeenCalledWith('OnError', expect.objectContaining({
+        toolName: 'test-server:fail_tool',
+        error: 'Tool execution failed'
+      }));
+      triggerSpy.mockRestore();
+    });
+
+    it('should not break tool call when hooks module is unavailable', async () => {
+      const realRequire = module.constructor.prototype.require;
+      module.constructor.prototype.require = function (id) {
+        if (id.includes('hooks/index')) {throw new Error('hooks unavailable');}
+        return realRequire.call(this, id);
+      };
+      try {
+        const result = await bridge.call('test-server:read_file', { path: '/no-hook.txt' });
+        expect(result).toEqual({ result: 'read_file called with {"path":"/no-hook.txt"}' });
+      } finally {
+        module.constructor.prototype.require = realRequire;
+      }
+    });
+
     it('should skip cache when skipCache is true', async () => {
       const callToolSpy = jest.spyOn(bridge.clients.get('test-server'), 'callTool');
       await bridge.call('test-server:read_file', { path: '/a.txt' }, { skipCache: true });

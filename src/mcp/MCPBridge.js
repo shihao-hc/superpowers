@@ -51,6 +51,20 @@ class MCPBridge extends EventEmitter {
     }
   }
 
+  /**
+   * 触发全局钩子（非侵入式，失败静默降级，不影响工具调用）
+   */
+  async _fireHook(event, ctx) {
+    try {
+      const hooks = require('../hooks');
+      if (!hooks || typeof hooks.triggerHook !== 'function') {return;}
+      const eventName = hooks.HookEvents && hooks.HookEvents[event] ? hooks.HookEvents[event] : event;
+      await hooks.triggerHook(eventName, ctx);
+    } catch (e) {
+      // 钩子系统不可用时静默跳过，绝不阻塞工具调用
+    }
+  }
+
   _startCacheCleanup() {
     this._cacheCleanupInterval = setInterval(() => {
       this._cleanupCache();
@@ -287,7 +301,24 @@ class MCPBridge extends EventEmitter {
     toolMetrics.total++;
 
     try {
+      await this._fireHook('PRE_TOOL_USE', {
+        toolName: toolFullName,
+        tool: toolName,
+        server: serverName,
+        args: params,
+        context
+      });
+
       const result = await client.callTool(toolName, params);
+
+      await this._fireHook('POST_TOOL_USE', {
+        toolName: toolFullName,
+        tool: toolName,
+        server: serverName,
+        args: params,
+        result,
+        context
+      });
 
       this.metrics.successfulCalls++;
       serverMetrics.success++;
@@ -313,6 +344,15 @@ class MCPBridge extends EventEmitter {
 
       return result;
     } catch (error) {
+      await this._fireHook('TOOL_ERROR', {
+        toolName: toolFullName,
+        tool: toolName,
+        server: serverName,
+        args: params,
+        error: error.message,
+        context
+      });
+
       this.metrics.failedCalls++;
       serverMetrics.failed++;
       toolMetrics.failed++;

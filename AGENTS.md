@@ -2036,6 +2036,22 @@ Session 锚点: 2026-08-12 (第48次 — 外部预存工作提交: memory/person
 
 ---
 
+Session 锚点: 2026-08-12 (第49次 — BrainSystem 运行时接线第一步: MCP 工具钩子点火)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,748 passed / 46 skipped) | npm audit: 0 vulns | Security: **0 HIGH**
+- **目标确认**: 把 BrainSystem 打造成真正生产可用的自主 AI 大脑, 成为最可靠忠实的助手 — 本次是"运行时接线"第一步 (夯实基础)
+- **深度审计结论 (运行时激活链)**: BrainSystem 62 个静态方法 + 6 个钩子 + BrainBridge + ToolExecutor 在 server 运行时 **完全死接线**; chat 是硬编码话术, skills/execute HTTP 是 broken (CommandService 从未 loadAll), mcp/call 可用但零大脑参与 — 引擎造好但没点火
+- **接线第一步 (最高杠杆点)**: `src/mcp/MCPBridge.js` call() 增加钩子触发 (MCP 是唯一真实运转路径):
+  - `_fireHook(event, ctx)` 私有方法 — 非侵入式安全降级 (try-catch 包裹, 钩子失败不影响工具调用), 用 HookEvents 映射事件名 (PRE_TOOL_USE='BeforeTool' 等, 不能传字面量否则 key 不匹配)
+  - call() 三触发点: L289 前 PRE_TOOL_USE (风险分析) / 成功后 POST_TOOL_USE (教训学习) / catch 内 TOOL_ERROR (自动诊断)
+- **点火即发现并修复的 bug (5.3)**: `LessonLearner.js` 对 `data.result`/`data.input`/`data.error` 直接 `.toLowerCase()`/`.substring()` — MCP 传的是对象 (result/args) → `(data.result||'').toLowerCase is not a function` 崩溃 (POST_TOOL_USE 钩子首次真实运行时暴露)
+  - 修复: 新增 `_str(value)` 辅助 (字符串直返, null/undefined→'', 对象→JSON.stringify), 替换全部 6 处字符串操作点 (L50/53/67-72/76-80/89/98/101/104)
+- **集成验证**: MCP 调用触发 PRE/POST/TOOL_ERROR 钩子全部真实触发; BrainSystem.connectHooks 注册的钩子在 MCP 路径不崩溃; **LessonLearner 真实创建 pending lesson 并持久化到磁盘 (1 条)** — 自我学习闭环首次真实运转
+- **新增 3 测试**: PRE/POST_TOOL_USE 触发断言 + TOOL_ERROR 触发断言 + hooks 模块不可用时工具调用不中断 (安全降级)
+- **工作树审计**: 提交只含本会话文件 (MCPBridge.js + LessonLearner.js + mcp-bridge.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `src/mcp/MCPBridge.js`, `src/core/LessonLearner.js`, `tests/unit/mcp-bridge.test.js` (85→88)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

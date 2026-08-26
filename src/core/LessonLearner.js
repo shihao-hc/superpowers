@@ -16,6 +16,15 @@ class LessonLearner {
     if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
   }
 
+  _str(value) {
+    if (typeof value === 'string') {return value;}
+    if (value === null || value === undefined) {return '';}
+    if (typeof value === 'object') {
+      try {return JSON.stringify(value);} catch (e) {return String(value);}
+    }
+    return String(value);
+  }
+
   recordEvent(eventType, data, confidence) {
     if (eventType !== 'POST_TOOL_USE') {return null;}
     const isFix = this._isFixOperation(data);
@@ -55,17 +64,17 @@ class LessonLearner {
   }
 
   _inferLessonText(data) {
-    const input = (data.input || '');
-    const error = (data.error || '');
-    const result = (data.result || '');
+    const input = this._str(data.input);
+    const error = this._str(data.error);
+    const result = this._str(data.result);
     if (error) {return `\u4fee\u590d\u95ee\u9898: ${error.substring(0, 100)}`;}
     if (result.includes('fixed') || result.includes('pass')) {return `\u6210\u529f\u4fee\u590d: ${input.substring(0, 100)}`;}
     return `\u4ece\u5b9e\u8df5\u4e2d\u5b66\u4e60: ${input.substring(0, 100)}`;
   }
 
   _inferImprovement(data) {
-    const result = (data.result || '');
-    const error = (data.error || '');
+    const result = this._str(data.result);
+    const error = this._str(data.error);
     if (result.includes('fixed')) {return '\u5e94\u7528\u76f8\u540c\u7684\u4fee\u590d\u7b56\u7565\u5230\u7c7b\u4f3c\u95ee\u9898';}
     if (error) {return `\u907f\u514d\u540c\u6837\u7684${error.substring(0, 60)}`;}
     return '\u4fdd\u6301\u826f\u597d\u5b9e\u8df5';
@@ -75,9 +84,9 @@ class LessonLearner {
     if (!data) {return false;}
     const tags = data.tags || [];
     if (tags.some((t) => /fix|debug|bug|repair|correct/i.test(t))) {return true;}
-    const input = (data.input || '').toLowerCase();
+    const input = this._str(data.input).toLowerCase();
     if (/fix|debug|bug|repair|correct|error|异常|错误|调试/.test(input)) {return true;}
-    const result = (data.result || '').toLowerCase();
+    const result = this._str(data.result).toLowerCase();
     if (result.includes('success') || result.includes('fixed') || result.includes('pass')) {return true;}
     return false;
   }
@@ -86,10 +95,10 @@ class LessonLearner {
     const pending = {
       id: `pending-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       date: new Date().toISOString(),
-      problem: (data.error || data.input || '').substring(0, 500),
+      problem: this._str(data.error || data.input || '').substring(0, 500),
       lesson: '（待审核）',
       improvement: '（待审核）',
-      context: (data.context || data.input || '').substring(0, 200),
+      context: this._str(data.context || data.input || '').substring(0, 200),
       source: 'lesson-learner',
       status: 'pending',
       tags: this._inferTags(data)
@@ -101,7 +110,7 @@ class LessonLearner {
 
   _inferTags(data) {
     const tags = [];
-    const text = (`${data.input || ''} ${data.error || ''} ${data.result || ''}`).toLowerCase();
+    const text = (`${this._str(data.input)} ${this._str(data.error)} ${this._str(data.result)}`).toLowerCase();
     if (/安全|security|漏洞|injection|xss/.test(text)) {tags.push('security');}
     if (/性能|performance|慢|slow|latency/.test(text)) {tags.push('performance');}
     if (/测试|test|assert|expect/.test(text)) {tags.push('test');}
