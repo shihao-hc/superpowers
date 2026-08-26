@@ -65,6 +65,22 @@ class ChatService extends EventEmitter {
 
       conversation.messages.push(userMessage);
 
+      // BrainSystem 感知：意图分析 + 记忆存储（非侵入式，失败不影响对话）
+      try {
+        const { BrainSystem } = require('../../src/core/BrainSystem');
+        if (BrainSystem.analyzeIntent) {
+          const intent = BrainSystem.analyzeIntent(text);
+          conversation.context = { ...conversation.context, lastIntent: intent };
+        }
+        if (BrainSystem.smartStore) {
+          BrainSystem.smartStore(`chat_${userId}_${Date.now()}`, { input: text, role: 'user', userId });
+        }
+        const hooks = require('../../src/hooks');
+        if (hooks && hooks.HookEvents && hooks.triggerHook) {
+          await hooks.triggerHook(hooks.HookEvents.MESSAGE_RECEIVE, { text, userId, conversation: conversation.id });
+        }
+      } catch (e) { /* BrainSystem 可选，失败静默 */ }
+
       // Claude Code 风格的上下文压缩
       this.contextCompact.addMessage(userMessage);
 
@@ -91,6 +107,18 @@ class ChatService extends EventEmitter {
       };
 
       conversation.messages.push(assistantMessage);
+
+      // BrainSystem 记忆：存储交互 + 发送钩子（非侵入式）
+      try {
+        const { BrainSystem } = require('../../src/core/BrainSystem');
+        if (BrainSystem.smartStore) {
+          BrainSystem.smartStore(`chat_reply_${userId}_${Date.now()}`, { input: text, output: response.text, userId });
+        }
+        const hooks = require('../../src/hooks');
+        if (hooks && hooks.HookEvents && hooks.triggerHook) {
+          await hooks.triggerHook(hooks.HookEvents.MESSAGE_SEND, { text: response.text, input: text, userId, conversation: conversation.id });
+        }
+      } catch (e) { /* BrainSystem 可选，失败静默 */ }
 
       // 限制会话长度
       if (conversation.messages.length > 100) {

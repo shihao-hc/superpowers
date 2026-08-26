@@ -2052,6 +2052,21 @@ Session 锚点: 2026-08-12 (第49次 — BrainSystem 运行时接线第一步: M
 
 ---
 
+Session 锚点: 2026-08-12 (第50次 — BrainSystem 运行时接线第二步: chat 消息路径感知 + skills/execute 修复)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,748 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 personality-manager flaky, 单独 48/48 通过) | npm audit: 0 vulns | Security: **0 HIGH**
+- **chat 消息路径 BrainSystem 感知接线** (`server/services/chatService.js` processMessage):
+  - 用户消息入队后 (L66 后): `BrainSystem.analyzeIntent(text)` 意图分析 → 存入 `conversation.context.lastIntent`; `BrainSystem.smartStore` 存用户消息; 触发 `HookEvents.MESSAGE_RECEIVE` 钩子
+  - 助手回复后 (L109 后): `BrainSystem.smartStore` 存交互; 触发 `HookEvents.MESSAGE_SEND` 钩子
+  - 全部 try-catch 非侵入式 — BrainSystem 失败不影响对话 (验证: POST /api/chat 返回 200 + 正常话术)
+- **skills/execute HTTP 修复** (`server/routes/skills.js`): `new CommandService()` 从未调用 `loadAll()` → this.commands 空 Map → GET /api/skills 返回空 + execute 恒抛 "Command not found"
+  - 修复: 模块加载后 `commandService.loadAll().catch(()=>{})` (加载 help/status/compact 3 个内置命令, 幂等 loadedSources 守卫)
+  - 验证: GET /api/skills 返回 3 命令 (此前空数组)
+- **端到端验证**: POST /api/chat 200 + MESSAGE_RECEIVE/SEND 钩子真实触发 + lastIntent 意图分析生效 ('写排序算法' → {intent:'code'})
+- **工作树审计**: 提交只含本会话文件 (chatService.js + skills.js + AGENTS.md), 无外部工作混入
+- 相关文件: `server/services/chatService.js`, `server/routes/skills.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

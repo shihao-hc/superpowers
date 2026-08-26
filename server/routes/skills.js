@@ -13,6 +13,9 @@ const { authMiddleware, sensitiveLimiter } = require('../middleware');
 const commandService = new CommandService();
 const featureFlags = new FeatureFlagsService();
 
+// 加载内置命令（help/status/compact）——此前从未调用 loadAll，导致 getAll/execute 恒空
+commandService.loadAll().catch(() => {});
+
 /**
  * GET /api/skills
  * 获取所有可用技能
