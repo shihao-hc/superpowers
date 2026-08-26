@@ -2080,6 +2080,21 @@ Session 锚点: 2026-08-12 (第51次 — 学习闭环贯通: LessonLibrary 统�
 
 ---
 
+Session 锚点: 2026-08-12 (第52次 — 已接线部分夯实: chatService/skills 路由补测 + 全面检查)
+- ESLint: 0/0 (相关文件) | Tests: **339 passed suites / 4 skipped / 0 failed** (16,762 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **夯实已接线部分 (接线后补测试保护)**:
+  - 新建 `tests/unit/chat-service.test.js` (9 tests): processMessage 返回/会话存储/lastIntent 意图分析 (BrainSystem.analyzeIntent '写排序算法'→code)/smartStore 记忆持久化/BrainSystem 不可用时仍回复 (安全降级)/personality; processStream 流式 onData/onEnd; getHistory/clearHistory (返回对象结构)/未知用户
+  - 新建 `tests/unit/skills-routes.test.js` (5 tests): GET /api/skills 返回 3 命令 (loadAll 修复)/GET /commands/POST execute status 命令执行/缺 command 400/未知命令 COMMAND_NOT_FOUND 400
+  - 尝试补 BrainSystem 风险钩子单测但移除 — 复杂模块 mock 环境 (BrainSystem.test mock 了 LessonLibrary/MetaCognition 等) 干扰钩子真实执行, 集成验证已证明 (MCP 调用触发 _riskAnalysis), 不追求易碎单测
+- **全面检查 (真实运行验证)**:
+  - server 完整启动: booted + hooks connected + BrainBridge + SelfCodeImprover + ProactiveAdvisor 全 YES, BrainFlow/SelfLearning 警告 GONE
+  - 端到端 API: chat 200 + skills 3 命令 + memory.json 已落盘
+- **测试坑**: chatService 单例导出 + processStream 通过 onData/onEnd 回调通信 (不返回值); getHistory 返回 {messages,total} 对象非数组; supertest 需 mock server/middleware 的 authMiddleware/sensitiveLimiter
+- **工作树审计**: 提交只含本会话文件 (chat-service.test.js + skills-routes.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `tests/unit/chat-service.test.js` (新), `tests/unit/skills-routes.test.js` (新)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
