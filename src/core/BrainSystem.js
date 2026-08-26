@@ -2011,8 +2011,9 @@ BrainSystem.connectHooks = function() {
         try {
           const PreToolRiskAnalyzer = require('./PreToolRiskAnalyzer');
           const LessonLibrary = require('./LessonLibrary');
-          const ra = new PreToolRiskAnalyzer({ lessonLib: new LessonLibrary({ quiet: true }) });
-          const result = ra.analyze(ctx?.toolName || ctx?.name, ctx?.args || ctx, []);
+          const lib = new LessonLibrary({ quiet: true });
+          const ra = new PreToolRiskAnalyzer({ lessonLib: lib });
+          const result = ra.analyze(ctx?.toolName || ctx?.name, ctx?.args || ctx, lib.lessons);
           if (result.action === 'BLOCK') {
             if (this._audit) { /* skip if no audit */ }
           }

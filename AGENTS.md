@@ -2067,6 +2067,19 @@ Session 锚点: 2026-08-12 (第50次 — BrainSystem 运行时接线第二步: c
 
 ---
 
+Session 锚点: 2026-08-12 (第51次 — 学习闭环贯通: LessonLibrary 统一存储 + 风险分析钩子传真实教训)
+- ESLint: 0/0 (相关文件) | Tests: **337 passed suites / 4 skipped / 0 failed** (16,748 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **学习闭环审计 (subagent 深度调研)**: 4 个教训模块存储分裂 — LessonLibrary 决策核心读 `.lesson-library.json` (纯数组, 仅 2 条测试残留), 而真实教训库 `.opencode/lessons.json` (2015 条, 含 LessonLearner 写的 31 条) 被 LessonReminder/ProactiveAdvisor 读; **学习→决策闭环断裂** (LessonLearner 写入的文件决策核心不读)
+- **修复 (subagent 推荐方案 c, 最小安全)**:
+  - `LessonLibrary.js`: `_load`/`_save` 统一到 `.opencode/lessons.json`, 兼容 `{lessons:[...]}` 包装 (读时 `Array.isArray(parsed) ? parsed : parsed.lessons`) — 决策核心现在读到真实教训 (含 LessonLearner 学到的)
+  - `BrainSystem.js` 风险分析钩子: 第三参数从硬编码 `[]` 改为 `lib.lessons` — 把"学到→存储"变成"学到→存储→决策" (PRE_TOOL_USE 真实风险分析)
+- **测试修复**: `lesson-library.test.js` `_load (real)` describe 改用临时目录 chdir 隔离 (之前直接写真实 `.lesson-library.json` 污染生产数据) + 更新为新路径; Windows 下 rmSync 已 chdir 目录会 EPERM → 用 unlinkSync+rmdirSync 清理文件而非删整个 tmpDir
+- **端到端验证**: LessonLearner 审批写入 → LessonLibrary 读到 (1 条) → CLOSED LOOP: YES; 风险分析钩子带 lessons 运行无崩溃
+- **工作树审计**: 提交只含本会话文件 (LessonLibrary.js + BrainSystem.js + lesson-library.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `src/core/LessonLibrary.js`, `src/core/BrainSystem.js`, `tests/unit/lesson-library.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

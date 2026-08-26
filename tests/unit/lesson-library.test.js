@@ -150,17 +150,27 @@ describe('LessonLibrary', () => {
 
   describe('_load (real)', () => {
     let fs;
+    let origCwd;
+    let tmpDir;
 
     beforeAll(() => {
       fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      origCwd = process.cwd();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'll-load-'));
+      process.chdir(tmpDir);
       LessonLibrary.prototype._load.mockRestore();
     });
 
     afterEach(() => {
-      try { fs.unlinkSync('.lesson-library.json'); } catch (e) {}
+      try { fs.unlinkSync('.opencode/lessons.json'); } catch (e) {}
+      try { fs.rmdirSync('.opencode'); } catch (e) {}
     });
 
     afterAll(() => {
+      process.chdir(origCwd);
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) {}
       jest.spyOn(LessonLibrary.prototype, '_load').mockImplementation(function () {
         this._lessons = [];
       });
@@ -168,7 +178,8 @@ describe('LessonLibrary', () => {
 
     it('loads from existing file if present', () => {
       const data = [{ id: 't1', title: 'exist' }];
-      fs.writeFileSync('.lesson-library.json', JSON.stringify(data));
+      fs.mkdirSync('.opencode', { recursive: true });
+      fs.writeFileSync('.opencode/lessons.json', JSON.stringify({ lessons: data }));
       const lib = new LessonLibrary({ quiet: true });
       expect(lib.lessons).toEqual(data);
     });
@@ -179,7 +190,8 @@ describe('LessonLibrary', () => {
     });
 
     it('handles corrupt JSON via catch', () => {
-      fs.writeFileSync('.lesson-library.json', '{corrupt}');
+      fs.mkdirSync('.opencode', { recursive: true });
+      fs.writeFileSync('.opencode/lessons.json', '{corrupt}');
       const lib = new LessonLibrary({ quiet: true });
       expect(lib.lessons).toEqual([]);
     });

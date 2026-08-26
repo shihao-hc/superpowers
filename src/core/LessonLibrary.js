@@ -80,9 +80,10 @@ class LessonLibrary {
     try {
       const fs = require('fs');
       const path = require('path');
-      const file = path.join(process.cwd(), '.lesson-library.json');
+      const file = path.join(process.cwd(), '.opencode', 'lessons.json');
       if (fs.existsSync(file)) {
-        this._lessons = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        this._lessons = Array.isArray(parsed) ? parsed : (parsed.lessons || []);
       }
     } catch (e) { /* silent */ }
   }
@@ -91,8 +92,8 @@ class LessonLibrary {
     try {
       const fs = require('fs');
       const path = require('path');
-      const file = path.join(process.cwd(), '.lesson-library.json');
-      fs.writeFileSync(file, JSON.stringify(this._lessons, null, 2));
+      const file = path.join(process.cwd(), '.opencode', 'lessons.json');
+      fs.writeFileSync(file, JSON.stringify({ lessons: this._lessons }, null, 2));
     } catch (e) { /* silent */ }
   }
 }
