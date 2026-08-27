@@ -9,7 +9,7 @@ const _config = require('../config');
 const { ContextCompactService } = require('../../src/agent/ContextCompactService');
 
 class ChatService extends EventEmitter {
-  constructor() {
+  constructor(options = {}) {
     super();
     this.conversations = new Map();
     this.messageQueue = [];
@@ -19,6 +19,10 @@ class ChatService extends EventEmitter {
       errors: 0
     };
 
+    // LLM 推理（Ollama）— 可注入 mock，默认惰性创建
+    this.ollamaBridge = options.ollamaBridge || null;
+    this._ollamaTried = false;
+
     // 初始化上下文压缩服务
     this.contextCompact = new ContextCompactService({
       maxTokens: 100000,
@@ -27,6 +31,21 @@ class ChatService extends EventEmitter {
       preserveRecentMessages: 10,
       autoCompactEnabled: true
     });
+  }
+
+  /**
+   * 获取或惰性创建 Ollama bridge
+   */
+  _getOllamaBridge() {
+    if (this.ollamaBridge) {return this.ollamaBridge;}
+    if (this._ollamaTried) {return null;}
+    this._ollamaTried = true;
+    try {
+      const { OllamaBridge } = require('../../src/localInferencing/OllamaBridge');
+      this.ollamaBridge = new OllamaBridge();
+      return this.ollamaBridge;
+    } catch (e) { /* Ollama 不可用时回退话术 */ }
+    return null;
   }
 
   /**
@@ -157,8 +176,23 @@ class ChatService extends EventEmitter {
    * 生成回复
    */
   async generateResponse(text, conversation) {
-    // 这里可以集成Ollama、OpenAI等AI服务
-    // 目前使用简单的回复逻辑
+    // 优先使用 Ollama 真实推理（非侵入式，失败回退话术）
+    try {
+      const bridge = this._getOllamaBridge();
+      if (bridge) {
+        const history = (conversation.messages || []).slice(-6).map((m) => ({
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content
+        }));
+        const result = await bridge.chat([
+          { role: 'system', content: '你是一个乐于助人的中文 AI 助手，回答简洁友好。' },
+          ...history
+        ], { temperature: 0.7 });
+        if (result && result.ok && result.text) {
+          return { text: result.text, confidence: 0.9, source: 'ollama' };
+        }
+      }
+    } catch (e) { /* Ollama 不可用，回退话术 */ }
 
     const personality = conversation.personality || 'default';
     const _context = conversation.context || {};
@@ -203,7 +237,8 @@ class ChatService extends EventEmitter {
 
     return {
       text: randomResponse,
-      confidence: 0.8 + Math.random() * 0.2
+      confidence: 0.8 + Math.random() * 0.2,
+      source: 'fallback'
     };
   }
 

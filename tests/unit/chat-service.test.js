@@ -48,6 +48,56 @@ describe('ChatService (BrainSystem-wired)', () => {
     });
   });
 
+  describe('generateResponse (LLM wiring)', () => {
+    it('uses Ollama when bridge is available', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockResolvedValue({ ok: true, text: '模型推理回复' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        const r = await chatService.generateResponse('hi', conv);
+        expect(r.source).toBe('ollama');
+        expect(r.text).toBe('模型推理回复');
+        expect(mockBridge.chat).toHaveBeenCalled();
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
+    it('falls back to canned when Ollama fails', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockRejectedValue(new Error('ollama down'))
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        const r = await chatService.generateResponse('hi', conv);
+        expect(r.source).toBe('fallback');
+        expect(r.text).toBeTruthy();
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
+    it('falls back to canned when no bridge available', async () => {
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = null;
+      chatService._ollamaTried = true;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        const r = await chatService.generateResponse('hi', conv);
+        expect(r.source).toBe('fallback');
+        expect(r.text).toBeTruthy();
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        chatService._ollamaTried = false;
+      }
+    });
+  });
+
   describe('processStream', () => {
     it('streams chunks and calls onEnd', async () => {
       const chunks = [];

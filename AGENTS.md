@@ -2111,6 +2111,21 @@ Session 锚点: 2026-08-12 (第53次 — 可靠层加固: 风险分析强化 + M
 
 ---
 
+Session 锚点: 2026-08-12 (第54次 — 智慧层: chat 接入 Ollama 真实推理, 非侵入式降级)
+- ESLint: 0/0 (相关文件) | Tests: **339 passed suites / 4 skipped / 0 failed** (16,772 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **战略第2步 (智慧层)**: 让 chat 从硬编码话术 → 真实 LLM 推理; 但保持非侵入式降级 (Ollama 不可用回退话术, 测试不依赖真实 Ollama)
+- **接入 (`server/services/chatService.js`)**:
+  - 构造函数支持 `options.ollamaBridge` 注入 (可 mock) + `_getOllamaBridge()` 惰性创建 (一次尝试失败后 `_ollamaTried` 标记不回退重试)
+  - `generateResponse` 优先用 Ollama: 构造 system prompt + 最近 6 条历史 → `bridge.chat(messages)` → 成功返回 `{text, source:'ollama'}`; 失败/不可用回退话术 `{source:'fallback'}`
+- **环境核实**: `ollama` 包 ^0.6.3 已装 + Ollama 本地服务运行中 (checkConnection: true); OllamaBridge 默认 host localhost:11434 model llama3.2
+- **验证 (真实运行)**: `1+1等于几` → 回复 "1+1=2" (模型推理); `请用一句话介绍你自己` → 有意义的模型回复, `source: ollama`
+- **测试 (3 新增)**: Ollama 可用 → source ollama + chat 被调; Ollama 失败 → source fallback; 无 bridge → source fallback; 用可注入 mockBridge (不依赖真实 Ollama)
+- **测试坑**: chatService 是单例导出 → 测试通过临时覆盖 `chatService.ollamaBridge` + finally 还原; `_ollamaTried` 标记需在测试还原
+- **工作树审计**: 提交只含本会话文件 (chatService.js + chat-service.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (9→12)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
