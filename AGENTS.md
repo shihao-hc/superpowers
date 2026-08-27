@@ -2126,6 +2126,22 @@ Session 锚点: 2026-08-12 (第54次 — 智慧层: chat 接入 Ollama 真实推
 
 ---
 
+Session 锚点: 2026-08-12 (第55次 — 学习驱动拦截: 教训库文本驱动风险决策)
+- ESLint: 0/0 (相关文件) | Tests: **339 passed suites / 4 skipped / 0 failed** (16,776 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **战略第3步 (闭环强化)**: 让教训库的真实教训真正驱动风险拦截 (学到"危险" → 下次拦截), 完成"学习→决策"最后一环
+- **`PreToolRiskAnalyzer.js` 增强**:
+  - `_findMatch` 新增文本匹配: 除 category/tags 外, 匹配 `lesson`/`problem` 文本中的关键词 (真实教训是文本字段, 此前只匹配 category/tags)
+  - analyze 的 security lesson 匹配: 修复 `secMatch.title` 恒 undefined bug (教训无 title 字段, 改 `lesson`/`id`); 新增**教训驱动 BLOCK** — 匹配到高危教训 (priority=high 或 tags/文本含 security/危险/高危/敏感/删除/覆盖/注入) 且操作是 write/delete/exec → 返回 BLOCK (lessonDriven: true), 普通教训 → WARN
+  - read 操作不受教训 BLOCK 影响 (只读不误伤)
+- **数据污染清理**: `.opencode/lessons.json` (untracked 运行时数据) 被测试污染 2 条空教训 → 清理; 确认 LessonLibrary 从空健康加载
+- **验证**: 高危教训 + delete/write → BLOCK (lessonDriven); 普通教训 → WARN; read + 高危教训 → ALLOW; 文本匹配生效
+- **新增 4 测试**: 教训驱动 BLOCK / 非高危 WARN / read 不误伤 / 文本匹配
+- **待推送**: 本提交 + 上轮 LLM 接入 (`797524e`) 均待 GitHub 网络恢复后推送 (分支 ahead 2)
+- **工作树审计**: 提交只含本会话文件 (PreToolRiskAnalyzer.js + pre-tool-risk-analyzer.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `src/core/PreToolRiskAnalyzer.js`, `tests/unit/pre-tool-risk-analyzer.test.js` (49→53)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

@@ -98,10 +98,24 @@ class PreToolRiskAnalyzer {
       }
     }
 
-    // Security lesson match
+    // Security lesson match — 学习到的教训驱动风险判断
     const secMatch = this._findMatch(lessons, 'security');
-    if (secMatch && op === 'write') {
-      warnings.push(`\u76f8\u5173\u5b89\u5168\u6559\u8bad: ${secMatch.title}`);
+    if (secMatch && (op === 'write' || op === 'delete' || op === 'exec')) {
+      const lessonText = secMatch.lesson || secMatch.problem || '';
+      const isHighRisk = secMatch.priority === 'high' ||
+        (secMatch.tags || []).some((t) => /security|danger|危险|高危|敏感/i.test(String(t))) ||
+        /security|危险|高危|敏感|删除|覆盖|注入/i.test(String(lessonText));
+      if (isHighRisk) {
+        this._log('BLOCK', toolName, `high-risk lesson matched: ${secMatch.lesson || secMatch.id || ''}`);
+        return {
+          action: 'BLOCK',
+          reason: `\u547d\u4e2d\u9ad8\u98ce\u9669\u6559\u8bad: ${(secMatch.lesson || secMatch.id || '').substring(0, 80)}`,
+          targets,
+          lessonMatch: secMatch,
+          lessonDriven: true
+        };
+      }
+      warnings.push(`\u76f8\u5173\u5b89\u5168\u6559\u8bad: ${secMatch.lesson || secMatch.id || ''}`);
     }
 
     if (warnings.length > 0) {
@@ -160,7 +174,12 @@ class PreToolRiskAnalyzer {
 
   _findMatch(lessons, keyword) {
     if (!lessons || !Array.isArray(lessons)) {return null;}
-    return lessons.find((l) => l.category === keyword || (l.tags || []).includes(keyword));
+    return lessons.find((l) =>
+      l.category === keyword ||
+      (l.tags || []).includes(keyword) ||
+      (typeof l.lesson === 'string' && l.lesson.includes(keyword)) ||
+      (typeof l.problem === 'string' && l.problem.includes(keyword))
+    );
   }
 
   _log(action, tool, reason) {

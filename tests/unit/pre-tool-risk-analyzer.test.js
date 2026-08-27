@@ -322,5 +322,30 @@ describe('PreToolRiskAnalyzer', () => {
       const r = analyzer.analyze('readFile', { path: '/tmp/data.txt' });
       expect(r.action).toBe('ALLOW');
     });
+
+    it('BLOCKs operation driven by high-risk lesson', () => {
+      const highLesson = [{ id: 'H1', category: 'security', priority: 'high', lesson: '删除任何文件前必须二次确认' }];
+      const r = analyzer.analyze('deleteFile', { path: '/tmp/data.txt' }, highLesson);
+      expect(r.action).toBe('BLOCK');
+      expect(r.lessonDriven).toBe(true);
+    });
+
+    it('WARNs when lesson is not high-risk', () => {
+      const normalLesson = [{ id: 'N1', category: 'security', lesson: '写文件用安全路径' }];
+      const r = analyzer.analyze('writeFile', { path: '/tmp/x' }, normalLesson);
+      expect(r.action).toBe('WARN');
+      expect(r.lessonDriven).toBeFalsy();
+    });
+
+    it('does not BLOCK read when high-risk lesson matches', () => {
+      const highLesson = [{ id: 'H1', category: 'security', priority: 'high', lesson: '删除危险' }];
+      const r = analyzer.analyze('readFile', { path: '/tmp/x' }, highLesson);
+      expect(r.action).toBe('ALLOW');
+    });
+
+    it('matches lesson by text content', () => {
+      const lesson = [{ id: 'T1', lesson: 'security: 覆盖配置前备份' }];
+      expect(analyzer._findMatch(lesson, 'security')).toEqual(lesson[0]);
+    });
   });
 });
