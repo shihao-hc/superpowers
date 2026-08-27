@@ -60,6 +60,12 @@ class PreToolRiskAnalyzer {
       }
     }
 
+    // BLOCK: shell 命令执行 — 任意 shell 执行均为高危险
+    if (op === 'exec') {
+      this._log('BLOCK', toolName, 'shell command execution');
+      return { action: 'BLOCK', reason: '\u7981\u6b62\u6267\u884c shell \u547d\u4ee4', targets, exec: true };
+    }
+
     // WARN conditions
     const warnings = [];
     if (op === 'write') {
@@ -68,8 +74,15 @@ class PreToolRiskAnalyzer {
         if (r.level === 'config') {warnings.push(`\u4fee\u6539\u914d\u7f6e\u6587\u4ef6: ${r.path}`);}
       });
     }
-    if (op === 'delete' && fileRisk.some((r) => r.level === 'config')) {
-      warnings.push('删除配置文件需确认备份');
+    if (op === 'delete') {
+      // 删除任何文件都需确认（不只 critical）
+      fileRisk.forEach((r) => {
+        if (r.level === 'critical') {warnings.push(`\u5220\u9664\u5173\u952e\u6587\u4ef6: ${r.path}`);}
+        if (r.level === 'config') {warnings.push('删除配置文件需确认备份');}
+      });
+      if (targets.length > 0 && warnings.length === 0) {
+        warnings.push(`\u5220\u9664\u6587\u4ef6\u9700\u786e\u8ba4: ${targets.join(', ')}`);
+      }
     }
 
     // Guardrail baseline check — warn if modifying a baselined file
@@ -105,6 +118,7 @@ class PreToolRiskAnalyzer {
     if (name.includes('delete') || name.includes('remove') || name.includes('unlink') || a.includes('delete')) {return 'delete';}
     if (name.includes('write') || name.includes('edit') || name.includes('create') || name.includes('modify') || a.includes('write') || a.includes('overwrite')) {return 'write';}
     if (name.includes('read') || name.includes('get') || name.includes('list') || name.includes('search')) {return 'read';}
+    if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec_command') || name.includes('run_command') || name.includes('execute_command')) {return 'exec';}
     return 'unknown';
   }
 
@@ -121,6 +135,16 @@ class PreToolRiskAnalyzer {
       const p = m.replace(/["']/g, '');
       if (!targets.includes(p)) {targets.push(p);}
     });}
+    // Extract explicit path-ish args (path/filePath/target/file) for op-aware target capture
+    const argObj = typeof args === 'string' ? (() => { try {return JSON.parse(args);} catch {return null;} })() : args;
+    if (argObj && typeof argObj === 'object') {
+      for (const key of ['path', 'filePath', 'file', 'target', 'filename']) {
+        if (typeof argObj[key] === 'string') {
+          const p = argObj[key].replace(/\\/g, '/');
+          if (!targets.includes(p)) {targets.push(p);}
+        }
+      }
+    }
     return targets;
   }
 

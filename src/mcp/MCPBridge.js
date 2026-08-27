@@ -301,13 +301,26 @@ class MCPBridge extends EventEmitter {
     toolMetrics.total++;
 
     try {
-      await this._fireHook('PRE_TOOL_USE', {
+      const hookCtx = {
         toolName: toolFullName,
         tool: toolName,
         server: serverName,
         args: params,
         context
-      });
+      };
+      await this._fireHook('PRE_TOOL_USE', hookCtx);
+
+      // 风险分析 BLOCK → 拒绝执行（安全门禁）
+      if (hookCtx._riskAnalysis && hookCtx._riskAnalysis.action === 'BLOCK') {
+        const reason = hookCtx._riskAnalysis.reason || 'blocked by risk analysis';
+        this.metrics.failedCalls++;
+        serverMetrics.failed++;
+        toolMetrics.failed++;
+        this._recordLatency(serverName, toolFullName, Date.now() - startTime);
+        const err = new Error(`Blocked by risk analysis: ${reason}`);
+        err.code = 'TOOL_BLOCKED';
+        throw err;
+      }
 
       const result = await client.callTool(toolName, params);
 

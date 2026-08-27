@@ -277,6 +277,40 @@ describe('MCPBridge', () => {
       triggerSpy.mockRestore();
     });
 
+    it('should reject tool call when PRE_TOOL_USE analysis returns BLOCK', async () => {
+      const hooks = require('../../src/hooks');
+      const realTrigger = hooks.triggerHook;
+      hooks.triggerHook = async (event, ctx) => {
+        if (event === 'BeforeTool') {
+          ctx._riskAnalysis = { action: 'BLOCK', reason: 'forbidden shell exec' };
+        }
+        return [];
+      };
+      try {
+        await expect(bridge.call('test-server:write_file', { path: '/x' }))
+          .rejects.toThrow(/Blocked by risk analysis/);
+      } finally {
+        hooks.triggerHook = realTrigger;
+      }
+    });
+
+    it('should execute tool when PRE_TOOL_USE analysis is not BLOCK', async () => {
+      const hooks = require('../../src/hooks');
+      const realTrigger = hooks.triggerHook;
+      hooks.triggerHook = async (event, ctx) => {
+        if (event === 'BeforeTool') {
+          ctx._riskAnalysis = { action: 'ALLOW', reason: 'ok' };
+        }
+        return [];
+      };
+      try {
+        const result = await bridge.call('test-server:write_file', { path: '/x', content: 'y' });
+        expect(result).toEqual({ result: 'write_file called with {"path":"/x","content":"y"}' });
+      } finally {
+        hooks.triggerHook = realTrigger;
+      }
+    });
+
     it('should not break tool call when hooks module is unavailable', async () => {
       const realRequire = module.constructor.prototype.require;
       module.constructor.prototype.require = function (id) {

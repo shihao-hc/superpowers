@@ -38,6 +38,14 @@ describe('PreToolRiskAnalyzer', () => {
       expect(analyzer._classifyOp('execute')).toBe('unknown');
     });
 
+    it('classifies shell exec operations', () => {
+      expect(analyzer._classifyOp('shell')).toBe('exec');
+      expect(analyzer._classifyOp('bash')).toBe('exec');
+      expect(analyzer._classifyOp('terminal')).toBe('exec');
+      expect(analyzer._classifyOp('exec_command')).toBe('exec');
+      expect(analyzer._classifyOp('run_command')).toBe('exec');
+    });
+
     it('is case insensitive', () => {
       expect(analyzer._classifyOp('DELETEFILE')).toBe('delete');
       expect(analyzer._classifyOp('WriteFile')).toBe('write');
@@ -292,6 +300,27 @@ describe('PreToolRiskAnalyzer', () => {
       const r = analyzer.analyze('writeFile', { path: 'src/utils/new.js' });
       expect(r.action).toBe('ALLOW');
       fs.existsSync.mockRestore();
+    });
+
+    it('BLOCKs shell command execution', () => {
+      const r = analyzer.analyze('shell', { command: 'rm -rf /' });
+      expect(r.action).toBe('BLOCK');
+      expect(r.exec).toBe(true);
+    });
+
+    it('BLOCKs bash terminal execution', () => {
+      const r = analyzer.analyze('bash', { script: 'echo hi' });
+      expect(r.action).toBe('BLOCK');
+    });
+
+    it('WARNs on delete of any file', () => {
+      const r = analyzer.analyze('deleteFile', { path: '/tmp/data.txt' });
+      expect(r.action).toBe('WARN');
+    });
+
+    it('ALLOWs shell-free read operations', () => {
+      const r = analyzer.analyze('readFile', { path: '/tmp/data.txt' });
+      expect(r.action).toBe('ALLOW');
     });
   });
 });

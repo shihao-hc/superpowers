@@ -2095,6 +2095,22 @@ Session 锚点: 2026-08-12 (第52次 — 已接线部分夯实: chatService/skil
 
 ---
 
+Session 锚点: 2026-08-12 (第53次 — 可靠层加固: 风险分析强化 + MCP 安全门禁 BLOCK 拦截)
+- ESLint: 0/0 (相关文件) | Tests: **339 passed suites / 4 skipped / 0 failed** (16,769 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **战略决策**: "先可靠后智慧" — 先封堵安全拦截断点 (危险操作被拦截), 再接入 LLM (LLM 越聪明越需安全网)
+- **审计发现 (安全缺口)**: 风险分析钩子传 lessons 但**结果从不被使用** — PRE_TOOL_USE 的 BLOCK 不阻止工具调用 (只记录不拦截, 相当于"安保摄像头但没门禁"); 且危险工具 (shell:exec/delete_file) 对普通路径全返回 ALLOW
+- **风险分析强化 (`src/core/PreToolRiskAnalyzer.js`)**:
+  - `_classifyOp` 新增 `exec` 识别 (shell/bash/terminal/exec_command/run_command → exec), 但保持 `execute`/`runScript` 为 unknown (避免误伤通用执行, 兼容现有测试)
+  - `analyze` 新增: exec → BLOCK (禁止 shell 命令); delete 任意文件 → WARN (不只 critical)
+  - `_extractTargets` 新增显式 path/filePath/file/target/filename 参数提取 (之前只匹配含 src/.opencode/AGENTS/.. 的路径, 普通文件删除目标提取不到)
+- **MCP 安全门禁 (`src/mcp/MCPBridge.js`)**: call() 在 PRE_TOOL_USE 后检查 `hookCtx._riskAnalysis.action === 'BLOCK'` → 抛 `Blocked by risk analysis` 错误 (计入失败指标, 触发 TOOL_ERROR 钩子), 不执行工具
+- **验证 (集成)**: shell:exec → BLOCKED (未调用 callTool); 安全 read → allowed (正常执行); 危险工具矩阵: exec BLOCK / 删任意 WARN / 删critical BLOCK / 写config WARN / 路径遍历 BLOCK / 普通读写 ALLOW
+- **新增 7 测试**: risk-analyzer 5 (exec BLOCK/bash BLOCK/delete任意 WARN/read ALLOW/exec分类) + mcp-bridge 2 (BLOCK 拦截/ALLOW 放行)
+- **工作树审计**: 提交只含本会话文件 (PreToolRiskAnalyzer.js + MCPBridge.js + 2 测试文件 + AGENTS.md), 无外部工作混入
+- 相关文件: `src/core/PreToolRiskAnalyzer.js`, `src/mcp/MCPBridge.js`, `tests/unit/pre-tool-risk-analyzer.test.js`, `tests/unit/mcp-bridge.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
