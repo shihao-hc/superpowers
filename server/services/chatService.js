@@ -184,8 +184,12 @@ class ChatService extends EventEmitter {
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content
         }));
+        // 动态 system prompt：融入人格 + 意图（多轮一致性）
+        const personality = conversation.personality || 'default';
+        const lastIntent = conversation.context && conversation.context.lastIntent;
+        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}`;
         const result = await bridge.chat([
-          { role: 'system', content: '你是一个乐于助人的中文 AI 助手，回答简洁友好。' },
+          { role: 'system', content: sysPrompt },
           ...history
         ], { temperature: 0.7 });
         if (result && result.ok && result.text) {

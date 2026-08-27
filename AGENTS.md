@@ -2158,6 +2158,19 @@ Session 锚点: 2026-08-12 (第56次 — 三步接线夯实: 运行时验证 + c
 
 ---
 
+Session 锚点: 2026-08-12 (第57次 — 多方向推进: agent 消息回复 + 多轮对话质量 + chat/agent 集成测试)
+- ESLint: 0/0 (相关文件) | Tests: **341 passed suites / 4 skipped / 0 failed** (16,789 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向分析 (subagent)**: 4 个推进方向按价值/成本排序 — #3 多轮质量(高/极低) > #1 agent 路径(中/低) > #4 集成测试(高/低-中) > #2 WS LLM(中高/中)
+- **方向 3 (多轮对话质量)**: chatService generateResponse 的 system prompt 从硬编码 → 动态 (含 `personality` + `lastIntent.intent`) — LLM 现在知道人格和用户意图, 多轮一致性增强; 补测试断言 prompt 含 personality+intent
+- **方向 1 (agent 消息回复)**: `server/routes/agent.js` POST /message — 用户消息时复用 chatService.generateResponse 生成回复 (非侵入式, 失败保持只存行为); 意图分析 + 历史上下文传入
+- **方向 4 (集成测试)**: 新建 `chat-routes.test.js` (4 tests: LLM 回复/记忆持久化/history/fallback) + `agent-routes.test.js` (3 tests: AI 回复/缺 content 400/Ollama 降级) — 保护 chat→LLM + agent→reply 的 HTTP 链路
+- **测试坑**: history 端点读 `req.user.id` → mock authMiddleware 需设置 req.user; agent 路由需 mock TaskService/StateStore/MessageService
+- **覆盖**: chatService branch 提升 (多轮 prompt + 回复路径); chat/agent HTTP 路由零到有测试保护
+- **工作树审计**: 提交只含本会话文件 (agent.js + chatService.js + chat-routes.test.js + agent-routes.test.js + chat-service.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `server/routes/agent.js`, `server/services/chatService.js`, `tests/unit/{chat-routes,agent-routes,chat-service}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

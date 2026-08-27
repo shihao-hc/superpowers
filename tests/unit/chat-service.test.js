@@ -66,6 +66,23 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('includes personality and intent in the LLM system prompt', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockResolvedValue({ ok: true, text: 'r' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'professional', context: { lastIntent: { intent: 'code' } }, messages: [{ role: 'user', content: 'hi' }] };
+        await chatService.generateResponse('hi', conv);
+        const systemPrompt = mockBridge.chat.mock.calls[0][0][0].content;
+        expect(systemPrompt).toContain('professional');
+        expect(systemPrompt).toContain('code');
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
     it('falls back to canned when Ollama fails', async () => {
       const mockBridge = {
         chat: jest.fn().mockRejectedValue(new Error('ollama down'))

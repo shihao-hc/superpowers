@@ -165,9 +165,32 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
       metadata
     });
 
+    // 用户消息 → 生成 AI 回复（复用 chatService 的 Ollama 引擎，非侵入式）
+    let reply = null;
+    if (role === 'user') {
+      try {
+        const { BrainSystem } = require('../../src/core/BrainSystem');
+        const chatService = require('../services/chatService');
+        const intent = (BrainSystem && BrainSystem.analyzeIntent) ? BrainSystem.analyzeIntent(content) : null;
+        const history = messageService.getMessages().slice(-6).map((m) => ({
+          role: m.type === 'assistant' ? 'assistant' : 'user',
+          content: typeof m.content === 'string' ? m.content : ''
+        }));
+        const r = await chatService.generateResponse(content, {
+          personality: 'default',
+          context: { lastIntent: intent },
+          messages: history
+        });
+        if (r && r.text) {
+          reply = { text: r.text, source: r.source || 'fallback' };
+        }
+      } catch (e) { /* BrainSystem/Ollama 可选，保持只存行为 */ }
+    }
+
     res.json({
       success: true,
-      data: message
+      data: message,
+      reply
     });
   } catch (error) {
     res.status(500).json({
