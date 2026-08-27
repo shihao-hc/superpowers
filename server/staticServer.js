@@ -526,8 +526,10 @@ function sanitizeCommand(cmd) {
 // Initialize chat WebSocket handler
 let chatHandler = null;
 try {
+  const { OllamaTextAdapter } = require(path.resolve(__dirname, '..', 'src', 'chat', 'OllamaTextAdapter'));
   chatHandler = getChatWebSocketHandler({
-    skillManager: null // Will be initialized when needed
+    skillManager: null, // Will be initialized when needed
+    llmAdapter: new OllamaTextAdapter() // ChatWebSocketHandler LLM 推理 (Ollama)
   });
   logger.info('[ChatWS] Chat WebSocket handler initialized');
 } catch (e) {

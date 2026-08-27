@@ -2171,6 +2171,20 @@ Session 锚点: 2026-08-12 (第57次 — 多方向推进: agent 消息回复 + �
 
 ---
 
+Session 锚点: 2026-08-12 (第58次 — 方向#2: ChatWebSocketHandler 接入 Ollama LLM 推理)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,793 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向 #2 (WS 实时聊天 LLM 注入)**: ChatWebSocketHandler 的 llmAdapter 从未注入 (staticServer.js:529 只传 skillManager) → Socket.IO 聊天恒回退话术
+  - 新建 `src/chat/OllamaTextAdapter.js`: 适配 `generate(stringPrompt, options) → Promise<string>` 接口 (ChatWebSocketHandler._generateTextResponse 期望), 内部用 OllamaBridge.chat(messages) 实现; 空响应 throw → 触发 handler 自身 catch 回退话术
+  - `server/staticServer.js:529`: `getChatWebSocketHandler({ skillManager:null, llmAdapter: new OllamaTextAdapter() })` — 注入真实 LLM; OllamaTextAdapter 构造不连接 (惰性), Ollama 不可用不阻塞 server 启动
+- **验证 (真实 Ollama)**: `adapter.generate('User: 你好...')` → 模型回复 "你好！我是你的中文 AI 助手..." (真实推理)
+- **测试 (4 新增)**: generate 返回 string + 参数透传 / 空响应 throw / bridge 错误传播 / 默认选项
+- **测试坑**: staticServer 注入不改 ChatWebSocketHandler 逻辑 (69 现有测试全过, 用 mock adapter); OllamaTextAdapter 可注入 mock bridge 测试 (不依赖真实 Ollama)
+- **待推送**: 本提交 + 上轮方向1/3/4 (`23c0c1b`) 均待 GitHub 网络恢复后推送 (分支 ahead 2)
+- **工作树审计**: 提交只含本会话文件 (OllamaTextAdapter.js + staticServer.js + ollama-text-adapter.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `src/chat/OllamaTextAdapter.js` (新), `server/staticServer.js`, `tests/unit/ollama-text-adapter.test.js` (新)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
