@@ -2142,6 +2142,22 @@ Session 锚点: 2026-08-12 (第55次 — 学习驱动拦截: 教训库文本驱�
 
 ---
 
+Session 锚点: 2026-08-12 (第56次 — 三步接线夯实: 运行时验证 + chatService 边界测试补齐)
+- ESLint: 0/0 (相关文件) | Tests: **339 passed suites / 4 skipped / 0 failed** (16,781 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **全面运行时验证 (A/B/C 三步接线真实生效)**:
+  - server 完整启动: booted + hooks connected + BrainBridge YES, BrainFlow/SelfLearning 警告 GONE
+  - 端到端 chat: POST /api/chat → Ollama 真实推理 "北京" (中国首都正确回答), 记忆落盘 (memory.json)
+- **chatService 边界测试补齐** (+5, 覆盖 85/68 → 92.5/76.38):
+  - getStats (activeConversations/averageLatency); cleanupInactiveSessions (清理不活跃/保留活跃)
+  - 消息超 100 截断 (slice(-50)); Ollama 失败回退 (fallback 仍回复)
+  - 用 mock bridge (chat mockResolvedValue/RejectedValue) 避免真实 Ollama 依赖
+- **覆盖状态**: chatService 76.38% branch / MCPBridge 94.93% / PreToolRiskAnalyzer 93.03% — 三步接线核心逻辑全覆盖, 剩余缺口均为低价值防御分支 (!hooks/!cb/|| fallback/OllamaBridge require catch)
+- **测试坑**: 批量 processMessage 会真实调 Ollama (慢) → 用 mock bridge 加速; processMessage 的 error catch 需 generateResponse throw (Ollama 失败走 fallback 不 throw, 故测 fallback 而非 error 事件)
+- **工作树审计**: 提交只含本会话文件 (chat-service.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `tests/unit/chat-service.test.js` (12→17)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

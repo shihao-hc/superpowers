@@ -134,4 +134,66 @@ describe('ChatService (BrainSystem-wired)', () => {
       expect(history).toEqual({ messages: [], total: 0 });
     });
   });
+
+  describe('getStats', () => {
+    it('returns stats with active conversations', async () => {
+      await chatService.processMessage({ text: 's', userId: 's1' });
+      const stats = chatService.getStats();
+      expect(stats.totalMessages).toBeGreaterThan(0);
+      expect(stats.activeConversations).toBe(1);
+      expect(stats.averageLatency).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('cleanupInactiveSessions', () => {
+    it('cleans inactive conversations', async () => {
+      const conv = {
+        id: 'old', messages: [], personality: 'default', context: {},
+        createdAt: new Date(), lastActivity: new Date(Date.now() - 7200000)
+      };
+      chatService.conversations.set('old', conv);
+      const cleaned = chatService.cleanupInactiveSessions(3600000);
+      expect(cleaned).toBe(1);
+      expect(chatService.conversations.has('old')).toBe(false);
+    });
+
+    it('keeps active conversations', async () => {
+      const conv = {
+        id: 'fresh', messages: [], personality: 'default', context: {},
+        createdAt: new Date(), lastActivity: new Date()
+      };
+      chatService.conversations.set('fresh', conv);
+      const cleaned = chatService.cleanupInactiveSessions(3600000);
+      expect(cleaned).toBe(0);
+    });
+  });
+
+  describe('error paths', () => {
+    it('truncates messages beyond 100', async () => {
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'ok' }) };
+      try {
+        for (let i = 0; i < 55; i++) {
+          await chatService.processMessage({ text: `msg ${i}`, userId: 'bulk' });
+        }
+        const conv = chatService.conversations.get('bulk');
+        expect(conv.messages.length).toBeLessThanOrEqual(100);
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
+    it('still replies when Ollama fails (fallback)', async () => {
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = { chat: jest.fn().mockRejectedValue(new Error('boom')) };
+      chatService._ollamaTried = false;
+      try {
+        const res = await chatService.processMessage({ text: 'x', userId: 'e1' });
+        expect(res.text).toBeTruthy();
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        chatService._ollamaTried = false;
+      }
+    });
+  });
 });
