@@ -38,7 +38,7 @@ class ChatService extends EventEmitter {
    */
   _getOllamaBridge() {
     if (this.ollamaBridge) {return this.ollamaBridge;}
-    if (this._ollamaTried) {return null;}
+    // 不在首次失败后永久禁用 — 每次请求重试（Ollama 重启等瞬时故障不应永久降级）
     this._ollamaTried = true;
     try {
       const { OllamaBridge } = require('../../src/localInferencing/OllamaBridge');
@@ -46,6 +46,22 @@ class ChatService extends EventEmitter {
       return this.ollamaBridge;
     } catch (e) { /* Ollama 不可用时回退话术 */ }
     return null;
+  }
+
+  /**
+   * Ollama 调用带重试（瞬时故障自动恢复）
+   */
+  async _chatWithRetry(bridge, sysPrompt, history) {
+    const { RetryHandler } = require('../../src/utils/UltraWorkUtils');
+    const messages = [
+      { role: 'system', content: sysPrompt },
+      ...history
+    ];
+    const result = await RetryHandler.retry(
+      () => bridge.chat(messages, { temperature: 0.7 }),
+      { maxAttempts: 3, delay: 500, backoff: 2 }
+    );
+    return result;
   }
 
   /**
@@ -184,14 +200,29 @@ class ChatService extends EventEmitter {
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content
         }));
-        // 动态 system prompt：融入人格 + 意图（多轮一致性）
+        // 动态 system prompt：融入人格 + 意图 + 相关记忆（多轮一致性 + 记忆增强）
         const personality = conversation.personality || 'default';
         const lastIntent = conversation.context && conversation.context.lastIntent;
-        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}`;
-        const result = await bridge.chat([
-          { role: 'system', content: sysPrompt },
-          ...history
-        ], { temperature: 0.7 });
+        let memoryText = '';
+        try {
+          const { BrainSystem } = require('../../src/core/BrainSystem');
+          const mem = (BrainSystem.smartSearch && BrainSystem.smartSearch(text, 3)) || [];
+          if (mem.length > 0) {
+            memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
+          }
+        } catch (e) { /* 记忆可选，失败静默 */ }
+        // 注入相关经验教训（学习到的知识影响回复）
+        let lessonText = '';
+        try {
+          const LessonLibrary = require('../../src/core/LessonLibrary');
+          const lib = new LessonLibrary({ quiet: true });
+          const lessons = lib.search ? lib.search(text, { limit: 3 }) : [];
+          if (Array.isArray(lessons) && lessons.length > 0) {
+            lessonText = `参考经验教训：${lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；')}。`;
+          }
+        } catch (e) { /* 教训可选，失败静默 */ }
+        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}`;
+        const result = await this._chatWithRetry(bridge, sysPrompt, history);
         if (result && result.ok && result.text) {
           return { text: result.text, confidence: 0.9, source: 'ollama' };
         }

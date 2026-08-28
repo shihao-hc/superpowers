@@ -2208,6 +2208,22 @@ Session 锚点: 2026-08-12 (第60次 — 夯实复查: 安全门禁漏洞修复 
 
 ---
 
+Session 锚点: 2026-08-12 (第61次 — 深层能力: 记忆回读 + LLM 重试/一次性禁用修复 + 教训注入 prompt)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,796 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向分析 (subagent)**: 深层能力按价值/成本排序 — A 记忆回读(高/低) > D1 LLM 重试(高/低) > B 教训注入(中高/低) > D2 可观测性 > C 多代理(死接线成本高, 跳过)
+- **方向 A (记忆回读 — 只存不用→记忆影响回复)**:
+  - `BrainSystem._hydrateSmartMemory()`: 从磁盘 `Persistence.load('memory')` 水合内存 (跨进程恢复); smartSearch/getRecentMemories 前调用
+  - chatService generateResponse: 检索相关记忆 → 注入 system prompt "你记得与该用户相关的信息：..."
+  - 验证: 模拟重启后 smartSearch 从磁盘恢复 (hydrated search: 1 hits)
+- **方向 D1 (LLM 可靠性 — 真实 bug)**: `_getOllamaBridge` 的 `_ollamaTried` 一次性禁用 — 一次瞬时失败(Ollama 重启)永久降级话术; 修复为每次请求重试; generateResponse 加 `_chatWithRetry` (RetryHandler.retry 3 次指数退避)
+  - 注意: UltraWorkUtils 无 `retry` 静态方法 (subagent 误报), 实际是 `RetryHandler.retry`; 测试 "no bridge available" 旧语义已过时 (依赖永久禁用) → 删除, 改 "retries Ollama call on transient failure"
+- **方向 B (教训注入)**: chatService generateResponse 用 LessonLibrary.search(text,{limit:3}) → 注入 "参考经验教训：..." 到 prompt (学习到的知识影响回复, 不只风险判断)
+- **测试**: chat-service +18 (含 retry/重复清理); BrainSystem + smart-memory 284 测试全过 (水合不破坏)
+- **工作树审计**: 提交只含本会话文件 (chatService.js + BrainSystem.js + chat-service.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `server/services/chatService.js`, `src/core/BrainSystem.js`, `tests/unit/chat-service.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

@@ -1464,12 +1464,31 @@ BrainSystem.smartStore = function(key, value, metadata) {
 };
 
 /**
- * 智能检索
+ * 从磁盘水合内存记忆（跨进程恢复）
  */
-BrainSystem.smartSearch = function(query, limit) {
+BrainSystem._hydrateSmartMemory = function() {
   if (!BrainSystem._smartMemory) {
     BrainSystem._smartMemory = new SmartMemory();
   }
+  if (BrainSystem._smartMemoryHydrated) {return BrainSystem._smartMemory;}
+  try {
+    const data = Persistence.load('memory', { items: [] });
+    const items = data && Array.isArray(data.items) ? data.items : [];
+    for (const item of items) {
+      if (item && item.key !== undefined) {
+        BrainSystem._smartMemory.store(item.key, item.value, item.metadata || {});
+      }
+    }
+  } catch (e) { /* 水合失败则从空开始 */ }
+  BrainSystem._smartMemoryHydrated = true;
+  return BrainSystem._smartMemory;
+};
+
+/**
+ * 智能检索
+ */
+BrainSystem.smartSearch = function(query, limit) {
+  BrainSystem._hydrateSmartMemory();
   return BrainSystem._smartMemory.search(query, limit);
 };
 
@@ -1477,9 +1496,7 @@ BrainSystem.smartSearch = function(query, limit) {
  * 获取最近记忆
  */
 BrainSystem.getRecentMemories = function(limit) {
-  if (!BrainSystem._smartMemory) {
-    BrainSystem._smartMemory = new SmartMemory();
-  }
+  BrainSystem._hydrateSmartMemory();
   return BrainSystem._smartMemory.getRecent(limit);
 };
 

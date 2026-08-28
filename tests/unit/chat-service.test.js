@@ -106,18 +106,22 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
-    it('falls back to canned when no bridge available', async () => {
+    it('retries Ollama call on transient failure', async () => {
+      const mockBridge = {
+        chat: jest.fn()
+          .mockRejectedValueOnce(new Error('transient'))
+          .mockResolvedValueOnce({ ok: true, text: 'recovered' })
+      };
       const origBridge = chatService.ollamaBridge;
-      chatService.ollamaBridge = null;
-      chatService._ollamaTried = true;
+      chatService.ollamaBridge = mockBridge;
       try {
         const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
         const r = await chatService.generateResponse('hi', conv);
-        expect(r.source).toBe('fallback');
-        expect(r.text).toBeTruthy();
+        expect(r.source).toBe('ollama');
+        expect(r.text).toBe('recovered');
+        expect(mockBridge.chat.mock.calls.length).toBeGreaterThan(1);
       } finally {
         chatService.ollamaBridge = origBridge;
-        chatService._ollamaTried = false;
       }
     });
   });
