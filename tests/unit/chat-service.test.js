@@ -53,6 +53,20 @@ describe('ChatService (BrainSystem-wired)', () => {
       const res = await chatService.processMessage({ text: 'hi', userId: 'u5', personality: 'professional' });
       expect(res.personality).toBe('professional');
     });
+
+    it('emits message:error and throws when generation fails', async () => {
+      const errorListener = jest.fn();
+      chatService.on('message:error', errorListener);
+      const genSpy = jest.spyOn(chatService, 'generateResponse').mockRejectedValue(new Error('gen boom'));
+      try {
+        await expect(chatService.processMessage({ text: 'x', userId: 'u6' })).rejects.toThrow('gen boom');
+        expect(errorListener).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u6' }));
+        expect(chatService.stats.errors).toBeGreaterThan(0);
+      } finally {
+        genSpy.mockRestore();
+        chatService.off('message:error', errorListener);
+      }
+    });
   });
 
   describe('generateResponse (LLM wiring)', () => {
@@ -138,6 +152,19 @@ describe('ChatService (BrainSystem-wired)', () => {
       });
       expect(chunks.length).toBeGreaterThan(0);
       expect(ended).toBe(true);
+    });
+
+    it('calls onError when streaming fails', async () => {
+      const errorSpy = jest.fn();
+      // 使 stream 内部抛错：mock setTimeout 抛错或让 onData 抛错
+      const onData = jest.fn(() => { throw new Error('stream data error'); });
+      await chatService.processStream({
+        text: '错误', userId: 's2',
+        onData,
+        onEnd: () => {},
+        onError: errorSpy
+      });
+      expect(errorSpy).toHaveBeenCalled();
     });
   });
 

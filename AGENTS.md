@@ -2238,6 +2238,18 @@ Session 锚点: 2026-08-12 (第62次 — 可观测性: AI 路径健康指标暴�
 
 ---
 
+Session 锚点: 2026-08-12 (第63次 — 深层能力夯实: 运行时验证 + 降级/异常路径补测)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,799 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **运行时检查 (深层能力真实生效)**: server 完整启动 (booted + hooks + BrainBridge), 无警告; chat 真实 Ollama 推理正常 (自我介绍有意义的模型回复); stats 路由需认证 (正确行为)
+- **降级/异常路径补测** (+2):
+  - processMessage error 路径 (jest.spyOn generateResponse 抛错 → emit message:error + stats.errors 递增 + 抛错)
+  - processStream onError (onData 抛错 → catch → onError 被调)
+- **深层能力覆盖确认**: 记忆回读 (水合 + prompt 注入) / LLM 重试 (3 次 + 一次性禁用修复) / 教训注入 / 可观测性 (GET /api/chat/stats + LLM 计数) / 降级异常路径 — 全部有测试保护
+- **工作树审计**: 提交只含本会话文件 (chat-service.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `tests/unit/chat-service.test.js` (18→20)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
