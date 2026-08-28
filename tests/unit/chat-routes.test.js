@@ -65,4 +65,20 @@ describe('Chat routes (LLM wiring)', () => {
       chatService._ollamaTried = false;
     }
   });
+
+  it('GET /api/chat/stats returns AI path metrics', async () => {
+    const origBridge = chatService.ollamaBridge;
+    chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'ok' }) };
+    try {
+      await request(app).post('/api/chat').send({ text: 'hi', userId: 'st1' });
+      const res = await request(app).get('/api/chat/stats');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.chat).toBeDefined();
+      expect(res.body.data.chat.llm).toBeDefined();
+      expect(res.body.data.chat.totalMessages).toBeGreaterThan(0);
+    } finally {
+      chatService.ollamaBridge = origBridge;
+    }
+  });
 });

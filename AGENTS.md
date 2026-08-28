@@ -2224,6 +2224,20 @@ Session 锚点: 2026-08-12 (第61次 — 深层能力: 记忆回读 + LLM 重试
 
 ---
 
+Session 锚点: 2026-08-12 (第62次 — 可观测性: AI 路径健康指标暴露)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,797 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向分析 (subagent)**: 3 候选方向排序 — 可观测性(真缺口/低风险) > 多代理(模拟填充, 全接会污染教训库影响风险BLOCK) > 记忆统一(死接线返工, 无用户价值)
+- **方向 1 (可观测性)**: 暴露 AI 路径健康指标
+  - `chatService.stats.llm` = {attempts, successes, fallbacks} 计数 (generateResponse 的 ollama 成功/fallback 处递增)
+  - `routes/chat.js` 新增 `GET /api/chat/stats` (authMiddleware): 返回 `{chat: getStats(), memory: BrainSystem.getMemoryStats(), lessons: LessonLibrary.getStats()}` — 可看 Ollama 成功率/降级率、记忆/教训增长, 检测静默降级
+- **验证**: 2 条消息 → llm {attempts:2, successes:2, fallbacks:0}; GET /api/chat/stats 返回完整指标
+- **新增 1 测试**: GET /api/chat/stats 返回 AI 路径指标 (chat.llm/totalMessages)
+- **决策记录**: 多代理 (AgentTeam 14 代理 10 个硬编码占位, 全接会 8 emoji 日志/噪音 + autoLearn 写教训污染风险决策) — 不做; 记忆统一 (UnifiedMemory 运行时只 initialize+session.save 记录空, smartMemory 已完整 write→persist→hydrate→search→inject) — 不做
+- **工作树审计**: 提交只含本会话文件 (chatService.js + routes/chat.js + chat-routes.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `server/services/chatService.js`, `server/routes/chat.js`, `tests/unit/chat-routes.test.js` (4→5)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

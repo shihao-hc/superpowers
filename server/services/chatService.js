@@ -16,7 +16,8 @@ class ChatService extends EventEmitter {
     this.stats = {
       totalMessages: 0,
       totalLatency: 0,
-      errors: 0
+      errors: 0,
+      llm: { attempts: 0, successes: 0, fallbacks: 0 }
     };
 
     // LLM 推理（Ollama）— 可注入 mock，默认惰性创建
@@ -223,11 +224,14 @@ class ChatService extends EventEmitter {
         } catch (e) { /* 教训可选，失败静默 */ }
         const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}`;
         const result = await this._chatWithRetry(bridge, sysPrompt, history);
+        this.stats.llm.attempts++;
         if (result && result.ok && result.text) {
+          this.stats.llm.successes++;
           return { text: result.text, confidence: 0.9, source: 'ollama' };
         }
       }
     } catch (e) { /* Ollama 不可用，回退话术 */ }
+    this.stats.llm.fallbacks++;
 
     const personality = conversation.personality || 'default';
     const _context = conversation.context || {};

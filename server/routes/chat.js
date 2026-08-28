@@ -156,4 +156,28 @@ router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/chat/stats
+ * 获取 AI 路径健康指标（Ollama 成功率/降级、记忆、教训）
+ */
+router.get('/stats', authMiddleware, async (_req, res) => {
+  try {
+    const stats = {
+      chat: chatService.getStats(),
+      memory: null,
+      lessons: null
+    };
+    try {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      if (BrainSystem.getMemoryStats) {stats.memory = BrainSystem.getMemoryStats();}
+      const LessonLibrary = require('../../src/core/LessonLibrary');
+      stats.lessons = new LessonLibrary({ quiet: true }).getStats();
+    } catch (e) { /* BrainSystem/教训可选 */ }
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    errorLog('Stats error', { error: error.message });
+    res.status(500).json({ error: '获取统计失败', code: 'STATS_ERROR' });
+  }
+});
+
 module.exports = router;
