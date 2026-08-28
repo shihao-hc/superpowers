@@ -2185,6 +2185,17 @@ Session 锚点: 2026-08-12 (第58次 — 方向#2: ChatWebSocketHandler 接入 O
 
 ---
 
+Session 锚点: 2026-08-12 (第59次 — 四方向夯实: 运行时验证 + chat-service 测试稳定化 + adapter 边界补测)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,795 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **运行时检查 (四方向真实生效)**: server 完整启动 (booted + hooks), BrainFlow/SelfLearning 警告 GONE; 端到端 chat 200 + 回复, skills 3 命令, agent 需认证 (正常行为)
+- **测试稳定性修复**: chat-service 测试 processMessage 未 mock bridge → 触发真实 Ollama (慢/超时); 在 beforeEach 统一 mock bridge (mockResolvedValue) + afterEach 还原 — 测试快速稳定
+- **OllamaTextAdapter 补测 (+2)**: 无参构造 (惰性 bridge 创建) / 空 prompt String 强制
+- **覆盖状态**: chatService 77.5% branch / OllamaTextAdapter ~94% / chat-routes 4 / agent-routes 3 — 四方向接线核心全覆盖; agent.js 41% branch 为历史遗留 (大量未接线端点, 非本次引入)
+- **工作树审计**: 提交只含本会话文件 (chat-service.test.js + ollama-text-adapter.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `tests/unit/chat-service.test.js`, `tests/unit/ollama-text-adapter.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

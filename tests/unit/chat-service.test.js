@@ -4,6 +4,13 @@ describe('ChatService (BrainSystem-wired)', () => {
   beforeEach(() => {
     chatService.conversations.clear();
     jest.restoreAllMocks();
+    // 默认 mock bridge，避免测试触发真实 Ollama（慢/超时）
+    chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'mock reply' }) };
+  });
+
+  afterEach(() => {
+    chatService.ollamaBridge = null;
+    chatService._ollamaTried = false;
   });
 
   describe('processMessage', () => {

@@ -36,4 +36,17 @@ describe('OllamaTextAdapter', () => {
       temperature: 0.7
     }));
   });
+
+  it('creates a real bridge when none injected', () => {
+    const adapter = new OllamaTextAdapter();
+    expect(adapter.bridge).toBeDefined();
+  });
+
+  it('handles empty prompt via String coercion', async () => {
+    const mockBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'r' }) };
+    const adapter = new OllamaTextAdapter(mockBridge);
+    await adapter.generate('');
+    const userMsg = mockBridge.chat.mock.calls[0][0][1];
+    expect(userMsg.content).toBe('');
+  });
 });
