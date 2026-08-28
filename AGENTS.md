@@ -2196,6 +2196,18 @@ Session 锚点: 2026-08-12 (第59次 — 四方向夯实: 运行时验证 + chat
 
 ---
 
+Session 锚点: 2026-08-12 (第60次 — 夯实复查: 安全门禁漏洞修复 (server: 前缀绕过 shell 拦截))
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,796 passed / 46 skipped) 全量通过 (间歇 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **运行时复查 (夯实)**: server 完整启动 (booted + hooks + BrainBridge + SelfCodeImprover + ProactiveAdvisor 全 YES), 无警告; chat 真实 Ollama 推理 + 记忆落盘验证
+- **P0 安全漏洞修复 (5.3 发现即修复)**: MCP 安全门禁测试发现 `_classifyOp` 收到**完整 toolFullName** (含 server: 前缀, 如 `s1:exec`) → `name.includes('exec_command')` 等匹配失败 → shell 工具通过 `server:exec` 形式**绕过 BLOCK 拦截** (安全漏洞)
+  - 修复: `_classifyOp` 先提取工具名 (`name.split(':').pop()`) 再分类; 并加 `name === 'exec'` 精确匹配
+  - 验证: `s1:exec` shell → BLOCKED (此前 EXECUTED); `s1:read` → allowed; executed count 1 (只有安全工具)
+- **新增 1 回归测试**: `_classifyOp` 带 server 前缀 (filesystem:shell/server1:exec/delete_file/write_file)
+- **工作树审计**: 提交只含本会话文件 (PreToolRiskAnalyzer.js + pre-tool-risk-analyzer.test.js + AGENTS.md), 无外部工作混入
+- 相关文件: `src/core/PreToolRiskAnalyzer.js`, `tests/unit/pre-tool-risk-analyzer.test.js` (53→54)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

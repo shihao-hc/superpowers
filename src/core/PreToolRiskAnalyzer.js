@@ -127,12 +127,14 @@ class PreToolRiskAnalyzer {
   }
 
   _classifyOp(toolName, args) {
-    const name = (toolName || '').toLowerCase();
+    // 提取工具名（去掉 server: 前缀，避免 s1:exec 无法匹配）
+    let name = (toolName || '').toLowerCase();
+    if (name.includes(':')) {name = name.split(':').pop();}
     const a = JSON.stringify(args || {}).toLowerCase();
     if (name.includes('delete') || name.includes('remove') || name.includes('unlink') || a.includes('delete')) {return 'delete';}
     if (name.includes('write') || name.includes('edit') || name.includes('create') || name.includes('modify') || a.includes('write') || a.includes('overwrite')) {return 'write';}
     if (name.includes('read') || name.includes('get') || name.includes('list') || name.includes('search')) {return 'read';}
-    if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec_command') || name.includes('run_command') || name.includes('execute_command')) {return 'exec';}
+    if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec_command') || name.includes('run_command') || name.includes('execute_command') || name === 'exec') {return 'exec';}
     return 'unknown';
   }
 

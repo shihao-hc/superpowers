@@ -46,6 +46,13 @@ describe('PreToolRiskAnalyzer', () => {
       expect(analyzer._classifyOp('run_command')).toBe('exec');
     });
 
+    it('classifies exec with server prefix', () => {
+      expect(analyzer._classifyOp('filesystem:shell')).toBe('exec');
+      expect(analyzer._classifyOp('server1:exec')).toBe('exec');
+      expect(analyzer._classifyOp('server1:delete_file')).toBe('delete');
+      expect(analyzer._classifyOp('server1:write_file')).toBe('write');
+    });
+
     it('is case insensitive', () => {
       expect(analyzer._classifyOp('DELETEFILE')).toBe('delete');
       expect(analyzer._classifyOp('WriteFile')).toBe('write');
