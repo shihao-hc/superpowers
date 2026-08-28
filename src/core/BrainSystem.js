@@ -1297,7 +1297,7 @@ class BrainSystem {
  * @returns {object} 思考结果
  */
 BrainSystem.quickThink = function(input) {
-  const instance = new BrainSystem();
+  const instance = BrainSystem._getSharedInstance();
   return instance.beforeDecision(input);
 };
 
@@ -1306,7 +1306,7 @@ BrainSystem.quickThink = function(input) {
  * 必须在输出前调用
  */
 BrainSystem.forceThink = function(input) {
-  const instance = new BrainSystem();
+  const instance = BrainSystem._getSharedInstance();
   const result = instance.beforeDecision(input);
 
   return {
@@ -1318,6 +1318,17 @@ BrainSystem.forceThink = function(input) {
     beforeOutput: true,
     processed: true  // 标记已处理
   };
+};
+
+/**
+ * 获取共享 BrainSystem 实例（惰性单例）
+ * 防止 quickThink/forceThink 每次 new 泄漏定时器
+ */
+BrainSystem._getSharedInstance = function() {
+  if (!BrainSystem._sharedInstance) {
+    BrainSystem._sharedInstance = new BrainSystem();
+  }
+  return BrainSystem._sharedInstance;
 };
 
 /**

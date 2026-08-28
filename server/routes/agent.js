@@ -165,6 +165,17 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
       metadata
     });
 
+    // BrainSystem 感知：意图分析 + 记忆存储（非侵入式，与 chat 路径对称）
+    try {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      if (BrainSystem.analyzeIntent) {
+        BrainSystem.analyzeIntent(content);
+      }
+      if (BrainSystem.smartStore) {
+        BrainSystem.smartStore(`agent_${req.user.id}_${Date.now()}`, { input: content, role, userId: req.user.id });
+      }
+    } catch (e) { /* BrainSystem 可选，失败静默 */ }
+
     // 用户消息 → 生成 AI 回复（复用 chatService 的 Ollama 引擎，非侵入式）
     let reply = null;
     if (role === 'user') {

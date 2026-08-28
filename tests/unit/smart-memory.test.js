@@ -192,4 +192,44 @@ describe('SmartMemory (direct class)', () => {
     expect(stats.total).toBe(2);
     expect(stats.keys).toEqual(['a', 'b']);
   });
+
+  test('_hydrateSmartMemory reloads persisted items from disk', () => {
+    jest.isolateModules(() => {
+      jest.mock('../../src/core/EvolutionPersistence', () => ({
+        load: jest.fn().mockReturnValue({
+          items: [
+            { key: 'k1', value: 'v1', metadata: { tag: 'x' } },
+            { key: 'k2', value: { nested: true }, metadata: {} }
+          ]
+        }),
+        save: jest.fn().mockReturnValue(true),
+        append: jest.fn().mockReturnValue(true),
+        init: jest.fn()
+      }));
+      const BS = require('../../src/core/BrainSystem');
+      BS.BrainSystem._smartMemory = null;
+      BS.BrainSystem._smartMemoryHydrated = false;
+      const mem = BS.BrainSystem._hydrateSmartMemory();
+      const results = BS.smartSearch('k1', 5);
+      expect(mem).toBeDefined();
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].key).toBe('k1');
+    });
+  });
+
+  test('_hydrateSmartMemory starts empty when load fails', () => {
+    jest.isolateModules(() => {
+      jest.mock('../../src/core/EvolutionPersistence', () => ({
+        load: jest.fn().mockImplementation(() => { throw new Error('disk error'); }),
+        save: jest.fn().mockReturnValue(true),
+        append: jest.fn().mockReturnValue(true),
+        init: jest.fn()
+      }));
+      const BS = require('../../src/core/BrainSystem');
+      BS.BrainSystem._smartMemory = null;
+      BS.BrainSystem._smartMemoryHydrated = false;
+      const mem = BS.BrainSystem._hydrateSmartMemory();
+      expect(mem.getStats().total).toBe(0);
+    });
+  });
 });

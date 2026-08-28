@@ -20,6 +20,16 @@ describe('Chat routes (LLM wiring)', () => {
     jest.restoreAllMocks();
   });
 
+  afterEach(() => {
+    // 清理 BrainSystem 共享实例定时器（generateResponse → forceThink → _getSharedInstance）
+    const { BrainSystem } = require('../../src/core/BrainSystem');
+    const inst = BrainSystem._sharedInstance;
+    if (inst) {
+      if (inst.selfCheckInterval) { clearInterval(inst.selfCheckInterval); inst.selfCheckInterval = null; }
+      if (inst.monitoringInterval) { clearInterval(inst.monitoringInterval); inst.monitoringInterval = null; }
+    }
+  });
+
   it('POST /api/chat returns LLM reply', async () => {
     const origBridge = chatService.ollamaBridge;
     chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'LLM 回复' }) };

@@ -11,6 +11,9 @@ class SelfCheckEngine {
 
   _autoStartDailyCheck() {
     const bs = this.bs;
+    if (bs.selfCheckInterval || bs.monitoringInterval) {
+      return; // 已启动，防重复创建定时器泄漏
+    }
     bs.selfCheckInterval = setInterval(() => {
       bs._runDailyCheck();
     }, 5 * 60 * 1000);

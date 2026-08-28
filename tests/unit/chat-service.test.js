@@ -11,6 +11,13 @@ describe('ChatService (BrainSystem-wired)', () => {
   afterEach(() => {
     chatService.ollamaBridge = null;
     chatService._ollamaTried = false;
+    // 清理 BrainSystem 共享实例的定时器（forceThink 经 _getSharedInstance 创建）
+    const { BrainSystem } = require('../../src/core/BrainSystem');
+    const inst = BrainSystem._sharedInstance;
+    if (inst) {
+      if (inst.selfCheckInterval) { clearInterval(inst.selfCheckInterval); inst.selfCheckInterval = null; }
+      if (inst.monitoringInterval) { clearInterval(inst.monitoringInterval); inst.monitoringInterval = null; }
+    }
   });
 
   describe('processMessage', () => {

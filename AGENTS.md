@@ -2250,6 +2250,22 @@ Session 锚点: 2026-08-12 (第63次 — 深层能力夯实: 运行时验证 + �
 
 ---
 
+Session 锚点: 2026-08-12 (第64次 — 思考注入 + agent 记忆对等 + 记忆全链路测试 + 定时器泄漏修复)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,801 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH, 156 MEDIUM/LOW**
+- **方向分析 (subagent)**: 服务器分裂结论修正 — 生产主路径 (npm start/ecosystem/根 Dockerfile/deploy Dockerfile.multi) 全部用 server/index.js 已完整接线; docker/Dockerfile 是独立 docker 子项目 (有自己 package.json) 用 staticServer, 不共享 repo 接线 → "服务器统一"是误报, 不做高风险重构
+- **C3 思考注入**: chatService.generateResponse 调用 forceThink(text) 把 metaQuestions (前 3 个元问题) 注入 system prompt — 让助手"先思考再答", 与记忆/教训注入同模式 (try-catch 非侵入式)
+- **C1 agent 记忆写入对等**: agent.js POST /message 触发 analyzeIntent + smartStore (之前 agent 只读记忆不写)
+- **C4 记忆全链路测试 (+2)**: `_hydrateSmartMemory` 从磁盘水合 + 失败降级 — 用 jest.isolateModules + mock `../../src/core/EvolutionPersistence` (注意: BrainSystem.js:43 用 `require('./EvolutionPersistence')` 非 `./Persistence`), 断言 smartSearch 找到水合数据
+- **P0 定时器泄漏修复 (5.3 发现即修复)**: forceThink/quickThink 每次 `new BrainSystem()` → 构造器 _autoStartDailyCheck() 创建 2 个 interval (5min/10min) → 每次 chat 泄漏实例
+  - `SelfCheckEngine._autoStartDailyCheck`: 加 `if (bs.selfCheckInterval || bs.monitoringInterval) return` 防重复启动
+  - `BrainSystem._getSharedInstance()`: 惰性单例 — forceThink/quickThink 复用共享实例 (不再每次 new)
+  - 测试清理: 3 个测试文件 (chat-service/chat-routes/agent-routes) afterEach 清共享实例 interval
+  - 验证: chat-service 从超时 → EXIT 0; 全量 worker force-exit 消失
+- **工作树审计**: 提交只含本会话 8 文件, 无外部工作混入
+- 相关文件: `src/core/BrainSystem.js`, `src/utils/SelfCheckEngine.js`, `server/services/chatService.js`, `server/routes/agent.js`, `tests/unit/{smart-memory,chat-service,chat-routes,agent-routes}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

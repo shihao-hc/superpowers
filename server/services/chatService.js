@@ -222,7 +222,22 @@ class ChatService extends EventEmitter {
             lessonText = `参考经验教训：${lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；')}。`;
           }
         } catch (e) { /* 教训可选，失败静默 */ }
-        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}`;
+        // 注入思考前置（BrainSystem 的深层思考驱动更可靠的回答）
+        let thinkText = '';
+        try {
+          const { BrainSystem } = require('../../src/core/BrainSystem');
+          if (BrainSystem.forceThink) {
+            const thinking = BrainSystem.forceThink(text);
+            const qs = (thinking && thinking.metaQuestions) || [];
+            if (Array.isArray(qs) && qs.length > 0) {
+              const questions = qs.filter((q) => q && q.question).map((q) => q.question);
+              if (questions.length > 0) {
+                thinkText = `回答前请先思考：${questions.slice(0, 3).join('；')}。`;
+              }
+            }
+          }
+        } catch (e) { /* 思考可选，失败静默 */ }
+        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}`;
         const result = await this._chatWithRetry(bridge, sysPrompt, history);
         this.stats.llm.attempts++;
         if (result && result.ok && result.text) {
