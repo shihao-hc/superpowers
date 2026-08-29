@@ -183,6 +183,14 @@ function authenticateRequest(req, res, next) {
   next();
 }
 
+// 敏感操作需 admin 角色（权限/角色/审计清除等）
+function requireAdmin(req, res, next) {
+  if ((req.user && req.user.role) !== 'admin') {
+    return res.status(403).json({ error: 'Admin role required' });
+  }
+  next();
+}
+
 router.use(createRateLimiter({ windowMs: 60000, max: 200 }));
 router.use(authenticateRequest);
 
@@ -332,7 +340,7 @@ router.get('/servers/:name', (req, res) => {
   });
 });
 
-router.post('/servers/:name/restart', serverOpLimiter, async (req, res) => {
+router.post('/servers/:name/restart', serverOpLimiter, requireAdmin, async (req, res) => {
   if (!mcpPlugin) {
     return res.status(503).json({ error: 'MCP plugin not loaded' });
   }
@@ -350,7 +358,7 @@ router.post('/servers/:name/restart', serverOpLimiter, async (req, res) => {
   }
 });
 
-router.post('/servers', serverOpLimiter, async (req, res) => {
+router.post('/servers', serverOpLimiter, requireAdmin, async (req, res) => {
   if (!mcpPlugin) {
     return res.status(503).json({ error: 'MCP plugin not loaded' });
   }
@@ -375,7 +383,7 @@ router.post('/servers', serverOpLimiter, async (req, res) => {
   }
 });
 
-router.delete('/servers/:name', serverOpLimiter, async (req, res) => {
+router.delete('/servers/:name', serverOpLimiter, requireAdmin, async (req, res) => {
   if (!mcpPlugin) {
     return res.status(503).json({ error: 'MCP plugin not loaded' });
   }
@@ -612,14 +620,14 @@ router.get('/audit/export', (req, res) => {
   res.send(data);
 });
 
-router.delete('/audit/logs', (req, res) => {
+router.delete('/audit/logs', requireAdmin, (req, res) => {
   const { getMCPAuditLogger } = require('./metrics');
   const logger = getMCPAuditLogger();
   const result = logger.clear();
   res.json(result);
 });
 
-router.post('/permissions', (req, res) => {
+router.post('/permissions', requireAdmin, (req, res) => {
   if (!mcpPlugin || !mcpPlugin.permissionManager) {
     return res.status(503).json({ error: 'Permission manager not available' });
   }
@@ -924,7 +932,7 @@ router.get('/roots/validate', (req, res) => {
   res.json(validation);
 });
 
-router.post('/roles', (req, res) => {
+router.post('/roles', requireAdmin, (req, res) => {
   if (!mcpPlugin || !mcpPlugin.permissionManager) {
     return res.status(503).json({ error: 'Permission manager not available' });
   }

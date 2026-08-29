@@ -886,6 +886,15 @@ describe('MCP Router', () => {
       expect(mockPlugin.permissionManager.setToolPermission).toHaveBeenCalled();
     });
 
+    it('rejects non-admin user (requireAdmin gate)', async () => {
+      mockAuth.mockReturnValue({ valid: true, username: 'viewer1', role: 'viewer' });
+      const res = await api('post', '/permissions').set(auth()).send({
+        permissions: { 'filesystem:read_file': { read: true } },
+      });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('Admin role required');
+    });
+
     it('sets admin permission for admin role entry', async () => {
       await api('post', '/permissions').set(auth()).send({
         permissions: { 'filesystem:admin_tool': { admin: 'admin' } },

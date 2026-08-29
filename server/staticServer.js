@@ -197,10 +197,10 @@ function timingSafeEqual(a, b) {
 const authMiddleware = (req, res, next) => {
   const key = req.headers['x-api-key'];
   if (!API_KEY) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(401).json({ error: 'API_KEY not configured' });
+    if (process.env.ALLOW_NO_AUTH === 'true') {
+      return next();
     }
-    return next();
+    return res.status(401).json({ error: 'API_KEY not configured' });
   }
   if (!key) {return res.status(401).json({ error: 'API_KEY required' });}
   if (timingSafeEqual(key, API_KEY)) {return next();}

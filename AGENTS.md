@@ -2338,6 +2338,21 @@ Session 锚点: 2026-08-12 (第68次 — 遗留缺口堵漏: H1 role信任 + H2 
 
 ---
 
+Session 锚点: 2026-08-12 (第69次 — M1-M3 缺口堵漏 + personality drift 确定性 bug 根治)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,815 passed / 46 skipped) 连续两次全量全绿 (flaky 根治后) | npm audit: 0 vulns | Security: **0 HIGH**
+- **M1 staticServer auth fail-open 修复**: `authMiddleware` 在 `!API_KEY` 且非 production 时直接 next() (所有受保护路由裸奔) → 改为 `ALLOW_NO_AUTH !== 'true'` 才放行, 否则 401 (fail-closed)
+- **M2 MCP 权限端点 admin 守卫**: `src/mcp/router.js` 新增 `requireAdmin` helper; 加到 5 个敏感端点 — POST /permissions, POST /roles, DELETE /audit/logs, POST /servers, POST /servers/:name/restart, DELETE /servers/:name (普通用户不可设 allow-all 权限/清审计/加任意服务器)
+  - 新增 1 回归: 非 admin (viewer role) POST /permissions → 403 Admin role required
+- **M3 开放注册**: 已在 Round 67 修复 (`AUTH_ALLOW_REGISTRATION !== 'true'` → 403), 本次确认无需额外改动
+- **🔴 personality drift 确定性 bug 根治 (5.3 发现即修复 — 长期 flaky 根源)**: `PersonalityManager._startMoodDrift` L61 `Math.random() < (moodConfig.drift || 0.2)` — drift=0 时被 `||` 覆盖为 0.2 → 20% 概率触发 drift → 全量下偶发改 mood → personality-manager 长期间歇失败
+  - 修复: `|| 0.2` → `?? 0.2` (nullish, 0 是合法值)
+  - 验证: 连续两次全量 343/16,815/0 全绿 (此前每轮 1 次 personality flaky 消失)
+- **验证**: 全量 ×2 343/16,815/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 4 文件
+- 相关文件: `server/staticServer.js`, `src/mcp/router.js`, `src/personality/PersonalityManager.js`, `tests/unit/mcp-router.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

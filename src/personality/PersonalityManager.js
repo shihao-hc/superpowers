@@ -58,7 +58,7 @@ class PersonalityManager {
     if (!moodConfig?.enabled) {return;}
     const interval = moodConfig.intervals || 300000;
     this.driftTimer = setInterval(() => {
-      if (Math.random() < (moodConfig.drift || 0.2)) {
+      if (Math.random() < (moodConfig.drift ?? 0.2)) {
         const moods = moodConfig.moods || ['neutral'];
         this.active.mood = moods[Math.floor(Math.random() * moods.length)];
       }
