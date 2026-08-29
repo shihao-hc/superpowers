@@ -25,6 +25,7 @@ describe('ChatService (BrainSystem-wired)', () => {
       const res = await chatService.processMessage({ text: '你好', userId: 'u1' });
       expect(res.text).toBeTruthy();
       expect(res.personality).toBe('default');
+      expect(res.source).toBe('ollama');
       expect(chatService.conversations.get('u1').messages).toHaveLength(2);
     });
 

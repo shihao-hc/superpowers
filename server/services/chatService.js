@@ -175,6 +175,7 @@ class ChatService extends EventEmitter {
       return {
         id: assistantMessage.id,
         text: response.text,
+        source: response.source,
         personality: conversation.personality,
         timestamp: assistantMessage.timestamp,
         metadata: {

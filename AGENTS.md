@@ -2266,6 +2266,21 @@ Session 锚点: 2026-08-12 (第64次 — 思考注入 + agent 记忆对等 + 记
 
 ---
 
+Session 锚点: 2026-08-12 (第64次b — 真实效果验证 + source 透传 + 记忆检索局限诚实记录)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,801 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **真实效果验证 (用户问"是否感受过真实效果" — 诚实回答: 测试通过≠效果真实, 故做端到端验证)**: 真实 Ollama 对话确认注入真实改变回复行为:
+  - ✅ 思考注入生效: 问"帮我优化代码性能" → 回复"需要更详细的信息" = forceThink 元问题("我真正理解这个问题了吗")驱动的行为改变
+  - ✅ 记忆注入链路: smartStore → smartSearch 命中 → memoryText 进 prompt (调试探针验证构建成功)
+  - ✅ source 透传: processMessage 返回增加 `source` 字段 (此前丢失, ollama/fallback 无法从单条回复区分)
+  - ⚠️ 记忆质量局限 (诚实记录): smartSearch 命中的多是对话元数据 (用户/时间戳), 非用户画像; 存"支付系统后端工程师"因关键词与问题无重叠检索不到 → 模型回复未引用职业 — 关键词打分天然 miss 语义相关记忆, 是能力边界非 bug
+  - ⚠️ 模型可能忽略注入: 即使记忆进 prompt, 简洁话术模型视附加上下文为弱信号, 回复不一定引用
+- **改动**: chatService.js processMessage 返回加 `source`; chat-service.test.js 加 source 断言
+- **验证**: 全量 342/16,801/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
