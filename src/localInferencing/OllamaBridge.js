@@ -26,6 +26,21 @@ class OllamaBridge {
     }
   }
 
+  async embed(text, options = {}) {
+    const model = options.model || process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
+    const prompt = String(text || '').slice(0, MAX_INPUT_LENGTH);
+    if (!prompt) { return null; }
+    try {
+      const response = await this.client.embeddings({ model, prompt });
+      if (response && Array.isArray(response.embedding)) {
+        return response.embedding;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async listModels() {
     try {
       const response = await this.client.list();

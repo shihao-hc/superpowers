@@ -2281,6 +2281,20 @@ Session 锚点: 2026-08-12 (第64次b — 真实效果验证 + source 透传 + �
 
 ---
 
+Session 锚点: 2026-08-12 (第65次 — 语义检索改进: Ollama embeddings 接入 + SmartMemory.semanticSearch 余弦排序)
+- ESLint: 0/0 (相关文件) | Tests: **342 passed suites / 4 skipped / 0 failed** (16,805 passed / 46 skipped) 全量通过 (首轮 1 失败为预存 personality-manager flaky, 复跑全绿) | npm audit: 0 vulns | Security: **0 HIGH**
+- **改进动机 (用户"开始改进" — 真实效果验证暴露记忆关键词短板)**: smartSearch 纯子串匹配, 中文查询整体当一词 (queryLower.split(/\s+/)), "支付系统后端工程师"查"优化代码性能"必 miss
+- **语义检索设计 (增量, 关键词路径零改动)**: 新增 async `semanticSearch`, 嵌入不可用/失败/相似度低 → 降级关键词 `search` (字节级一致)
+- **OllamaBridge.embed(text)**: 包装 client.embeddings ({model: OLLAMA_EMBED_MODEL||nomic-embed-text}), 失败返回 null — 注意: 当前 Ollama 服务器不支持 embeddings (需 --embeddings 重启), 此路径暂休眠, 服务器启用后自动生效
+- **SmartMemory.semanticSearch(query, limit, embedder)**: embedder 可注入 (text)=>Promise<number[]>; 记忆向量懒缓存 _embeddings Map; _cosineSimilarity 纯函数; top<0.3 → 降级关键词
+- **BrainSystem.smartSearchSemantic(query, limit)**: async, 内部 new OllamaBridge 作 embedder; chatService 优先调它, 失败/空降级 smartSearch
+- **真实效果**: Ollama 不支持 embed → 自动降级关键词 (hits 0, 无崩溃); 服务器 --embeddings 重启后自动获得语义能力
+- **新增 4 测试**: embedder 无/有/抛错/相似度低 四场景
+- **工作树审计**: 提交只含本会话 5 文件, 无外部工作混入
+- 相关文件: `src/core/SmartMemory.js`, `src/core/BrainSystem.js`, `src/localInferencing/OllamaBridge.js`, `server/services/chatService.js`, `tests/unit/smart-memory.test.js` (20→24)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

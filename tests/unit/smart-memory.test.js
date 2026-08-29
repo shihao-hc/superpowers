@@ -232,4 +232,48 @@ describe('SmartMemory (direct class)', () => {
       expect(mem.getStats().total).toBe(0);
     });
   });
+
+  describe('SmartMemory semanticSearch', () => {
+    test('returns keyword results when embedder not provided', async () => {
+      const memory = new SmartMemory();
+      memory.store('k1', 'alpha beta');
+      const results = await memory.semanticSearch('alpha', 5, null);
+      expect(results.length).toBe(1);
+    });
+
+    test('ranks by semantic similarity via embedder', async () => {
+      const memory = new SmartMemory();
+      memory.store('profile_李雷', { name: '李雷', 职业: '支付系统后端工程师' });
+      memory.store('unrelated', { name: '测试', 职业: '园艺师' });
+      // mock embedder: 返回简单的确定性向量，'支付系统后端工程师' 与 '优化代码性能' 更接近
+      const embedder = jest.fn((text) => {
+        const t = String(text);
+        if (t.includes('支付') || t.includes('优化')) { return [1, 0, 0]; }
+        return [0, 1, 0];
+      });
+      const results = await memory.semanticSearch('优化代码性能', 5, embedder);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].key).toBe('profile_李雷');
+    });
+
+    test('falls back to keyword search when embedder throws', async () => {
+      const memory = new SmartMemory();
+      memory.store('k1', 'alpha beta');
+      const embedder = jest.fn(() => { throw new Error('embed down'); });
+      const results = await memory.semanticSearch('alpha', 5, embedder);
+      expect(results.length).toBe(1);
+    });
+
+    test('falls back to keyword search when similarity too low', async () => {
+      const memory = new SmartMemory();
+      memory.store('k1', 'unrelated content');
+      // query 向量与记忆向量正交 (cosine = 0 < 0.3) → 语义分低 → 降级关键词 (也不命中)
+      const embedder = jest.fn((text) => {
+        const t = String(text);
+        return t.includes('alpha') ? [1, 0] : [0, 1];
+      });
+      const results = await memory.semanticSearch('alpha', 5, embedder);
+      expect(results.length).toBe(0);
+    });
+  });
 });

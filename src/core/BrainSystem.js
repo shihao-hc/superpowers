@@ -1504,6 +1504,21 @@ BrainSystem.smartSearch = function(query, limit) {
 };
 
 /**
+ * 语义智能检索 — 优先嵌入余弦，失败降级关键词
+ * 返回 Promise<Array>
+ */
+BrainSystem.smartSearchSemantic = async function(query, limit) {
+  BrainSystem._hydrateSmartMemory();
+  let embedder = null;
+  try {
+    const { OllamaBridge } = require('../localInferencing/OllamaBridge');
+    const bridge = new OllamaBridge();
+    embedder = (text) => bridge.embed(text);
+  } catch (e) { /* 嵌入不可用，降级关键词 */ }
+  return BrainSystem._smartMemory.semanticSearch(query, limit, embedder);
+};
+
+/**
  * 获取最近记忆
  */
 BrainSystem.getRecentMemories = function(limit) {

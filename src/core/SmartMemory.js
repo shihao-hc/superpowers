@@ -8,6 +8,7 @@ class SmartMemory {
     this._memories = [];
     this._index = {};
     this._maxSize = 100;
+    this._embeddings = new Map();
   }
 
   store(key, value, metadata = {}) {
@@ -53,6 +54,61 @@ class SmartMemory {
 
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, limit);
+  }
+
+  /**
+   * 语义检索 — 基于嵌入的余弦相似度
+   * embedder: (text) => Promise<number[]>，失败/不可用时降级为关键词 search
+   */
+  async semanticSearch(query, limit = 5, embedder) {
+    if (typeof embedder !== 'function') {
+      return this.search(query, limit);
+    }
+    try {
+      const queryEmbed = await embedder(String(query || ''));
+      if (!Array.isArray(queryEmbed) || queryEmbed.length === 0) {
+        return this.search(query, limit);
+      }
+      const scored = [];
+      for (const memory of this._memories) {
+        let memEmbed = this._embeddings.get(memory.key);
+        if (!Array.isArray(memEmbed) || memEmbed.length === 0) {
+          memEmbed = await embedder(`${memory.key} ${JSON.stringify(memory.value)}`);
+          if (Array.isArray(memEmbed) && memEmbed.length > 0) {
+            this._embeddings.set(memory.key, memEmbed);
+          }
+        }
+        if (!Array.isArray(memEmbed) || memEmbed.length === 0) { continue; }
+        const sim = this._cosineSimilarity(queryEmbed, memEmbed);
+        scored.push({ ...memory, score: sim });
+      }
+      if (scored.length === 0) {
+        return this.search(query, limit);
+      }
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored[0] ? scored[0].score : 0;
+      // 仅当语义相似度足够时采用语义结果，否则回退关键词
+      if (top < 0.3) {
+        return this.search(query, limit);
+      }
+      return scored.slice(0, limit);
+    } catch (e) {
+      return this.search(query, limit);
+    }
+  }
+
+  _cosineSimilarity(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || a.length !== b.length) {
+      return 0;
+    }
+    let dot = 0; let normA = 0; let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    if (normA === 0 || normB === 0) { return 0; }
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   getRecent(limit = 10) {

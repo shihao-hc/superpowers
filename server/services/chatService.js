@@ -208,7 +208,13 @@ class ChatService extends EventEmitter {
         let memoryText = '';
         try {
           const { BrainSystem } = require('../../src/core/BrainSystem');
-          const mem = (BrainSystem.smartSearch && BrainSystem.smartSearch(text, 3)) || [];
+          let mem = [];
+          if (BrainSystem.smartSearchSemantic) {
+            mem = (await BrainSystem.smartSearchSemantic(text, 3)) || [];
+          }
+          if (mem.length === 0 && BrainSystem.smartSearch) {
+            mem = BrainSystem.smartSearch(text, 3);
+          }
           if (mem.length > 0) {
             memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
           }
