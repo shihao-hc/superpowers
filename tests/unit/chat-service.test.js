@@ -36,6 +36,16 @@ describe('ChatService (BrainSystem-wired)', () => {
       expect(conv.context.lastIntent.intent).toBe('code');
     });
 
+    it('does NOT persist memory for anonymous users (H3 fix)', async () => {
+      const smartStoreSpy = jest.spyOn(require('../../src/core/BrainSystem').BrainSystem, 'smartStore');
+      try {
+        await chatService.processMessage({ text: '注入危险内容', userId: 'anonymous' });
+        expect(smartStoreSpy).not.toHaveBeenCalled();
+      } finally {
+        smartStoreSpy.mockRestore();
+      }
+    });
+
     it('persists memory via BrainSystem.smartStore', async () => {
       const smartStoreSpy = jest.spyOn(require('../../src/core/BrainSystem').BrainSystem, 'smartStore');
       await chatService.processMessage({ text: '记录一下', userId: 'u3' });

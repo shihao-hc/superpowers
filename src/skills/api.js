@@ -76,7 +76,7 @@ class SkillsApi {
     // Test call a skill
     this.router.post('/:skillName/test', async (req, res) => {
       const { skillName } = req.params;
-      const role = (req.headers && req.headers['x-role']) || 'user';
+      const role = (req.user && req.user.role) || 'user';
       const inputs = req.body.inputs || {};
       const startTime = Date.now();
 
@@ -207,7 +207,7 @@ class SkillsApi {
     // Stage C: Custom skill upload with validation and role-based access
     this.router.post('/upload', async (req, res) => {
       // Check user role - only admin or specific roles can upload initially
-      const userRole = req.headers['x-role'] || req.body.role || 'user';
+      const userRole = (req.user && req.user.role) || 'user';
       const allowedRoles = ['admin', 'uploader', 'developer'];
 
       if (!allowedRoles.includes(userRole)) {
@@ -286,7 +286,7 @@ class SkillsApi {
     // Stage C: Git import with validation and role-based access
     this.router.post('/import/git', async (req, res) => {
       // Check user role - only admin or specific roles can import Git repositories
-      const userRole = req.headers['x-role'] || req.body.role || 'user';
+      const userRole = (req.user && req.user.role) || 'user';
       const allowedRoles = ['admin', 'developer'];
 
       if (!allowedRoles.includes(userRole)) {
@@ -500,7 +500,7 @@ class SkillsApi {
     // Marketplace: Publish a skill with role-based access
     this.router.post('/marketplace/publish', async (req, res) => {
       // Check user role - only authorized users can publish to marketplace
-      const userRole = req.headers['x-role'] || req.body.role || 'user';
+      const userRole = (req.user && req.user.role) || 'user';
       const allowedRoles = ['admin', 'developer', 'publisher'];
 
       if (!allowedRoles.includes(userRole)) {
@@ -515,7 +515,7 @@ class SkillsApi {
         const skillInfo = req.body;
         // Set author from user role if not provided
         if (!skillInfo.author) {
-          skillInfo.author = req.headers['x-username'] || 'Anonymous';
+          skillInfo.author = (req.user && req.user.username) || 'Anonymous';
         }
 
         const skill = await m.marketplace.publishSkill(skillInfo);
@@ -690,7 +690,7 @@ class SkillsApi {
     // Version Management: Create new version with role-based access
     this.router.post('/versions/:skillName', async (req, res) => {
       // Check user role - only skill owners, developers, or admins can create versions
-      const userRole = req.headers['x-role'] || req.body.role || 'user';
+      const userRole = (req.user && req.user.role) || 'user';
       const allowedRoles = ['admin', 'developer', 'maintainer'];
 
       if (!allowedRoles.includes(userRole)) {
@@ -707,7 +707,7 @@ class SkillsApi {
 
         // Set author from user if not provided
         if (!versionInfo.author) {
-          versionInfo.author = req.headers['x-username'] || 'Anonymous';
+          versionInfo.author = (req.user && req.user.username) || 'Anonymous';
         }
 
         // Validate version format (SemVer)

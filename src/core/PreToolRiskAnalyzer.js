@@ -104,13 +104,18 @@ class PreToolRiskAnalyzer {
     }
 
     // Security lesson match — 学习到的教训驱动风险判断
+    // 仅当教训真正与当前操作类型相关时才 BLOCK（避免一条 security 教训禁用所有工具）
     const secMatch = this._findMatch(lessons, 'security');
     if (secMatch && (op === 'write' || op === 'delete' || op === 'exec')) {
       const lessonText = secMatch.lesson || secMatch.problem || '';
       const isHighRisk = secMatch.priority === 'high' ||
         (secMatch.tags || []).some((t) => /security|danger|危险|高危|敏感/i.test(String(t))) ||
         /security|危险|高危|敏感|删除|覆盖|注入/i.test(String(lessonText));
-      if (isHighRisk) {
+      // 操作相关检查：教训描述的危险必须与当前操作匹配
+      const opRelated = op === 'delete' ? /删除|delete|移除|remove/i.test(String(lessonText)) :
+        op === 'exec' ? /执行|shell|命令|exec|command/i.test(String(lessonText)) :
+          /写入|覆盖|修改|write|overwrite|edit/i.test(String(lessonText));
+      if (isHighRisk && opRelated) {
         this._log('BLOCK', toolName, `high-risk lesson matched: ${secMatch.lesson || secMatch.id || ''}`);
         return {
           action: 'BLOCK',

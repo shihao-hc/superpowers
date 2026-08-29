@@ -356,6 +356,23 @@ describe('PreToolRiskAnalyzer', () => {
       expect(r.action).toBe('ALLOW');
     });
 
+    it('BLOCKs when high-risk lesson is operation-relevant', () => {
+      const highLesson = [{ id: 'D1', category: 'security', priority: 'high', lesson: '删除任何文件前必须二次确认' }];
+      const r = analyzer.analyze('writeFile', { path: '/tmp/x' }, highLesson);
+      // 教训讲删除，当前是写 → 不 BLOCK（操作不匹配），但有教训提示 → WARN
+      expect(r.action).toBe('WARN');
+      const r2 = analyzer.analyze('deleteFile', { path: '/tmp/x' }, highLesson);
+      // 教训讲删除 + 当前是删除 → BLOCK
+      expect(r2.action).toBe('BLOCK');
+    });
+
+    it('does NOT BLOCK when high-risk lesson is unrelated to operation (H2 fix)', () => {
+      const unrelatedLesson = [{ id: 'U1', category: 'security', priority: 'high', lesson: '数据库密码必须加密存储' }];
+      const r = analyzer.analyze('writeFile', { path: '/tmp/x' }, unrelatedLesson);
+      // security 教训但话题无关 → 不应 BLOCK 写操作（仅 WARN 提示）
+      expect(r.action).toBe('WARN');
+    });
+
     it('matches lesson by text content', () => {
       const lesson = [{ id: 'T1', lesson: 'security: 覆盖配置前备份' }];
       expect(analyzer._findMatch(lesson, 'security')).toEqual(lesson[0]);

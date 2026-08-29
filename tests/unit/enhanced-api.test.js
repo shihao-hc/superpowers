@@ -499,7 +499,7 @@ describe('EnhancedSkillsApi', () => {
       const { res } = await callRoute('put', '/templates/:templateId', {
         params: { templateId: 't1' },
         body: { name: 'Updated' },
-        headers: { 'x-role': 'admin' }
+        user: { role: 'admin' }
       });
       expect(mockTemplates.updateTemplate).toHaveBeenCalledWith('t1', { name: 'Updated' });
       expect(res.json).toHaveBeenCalledWith({ ok: true, template: { id: 't1', name: 'Updated' } });
@@ -508,7 +508,7 @@ describe('EnhancedSkillsApi', () => {
     it('returns 403 for user role', async () => {
       const { res } = await callRoute('put', '/templates/:templateId', {
         params: { templateId: 't1' },
-        headers: { 'x-role': 'user' }
+        user: { role: 'user' }
       });
       expect(res.status).toHaveBeenCalledWith(403);
     });
@@ -526,7 +526,7 @@ describe('EnhancedSkillsApi', () => {
       mockTemplates.updateTemplate.mockImplementation(() => { throw new Error('err'); });
       const { res } = await callRoute('put', '/templates/:templateId', {
         params: { templateId: 't1' },
-        headers: { 'x-role': 'admin' }
+        user: { role: 'admin' }
       });
       expect(res.status).toHaveBeenCalledWith(500);
     });
@@ -537,7 +537,7 @@ describe('EnhancedSkillsApi', () => {
       mockTemplates.deleteTemplate.mockReturnValue({ deleted: true });
       const { res: _res } = await callRoute('delete', '/templates/:templateId', {
         params: { templateId: 't1' },
-        headers: { 'x-role': 'admin' }
+        user: { role: 'admin' }
       });
       expect(mockTemplates.deleteTemplate).toHaveBeenCalledWith('t1');
     });
@@ -553,7 +553,7 @@ describe('EnhancedSkillsApi', () => {
     it('returns 403 for non-admin role', async () => {
       const { res } = await callRoute('delete', '/templates/:templateId', {
         params: { templateId: 't1' },
-        headers: { 'x-role': 'developer' }
+        user: { role: 'developer' }
       });
       expect(res.status).toHaveBeenCalledWith(403);
     });
@@ -562,7 +562,7 @@ describe('EnhancedSkillsApi', () => {
       mockTemplates.deleteTemplate.mockImplementation(() => { throw new Error('err'); });
       const { res } = await callRoute('delete', '/templates/:templateId', {
         params: { templateId: 't1' },
-        headers: { 'x-role': 'admin' }
+        user: { role: 'admin' }
       });
       expect(res.status).toHaveBeenCalledWith(500);
     });

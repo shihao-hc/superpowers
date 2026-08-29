@@ -2,7 +2,7 @@ const express = require('express');
 const request = require('supertest');
 
 jest.mock('../../server/middleware', () => ({
-  optionalAuth: (req, res, next) => next(),
+  optionalAuth: (req, res, next) => { req.user = { id: req.query.userId || 'test-user' }; next(); },
   chatLimiter: (req, res, next) => next(),
   authMiddleware: (req, res, next) => { req.user = { id: req.query.userId || 'test-user' }; next(); }
 }));

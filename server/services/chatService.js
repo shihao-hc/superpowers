@@ -108,7 +108,7 @@ class ChatService extends EventEmitter {
           const intent = BrainSystem.analyzeIntent(text);
           conversation.context = { ...conversation.context, lastIntent: intent };
         }
-        if (BrainSystem.smartStore) {
+        if (BrainSystem.smartStore && userId && userId !== 'anonymous') {
           BrainSystem.smartStore(`chat_${userId}_${Date.now()}`, { input: text, role: 'user', userId });
         }
         const hooks = require('../../src/hooks');
@@ -147,7 +147,7 @@ class ChatService extends EventEmitter {
       // BrainSystem 记忆：存储交互 + 发送钩子（非侵入式）
       try {
         const { BrainSystem } = require('../../src/core/BrainSystem');
-        if (BrainSystem.smartStore) {
+        if (BrainSystem.smartStore && userId && userId !== 'anonymous') {
           BrainSystem.smartStore(`chat_reply_${userId}_${Date.now()}`, { input: text, output: response.text, userId });
         }
         const hooks = require('../../src/hooks');

@@ -2322,6 +2322,22 @@ Session 锚点: 2026-08-12 (第67次 — 安全缺口堵漏: RCE 链封堵 + del
 
 ---
 
+Session 锚点: 2026-08-12 (第68次 — 遗留缺口堵漏: H1 role信任 + H2 教训相关BLOCK + H3 匿名记忆污染)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,814 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **延续第67次遗留缺口** (H1/H2/H3 中等风险, 本次全部修复):
+- **H1 客户端可控 role 修复**: api.js 5 处 + enhancedApi.js 2 处 `req.headers['x-role'] || req.body.role` → `(req.user && req.user.role) || 'user'` (JWT 验证的 role); x-username author 同样改 req.user.username (L518/710)
+  - 测试: skills-api.test.js 34 处 `headers:{'x-role':...}` → `user:{role:...}`; 3 个 "uses body.role" 测试改为 "ignores body.role" (安全回归, 验证客户端 role 不再被信任); enhanced-api 3 处
+- **H2 教训全局首匹配 BLOCK 修复**: `_findMatch(lessons,'security')` 首匹配 + 任一 security 教训 → 所有 write/delete/exec BLOCK (一条合法 security 教训可永久禁用全部工具) → 加 `opRelated` 操作相关检查 (教训描述的危险须与当前操作匹配: delete教训含删除词/exec含执行词/write含覆盖词 才 BLOCK), 否则仅 WARN
+  - 新增 2 回归: 操作相关教训→BLOCK; 无关 high-risk 教训→WARN 不 BLOCK
+- **H3 匿名 chat 记忆污染修复**: chatService smartStore 加 `userId && userId !== 'anonymous'` 守卫 (用户消息 L112 + 回复 L151) — 匿名会话不写共享记忆, 防注入污染他人 prompt
+  - chat-routes.test.js: optionalAuth mock 补设 req.user (此前 req.user undefined → userId='anonymous' 测试假通过)
+  - 新增 1 回归: 匿名用户 smartStore 不被调用
+- **验证**: 全量 343/16,814/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 9 文件
+- 相关文件: `src/skills/api.js`, `src/skills/enhancedApi.js`, `src/core/PreToolRiskAnalyzer.js`, `server/services/chatService.js`, `tests/unit/{skills-api,enhanced-api,pre-tool-risk-analyzer,chat-service,chat-routes}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

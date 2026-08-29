@@ -399,7 +399,7 @@ class EnhancedSkillsApi {
      */
     this.router.put('/templates/:templateId', async (req, res) => {
       try {
-        const userRole = req.headers['x-role'] || 'user';
+        const userRole = (req.user && req.user.role) || 'user';
         const allowedRoles = ['admin', 'developer'];
 
         if (!allowedRoles.includes(userRole)) {
@@ -420,7 +420,7 @@ class EnhancedSkillsApi {
      */
     this.router.delete('/templates/:templateId', async (req, res) => {
       try {
-        const userRole = req.headers['x-role'] || 'user';
+        const userRole = (req.user && req.user.role) || 'user';
         const allowedRoles = ['admin'];
 
         if (!allowedRoles.includes(userRole)) {
