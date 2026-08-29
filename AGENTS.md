@@ -2295,6 +2295,17 @@ Session 锚点: 2026-08-12 (第65次 — 语义检索改进: Ollama embeddings �
 
 ---
 
+Session 锚点: 2026-08-12 (第66次 — 生产路径 MCP 门禁修复: routes/mcp.js 风险分析 BLOCK)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,808 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **探查发现 (subagent 第1次已标"known gap" — 本次正式修复)**: 生产主路径 server/index.js 的 MCP 工具调用端点 `POST /api/mcp/call` (routes/mcp.js:143) 直接 `client.callTool(tool, args)` 零风险分析 — 与 staticServer 路径 (MCPBridge BLOCK 门禁) 不一致
+- **修复**: routes/mcp.js call 前加 PreToolRiskAnalyzer + LessonLibrary 门禁 (与 BrainSystem.js:2056-2059 同模式): BLOCK → 403 MCP_BLOCKED; 风险分析 try-catch 失败不阻塞
+- **判断修正 (诚实记录)**: 中途以为 routes/mcp.js 是死路由 (grep 仅测试引用) 差点放弃 — 核实 routes/index.js:33 确认经 `/api/mcp` 挂载 = 活路由; 教训: 单文件 grep 不足以判断生死, 要看路由聚合链; server/index.js 的 mcpManager 是后台管理, HTTP 工具端点走 mcpClients Map (两套 MCP 并行 — 架构遗留, 非本次范围)
+- **验证**: exec→403 BLOCKED (之前会执行), read→200 allowed; 新增 tests/unit/server-mcp-routes.test.js (3 tests, jest.mock MCPClient 经 /connect 注入)
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/routes/mcp.js`, `tests/unit/server-mcp-routes.test.js` (新)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

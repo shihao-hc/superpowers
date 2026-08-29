@@ -140,6 +140,22 @@ router.post('/call', sensitiveLimiter, authMiddleware, async (req, res) => {
       });
     }
 
+    // 风险分析安全门禁（生产路径 — 与 staticServer/MCPBridge 一致）
+    try {
+      const PreToolRiskAnalyzer = require('../../src/core/PreToolRiskAnalyzer');
+      const LessonLibrary = require('../../src/core/LessonLibrary');
+      const lib = new LessonLibrary({ quiet: true });
+      const ra = new PreToolRiskAnalyzer({ lessonLib: lib });
+      const toolFullName = `${server}:${tool}`;
+      const risk = ra.analyze(toolFullName, args || {}, lib.lessons);
+      if (risk && risk.action === 'BLOCK') {
+        return res.status(403).json({
+          error: risk.reason || '工具调用被风险分析拦截',
+          code: 'MCP_BLOCKED'
+        });
+      }
+    } catch (e) { /* 风险分析可选，失败不阻塞调用 */ }
+
     const result = await client.callTool(tool, args);
 
     res.json({
