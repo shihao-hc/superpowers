@@ -66,6 +66,19 @@ describe('MCPClient', () => {
       expect(() => new MCPClient('bad', 'sudo', [])).toThrow('Unsafe command');
     });
 
+    it('should reject code-exec flags (RCE prevention)', () => {
+      expect(() => new MCPClient('pwn', 'node', ['-e', 'x'])).toThrow(/code-exec flags/);
+      expect(() => new MCPClient('pwn', 'node', ['--eval', 'x'])).toThrow(/code-exec flags/);
+      expect(() => new MCPClient('pwn', 'python', ['-c', 'x'])).toThrow(/code-exec flags/);
+      expect(() => new MCPClient('pwn', 'node', ['-i'])).toThrow(/code-exec flags/);
+      expect(() => new MCPClient('pwn', 'python', ['-m', 'http.server'])).toThrow(/code-exec flags/);
+    });
+
+    it('should allow legitimate server script args', () => {
+      const c = new MCPClient('ok', 'node', ['node_modules/@modelcontextprotocol/server-filesystem/dist/index.js', 'C:temp']);
+      expect(c.args[0]).toContain('index.js');
+    });
+
     it('should sanitize args', () => {
       const c = new MCPClient('safe', 'node', ['normal', 42, null]);
       expect(c.args).toEqual(['normal', '42', 'null']);

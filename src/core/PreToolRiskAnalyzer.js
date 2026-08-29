@@ -58,6 +58,11 @@ class PreToolRiskAnalyzer {
         this._log('BLOCK', toolName, 'deleting critical file');
         return { action: 'BLOCK', reason: '\u7981\u6b62\u5220\u9664\u5173\u952e\u7cfb\u7edf\u6587\u4ef6', targets, lessonMatch: this._findMatch(lessons, 'delete') };
       }
+      // 删除任意文件均为高风险 — 服务器写入 cwd，删 .env/config/数据文件不可逆
+      if (targets.length > 0) {
+        this._log('BLOCK', toolName, 'deleting file requires manual approval');
+        return { action: 'BLOCK', reason: '\u5220\u9664\u6587\u4ef6\u9700\u624b\u52a8\u786e\u8ba4', targets, lessonMatch: this._findMatch(lessons, 'delete') };
+      }
     }
 
     // BLOCK: shell 命令执行 — 任意 shell 执行均为高危险
@@ -134,7 +139,7 @@ class PreToolRiskAnalyzer {
     if (name.includes('delete') || name.includes('remove') || name.includes('unlink') || a.includes('delete')) {return 'delete';}
     if (name.includes('write') || name.includes('edit') || name.includes('create') || name.includes('modify') || a.includes('write') || a.includes('overwrite')) {return 'write';}
     if (name.includes('read') || name.includes('get') || name.includes('list') || name.includes('search')) {return 'read';}
-    if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec_command') || name.includes('run_command') || name.includes('execute_command') || name === 'exec') {return 'exec';}
+    if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec_command') || name.includes('run_command') || name.includes('execute_command') || name === 'exec' || a.includes('"command"') || a.includes('"shell"') || a.includes('"exec"')) {return 'exec';}
     return 'unknown';
   }
 

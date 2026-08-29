@@ -16,10 +16,17 @@ const refreshTokens = new Map();
 
 /**
  * POST /api/auth/register
- * 用户注册
+ * 用户注册（默认禁用，需 AUTH_ALLOW_REGISTRATION=true 显式开启）
  */
 router.post('/register', authLimiter, async (req, res) => {
   try {
+    if (process.env.AUTH_ALLOW_REGISTRATION !== 'true') {
+      return res.status(403).json({
+        error: '注册未开放',
+        code: 'REGISTRATION_DISABLED'
+      });
+    }
+
     const { username, email, password } = req.body;
 
     // 验证输入

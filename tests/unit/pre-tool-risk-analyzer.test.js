@@ -252,9 +252,9 @@ describe('PreToolRiskAnalyzer', () => {
       expect(r.action).toBe('WARN');
     });
 
-    it('WARNs on delete of config file', () => {
+    it('BLOCKs on delete of config file', () => {
       const r = analyzer.analyze('deleteFile', { path: '.opencode/config.json' });
-      expect(r.action).toBe('WARN');
+      expect(r.action).toBe('BLOCK');
     });
 
     it('includes security lesson warnings when match found', () => {
@@ -320,9 +320,16 @@ describe('PreToolRiskAnalyzer', () => {
       expect(r.action).toBe('BLOCK');
     });
 
-    it('WARNs on delete of any file', () => {
+    it('BLOCKs exec via command field in args (name-bypass fix)', () => {
+      const r = analyzer.analyze('run', { command: 'rm -rf /', shell: true });
+      expect(r.action).toBe('BLOCK');
+      const r2 = analyzer.analyze('execute', { command: 'calc' });
+      expect(r2.action).toBe('BLOCK');
+    });
+
+    it('BLOCKs delete of any file', () => {
       const r = analyzer.analyze('deleteFile', { path: '/tmp/data.txt' });
-      expect(r.action).toBe('WARN');
+      expect(r.action).toBe('BLOCK');
     });
 
     it('ALLOWs shell-free read operations', () => {
@@ -330,11 +337,10 @@ describe('PreToolRiskAnalyzer', () => {
       expect(r.action).toBe('ALLOW');
     });
 
-    it('BLOCKs operation driven by high-risk lesson', () => {
+    it('BLOCKs delete regardless of lesson (delete is always high-risk)', () => {
       const highLesson = [{ id: 'H1', category: 'security', priority: 'high', lesson: '删除任何文件前必须二次确认' }];
       const r = analyzer.analyze('deleteFile', { path: '/tmp/data.txt' }, highLesson);
       expect(r.action).toBe('BLOCK');
-      expect(r.lessonDriven).toBe(true);
     });
 
     it('WARNs when lesson is not high-risk', () => {

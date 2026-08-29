@@ -2306,6 +2306,22 @@ Session 锚点: 2026-08-12 (第66次 — 生产路径 MCP 门禁修复: routes/m
 
 ---
 
+Session 锚点: 2026-08-12 (第67次 — 安全缺口堵漏: RCE 链封堵 + delete BLOCK + exec 参数检查 + 注册开关)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,811 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **全面安全审计 (subagent)**: 发现真实缺口排序 — C1 RCE链(致命) > C2 exec名字绕过 > C3 delete任意文件只WARN > H1 客户端控制role > H2 教训反馈循环 > H3 匿名chat记忆污染
+- **C1 RCE 链封堵 (致命, 验证成立)**: 开放注册 → JWT → `/api/mcp/connect` 允许 `node -e`/`python -c` → 任意代码执行
+  - MCPClient: 新增 `DANGEROUS_EXEC_FLAGS` 拦截 (`-e`/`-c`/`--eval`/`--print`/`-i`/`-m`), 合法 MCP 服务器 (node+脚本路径) 不受影响; 探针验证 node -e / python -c 均 BLOCKED
+  - auth.js register: 默认禁用 (`AUTH_ALLOW_REGISTRATION !== 'true'` → 403 REGISTRATION_DISABLED); 验证 默认403 / 显式开启201
+  - 注册默认关 + 执行标志拦 = 双保险堵死 RCE 链
+- **C2 exec 名字绕过修复**: `_classifyOp` 增加 args 检查 (`"command"`/`"shell"`/`"exec"` 字段) — 工具名非 exec 但带 command 字段 → BLOCK
+- **C3 delete 任意文件升级**: delete 有 target → 一律 BLOCK (此前只 critical BLOCK, 普通文件 WARN; WARN 不阻断 = 可执行删 .env/config 数据); 更新 3 测试断言 + 新增 exec-bypass 回归
+- **遗留 (未修, 诚实记录)**: H1 (api.js 用 x-role 非 req.user.role), H2 (教训全局首匹配BLOCK), H3 (匿名chat记忆污染) — 中等风险, 成本高, 留待后续; MCP connect admin 限制跳过 (系统无 role 概念)
+- **验证**: 全量 343/16,811/0 + ESLint 0/0 + Security 0 HIGH + 端到端注册默认403/开启201
+- **工作树审计**: 提交只含本会话 5 文件
+- 相关文件: `src/mcp/MCPClient.js`, `src/core/PreToolRiskAnalyzer.js`, `server/routes/auth.js`, `tests/unit/{mcp-client,pre-tool-risk-analyzer}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

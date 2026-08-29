@@ -7,6 +7,20 @@ function isSafeCommand(command) {
   return ALLOWED_COMMANDS.has(command);
 }
 
+// 解释器代码执行标志 — 允许 MCP 服务器脚本路径，但禁止直接执行代码
+const DANGEROUS_EXEC_FLAGS = new Set(['-e', '-c', '--eval', '--print', '-i', '--interactive', '-m']);
+
+function hasDangerousExecFlag(args) {
+  if (!Array.isArray(args)) { return false; }
+  for (const arg of args) {
+    const a = String(arg).trim();
+    if (DANGEROUS_EXEC_FLAGS.has(a)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function sanitizeArg(arg) {
   if (typeof arg !== 'string') {return String(arg);}
   if (arg.includes('\x00')) {return arg.replace(/\x00/g, '');} // eslint-disable-line no-control-regex
@@ -24,6 +38,9 @@ class MCPClient extends EventEmitter {
     }
     this.command = command;
     this.args = Array.isArray(args) ? args.map(sanitizeArg) : [];
+    if (hasDangerousExecFlag(this.args)) {
+      throw new Error(`Unsafe command args: ${command} (code-exec flags are not allowed)`);
+    }
     this.env = this._processEnv(env);
     this.options = {
       timeout: options.timeout || 60000,
