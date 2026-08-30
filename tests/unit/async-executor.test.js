@@ -718,6 +718,15 @@ describe('AsyncExecutor', () => {
       expect(r.placeholder).toBeUndefined();
     });
 
+    test('forces skill name to whitelist value (path traversal defense)', async () => {
+      const ae2 = new AsyncExecutor();
+      let receivedInputs = null;
+      ae2._loadExecutorModule = jest.fn(() => ({ execute: jest.fn(async (inputs) => { receivedInputs = inputs; return { ok: true }; }) }));
+      await ae2._getDefaultExecutor().execute('docx', { action: 'create', skill: { name: '../../evil' } });
+      expect(receivedInputs.skill).toEqual({ name: 'docx' });
+      expect(receivedInputs.skill.name).not.toContain('..');
+    });
+
     test('throws honest error for unknown skill with skillManager', async () => {
       const ae2 = new AsyncExecutor({
         skillManager: { getAllSkills: () => [{ name: 'docx', version: '1.0' }] }

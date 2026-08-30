@@ -503,6 +503,8 @@ class AsyncExecutor {
           const executorModule = this._loadExecutorModule(skillName);
           if (executorModule) {
             const inputs = { ...(parameters || {}), action: (parameters && parameters.action) || 'create' };
+            // 安全加固：强制 executor 用白名单技能名（防止用户经 parameters.skill.name 路径穿越写入）
+            inputs.skill = { name: skillName };
             return await executorModule.execute(inputs);
           }
           if (isCustom) {

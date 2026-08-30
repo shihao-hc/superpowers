@@ -2395,6 +2395,21 @@ Session 锚点: 2026-08-12 (第71次b — 真实技能执行夯实: 内置白名
 
 ---
 
+Session 锚点: 2026-08-12 (第71次c — 真实技能执行夯实二: 路径穿越漏洞修复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,820 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **夯实发现并修复的路径穿越漏洞 (5.3 发现即修复)**: AsyncExecutor 真实执行传 `{...parameters, action}` — 用户可经 `parameters.skill.name: '../../evil'` 注入 → DocxExecutor/PdfExecutor/CanvasExecutor 全部用 `inputs.skill.name` 拼 `uploads/skills/<skillName>/` 路径 → 任意目录写入
+  - 验证: 探针 `skill: { name: '../../evil' }` → docx 写到 `D:\龙虾\evil\` (逃出 uploads)
+  - 修复: AsyncExecutor 真实执行前强制 `inputs.skill = { name: skillName }` (白名单值覆盖用户注入)
+  - 验证修复后: 穿越尝试 → 写 `uploads/skills/docx/` (安全); 正常 docx → `uploads/skills/docx/`
+  - 注: `filePath` 参数用 `path.basename()` 已防穿越; api.js /test 路径 (skillName URL 参数拼 require 路径) 是独立入口, 有 auth, 非本次范围
+- **新增 1 回归**: forces skill name to whitelist value (path traversal defense)
+- **坑**: 清理测试产物时误删 `uploads/skills/docx/` 已跟踪文件 (integration-report.docx 等) → `git checkout --` 恢复; 教训: uploads/skills/ 下可能有 git 跟踪测试产物, 清理前先 `git ls-files` 检查
+- **验证**: 全量 343/16,820/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `tests/unit/async-executor.test.js` (87→88)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
