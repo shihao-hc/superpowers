@@ -95,9 +95,9 @@ class EnhancedSkillsApi {
     // 初始化限流器
     this.rateLimiters = createRateLimiters();
 
-    // 初始化认证中间件
+    // 初始化认证中间件（与 server 登录共享同一 secret）
     this.auth = createAuthMiddleware({
-      secret: process.env.JWT_SECRET || undefined,
+      secret: require('../../server/config').get('security.jwtSecret'),
       excludePaths: ['/api/skills/preview/', '/api/skills/templates'] // 只读操作排除认证
     });
 

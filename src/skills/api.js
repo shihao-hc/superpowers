@@ -21,8 +21,9 @@ class SkillsApi {
     this.router = express.Router();
 
     // Auth: public GETs, require auth for mutations and sensitive endpoints
+    const serverConfig = require('../../server/config');
     const auth = createAuthMiddleware({
-      secret: process.env.JWT_SECRET || undefined
+      secret: serverConfig.get('security.jwtSecret')
     });
     this.router.use((req, res, next) => {
       const publicGetPaths = [

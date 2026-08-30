@@ -362,7 +362,7 @@ Session 锚点: 2026-06-20 (第2次 — 速率限制器统一 + HSTS/COEP)
 Session 锚点: 2026-06-22 (安全审计修复全量完成)
 - ESLint: 0/0 | Tests: 318/56/0 | npm audit: 0 vulns (零回归 — 连续第五次)
 - OWASP Top 10 全面安全审计: 9.8/10
-  - A01: 89 路由全量扫描, 仅 `/` 和 `/health` 公开 ✅
+  - A01: 89 路由全量扫描, 仅 `/` 和 `/health` 公开 ✅ (2026-08-12 更新: 现公开端点含 `/api/auth/register`(默认403/REGISTRATION_DISABLED), `/api/chat`+`/api/chat/stream`(optionalAuth), `/api/mcp/status`(src/mcp/router 公开GET), staticServer `/api/chat`/`/api/ollama/model`/`/api/attestations/:id/verify`; 均经 C1-C3/H1-H3/M1-M3 加固)
   - A02: 密钥扫描无真实凭据, ultrawork-local-key = 本地默认值 ✅
   - A03: Shell/XSS/路径遍历均无风险面 ✅
   - A04: 所有敏感端点受限, 新增 /mcp/call + /skills/execute sensitiveLimiter ✅
@@ -2350,6 +2350,20 @@ Session 锚点: 2026-08-12 (第69次 — M1-M3 缺口堵漏 + personality drift 
 - **验证**: 全量 ×2 343/16,815/0 + ESLint 0/0 + Security 0 HIGH
 - **工作树审计**: 提交只含本会话 4 文件
 - 相关文件: `server/staticServer.js`, `src/mcp/router.js`, `src/personality/PersonalityManager.js`, `tests/unit/mcp-router.test.js`
+
+---
+
+Session 锚点: 2026-08-12 (第70次 — L1-L3 低危项修复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,815 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **L1 基线文档过时更新**: A01 描述 (89路由只有 / 和 /health 公开) → 附注 2026-08-12 实际公开端点 (register默认403/chat optionalAuth/mcp status/staticServer chat等), 均经 C1-C3/H1-H3/M1-M3 加固
+- **L2 SkillsApi JWT secret 不一致修复 (dev fail-closed bug)**: api.js + enhancedApi.js 用 `createAuthMiddleware({secret: process.env.JWT_SECRET || undefined})` → 无 JWT_SECRET 时各自随机 secret, 与 server 登录 (config.get('security.jwtSecret')) 不一致 → 登录 token 在 SkillsApi 恒 401 (开发环境功能破坏)
+  - 修复: 两处都改 `require('../../server/config').get('security.jwtSecret')` (与登录共享同一 secret 源)
+  - 生产环境 (设 JWT_SECRET) 本一致, 修复仅影响开发环境正确性
+- **L3 ChatWebSocketHandler execute_skill 占位诚实化**: AsyncExecutor._getDefaultExecutor 是 fake (1-6s 随机返回 success) → 匿名用户收到假成功确认 → 结果加 `placeholder: true` 标记 + 消息注明 "real executor not wired" (客户端可识别模拟结果, 诚实反映)
+  - 注意: 真实技能执行接线 (SkillToNode + 风险分析 + 认证) 是功能开发, 超出低危项范围, 留待后续
+- **验证**: 全量 343/16,815/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 4 文件
+- 相关文件: `src/skills/api.js`, `src/skills/enhancedApi.js`, `src/skills/agent/AsyncExecutor.js`, `AGENTS.md`
 
 ---
 

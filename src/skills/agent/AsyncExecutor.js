@@ -491,15 +491,16 @@ class AsyncExecutor {
   _getDefaultExecutor() {
     return {
       execute: async (skillName, parameters, _options) => {
-        // This is a placeholder - in real implementation,
-        // this would call the actual skill manager
+        // 占位执行器 — WS 路径未接线真实技能执行。返回 placeholder:true 标记，
+        // 客户端可据此识别这是模拟结果而非真实执行（诚实反映，不假装真实成功）
         return new Promise((resolve, _reject) => {
           const duration = Math.random() * 5000 + 1000; // 1-6 seconds
 
           setTimeout(() => {
             resolve({
               success: true,
-              message: `Skill ${skillName} executed successfully`,
+              placeholder: true,
+              message: `Skill ${skillName} executed successfully (placeholder — real executor not wired)`,
               data: { skillName, parameters },
               duration
             });
