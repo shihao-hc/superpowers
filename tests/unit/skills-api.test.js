@@ -581,6 +581,20 @@ describe('SkillsApi', () => {
         expect(res.status).toHaveBeenCalledWith(400);
       });
 
+      it('rejects SSRF repo URLs (file:// ext:: local paths)', async () => {
+        const handler = getHandler('post', '/import/git');
+        for (const badRepo of ['file:///etc/passwd', 'ext::sh -c pwd', '../../local', '/etc/hosts']) {
+          const { res } = await callHandler(handler, { req: { user: { role: 'admin' }, body: { repo: badRepo, validate: false } } });
+          expect(res.status).toHaveBeenCalledWith(400);
+        }
+      });
+
+      it('allows https git URLs', async () => {
+        const handler = getHandler('post', '/import/git');
+        const { res } = await callHandler(handler, { req: { user: { role: 'admin' }, body: { repo: 'https://github.com/a/b.git', validate: false } } });
+        expect(res.status).not.toHaveBeenCalledWith(400);
+      });
+
       it('returns 400 when validation fails', async () => {
         _skillsApi.validator.validateGitRepository.mockResolvedValue({ valid: false });
         _skillsApi.validator.generateReport.mockReturnValue({ report: 0 });

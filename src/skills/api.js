@@ -319,6 +319,13 @@ class SkillsApi {
 
         const skillName = target || path.basename(repo, '.git').replace('.git', '');
 
+        // 校验 repo URL（防 SSRF：拒绝 file:// ext:: 裸路径等）
+        const repoStr = String(repo || '').trim();
+        const allowedRepoScheme = /^(https?:\/\/|git:\/\/|ssh:\/\/|git@)/.test(repoStr);
+        if (!allowedRepoScheme || /^file:\/\//i.test(repoStr) || /^ext::/.test(repoStr) || repoStr.includes('..')) {
+          return res.status(400).json({ error: 'Invalid git repository URL' });
+        }
+
         // Sanitize skill name to prevent path traversal
         const sanitizedSkillName = skillName.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 100);
         if (!sanitizedSkillName) {

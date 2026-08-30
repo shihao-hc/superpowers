@@ -2424,6 +2424,19 @@ Session 锚点: 2026-08-12 (第72次 — api.js /test skillName 路径穿越修�
 
 ---
 
+Session 锚点: 2026-08-12 (第73次 — 技能执行链路剩余风险: skill.name 解析校验 + git import SSRF)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,823 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **全面技能风险扫描 (subagent)**: 结论 — 当前**无用户可达的技能执行 RCE** (HTTP/WS 均安全); 2 个今天可达 Medium (A1 MCP filesystem 暴露 repo 根给 viewer / A2 git import 任意 clone); 多个潜在 Critical 均 gated 在 SkillManager.initialize() 后 (从不调用)
+- **B1 根因修复 (最高杠杆)**: `SkillLoader.js:78` `name: data.name || skillName` — frontmatter name 未校验 → 恶意技能声明 `name:'../../evil'` 导致后续 SkillToNode require 逃逸 (潜在 RCE 根因, 覆盖 B1/B2/B3) → 加 `/^[a-zA-Z0-9-_]+$/` 格式校验, 不合法回退 skillName
+- **A2 git import SSRF 修复**: `api.js:338` `git clone ${repo}` repo 完全用户可控 (admin/developer) → 加 URL scheme 白名单 (https/git/ssh/git@), 拒绝 file:// ext:: 裸路径/`..`
+  - 新增 2 回归: SSRF URL 拒绝 (file:// ext:: 裸路径) + https URL 通过
+- **A1 MCP filesystem 暴露评估 (诚实记录)**: viewer 角色可读整个 repo 根 (含 .env) — 但这是**有意架构选择** (MCP filesystem 就是给 AI 读写工作区, 需认证+operator 才可写), 撤回配置改动; 记录为已知风险面
+- **验证**: 全量 343/16,823/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `src/skills/SkillLoader.js`, `src/skills/api.js`, `tests/unit/skills-api.test.js` (156→158)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

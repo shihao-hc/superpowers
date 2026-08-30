@@ -74,8 +74,10 @@ class SkillLoader {
     }
 
     // Ensure we have required fields
+    const _rawName = data.name || skillName;
+    // 安全校验：技能名必须为安全字符（防路径穿越/代码注入 require）
     const skill = {
-      name: data.name || skillName,
+      name: /^[a-zA-Z0-9-_]+$/.test(String(_rawName)) ? _rawName : skillName,
       description: data.description || '',
       version: data.version || '1.0.0',
       pure: data.pure === true,
