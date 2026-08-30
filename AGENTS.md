@@ -2383,6 +2383,18 @@ Session 锚点: 2026-08-12 (第71次 — 真实技能执行接线: AsyncExecutor
 
 ---
 
+Session 锚点: 2026-08-12 (第71次b — 真实技能执行夯实: 内置白名单被空 SkillManager 遮蔽 bug 修复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,819 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **夯实发现并修复的重要 bug**: `_getDefaultExecutor` 逻辑 `skillManager ? lookup : builtin` — ChatWebSocketHandler L22 `options.skillManager || new SkillManager()` 导致 staticServer 传 `skillManager:null` 时**仍创建空 SkillManager** (getAllSkills 返回 0 技能, skills-source 加载为空) → 内置 executor 白名单被遮蔽, docx 等全部走 "not found" (既不执行也不 placeholder)
+  - 修复: `isKnown = builtinExecutable.includes(skillName) || (skillManager && lookup)` — 内置白名单**始终有效**, skillManager 作为补充白名单
+  - 验证: 生产路径 (null→空SkillManager) docx → REAL EXEC; 未知 → not found; 注入 `../../evil` → BLOCKED
+- **测试超时修复**: "uses placeholder" 测试依赖真实 setTimeout (随机 1-6s) + jest 默认 5000ms 超时 → 随机 >5s 时超时 → 加第三参数 `10000`
+- **验证**: 全量 343/16,819/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `tests/unit/async-executor.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

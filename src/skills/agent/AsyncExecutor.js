@@ -495,18 +495,21 @@ class AsyncExecutor {
     return {
       execute: async (skillName, parameters, _options) => {
         // 真实技能执行：白名单校验 → per-skill executor 或 SkillToNode 脚本
-        const isKnown = skillManager ? !!this._lookupSkill(skillManager, skillName) : builtinExecutable.includes(skillName);
-        if (isKnown && skillName) {
+        // 内置 executor 白名单始终有效（docx/pdf 等真实 executor 无需加载技能元数据）；
+        // skillManager 白名单作为补充（自定义技能）
+        const isBuiltin = builtinExecutable.includes(skillName);
+        const isCustom = skillManager ? !!this._lookupSkill(skillManager, skillName) : false;
+        if (skillName && (isBuiltin || isCustom)) {
           const executorModule = this._loadExecutorModule(skillName);
           if (executorModule) {
             const inputs = { ...(parameters || {}), action: (parameters && parameters.action) || 'create' };
             return await executorModule.execute(inputs);
           }
-          if (skillManager) {
+          if (isCustom) {
             throw new Error(`Skill '${skillName}' has no executable implementation (metadata-only)`);
           }
         }
-        if (skillManager && !isKnown && skillName) {
+        if (skillManager && skillName && !isBuiltin && !isCustom) {
           throw new Error(`Skill '${skillName}' not found`);
         }
 

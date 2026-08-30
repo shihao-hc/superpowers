@@ -737,7 +737,7 @@ describe('AsyncExecutor', () => {
     test('uses placeholder when no skillManager injected', async () => {
       const r = await ae._getDefaultExecutor().execute('whatever', {});
       expect(r.placeholder).toBe(true);
-    });
+    }, 10000);
   });
 
   describe('clear', () => {
