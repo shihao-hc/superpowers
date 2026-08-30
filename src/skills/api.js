@@ -89,11 +89,13 @@ class SkillsApi {
           return res.status(403).json({ error: 'Forbidden for high-risk skill' });
         }
 
-        // Try per-skill executor first
+        // Try per-skill executor first (skillName 严格格式校验 — 防路径穿越注入 require)
         const _skill = m.skillManager.getSkillInfo(skillName);
-        const explicitPath = path.join(process.cwd(), 'src', 'skills', 'executors', `${skillName}Executor.js`);
+        const explicitPath = /^[a-zA-Z0-9-_]+$/.test(skillName)
+          ? path.join(process.cwd(), 'src', 'skills', 'executors', `${skillName}Executor.js`)
+          : null;
         let result;
-        if (fs.existsSync(explicitPath)) {
+        if (explicitPath && fs.existsSync(explicitPath)) {
           const Executor = require(explicitPath);
           let execFn = null;
           let execType = 'custom';
@@ -110,7 +112,7 @@ class SkillsApi {
             execType = 'canvas';
           }
           if (execFn) {
-            result = await execFn({ action: 'test', inputs });
+            result = await execFn({ ...(inputs || {}), action: (inputs && inputs.action) || 'create', skill: { name: skillName } });
             const duration = Date.now() - startTime;
             m.metrics.recordExecution(skillName, { success: true, duration, type: execType });
             return res.json({ ok: true, result });

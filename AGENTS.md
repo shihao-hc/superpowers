@@ -2410,6 +2410,20 @@ Session 锚点: 2026-08-12 (第71次c — 真实技能执行夯实二: 路径穿
 
 ---
 
+Session 锚点: 2026-08-12 (第72次 — api.js /test skillName 路径穿越修复 + action:test bug 修复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,821 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **夯实验证 api.js /test 路径 (Round 71c 标注"独立入口有 auth" — 深入核查发现真实漏洞)**: L94 `path.join(process.cwd(), 'src', 'skills', 'executors', `${skillName}Executor.js`)` — skillName 来自 URL 参数未清理 → `skillName='../../../_evil'` 解析到 `D:\龙虾\_evilExecutor.js` 逃逸 executors 目录, 若存在会被 `require` 执行 (任意代码执行, 有 auth 但任意认证用户可触发)
+  - 修复: skillName 严格格式校验 `/^[a-zA-Z0-9-_]+$/` → 不匹配则 explicitPath=null (跳过 executor, fallback 诚实提示)
+  - 同时修复 L113 `action:'test'` bug (executors 不支持 test → 抛错) → `action: inputs.action || 'create'` + `skill: { name: skillName }` (与 AsyncExecutor 一致防穿越)
+  - 验证: `../../evil` → blocked (explicitPath null); docx/canvas-design → 允许; `_evil` → 允许但 existsSync 检查后 fallback
+- **新增 2 回归**: rejects path traversal skillName; uses custom executor 改断言 action:create
+- **SkillToNode.js L272/L319 也有 `${skill.name}Executor.js` 拼路径** — 但 skill.name 来自已加载技能对象 (需先被 skillLoader 加载), 非用户直接控制, 较低风险, 记录不修
+- **验证**: 全量 343/16,821/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `src/skills/api.js`, `tests/unit/skills-api.test.js` (155→156)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

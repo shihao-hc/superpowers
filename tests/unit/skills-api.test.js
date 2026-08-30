@@ -277,9 +277,18 @@ describe('SkillsApi', () => {
         fs.existsSync.mockReturnValue(true);
         const handler = getHandler('post', '/:skillName/test');
         const { res } = await callHandler(handler, { req: { params: { skillName: 'mockexec' }, headers: {} } });
-        expect(exe).toHaveBeenCalledWith(expect.objectContaining({ action: 'test' }));
+        expect(exe).toHaveBeenCalledWith(expect.objectContaining({ action: 'create' }));
         expect(res.json).toHaveBeenCalledWith({ ok: true, result: { done: true } });
         expect(_skillsApi.metrics.recordExecution).toHaveBeenCalledWith('mockexec', expect.objectContaining({ type: 'custom' }));
+      });
+
+      it('rejects path traversal skillName', async () => {
+        fs.existsSync.mockReturnValue(true);
+        const handler = getHandler('post', '/:skillName/test');
+        const { res } = await callHandler(handler, { req: { params: { skillName: '../../evil' }, headers: {} } });
+        // 路径穿越 skillName → 不走 executor，fallback（不 require 逃逸路径）
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, message: expect.any(String) }));
+        expect(_skillsApi.metrics.recordExecution).toHaveBeenCalledWith('../../evil', expect.objectContaining({ type: 'fallback' }));
       });
 
       it('uses DocxExecutor execute', async () => {
