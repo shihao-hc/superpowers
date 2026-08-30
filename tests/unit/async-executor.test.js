@@ -705,6 +705,39 @@ describe('AsyncExecutor', () => {
     test('execute should return a promise', () => {
       expect(ae._getDefaultExecutor().execute('test', {})).toBeInstanceOf(Promise);
     });
+
+    test('executes real per-skill executor when skillManager has the skill', async () => {
+      const ae2 = new AsyncExecutor({
+        skillManager: { getAllSkills: () => [{ name: 'docx', version: '1.0' }] }
+      });
+      const mockResult = { success: true, type: 'file', path: '/tmp/x.docx' };
+      ae2._loadExecutorModule = jest.fn(() => ({ execute: jest.fn().mockResolvedValue(mockResult) }));
+      const r = await ae2._getDefaultExecutor().execute('docx', { title: 't' });
+      expect(ae2._loadExecutorModule).toHaveBeenCalledWith('docx');
+      expect(r).toEqual(mockResult);
+      expect(r.placeholder).toBeUndefined();
+    });
+
+    test('throws honest error for unknown skill with skillManager', async () => {
+      const ae2 = new AsyncExecutor({
+        skillManager: { getAllSkills: () => [{ name: 'docx', version: '1.0' }] }
+      });
+      ae2._loadExecutorModule = jest.fn(() => null);
+      await expect(ae2._getDefaultExecutor().execute('ghost', {})).rejects.toThrow('Skill \'ghost\' not found');
+    });
+
+    test('throws metadata-only error when skill exists but no executor', async () => {
+      const ae2 = new AsyncExecutor({
+        skillManager: { getAllSkills: () => [{ name: 'ghost', version: '1.0' }] }
+      });
+      ae2._loadExecutorModule = jest.fn(() => null);
+      await expect(ae2._getDefaultExecutor().execute('ghost', {})).rejects.toThrow('metadata-only');
+    });
+
+    test('uses placeholder when no skillManager injected', async () => {
+      const r = await ae._getDefaultExecutor().execute('whatever', {});
+      expect(r.placeholder).toBe(true);
+    });
   });
 
   describe('clear', () => {

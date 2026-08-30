@@ -2367,6 +2367,22 @@ Session 锚点: 2026-08-12 (第70次 — L1-L3 低危项修复)
 
 ---
 
+Session 锚点: 2026-08-12 (第71次 — 真实技能执行接线: AsyncExecutor 真实适配器 + 白名单安全)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,819 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向决策 (subagent 探查)**: L3 留待项"真实技能执行接线"是 BrainSystem 从"能对话"到"能做事"的关键 — 探查确认 executors (docx/pdf/canvas) 是真实可用的 (100% 测试覆盖, 生成真实文件), 但**每个接线点都传 `action:'test'`** (executors 不支持 → 抛错); 且 skillName 未校验就拼 `require('./executors/${name}Executor.js')` = 任意 require 注入风险
+- **AsyncExecutor 真实适配器**: `_getDefaultExecutor` 从 placeholder 改为真实执行:
+  - `options.skillManager` 可注入; 有 skillManager → 白名单校验 (getAllSkills 查 name, 防注入); 无 skillManager → 内置 executor 白名单 (docx/pdf/canvas-design/canvas/xlsx/pptx)
+  - 已知技能 + executor 存在 → 真实执行 (`action: parameters.action || 'create'` 修正原 `action:'test'` bug)
+  - 已知但无 executor → 诚实报错 `metadata-only`; 未知 → 报错 `not found`; 无 skillManager → placeholder (向后兼容)
+  - `_loadExecutorModule`: 固定 executorMap (skillName → ClassName), 不注入任意 require
+- **ChatWebSocketHandler**: L25 `new AsyncExecutor({ skillManager })` 传入 (staticServer 传 null → 走内置白名单, docx/pdf/canvas 真实执行)
+- **验证**: WS 无 skillManager + docx → 真实生成文件; 未知技能 → placeholder 诚实; 4 新测试 (真实执行/unknown/metadata-only/placeholder)
+- **坑**: DocxExecutor 返回 `{type,path,...}` 非 `success:true`; 探针真实执行生成 uploads/skills/unknown/*.docx 残留需清理
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `src/chat/ChatWebSocketHandler.js`, `tests/unit/async-executor.test.js` (83→87)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

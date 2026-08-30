@@ -22,7 +22,7 @@ class ChatWebSocketHandler extends EventEmitter {
     this.skillManager = options.skillManager || new SkillManager();
     this.skillDiscovery = new SkillDiscovery({ skillManager: this.skillManager });
     this.sessionManager = new SessionManager();
-    this.executor = new AsyncExecutor();
+    this.executor = new AsyncExecutor({ skillManager: this.skillManager });
     this.presenter = new MultimodalPresenter();
     this.rlRecommender = new RLSkillRecommender({
       learningRate: 0.1,

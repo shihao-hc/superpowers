@@ -13,6 +13,7 @@ class AsyncExecutor {
     this.history = [];
     this.listeners = new Map();
     this.cleanupInterval = options.cleanupInterval || 60000; // 1 minute
+    this.skillManager = options.skillManager || null;
 
     this._startCleanupTimer();
   }
@@ -489,8 +490,26 @@ class AsyncExecutor {
    * Get default executor (placeholder)
    */
   _getDefaultExecutor() {
+    const skillManager = this.skillManager;
+    const builtinExecutable = ['docx', 'pdf', 'canvas-design', 'canvas', 'xlsx', 'pptx'];
     return {
       execute: async (skillName, parameters, _options) => {
+        // 真实技能执行：白名单校验 → per-skill executor 或 SkillToNode 脚本
+        const isKnown = skillManager ? !!this._lookupSkill(skillManager, skillName) : builtinExecutable.includes(skillName);
+        if (isKnown && skillName) {
+          const executorModule = this._loadExecutorModule(skillName);
+          if (executorModule) {
+            const inputs = { ...(parameters || {}), action: (parameters && parameters.action) || 'create' };
+            return await executorModule.execute(inputs);
+          }
+          if (skillManager) {
+            throw new Error(`Skill '${skillName}' has no executable implementation (metadata-only)`);
+          }
+        }
+        if (skillManager && !isKnown && skillName) {
+          throw new Error(`Skill '${skillName}' not found`);
+        }
+
         // 占位执行器 — WS 路径未接线真实技能执行。返回 placeholder:true 标记，
         // 客户端可据此识别这是模拟结果而非真实执行（诚实反映，不假装真实成功）
         return new Promise((resolve, _reject) => {
@@ -508,6 +527,44 @@ class AsyncExecutor {
         });
       }
     };
+  }
+
+  /**
+   * 在 SkillManager 中查找技能（白名单校验 — 防止任意 skillName 注入 require）
+   */
+  _lookupSkill(skillManager, skillName) {
+    try {
+      const skills = (typeof skillManager.getAllSkills === 'function') ? skillManager.getAllSkills() : [];
+      return skills.find((s) => s && s.name === skillName) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 加载 per-skill executor 模块（docx/pdf/canvas-design 等）
+   */
+  _loadExecutorModule(skillName) {
+    try {
+      const executorMap = {
+        'docx': 'DocxExecutor',
+        'pdf': 'PdfExecutor',
+        'canvas-design': 'CanvasExecutor',
+        'canvas': 'CanvasExecutor',
+        'xlsx': 'XlsxExecutor',
+        'pptx': 'PptxExecutor'
+      };
+      const className = executorMap[skillName];
+      if (!className) { return null; }
+      const mod = require(`../executors/${className}`);
+      const Executor = mod[className] || (typeof mod === 'function' ? mod : null);
+      if (Executor && typeof Executor.execute === 'function') {
+        return Executor;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   /**
