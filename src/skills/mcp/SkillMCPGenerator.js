@@ -98,8 +98,13 @@ class SkillMCPGenerator {
     if (!fs.existsSync(scriptDir)) {
       fs.mkdirSync(scriptDir, { recursive: true });
     }
+    // 深度防御：skill.name 必须为安全字符（防生成脚本路径穿越/JS 注入）
+    const skillName = (skill && skill.name) || '';
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(skillName))) {
+      throw new Error(`Unsafe skill name: ${skillName}`);
+    }
 
-    const scriptPath = path.join(scriptDir, `${skill.name}-mcp-server.js`);
+    const scriptPath = path.join(scriptDir, `${skillName}-mcp-server.js`);
 
     // Get actions from node definition or create default ones
     const actions = nodeDefinition && nodeDefinition.actions ? nodeDefinition.actions : [
@@ -162,8 +167,8 @@ const { DocxExecutor } = require('${path.relative(scriptDir, path.join(__dirname
 const { PdfExecutor } = require('${path.relative(scriptDir, path.join(__dirname, '..', 'executors', 'PdfExecutor.js')).replace(/\\/g, '/')}');
 const { CanvasExecutor } = require('${path.relative(scriptDir, path.join(__dirname, '..', 'executors', 'CanvasExecutor.js')).replace(/\\/g, '/')}');
 
-const SKILL_NAME = '${skill.name}';
-const SKILL_PATH = '${skill.skillPath.replace(/\\/g, '/')}';
+const SKILL_NAME = ${JSON.stringify(skillName)};
+const SKILL_PATH = ${JSON.stringify((skill.skillPath || '').replace(/\\/g, '/'))};
 
 // MCP Server implementation
 class SkillMCPServer {

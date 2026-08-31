@@ -65,6 +65,10 @@ class PythonEnvManager {
   }
 
   _envPath(skillName) {
+    // 深度防御：skillName 必须为安全字符（防路径穿越逃逸 baseDir）
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(skillName))) {
+      throw new Error(`Unsafe skillName: ${skillName}`);
+    }
     return path.join(this.baseDir, skillName);
   }
 
@@ -346,6 +350,10 @@ class PythonEnvManager {
    * Run Python script in Docker container
    */
   async _runInDocker(skillName, scriptPath, inputJson, requirements = []) {
+    // 深度防御：skillName 必须为安全字符（防 docker 容器名/挂载路径穿越）
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(skillName))) {
+      throw new Error(`Unsafe skillName: ${skillName}`);
+    }
     const executionId = crypto.randomBytes(8).toString('hex');
     const containerName = `skill-${skillName}-${executionId}`;
     const containerWorkDir = `/tmp/skill-execution-${executionId}`;

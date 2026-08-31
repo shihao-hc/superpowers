@@ -2437,6 +2437,20 @@ Session 锚点: 2026-08-12 (第73次 — 技能执行链路剩余风险: skill.n
 
 ---
 
+Session 锚点: 2026-08-12 (第74次 — 技能执行链路深度防御: Docker 挂载穿越 + 生成脚本注入)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,825 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **延续第73次潜在项 (B3/B2 深度防御)**: 上游 skill.name 已校验 (Round 73), 但 Docker/生成器内部也加防御 (防未来接线变化绕过)
+- **B3 Docker 挂载穿越修复 (深度防御)**: `DockerPythonExecutor.js` execute + executeWithDependencies 加 `skillName` 格式校验 `/^[a-zA-Z0-9_-]+$/` (防 `-v "${baseVolumePath}/${skillName}"` 挂载任意目录 + 容器名穿越); `PythonEnvManager._envPath` + `_runInDocker` 同校验 (防 baseDir 逃逸)
+  - 新增 2 回归: docker-python-executor 拒绝 `../../evil`; python-env-manager _envPath 拒绝
+- **B2 SkillMCPGenerator 生成脚本注入修复 (深度防御)**: `createServerScript` 加 skill.name 格式校验 (防 `${skill.name}-mcp-server.js` 路径穿越) + `SKILL_NAME`/`SKILL_PATH` 改用 `JSON.stringify` 转义 (防任意 JS 注入)
+  - 测试更新: SKILL_NAME 断言改 `"test"` (JSON.stringify 双引号)
+- **B4/B5 记录不修 (诚实判断)**: CommandService auto-require (需显式 skillDir opt-in, 生产 loadAll() 无 options) + SkillRegistry 潜在 — 均当前不可达, 修复需改加载机制, 超出安全修复范围
+- **验证**: 全量 343/16,825/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 6 文件
+- 相关文件: `src/skills/executors/DockerPythonExecutor.js`, `src/performance/PythonEnvManager.js`, `src/skills/mcp/SkillMCPGenerator.js`, `tests/unit/{docker-python-executor,python-env-manager,skill-mcp-generator}.test.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

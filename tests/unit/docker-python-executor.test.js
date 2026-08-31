@@ -101,6 +101,11 @@ describe('DockerPythonExecutor', () => {
         .rejects.toThrow('skillName and scriptPath are required');
     });
 
+    it('rejects unsafe skillName (path traversal defense)', async () => {
+      await expect(executor.execute({ skillName: '../../evil', scriptPath: '/tmp/x.py' }))
+        .rejects.toThrow(/Unsafe skillName/);
+    });
+
     it('returns success result on successful execution', async () => {
       safeSpawn.mockImplementation(() => makeChild({ stdout: 'hello world' }));
 

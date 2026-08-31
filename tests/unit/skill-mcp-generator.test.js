@@ -241,7 +241,7 @@ describe('SkillMCPGenerator', () => {
       generator.createServerScript({ name: 'test', skillPath: '/test' }, null);
       const writtenContent = fs.writeFileSync.mock.calls[0][1];
       expect(writtenContent).toContain('class SkillMCPServer');
-      expect(writtenContent).toContain('SKILL_NAME = \'test\'');
+      expect(writtenContent).toContain('SKILL_NAME = "test"');
       expect(writtenContent).toContain('tools/list');
       expect(writtenContent).toContain('tools/call');
       expect(writtenContent).toContain('jsonrpc');

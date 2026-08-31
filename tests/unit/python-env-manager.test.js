@@ -182,6 +182,10 @@ describe('PythonEnvManager', () => {
       const result = manager._envPath('test-skill');
       expect(result).toBe(path.join(TEST_BASE, 'test-skill'));
     });
+
+    it('rejects unsafe skillName (path traversal defense)', () => {
+      expect(() => manager._envPath('../../evil')).toThrow(/Unsafe skillName/);
+    });
   });
 
   describe('hasEnvironment', () => {

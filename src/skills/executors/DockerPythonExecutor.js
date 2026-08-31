@@ -38,6 +38,10 @@ class DockerPythonExecutor {
     if (!skillName || !scriptPath) {
       throw new Error('skillName and scriptPath are required');
     }
+    // 深度防御：skillName 必须为安全字符（防 docker 挂载/容器名路径穿越）
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(skillName))) {
+      throw new Error(`Unsafe skillName: ${skillName}`);
+    }
 
     const startTime = Date.now();
     this.metrics.totalExecutions++;
@@ -126,6 +130,10 @@ class DockerPythonExecutor {
 
     if (!skillName || !scriptPath) {
       throw new Error('skillName and scriptPath are required');
+    }
+    // 深度防御：skillName 必须为安全字符（防 docker 挂载/容器名路径穿越）
+    if (!/^[a-zA-Z0-9_-]+$/.test(String(skillName))) {
+      throw new Error(`Unsafe skillName: ${skillName}`);
     }
 
     const startTime = Date.now();
