@@ -1088,12 +1088,13 @@
         const data = await response.json();
         typingDiv.remove();
         
-        const aiResponse = data.text || data.response || data.message || generateFallbackResponse(text);
+        const nestedData = data.data || data;
+        const aiResponse = nestedData.text || nestedData.response || nestedData.message || data.text || data.response || data.message || generateFallbackResponse(text);
         addMessage('ai', aiResponse);
         
         // Update emotion based on response
-        if (data.emotion) {
-          setMood(data.emotion);
+        if (data.emotion || nestedData.emotion) {
+          setMood(data.emotion || nestedData.emotion);
         }
         
         if (state.autoTTS) {

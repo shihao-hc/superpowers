@@ -2563,6 +2563,19 @@ Session 锚点: 2026-08-12 (第78次 — 会话持久化: server 重启后恢复
 
 ---
 
+Session 锚点: 2026-08-12 (第79次 — 前端响应合约修复: 浏览器用户看到真实 LLM 回复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,833 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 发现真实用户可见 bug — `frontend/index.html:1091` 读 `data.text || data.response || data.message` (回退 canned 话术), 但 `routes/chat.js:45-48` 返回 `{success:true, data:{text,...}}` → 回复在 `data.data.text` → `data.text` 恒 undefined → **浏览器用户从未看到 BrainSystem 真实回复, 一直看 canned fallback**
+  - 此前 AGENTS.md "end-to-end chat 200" 验证是 API 级 (curl/supertest), 非浏览器级 — 此 mismatch 从未被捕获
+- **修复**: `frontend/index.html` 读取改为 `nestedData = data.data || data` → `nestedData.text` (支持两种结构), emotion 同理
+  - 验证: 模拟前端 fetch → 读到真实 LLM 回复 "好！" (不再 fallback)
+- **诚实记录**: 前端 HTML 内嵌 JS 无自动化测试 (全量测试不受影响); 生产 server/index.js 服务此 frontend 确认
+- **验证**: 全量 343/16,833/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 1 文件
+- 相关文件: `frontend/index.html`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
