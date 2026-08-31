@@ -55,28 +55,40 @@ class OllamaBridge {
     const temperature = options.temperature ?? this.defaultTemperature;
     const maxTokens = options.maxTokens || this.maxTokens;
     const stream = options.stream || false;
+    const tools = options.tools || null;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new Error('Invalid messages array');
     }
 
-    const sanitizedMessages = messages.map((m) => ({
-      role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user',
-      content: String(m.content || '').substring(0, MAX_INPUT_LENGTH)
-    })).slice(-MAX_MESSAGE_HISTORY);
+    const sanitizedMessages = messages.map((m) => {
+      const sanitized = {
+        role: ['system', 'user', 'assistant', 'tool'].includes(m.role) ? m.role : 'user',
+        content: String(m.content || '').substring(0, MAX_INPUT_LENGTH)
+      };
+      // 保留 assistant 的 tool_calls（工具调用循环需要）
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+        sanitized.tool_calls = m.tool_calls;
+      }
+      return sanitized;
+    }).slice(-MAX_MESSAGE_HISTORY);
 
-    const response = await this.client.chat({
+    const chatPayload = {
       model,
       messages: sanitizedMessages,
       options: { temperature, num_predict: maxTokens },
       stream
-    });
+    };
+    if (tools) {
+      chatPayload.tools = tools;
+    }
+    const response = await this.client.chat(chatPayload);
 
     if (stream) {
       return response;
     }
 
-    return {
+    const chatResult = {
       ok: true,
       text: response.message?.content?.trim() || '',
       model,
@@ -84,6 +96,10 @@ class OllamaBridge {
       evalCount: response.eval_count,
       promptEvalCount: response.prompt_eval_count
     };
+    if (tools) {
+      chatResult.tool_calls = (response.message && Array.isArray(response.message.tool_calls)) ? response.message.tool_calls : [];
+    }
+    return chatResult;
   }
 
   async infer(input, context = {}) {

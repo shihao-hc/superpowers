@@ -156,6 +156,34 @@ describe('ChatService (BrainSystem-wired)', () => {
         chatService.ollamaBridge = origBridge;
       }
     });
+
+    it('executes tool calls when LLM returns tool_calls', async () => {
+      const toolResults = [{ tool: 'generate_document', ok: true, result: { type: 'docx', message: 'generated' } }];
+      const mockBridge = {
+        chat: jest.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            text: '',
+            tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'docx', title: '测试' } } }]
+          })
+          .mockResolvedValueOnce({ ok: true, text: '已生成文档' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      const execSpy = jest.spyOn(chatService, '_executeToolCalls').mockResolvedValue(toolResults);
+      try {
+        chatService.ollamaBridge = mockBridge;
+        const conv = { personality: 'default', messages: [{ role: 'user', content: '生成文档' }], context: {} };
+        const r = await chatService.generateResponse('帮我生成一份Word文档', conv);
+        expect(r.source).toBe('ollama');
+        expect(r.text).toBe('已生成文档');
+        expect(r.toolResults).toEqual(toolResults);
+        expect(execSpy).toHaveBeenCalled();
+        expect(mockBridge.chat.mock.calls.length).toBe(2);
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        execSpy.mockRestore();
+      }
+    });
   });
 
   describe('processStream', () => {

@@ -52,17 +52,122 @@ class ChatService extends EventEmitter {
   /**
    * Ollama 调用带重试（瞬时故障自动恢复）
    */
-  async _chatWithRetry(bridge, sysPrompt, history) {
+  async _chatWithRetry(bridge, sysPrompt, history, options = {}) {
     const { RetryHandler } = require('../../src/utils/UltraWorkUtils');
     const messages = [
       { role: 'system', content: sysPrompt },
       ...history
     ];
     const result = await RetryHandler.retry(
-      () => bridge.chat(messages, { temperature: 0.7 }),
+      () => bridge.chat(messages, { temperature: 0.7, tools: options.tools }),
       { maxAttempts: 3, delay: 500, backoff: 2 }
     );
     return result;
+  }
+
+  /**
+   * 规则解析文档生成请求（确定性兜底，不依赖 LLM tool_calls）
+   */
+  _ruleBasedDocumentCall(text) {
+    const t = String(text || '');
+    // 解析标题：引号内或"标题为/标题：/名为"后
+    const titleMatch = t.match(/["“”]([^"“”']{1,50})["“”'']/) ||
+      t.match(/标题[为是：:\s]+([^，。,.]{1,30})/) ||
+      t.match(/名为[：:\s]*([^，。,.]{1,30})/);
+    const title = titleMatch ? titleMatch[1].trim() : '未命名文档';
+    // 解析类型
+    let type = 'docx';
+    if (/pdf/i.test(t)) { type = 'pdf'; }
+    else if (/图形|海报|图片|图标|chart|canvas/i.test(t)) { type = 'canvas-design'; }
+    else if (/word|docx|文档|报告|周报|表格/i.test(t)) { type = 'docx'; }
+    // 若只是问"能生成吗"而非明确请求，不触发
+    if (/能(否|不能|可以)?生成|是否|怎么生成|如何生成/.test(t) && !/帮我|请|给我|帮我生成|请生成/.test(t)) {
+      return null;
+    }
+    return { name: 'generate_document', arguments: { type, title } };
+  }
+
+  /**
+   * 描述工具执行结果（供兜底回复）
+   */
+  _describeToolResult(toolResults) {
+    const r = (toolResults || [])[0];
+    if (!r) { return '我尝试生成文档，但没有成功。'; }
+    if (r.ok) {
+      return `我已为你生成${r.result && r.result.type ? r.result.type.toUpperCase() : '文档'}：${r.result && r.result.message ? r.result.message : '已生成'}${r.result && r.result.path ? `（${r.result.path}）` : ''}`;
+    }
+    return `生成文档时遇到问题：${r.error || '未知错误'}`;
+  }
+
+  /**
+   * 工具调用 schema（供 LLM 自主调用技能）
+   */
+  _buildToolsSchema() {
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'generate_document',
+          description: '生成 Office 文档（Word/PDF/Canvas 图形）。当用户要求创建/生成文档、报告、表格、图形时使用。',
+          parameters: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['docx', 'pdf', 'canvas-design'], description: '文档类型' },
+              title: { type: 'string', description: '文档标题' },
+              content: { type: 'string', description: '文档内容或描述' },
+              action: { type: 'string', enum: ['create'], description: '操作，默认 create' }
+            },
+            required: ['type']
+          }
+        }
+      }
+    ];
+  }
+
+  /**
+   * 执行 LLM 请求的工具调用（白名单 + 真实技能执行）
+   */
+  async _executeToolCalls(toolCalls) {
+    const results = [];
+    for (const call of (toolCalls || [])) {
+      const fn = call.function || call;
+      const name = fn.name || '';
+      const args = (typeof fn.arguments === 'string' ? (() => { try { return JSON.parse(fn.arguments); } catch { return {}; } })() : fn.arguments) || {};
+      try {
+        if (name === 'generate_document') {
+          const skillName = args.type || 'docx';
+          if (process.env.NODE_ENV === 'test' && process.env.DEBUG_TOOLS === '1') {
+            console.log('[_executeToolCalls] executing:', skillName, JSON.stringify(args).slice(0, 80));
+          }
+          const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
+          const executor = new AsyncExecutor();
+          const execution = await executor.execute(skillName, {
+            action: args.action || 'create',
+            title: args.title || args.content || '',
+            content: args.content || ''
+          });
+          const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 30000 });
+          const filePath = finalResult && finalResult.result ? (finalResult.result.path || finalResult.path || null) : null;
+          results.push({
+            tool: name,
+            ok: true,
+            result: {
+              type: skillName,
+              message: filePath ? `已生成到 ${filePath}` : 'generated',
+              path: filePath
+            }
+          });
+        } else {
+          results.push({ tool: name, ok: false, error: `Unknown tool: ${name}` });
+        }
+      } catch (e) {
+        results.push({ tool: name, ok: false, error: e.message });
+      }
+    }
+    if (process.env.DEBUG_TOOLS === '1') {
+      console.log('[_executeToolCalls] results:', JSON.stringify(results).slice(0, 200));
+    }
+    return results;
   }
 
   /**
@@ -176,6 +281,8 @@ class ChatService extends EventEmitter {
         id: assistantMessage.id,
         text: response.text,
         source: response.source,
+        toolResults: response.toolResults,
+        ruleBased: response.ruleBased,
         personality: conversation.personality,
         timestamp: assistantMessage.timestamp,
         metadata: {
@@ -244,12 +351,41 @@ class ChatService extends EventEmitter {
             }
           }
         } catch (e) { /* 思考可选，失败静默 */ }
-        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}`;
-        const result = await this._chatWithRetry(bridge, sysPrompt, history);
+        // 工具触发检测：仅当用户请求与文档生成相关时才启用工具调用（避免模型频繁误触发）
+        const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标/i.test(text);
+        const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。调用工具后根据结果回复用户。' : '';
+        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${toolPrompt}`;
+        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? this._buildToolsSchema() : undefined });
         this.stats.llm.attempts++;
+        // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
+        if (toolTrigger && result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length === 0) {
+          const ruleBased = this._ruleBasedDocumentCall(text);
+          if (ruleBased) {
+            const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
+            return { text: this._describeToolResult(toolResults), confidence: 0.8, source: 'ollama', toolResults, ruleBased: true };
+          }
+        }
         if (result && result.ok && result.text) {
           this.stats.llm.successes++;
           return { text: result.text, confidence: 0.9, source: 'ollama' };
+        }
+        // 工具调用循环（自主做事）：LLM 请求工具 → 执行 → 结果回填 → 再调 LLM
+        if (result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length > 0) {
+          const toolResults = await this._executeToolCalls(result.tool_calls);
+          const toolMessages = [
+            { role: 'assistant', content: result.text || '', tool_calls: result.tool_calls },
+            ...toolResults.map((r) => ({
+              role: 'tool',
+              content: JSON.stringify(r).substring(0, 500)
+            }))
+          ];
+          const extendedHistory = [...history, ...toolMessages];
+          const finalResult = await this._chatWithRetry(bridge, sysPrompt, extendedHistory);
+          this.stats.llm.attempts++;
+          if (finalResult && finalResult.ok && finalResult.text) {
+            this.stats.llm.successes++;
+            return { text: finalResult.text, confidence: 0.9, source: 'ollama', toolResults };
+          }
         }
       }
     } catch (e) { /* Ollama 不可用，回退话术 */ }

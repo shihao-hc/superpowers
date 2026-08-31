@@ -2451,6 +2451,23 @@ Session 锚点: 2026-08-12 (第74次 — 技能执行链路深度防御: Docker 
 
 ---
 
+Session 锚点: 2026-08-12 (第75次 — 自主工具调用: Ollama 函数调用 + agentic loop + 规则兜底)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,826 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Ollama 函数调用实时验证可用 (llama3.2 返回正确 tool_calls), 所有基础设施就绪 (AsyncExecutor + MCPBridge + PreToolRiskAnalyzer), 缺的只是接线 → BrainSystem 从"被动问答"到"自主做事"的关键一步
+- **OllamaBridge.chat 增强**: 支持 `options.tools` (条件传, 避免 undefined 键) + 返回 `tool_calls` (仅 tools 时) + 允许 `role:'tool'` 消息 + 保留 assistant 的 tool_calls (工具循环需要); 无 tools 时返回对象不带 tool_calls (向后兼容)
+- **chatService.generateResponse 工具调用循环**: 构建 tools schema (generate_document) → 调 LLM → 解析 tool_calls → `_executeToolCalls` 分发 (AsyncExecutor 白名单执行 docx/pdf/canvas) → 结果回填 (assistant tool_calls + role:tool) → 再调 LLM 总结
+  - `_executeToolCalls`: 白名单执行技能, await execute + waitForCompletion (修复 async execute 未 await bug — "Execution undefined not found")
+  - `_ruleBasedDocumentCall` 确定性兜底: LLM 未触发工具但用户明确请求 → 规则解析 (标题引号/标题为 + 类型 pdf/docx/canvas) 直接执行 (不依赖模型 tool_calls 质量)
+  - toolTrigger 检测: 仅用户请求与文档相关时传 tools + 提示 (避免模型频繁误触发)
+  - processMessage 返回透传 toolResults + ruleBased (此前被剥离)
+- **真实效果 (端到端)**: 用户"帮我生成一份标题为项目周报的 Word 文档" → LLM 自主调 generate_document → AsyncExecutor 真实生成 .docx → LLM 总结"已生成"; llama3.2 部分场景需规则兜底 (小模型 tool_calls 不稳定)
+- **新增 1 测试**: LLM 返回 tool_calls → 执行 + 回填 + 二次回复
+- **验证**: 全量 343/16,826/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `src/localInferencing/OllamaBridge.js`, `server/services/chatService.js`, `tests/unit/chat-service.test.js` (21→22)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
