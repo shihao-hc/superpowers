@@ -204,6 +204,14 @@ function cleanupModules() {
   if (unifiedMemory?.initialized) {unifiedMemory.session.save().catch(() => {});}
   if (messageService) {logger.info('[MessageService] 会话统计:', messageService.getStats());}
 
+  // ChatService 清理（释放 MCP 子进程）
+  try {
+    const chatService = require('./services/chatService');
+    if (chatService && typeof chatService.shutdown === 'function') {
+      chatService.shutdown().catch(() => {});
+    }
+  } catch (e) { /* ChatService 可选 */ }
+
   // BrainSystem 清理
   if (brainCodeImprover) {
     try { brainCodeImprover.stopAutoImprovementLoop(); } catch (e) { /* */ }

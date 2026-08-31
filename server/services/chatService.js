@@ -655,6 +655,19 @@ class ChatService extends EventEmitter {
 
     return cleaned;
   }
+
+  /**
+   * Shutdown: 清理 MCPPlugin（释放 MCP 子进程）
+   */
+  async shutdown() {
+    if (this._mcpPlugin && typeof this._mcpPlugin.shutdown === 'function') {
+      try {
+        await this._mcpPlugin.shutdown();
+      } catch (e) { /* 关闭失败静默 */ }
+    }
+    this._mcpPlugin = null;
+    this._mcpTried = false;
+  }
 }
 
 module.exports = new ChatService();

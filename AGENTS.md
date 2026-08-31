@@ -2499,6 +2499,17 @@ Session 锚点: 2026-08-12 (第76次 — MCP 只读工具接入 agentic loop)
 
 ---
 
+Session 锚点: 2026-08-12 (第76次b — MCP 只读工具夯实: 真实效果 + 写操作拒绝 + shutdown 清理)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,830 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **真实效果夯实 (端到端)**: LLM 自主调 `filesystem:read_file` 读取 `D:\龙虾\config\mcp-servers.json` 完整内容 (JSON 配置读出) — MCP 只读工具接入真实生效; 相对路径 `config/...` 解析到 filesystem 根 (C:\temp) 失败 — 预期 (LLM 不知文件系统根, 需绝对路径)
+- **写操作拒绝验证 (读写分离核心)**: `_executeToolCalls` 二次白名单 — write_file/move_file/edit_file/read_multiple_files 全部 REJECTED (即使 LLM 幻觉调用); 只读 read_file 通过
+- **shutdown 清理 (5.3 发现)**: chatService 的 MCPPlugin 常驻 spawn MCP 子进程, 但 server 关闭时从不清理 (SIGTERM 只清 mcpManager) → 加 `chatService.shutdown()` (调 MCPPlugin.shutdown 释放子进程) + server/index.js cleanupModules 调用
+- **验证**: 全量 343/16,830/0 + ESLint 0/0 + Security 0 HIGH; server 完整启动无异常; 测试套件 EXIT 0 无泄漏
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `server/index.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
