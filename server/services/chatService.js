@@ -461,22 +461,32 @@ class ChatService extends EventEmitter {
           this.stats.llm.successes++;
           return { text: result.text, confidence: 0.9, source: 'ollama' };
         }
-        // 工具调用循环（自主做事）：LLM 请求工具 → 执行 → 结果回填 → 再调 LLM
+        // 工具调用多轮循环（自主做事）：LLM 请求工具 → 执行 → 结果回填 → 再调 LLM，直至无工具调用或达上限
         if (result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length > 0) {
-          const toolResults = await this._executeToolCalls(result.tool_calls);
-          const toolMessages = [
-            { role: 'assistant', content: result.text || '', tool_calls: result.tool_calls },
-            ...toolResults.map((r) => ({
-              role: 'tool',
-              content: JSON.stringify(r).substring(0, 500)
-            }))
-          ];
-          const extendedHistory = [...history, ...toolMessages];
-          const finalResult = await this._chatWithRetry(bridge, sysPrompt, extendedHistory);
-          this.stats.llm.attempts++;
-          if (finalResult && finalResult.ok && finalResult.text) {
+          const maxRounds = 4;
+          let roundHistory = [...history];
+          const allToolResults = [];
+          let roundResult = result;
+          for (let round = 0; round < maxRounds; round++) {
+            if (!(roundResult && roundResult.ok && Array.isArray(roundResult.tool_calls) && roundResult.tool_calls.length > 0)) {
+              break;
+            }
+            const toolResults = await this._executeToolCalls(roundResult.tool_calls);
+            allToolResults.push(...toolResults);
+            const toolMessages = [
+              { role: 'assistant', content: roundResult.text || '', tool_calls: roundResult.tool_calls },
+              ...toolResults.map((r) => ({
+                role: 'tool',
+                content: JSON.stringify(r).substring(0, 500)
+              }))
+            ];
+            roundHistory = [...roundHistory, ...toolMessages];
+            roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory);
+            this.stats.llm.attempts++;
+          }
+          if (roundResult && roundResult.ok && roundResult.text) {
             this.stats.llm.successes++;
-            return { text: finalResult.text, confidence: 0.9, source: 'ollama', toolResults };
+            return { text: roundResult.text, confidence: 0.9, source: 'ollama', toolResults: allToolResults };
           }
         }
       }

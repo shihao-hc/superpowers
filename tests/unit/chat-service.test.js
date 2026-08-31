@@ -187,6 +187,37 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('supports multi-round tool calls (read file then generate doc)', async () => {
+      const mockBridge = {
+        chat: jest.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            text: '',
+            tool_calls: [{ function: { name: 'filesystem:read_file', arguments: { path: '/tmp/a.txt' } } }]
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            text: '',
+            tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'docx', title: '总结' } } }]
+          })
+          .mockResolvedValueOnce({ ok: true, text: '已基于文件内容生成文档' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      const execSpy = jest.spyOn(chatService, '_executeToolCalls').mockResolvedValue([{ tool: 'x', ok: true, result: {} }]);
+      try {
+        chatService.ollamaBridge = mockBridge;
+        const conv = { personality: 'default', messages: [{ role: 'user', content: '读文件并生成总结' }], context: {} };
+        const r = await chatService.generateResponse('请读取文件并生成一份总结文档', conv);
+        expect(r.text).toBe('已基于文件内容生成文档');
+        expect(r.toolResults).toHaveLength(2); // 2 轮工具结果
+        expect(execSpy).toHaveBeenCalledTimes(2);
+        expect(mockBridge.chat.mock.calls.length).toBe(3); // 1 首轮 + 2 工具回填
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        execSpy.mockRestore();
+      }
+    });
+
     it('_executeToolCalls fails honestly for placeholder skill (no real executor)', async () => {
       // '../../evil' 或未知类型 → AsyncExecutor placeholder → 诚实失败而非假装成功
       const r1 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: '../../evil' } } }]);

@@ -2510,6 +2510,21 @@ Session 锚点: 2026-08-12 (第76次b — MCP 只读工具夯实: 真实效果 +
 
 ---
 
+Session 锚点: 2026-08-12 (第77次 — 多轮工具调用: 自主完成任务链)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,831 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 5 候选排序 — 多轮工具调用(能力倍增/低成本) > 会话持久化(可靠性/低) > 语义检索(零代码, 配置项) > xlsx/pptx(中等ROI需重写) > SkillManager.initialize(死链陷阱, 53技能全 scripts:[])
+- **D5 多轮工具调用**: `generateResponse` 工具调用从 1 轮 → 最多 4 轮循环 — 每轮: 执行 tool_calls → 累积 roundHistory → 再调 LLM → 检查是否又有 tool_calls; 累积所有 toolResults; 无 tool_calls 或达上限 → 返回最终文本
+  - 解锁: 读文件→分析→生成文档 的任务链 (此前只能单工具)
+  - 硬性轮次上限 4 (防失控); 每轮 attempt 计数
+- **验证**: 端到端 — LLM 自主调 read_file 读取 JSON → 直接总结 (1 轮工具 + loop break); 单测 mock 连续 2 轮 tool_calls + 最终文本 (roundHistory 累积)
+- **新增 1 测试**: multi-round tool calls (read then generate)
+- **诚实判断**: D3 语义检索是零代码配置 (Ollama --embeddings + pull nomic-embed-text, 代码已就绪自动激活) — 记为用户操作清单; D2 SkillManager.initialize 是死链 (53 技能全 scripts:[], 接线也是 no-op) — 跳过
+- **验证**: 全量 343/16,831/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (26→27)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
