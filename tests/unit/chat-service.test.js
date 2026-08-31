@@ -318,6 +318,32 @@ describe('ChatService (BrainSystem-wired)', () => {
       });
       expect(errorSpy).toHaveBeenCalled();
     });
+
+    it('streams real Ollama output via async iterable', async () => {
+      async function* fakeStream() {
+        yield { message: { content: '你' }, done: false };
+        yield { message: { content: '好' }, done: false };
+        yield { message: { content: '！' }, done: true };
+      }
+      const mockBridge = { chat: jest.fn().mockResolvedValue(fakeStream()) };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      const chunks = [];
+      let endSource = null;
+      try {
+        await chatService.processStream({
+          text: '你好', userId: 'stream-real',
+          onData: (d) => chunks.push(d),
+          onEnd: (r) => { endSource = r.source; },
+          onError: () => {}
+        });
+        expect(mockBridge.chat).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ stream: true }));
+        expect(chunks.length).toBe(3);
+        expect(endSource).toBe('ollama');
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
   });
 
   describe('getHistory / clearHistory', () => {

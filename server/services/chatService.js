@@ -591,7 +591,41 @@ class ChatService extends EventEmitter {
         timestamp: new Date()
       });
 
-      // 模拟流式响应
+      // 真实 Ollama 流式输出（非侵入式，Ollama 不可用回退话术）
+      const bridge = this._getOllamaBridge();
+      if (bridge) {
+        try {
+          const history = conversation.messages.slice(-6).map((m) => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.content
+          }));
+          const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${conversation.personality}」。`;
+          const messages = [{ role: 'system', content: sysPrompt }, ...history];
+          const stream = await bridge.chat(messages, { stream: true, temperature: 0.7 });
+          let fullText = '';
+          for await (const chunk of stream) {
+            const delta = chunk && chunk.message && chunk.message.content ? chunk.message.content : '';
+            if (delta) {
+              fullText += delta;
+              onData({ type: 'chunk', content: delta, fullText, progress: 0.5 });
+            }
+          }
+
+          // 添加助手回复
+          conversation.messages.push({
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+            role: 'assistant',
+            content: fullText || '（无回复）',
+            timestamp: new Date(),
+            latency: Date.now() - startTime
+          });
+          this._saveConversations();
+          onEnd({ source: 'ollama', text: fullText });
+          return;
+        } catch (e) { /* Ollama 流失败，回退话术 */ }
+      }
+
+      // 回退话术（Ollama 不可用）
       const fullResponse = `收到你的消息: "${text}"。这是${conversation.personality}人格的回复。`;
       const words = fullResponse.split('');
 
@@ -619,7 +653,7 @@ class ChatService extends EventEmitter {
         latency: Date.now() - startTime
       });
 
-      onEnd();
+      onEnd({ source: 'fallback', text: currentText });
     } catch (error) {
       onError(error);
     }

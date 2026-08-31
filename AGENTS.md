@@ -2576,6 +2576,21 @@ Session 锚点: 2026-08-12 (第79次 — 前端响应合约修复: 浏览器用�
 
 ---
 
+Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线
+- **processStream 真实流式**: `_getOllamaBridge` → `bridge.chat(messages, {stream:true})` → `for await` 迭代 chunk → 每 delta 调 onData (type:chunk/content/fullText) → onEnd({source:'ollama', text})
+  - 保留 fallback (Ollama 不可用 → 原话术逐字符)
+  - 持久化会话 (_saveConversations) + source 透传
+- **验证 (真实 Ollama)**: 30 个 chunks (真实逐 token 流式), source:ollama, 完整回复; 单测 mock async iterable → 3 chunks + stream:true 断言
+- **新增 1 测试**: streams real Ollama output via async iterable
+- **诚实记录**: 前端 stream.html 未接 EventSource (假流式在 UI 层仍未消费); WS chat.html 用 socket.io 不匹配生产 ws 库 — 均留待前端接线
+- **验证**: 全量 343/16,834/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (29→30)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
