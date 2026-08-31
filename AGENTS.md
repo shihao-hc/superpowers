@@ -2546,6 +2546,23 @@ Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: trunca
 
 ---
 
+Session 锚点: 2026-08-12 (第78次 — 会话持久化: server 重启后恢复多轮上下文)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,833 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent 排序)**: D5 多轮工具调用已完成 (Round 77) → 下一个最高价值 D4 会话持久化 (可靠性: server 重启后对话上下文丢失, 最可见的用户缺口)
+- **会话持久化实现**: chatService `conversations` Map 纯内存 → 加磁盘持久化:
+  - `_saveConversations()`: 对话变更后写 `data/conversations.json` (processMessage assistant 消息 push 后调用)
+  - `_loadConversations()`: 构造函数水合 (timestamp 字符串转 Date, 恢复 personality/context/messages/lastActivity)
+  - CONVERSATIONS_FILE 模块级常量 (cwd 依赖)
+- **验证 (跨进程)**: 进程 A 保存 → 进程 B (模拟重启) 水合恢复: personality ✅ messages ✅ lastIntent.code ✅ timestamp 转 Date ✅
+- **测试隔离**: `jest.isolateModules` + `fs.mkdtempSync` 临时 cwd (CONVERSATIONS_FILE 依赖 cwd) — 避免污染真实 data/
+- **测试副作用处理**: 主 describe 的 processMessage 会真实写 data/conversations.json (运行时数据) → `.gitignore` 加 `data/conversations.json`
+- **新增 1 测试**: persists and restores conversation across restart (临时 cwd 隔离)
+- **验证**: 全量 343/16,833/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (28→29), `.gitignore`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

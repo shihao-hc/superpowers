@@ -3,16 +3,22 @@
  */
 
 const { EventEmitter } = require('events');
+const fs = require('fs');
+const path = require('path');
 const _config = require('../config');
 
 // 集成 Claude Code 风格的上下文压缩服务
 const { ContextCompactService } = require('../../src/agent/ContextCompactService');
+
+// 会话持久化文件（server 重启后恢复多轮上下文）
+const CONVERSATIONS_FILE = path.join(process.cwd(), 'data', 'conversations.json');
 
 class ChatService extends EventEmitter {
   constructor(options = {}) {
     super();
     this.conversations = new Map();
     this.messageQueue = [];
+    this._loadConversations();
     this.stats = {
       totalMessages: 0,
       totalLatency: 0,
@@ -340,6 +346,10 @@ class ChatService extends EventEmitter {
       };
 
       conversation.messages.push(assistantMessage);
+      conversation.lastActivity = new Date();
+
+      // 持久化会话（server 重启后恢复多轮上下文）
+      this._saveConversations();
 
       // BrainSystem 记忆：存储交互 + 发送钩子（非侵入式）
       try {
@@ -688,6 +698,57 @@ class ChatService extends EventEmitter {
     }
     this._mcpPlugin = null;
     this._mcpTried = false;
+  }
+
+  /**
+   * 从磁盘恢复会话（server 重启后保留多轮上下文）
+   */
+  _loadConversations() {
+    try {
+      if (!fs.existsSync(CONVERSATIONS_FILE)) { return; }
+      const raw = JSON.parse(fs.readFileSync(CONVERSATIONS_FILE, 'utf8'));
+      if (!raw || typeof raw !== 'object') { return; }
+      for (const [userId, data] of Object.entries(raw)) {
+        if (!userId || !data || !Array.isArray(data.messages)) { continue; }
+        this.conversations.set(userId, {
+          id: data.id || userId,
+          personality: data.personality || 'default',
+          context: data.context || {},
+          messages: data.messages.map((m) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+          })),
+          lastActivity: data.lastActivity ? new Date(data.lastActivity) : new Date(),
+          compacted: data.compacted || false,
+          compactionCount: data.compactionCount || 0
+        });
+      }
+    } catch (e) { /* 恢复失败从空开始 */ }
+  }
+
+  /**
+   * 持久化会话到磁盘（防抖，避免频繁写盘）
+   */
+  _saveConversations() {
+    try {
+      const dir = path.dirname(CONVERSATIONS_FILE);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const data = {};
+      for (const [userId, c] of this.conversations) {
+        data[userId] = {
+          id: c.id,
+          personality: c.personality,
+          context: c.context,
+          messages: c.messages,
+          lastActivity: c.lastActivity instanceof Date ? c.lastActivity.toISOString() : c.lastActivity,
+          compacted: c.compacted,
+          compactionCount: c.compactionCount
+        };
+      }
+      fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(data, null, 2));
+    } catch (e) { /* 持久化失败静默（不阻塞对话） */ }
   }
 }
 

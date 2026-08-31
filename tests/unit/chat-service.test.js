@@ -404,3 +404,44 @@ describe('ChatService (BrainSystem-wired)', () => {
     });
   });
 });
+
+describe('ChatService conversation persistence', () => {
+  const os = require('os');
+  const fs = require('fs');
+  const path = require('path');
+  const origCwd = process.cwd();
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'conv-persist-'));
+    process.chdir(tmpDir);
+    jest.resetModules();
+  });
+
+  afterEach(() => {
+    process.chdir(origCwd);
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
+  });
+
+  it('persists and restores conversation across restart', () => {
+    const svc1 = require('../../server/services/chatService');
+    svc1.conversations.set('u1', {
+      id: 'u1', personality: 'professional', context: { lastIntent: { intent: 'code' } },
+      messages: [{ role: 'user', content: 'hi', timestamp: new Date() }],
+      lastActivity: new Date()
+    });
+    svc1._saveConversations();
+    const convFile = path.join(tmpDir, 'data', 'conversations.json');
+    expect(fs.existsSync(convFile)).toBe(true);
+
+    // 模拟重启：重新 require 模块（新 cwd 下 CONVERSATIONS_FILE 指向 tmpDir/data）
+    jest.resetModules();
+    const svc2 = require('../../server/services/chatService');
+    const conv = svc2.conversations.get('u1');
+    expect(conv).toBeDefined();
+    expect(conv.personality).toBe('professional');
+    expect(conv.messages).toHaveLength(1);
+    expect(conv.context.lastIntent.intent).toBe('code');
+    expect(conv.messages[0].timestamp instanceof Date).toBe(true);
+  });
+});

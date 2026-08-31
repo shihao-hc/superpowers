@@ -69,3 +69,4 @@ data/test.json
 data/corrupt-key.json
 data/test-key.json
 data/metrics/
+data/conversations.json
