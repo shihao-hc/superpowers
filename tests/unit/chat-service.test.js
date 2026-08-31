@@ -218,6 +218,29 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('reports truncated when tool loop hits max rounds without final text', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockImplementation(() => Promise.resolve({
+          ok: true,
+          text: '',
+          tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'docx' } } }]
+        }))
+      };
+      const origBridge = chatService.ollamaBridge;
+      const execSpy = jest.spyOn(chatService, '_executeToolCalls').mockResolvedValue([{ tool: 'x', ok: true, result: {} }]);
+      try {
+        chatService.ollamaBridge = mockBridge;
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'x' }], context: {} };
+        const r = await chatService.generateResponse('生成文档', conv);
+        expect(r.truncated).toBe(true);
+        expect(r.toolResults.length).toBe(4); // 4 轮工具执行
+        expect(mockBridge.chat.mock.calls.length).toBe(5); // 1 首轮 + 4 工具轮
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        execSpy.mockRestore();
+      }
+    });
+
     it('_executeToolCalls fails honestly for placeholder skill (no real executor)', async () => {
       // '../../evil' 或未知类型 → AsyncExecutor placeholder → 诚实失败而非假装成功
       const r1 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: '../../evil' } } }]);

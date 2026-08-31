@@ -2537,6 +2537,15 @@ Session 锚点: 2026-08-12 (第77次b — 多轮工具调用夯实: 轮次上限
 
 ---
 
+Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
+- **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)
+- **验证**: 全量 ×2 343/16,832/0 (稳定性确认) + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 1 文件
+- 相关文件: `tests/unit/chat-service.test.js` (27→28)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
