@@ -2468,6 +2468,21 @@ Session 锚点: 2026-08-12 (第75次 — 自主工具调用: Ollama 函数调用
 
 ---
 
+Session 锚点: 2026-08-12 (第75次b — 自主工具调用夯实: placeholder 诚实失败 + AsyncExecutor 定时器泄漏修复)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,828 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **真实效果夯实 (端到端验证)**: 工具触发生成 ✅ (LLM 自主调 generate_document); 普通对话不误触发 ✅; "能生成吗"问题不触发 ✅; stats 计数正确 ✅
+- **placeholder 诚实失败修复 (5.3 发现)**: `_executeToolCalls` 无条件 ok:true — 注入 `../../evil` / 未知类型走 AsyncExecutor placeholder (非真实执行) 却报成功 → 加 `finalResult.placeholder` 检查 → 诚实失败
+  - 验证: `../../evil` → FAIL (placeholder); mystery → FAIL; docx → OK (真实)
+- **AsyncExecutor 定时器泄漏修复 (5.3 发现)**: `_startCleanupTimer` 用 setInterval 不存引用 → 无法清理 → 每次 `new AsyncExecutor()` 泄漏 interval (chat-service 测试进程挂起)
+  - 修复: 存 `this._cleanupTimer` + 加 `destroy()` 方法; `_executeToolCalls` 用 try-finally 调 `executor.destroy()`
+  - 验证: chat-service EXIT 0 (此前挂起); 全量无 worker force-exit
+- **新增 2 测试**: placeholder 诚实失败 (../../evil + mystery); 未知工具拒绝
+- **验证**: 全量 343/16,828/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `server/services/chatService.js`, `tests/unit/chat-service.test.js` (22→24)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

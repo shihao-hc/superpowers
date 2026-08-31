@@ -184,6 +184,21 @@ describe('ChatService (BrainSystem-wired)', () => {
         execSpy.mockRestore();
       }
     });
+
+    it('_executeToolCalls fails honestly for placeholder skill (no real executor)', async () => {
+      // '../../evil' 或未知类型 → AsyncExecutor placeholder → 诚实失败而非假装成功
+      const r1 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: '../../evil' } } }]);
+      expect(r1[0].ok).toBe(false);
+      expect(r1[0].error).toContain('placeholder');
+      const r2 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: 'mystery' } } }]);
+      expect(r2[0].ok).toBe(false);
+    }, 20000);
+
+    it('_executeToolCalls rejects unknown tools', async () => {
+      const r = await chatService._executeToolCalls([{ function: { name: 'not_a_tool', arguments: {} } }]);
+      expect(r[0].ok).toBe(false);
+      expect(r[0].error).toContain('Unknown tool');
+    });
   });
 
   describe('processStream', () => {

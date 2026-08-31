@@ -133,6 +133,7 @@ class ChatService extends EventEmitter {
       const fn = call.function || call;
       const name = fn.name || '';
       const args = (typeof fn.arguments === 'string' ? (() => { try { return JSON.parse(fn.arguments); } catch { return {}; } })() : fn.arguments) || {};
+      let executor = null;
       try {
         if (name === 'generate_document') {
           const skillName = args.type || 'docx';
@@ -140,7 +141,7 @@ class ChatService extends EventEmitter {
             console.log('[_executeToolCalls] executing:', skillName, JSON.stringify(args).slice(0, 80));
           }
           const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
-          const executor = new AsyncExecutor();
+          executor = new AsyncExecutor();
           const execution = await executor.execute(skillName, {
             action: args.action || 'create',
             title: args.title || args.content || '',
@@ -148,20 +149,31 @@ class ChatService extends EventEmitter {
           });
           const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 30000 });
           const filePath = finalResult && finalResult.result ? (finalResult.result.path || finalResult.path || null) : null;
-          results.push({
-            tool: name,
-            ok: true,
-            result: {
-              type: skillName,
-              message: filePath ? `已生成到 ${filePath}` : 'generated',
-              path: filePath
-            }
-          });
+          // placeholder 非真实执行 → 诚实失败
+          const placeholder = finalResult ? finalResult.placeholder : false;
+          if (placeholder) {
+            results.push({ tool: name, ok: false, error: `Skill '${skillName}' has no real executor (placeholder)` });
+          } else {
+            results.push({
+              tool: name,
+              ok: true,
+              result: {
+                type: skillName,
+                message: filePath ? `已生成到 ${filePath}` : 'generated',
+                path: filePath
+              }
+            });
+          }
         } else {
           results.push({ tool: name, ok: false, error: `Unknown tool: ${name}` });
         }
       } catch (e) {
         results.push({ tool: name, ok: false, error: e.message });
+      } finally {
+        // 清理 AsyncExecutor 定时器（防泄漏）
+        if (executor && typeof executor.destroy === 'function') {
+          executor.destroy();
+        }
       }
     }
     if (process.env.DEBUG_TOOLS === '1') {

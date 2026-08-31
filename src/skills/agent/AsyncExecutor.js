@@ -474,9 +474,19 @@ class AsyncExecutor {
    * Start cleanup timer
    */
   _startCleanupTimer() {
-    setInterval(() => {
+    this._cleanupTimer = setInterval(() => {
       this._cleanupOldExecutions();
     }, this.cleanupInterval);
+  }
+
+  /**
+   * Destroy: clear cleanup timer（防测试/进程定时器泄漏）
+   */
+  destroy() {
+    if (this._cleanupTimer) {
+      clearInterval(this._cleanupTimer);
+      this._cleanupTimer = null;
+    }
   }
 
   /**
