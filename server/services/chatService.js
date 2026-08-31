@@ -820,6 +820,10 @@ class ChatService extends EventEmitter {
         });
       } catch (e) { /* 持久化失败静默（不阻塞对话） */ }
     }, 500);
+    // 防抖 timer 不阻止进程退出（生产有 shutdown flush 兜底）
+    if (this._saveTimer && typeof this._saveTimer.unref === 'function') {
+      this._saveTimer.unref();
+    }
   }
 }
 

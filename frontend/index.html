@@ -1075,28 +1075,58 @@
       document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
 
       try {
-        // Call backend API
-        const response = await fetch('/api/chat', {
+        // 优先使用 SSE 流式接口（真实 LLM 逐 token 输出）
+        let aiResponse = '';
+        const streamResponse = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            text: text,
-            history: state.messages.slice(-10)
-          })
+          body: JSON.stringify({ text: text, personality: state.currentPersonality })
         });
-        
-        const data = await response.json();
-        typingDiv.remove();
-        
-        const nestedData = data.data || data;
-        const aiResponse = nestedData.text || nestedData.response || nestedData.message || data.text || data.response || data.message || generateFallbackResponse(text);
-        addMessage('ai', aiResponse);
-        
-        // Update emotion based on response
-        if (data.emotion || nestedData.emotion) {
-          setMood(data.emotion || nestedData.emotion);
+        if (streamResponse.ok && streamResponse.headers.get('content-type')?.includes('text/event-stream')) {
+          // 转换 typingDiv 为流式输出
+          typingDiv.classList.remove('typing');
+          typingDiv.querySelector('.typing-indicator').remove();
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'message-content';
+          typingDiv.appendChild(contentDiv);
+          const reader = streamResponse.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split('\n\n');
+            buffer = events.pop();
+            for (const event of events) {
+              const line = event.trim();
+              if (!line.startsWith('data: ')) continue;
+              const payload = line.slice(6);
+              if (payload === '[DONE]') continue;
+              try {
+                const chunk = JSON.parse(payload);
+                if (chunk.content) {
+                  aiResponse += chunk.content;
+                  contentDiv.textContent = aiResponse;
+                }
+              } catch (e) { /* 忽略无法解析的 chunk */ }
+            }
+          }
+          typingDiv.classList.add('message');
+          if (!aiResponse) {
+            typingDiv.remove();
+            addMessage('ai', generateFallbackResponse(text));
+          }
+        } else {
+          // 非流式回退
+          typingDiv.remove();
+          const data = await streamResponse.json();
+          const nestedData = data.data || data;
+          aiResponse = nestedData.text || nestedData.response || nestedData.message || data.text || data.response || data.message || generateFallbackResponse(text);
+          addMessage('ai', aiResponse);
         }
         
+        // Update emotion based on response
         if (state.autoTTS) {
           speakText(aiResponse);
         }

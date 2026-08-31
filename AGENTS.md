@@ -2605,6 +2605,21 @@ Session 锚点: 2026-08-12 (第81次 — 会话持久化健壮性: 防抖 + 异�
 
 ---
 
+Session 锚点: 2026-08-12 (第82次 — 前端 SSE 流式接线: 浏览器用户看到逐 token 输出)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **前端 EventSource 接线 (第80次服务端流式的 UI 层)**: `frontend/index.html` sendMessage 从 POST /api/chat (非流式) → 优先 SSE /api/chat/stream
+  - 转换 typingDiv 为流式输出容器 (移除 typing-indicator + 追加 content div)
+  - `getReader()` 读流 → 解析 SSE events → 每 chunk 追加 content → 逐 token 显示
+  - 非流式回退 (content-type 非 event-stream 或失败 → JSON 解析)
+- **验证 (真实 server)**: SSE 端点 200 + text/event-stream + 23 事件 (逐 token) + [DONE]; 前端集成确认 (getReader/streamResponse/fallback)
+- **诚实记录**: stream.html 是直播演示页 (socket.io 假聊天) 非真实 UI; 前端 HTML 无自动化测试
+- **🔴 防抖 timer 泄漏修复 (5.3 发现)**: 第81次防抖引入 — `_saveConversations` 的 500ms timer 若测试结束未触发 → 进程挂起 (worker force-exit) → 加 `.unref()` (防抖 timer 不阻止进程退出, 生产 shutdown flush 兜底)
+- **验证**: 全量 343/16,834/0 + ESLint 0/0 + Security 0 HIGH; 测试套件 EXIT 0 无 worker 警告
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `frontend/index.html`, `server/services/chatService.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
