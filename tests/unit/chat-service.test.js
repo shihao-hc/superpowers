@@ -449,7 +449,7 @@ describe('ChatService conversation persistence', () => {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
   });
 
-  it('persists and restores conversation across restart', () => {
+  it('persists and restores conversation across restart', async () => {
     const svc1 = require('../../server/services/chatService');
     svc1.conversations.set('u1', {
       id: 'u1', personality: 'professional', context: { lastIntent: { intent: 'code' } },
@@ -457,6 +457,8 @@ describe('ChatService conversation persistence', () => {
       lastActivity: new Date()
     });
     svc1._saveConversations();
+    // shutdown flush 同步写盘（防抖 timer 未触发时保证写入）
+    await svc1.shutdown();
     const convFile = path.join(tmpDir, 'data', 'conversations.json');
     expect(fs.existsSync(convFile)).toBe(true);
 

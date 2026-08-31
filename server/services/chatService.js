@@ -732,6 +732,32 @@ class ChatService extends EventEmitter {
     }
     this._mcpPlugin = null;
     this._mcpTried = false;
+
+    // flush 未保存的会话（防抖 timer 未触发时保证不丢失）
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    if (this._conversationsDirty) {
+      this._conversationsDirty = false;
+      try {
+        const data = {};
+        for (const [userId, c] of this.conversations) {
+          data[userId] = {
+            id: c.id,
+            personality: c.personality,
+            context: c.context,
+            messages: c.messages,
+            lastActivity: c.lastActivity instanceof Date ? c.lastActivity.toISOString() : c.lastActivity,
+            compacted: c.compacted,
+            compactionCount: c.compactionCount
+          };
+        }
+        const dir = path.dirname(CONVERSATIONS_FILE);
+        if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+        fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(data, null, 2));
+      } catch (e) { /* flush 失败静默 */ }
+    }
   }
 
   /**
@@ -761,28 +787,39 @@ class ChatService extends EventEmitter {
   }
 
   /**
-   * 持久化会话到磁盘（防抖，避免频繁写盘）
+   * 持久化会话到磁盘（防抖 + 异步，避免频繁同步写盘阻塞事件循环）
    */
   _saveConversations() {
-    try {
-      const dir = path.dirname(CONVERSATIONS_FILE);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      const data = {};
-      for (const [userId, c] of this.conversations) {
-        data[userId] = {
-          id: c.id,
-          personality: c.personality,
-          context: c.context,
-          messages: c.messages,
-          lastActivity: c.lastActivity instanceof Date ? c.lastActivity.toISOString() : c.lastActivity,
-          compacted: c.compacted,
-          compactionCount: c.compactionCount
-        };
-      }
-      fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(data, null, 2));
-    } catch (e) { /* 持久化失败静默（不阻塞对话） */ }
+    this._conversationsDirty = true;
+    if (this._saveTimer) { return; }
+    // 防抖：合并短时间内的多次变更，500ms 后统一写盘
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      if (!this._conversationsDirty) { return; }
+      this._conversationsDirty = false;
+      try {
+        const dir = path.dirname(CONVERSATIONS_FILE);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        const data = {};
+        for (const [userId, c] of this.conversations) {
+          data[userId] = {
+            id: c.id,
+            personality: c.personality,
+            context: c.context,
+            messages: c.messages,
+            lastActivity: c.lastActivity instanceof Date ? c.lastActivity.toISOString() : c.lastActivity,
+            compacted: c.compacted,
+            compactionCount: c.compactionCount
+          };
+        }
+        // 异步写盘（不阻塞事件循环）
+        fs.writeFile(CONVERSATIONS_FILE, JSON.stringify(data, null, 2), (err) => {
+          if (err) { /* 持久化失败静默（不阻塞对话） */ }
+        });
+      } catch (e) { /* 持久化失败静默（不阻塞对话） */ }
+    }, 500);
   }
 }
 

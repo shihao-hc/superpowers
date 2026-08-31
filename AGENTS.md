@@ -2591,6 +2591,20 @@ Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStre
 
 ---
 
+Session 锚点: 2026-08-12 (第81次 — 会话持久化健壮性: 防抖 + 异步写盘 + shutdown flush)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: brave-search 不可行 (包未装 + BRAVE_API_KEY 未设) — 需外部 API key + 网络安装, 不适合自动推进; 转向内部健壮性 Direction D — `_saveConversations` 同步全量 writeFileSync 无防抖, 每消息阻塞事件循环 (O(N) 随用户增长)
+- **会话持久化健壮性修复**: `_saveConversations` 改防抖 + 异步写盘:
+  - `_conversationsDirty` 标记 + 500ms 防抖 timer (合并短时间多次变更)
+  - `fs.writeFile` 异步写盘 (不阻塞事件循环)
+  - `shutdown()` 加 flush (清 timer + 同步写盘, 防抖未触发时保证不丢失)
+- **测试**: 持久化测试改 async + `await svc1.shutdown()` (flush 同步写盘, 替代立即检查防抖文件)
+- **验证**: 防抖+flush 跨进程保存 ✅; 全量 343/16,834/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (30→30)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
