@@ -488,6 +488,17 @@ class ChatService extends EventEmitter {
             this.stats.llm.successes++;
             return { text: roundResult.text, confidence: 0.9, source: 'ollama', toolResults: allToolResults };
           }
+          // 达最大工具轮次仍无最终文本 → 诚实告知（而非无意义话术）
+          if (allToolResults.length > 0) {
+            this.stats.llm.successes++;
+            return {
+              text: '我已执行了部分工具操作，但任务尚未完全完成（达到最大工具轮次）。已执行的操作请见工具结果。',
+              confidence: 0.6,
+              source: 'ollama',
+              toolResults: allToolResults,
+              truncated: true
+            };
+          }
         }
       }
     } catch (e) { /* Ollama 不可用，回退话术 */ }

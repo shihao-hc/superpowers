@@ -2525,6 +2525,18 @@ Session 锚点: 2026-08-12 (第77次 — 多轮工具调用: 自主完成任务�
 
 ---
 
+Session 锚点: 2026-08-12 (第77次b — 多轮工具调用夯实: 轮次上限 + truncated 诚实告知)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,831 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **多轮工具调用夯实 (端到端)**: LLM 自主调 read_file 读取 JSON → 总结 (1 轮工具 + loop break) ✅; 普通对话不误触发 ✅
+- **轮次上限验证 (防失控)**: mock 失控 LLM 每轮返回 tool_calls → 循环在 4 轮截断 (bridgeCalls ≤5 = 1 首轮 + 4 工具轮), 不无限循环 ✅
+- **truncated 诚实告知 (5.3 发现)**: 4 轮后仍无最终文本 → 此前走 fallback (无意义话术"谢谢你的分享") 掩盖了工具已执行 → 改为明确返回 "已达到最大工具轮次" + truncated:true + toolResults (诚实反映部分完成)
+  - 验证: 失控场景 → truncated:YES, toolResults 4 (4 轮执行的操作)
+- **验证**: 全量 343/16,831/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 1 文件
+- 相关文件: `server/services/chatService.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
