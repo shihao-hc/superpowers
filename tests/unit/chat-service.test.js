@@ -6,6 +6,8 @@ describe('ChatService (BrainSystem-wired)', () => {
     jest.restoreAllMocks();
     // 默认 mock bridge，避免测试触发真实 Ollama（慢/超时）
     chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'mock reply' }) };
+    // 禁用 MCP 初始化（避免测试 spawn 真实 MCP 进程导致挂起）
+    chatService._mcpTried = true;
   });
 
   afterEach(() => {
@@ -198,6 +200,41 @@ describe('ChatService (BrainSystem-wired)', () => {
       const r = await chatService._executeToolCalls([{ function: { name: 'not_a_tool', arguments: {} } }]);
       expect(r[0].ok).toBe(false);
       expect(r[0].error).toContain('Unknown tool');
+    });
+
+    it('_executeToolCalls dispatches read-only MCP tools', async () => {
+      const mockPlugin = {
+        executeTool: jest.fn().mockResolvedValue({ content: 'file contents' })
+      };
+      chatService._mcpPlugin = mockPlugin;
+      chatService._mcpTried = true;
+      try {
+        const r = await chatService._executeToolCalls([
+          { function: { name: 'filesystem:read_file', arguments: { path: '/tmp/a.txt' } } }
+        ]);
+        expect(r[0].ok).toBe(true);
+        expect(mockPlugin.executeTool).toHaveBeenCalledWith('filesystem:read_file', { path: '/tmp/a.txt' });
+      } finally {
+        chatService._mcpPlugin = null;
+      }
+    });
+
+    it('_executeToolCalls rejects write MCP tools (read-only allowlist)', async () => {
+      const mockPlugin = {
+        executeTool: jest.fn()
+      };
+      chatService._mcpPlugin = mockPlugin;
+      chatService._mcpTried = true;
+      try {
+        const r = await chatService._executeToolCalls([
+          { function: { name: 'filesystem:write_file', arguments: { path: '/tmp/x.txt', content: 'x' } } }
+        ]);
+        expect(r[0].ok).toBe(false);
+        expect(r[0].error).toContain('not allowed');
+        expect(mockPlugin.executeTool).not.toHaveBeenCalled();
+      } finally {
+        chatService._mcpPlugin = null;
+      }
     });
   });
 

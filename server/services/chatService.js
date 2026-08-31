@@ -50,6 +50,23 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 获取或惰性创建 MCP plugin（供 LLM 自主调用 MCP 只读工具）
+   */
+  _getMCPPlugin() {
+    if (this._mcpPlugin) {return this._mcpPlugin;}
+    if (this._mcpTried) {return null;} // 一次失败后不再重试（进程级）
+    this._mcpTried = true;
+    try {
+      const path = require('path');
+      const { MCPPlugin } = require('../../src/mcp/MCPPlugin');
+      const plugin = new MCPPlugin({ configPath: path.join(process.cwd(), 'config', 'mcp-servers.json') });
+      this._mcpPlugin = plugin;
+      return plugin;
+    } catch (e) { /* MCP 不可用，仅 generate_document 技能 */ }
+    return null;
+  }
+
+  /**
    * Ollama 调用带重试（瞬时故障自动恢复）
    */
   async _chatWithRetry(bridge, sysPrompt, history, options = {}) {
@@ -102,8 +119,8 @@ class ChatService extends EventEmitter {
   /**
    * 工具调用 schema（供 LLM 自主调用技能）
    */
-  _buildToolsSchema() {
-    return [
+  async _buildToolsSchema() {
+    const tools = [
       {
         type: 'function',
         function: {
@@ -122,6 +139,44 @@ class ChatService extends EventEmitter {
         }
       }
     ];
+
+    // 追加 MCP 只读工具（读写分离：写操作不暴露给 LLM，门禁仅作深度防御）
+    try {
+      const plugin = this._getMCPPlugin();
+      if (plugin) {
+        try {
+          if (plugin.status !== 'ready' && typeof plugin.onLoad === 'function') {
+            await Promise.race([
+              plugin.onLoad(),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('MCP init timeout')), 5000))
+            ]);
+          }
+        } catch (e) { /* MCP 初始化失败/超时，仅 generate_document */ }
+        if (typeof plugin.getAvailableTools === 'function') {
+          const readOnlyAllowlist = [
+            'filesystem:read_file', 'filesystem:read_text_file', 'filesystem:read_media_file',
+            'filesystem:list_directory', 'filesystem:directory_tree', 'filesystem:search_files',
+            'filesystem:get_file_info', 'filesystem:list_allowed_directories',
+            'sequential-thinking:sequentialthinking'
+          ];
+          const available = plugin.getAvailableTools({ includeSchema: true }) || [];
+          for (const t of available) {
+            if (readOnlyAllowlist.includes(t.name)) {
+              tools.push({
+                type: 'function',
+                function: {
+                  name: t.name,
+                  description: t.description || t.name,
+                  parameters: t.parameters || { type: 'object', properties: {} }
+                }
+              });
+            }
+          }
+        }
+      }
+    } catch (e) { /* MCP 工具可选，仅 generate_document */ }
+
+    return tools;
   }
 
   /**
@@ -135,6 +190,31 @@ class ChatService extends EventEmitter {
       const args = (typeof fn.arguments === 'string' ? (() => { try { return JSON.parse(fn.arguments); } catch { return {}; } })() : fn.arguments) || {};
       let executor = null;
       try {
+        if (name.includes(':') && name !== 'generate_document') {
+          // MCP 工具调用（只读白名单已在 schema 层限制，此处再校验防直接注入）
+          const readOnlyAllowlist = [
+            'filesystem:read_file', 'filesystem:read_text_file', 'filesystem:read_media_file',
+            'filesystem:list_directory', 'filesystem:directory_tree', 'filesystem:search_files',
+            'filesystem:get_file_info', 'filesystem:list_allowed_directories',
+            'sequential-thinking:sequentialthinking'
+          ];
+          if (!readOnlyAllowlist.includes(name)) {
+            results.push({ tool: name, ok: false, error: `Tool '${name}' is not allowed for autonomous use` });
+            continue;
+          }
+          const plugin = this._getMCPPlugin();
+          if (!plugin || typeof plugin.executeTool !== 'function') {
+            results.push({ tool: name, ok: false, error: 'MCP plugin not available' });
+            continue;
+          }
+          const mcpResult = await plugin.executeTool(name, args);
+          results.push({
+            tool: name,
+            ok: true,
+            result: { type: 'mcp', tool: name, output: mcpResult }
+          });
+          continue;
+        }
         if (name === 'generate_document') {
           const skillName = args.type || 'docx';
           if (process.env.NODE_ENV === 'test' && process.env.DEBUG_TOOLS === '1') {
@@ -364,10 +444,10 @@ class ChatService extends EventEmitter {
           }
         } catch (e) { /* 思考可选，失败静默 */ }
         // 工具触发检测：仅当用户请求与文档生成相关时才启用工具调用（避免模型频繁误触发）
-        const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标/i.test(text);
-        const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。调用工具后根据结果回复用户。' : '';
+        const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
+        const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
         const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${toolPrompt}`;
-        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? this._buildToolsSchema() : undefined });
+        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? await this._buildToolsSchema() : undefined });
         this.stats.llm.attempts++;
         // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
         if (toolTrigger && result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length === 0) {

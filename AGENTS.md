@@ -2483,6 +2483,22 @@ Session 锚点: 2026-08-12 (第75次b — 自主工具调用夯实: placeholder 
 
 ---
 
+Session 锚点: 2026-08-12 (第76次 — MCP 只读工具接入 agentic loop)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,830 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 生产进程无可达 MCP 桥 (MCPManager 是 stub); 需 chatService 自建 MCPPlugin; **关键安全判断 — 风险门禁不足以兜底写操作** (write_file 到普通路径返回 ALLOW), 只向 LLM 暴露只读工具 + sequential-thinking (读写分离是主防线, 门禁是深度防御)
+- **chatService MCP 接入**:
+  - `_getMCPPlugin()`: 惰性单例 (new MCPPlugin config/mcp-servers.json), 一次失败后 `_mcpTried` 禁用
+  - `_buildToolsSchema()`: 变 async, 初始化 plugin (onLoad + 5s 超时) → 追加只读 MCP 工具 (read_file/read_text_file/read_media_file/list_directory/directory_tree/search_files/get_file_info/list_allowed_directories/sequential-thinking), 排除 write/edit/create_directory/move
+  - `_executeToolCalls`: 加 MCP 分支 (name 含 `:`), 二次白名单校验 (防直接注入), `plugin.executeTool(name, args)` 分发
+  - toolTrigger 扩词 (读取/搜索/查看/目录/文件/思维等)
+- **验证**: schema 10 工具 (generate_document + 9 只读); 真实 MCPPlugin 列 15 工具 (写被过滤); 测试 mock 分发 + 写拒绝
+- **测试**: `_mcpTried = true` 禁用 MCP 初始化 (防 spawn 真实进程挂起); +2 测试 (MCP 分发 / 写拒绝)
+- **验证**: 全量 343/16,830/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (24→26)
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题
