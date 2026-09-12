@@ -428,6 +428,32 @@ describe('ChatService (BrainSystem-wired)', () => {
     });
   });
 
+  describe('enforceConversationLimit', () => {
+    it('evicts oldest conversations over the cap (LRU)', () => {
+      chatService.conversations.clear();
+      for (let i = 0; i < 5; i++) {
+        chatService.conversations.set('user' + i, {
+          id: 'user' + i, messages: [], personality: 'default', context: {},
+          createdAt: new Date(), lastActivity: new Date(Date.now() + i * 1000)
+        });
+      }
+      const evicted = chatService.enforceConversationLimit(3);
+      expect(evicted).toBe(2);
+      expect(chatService.conversations.has('user0')).toBe(false);
+      expect(chatService.conversations.has('user1')).toBe(false);
+      expect(chatService.conversations.has('user4')).toBe(true); // 最新保留
+      expect(chatService.conversations.size).toBe(3);
+    });
+
+    it('does nothing when under the cap', () => {
+      chatService.conversations.clear();
+      chatService.conversations.set('a', { id: 'a', messages: [], personality: 'default', context: {}, createdAt: new Date(), lastActivity: new Date() });
+      const evicted = chatService.enforceConversationLimit(10);
+      expect(evicted).toBe(0);
+      expect(chatService.conversations.size).toBe(1);
+    });
+  });
+
   describe('error paths', () => {
     it('truncates messages beyond 100', async () => {
       const origBridge = chatService.ollamaBridge;

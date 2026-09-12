@@ -2569,6 +2569,21 @@ Session 锚点: 2026-08-12 (第84次 — 工具循环部分成功诚实化 + 全
 
 ---
 
+Session 锚点: 2026-08-12 (第85次 — 会话数量上限 + 清理接线 + clearHistory 持久化)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,840 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Gap 1 — 会话数量无上限 (data/conversations.json 无限增长); cleanupInactiveSessions 是死代码 (从不被调用); clearHistory 不持久化 (磁盘保留旧历史重启复活)
+- **修复**:
+  - `clearHistory` 加 `_saveConversations()` (持久化清空, 防止磁盘保留旧历史重启复活)
+  - `cleanupInactiveSessions` 加 `_saveConversations()` (持久化删除, 防止僵尸会话重启复活)
+  - 新增 `enforceConversationLimit(max=5000)`: LRU 淘汰最久未活跃会话 (防止磁盘无限增长)
+  - shutdown flush 前先 cleanup + enforce (server 停止时统一清理)
+- **新增 2 测试**: enforceConversationLimit LRU 淘汰 (5→3, 最新保留) + 未超限 no-op
+- **验证**: 全量 344/16,840/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (31→33)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

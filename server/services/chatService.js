@@ -736,6 +736,7 @@ class ChatService extends EventEmitter {
     if (conversation) {
       conversation.messages = [];
       conversation.lastActivity = new Date();
+      this._saveConversations(); // 持久化清空（防止磁盘保留旧历史重启复活）
     }
   }
 
@@ -752,7 +753,7 @@ class ChatService extends EventEmitter {
   }
 
   /**
-   * 清理不活跃会话
+   * 清理不活跃会话（持久化删除，防止磁盘保留僵尸会话重启复活）
    */
   cleanupInactiveSessions(maxInactiveTime = 3600000) { // 默认1小时
     const now = Date.now();
@@ -765,7 +766,30 @@ class ChatService extends EventEmitter {
       }
     }
 
+    if (cleaned > 0) {
+      this._saveConversations();
+    }
+
     return cleaned;
+  }
+
+  /**
+   * 会话数量上限（LRU 淘汰最久未活跃的会话，防止 data/conversations.json 无限增长）
+   */
+  enforceConversationLimit(maxConversations = 5000) {
+    if (this.conversations.size <= maxConversations) { return 0; }
+    const sorted = [...this.conversations.entries()]
+      .sort((a, b) => (a[1].lastActivity ? a[1].lastActivity.getTime() : 0) - (b[1].lastActivity ? b[1].lastActivity.getTime() : 0));
+    let evicted = 0;
+    while (this.conversations.size > maxConversations && sorted.length > evicted) {
+      const [userId] = sorted[evicted];
+      this.conversations.delete(userId);
+      evicted++;
+    }
+    if (evicted > 0) {
+      this._saveConversations();
+    }
+    return evicted;
   }
 
   /**
@@ -781,6 +805,9 @@ class ChatService extends EventEmitter {
     this._mcpTried = false;
 
     // flush 未保存的会话（防抖 timer 未触发时保证不丢失）
+    // 先清理不活跃 + 限制会话数量（其内部 _saveConversations 的防抖 timer 随后被 clear）
+    this.cleanupInactiveSessions();
+    this.enforceConversationLimit(5000);
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
