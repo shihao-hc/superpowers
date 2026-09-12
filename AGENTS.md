@@ -2620,6 +2620,22 @@ Session 锚点: 2026-08-12 (第82次 — 前端 SSE 流式接线: 浏览器用�
 
 ---
 
+Session 锚点: 2026-08-12 (第83次 — processStream 功能对齐: 主 UI 路径获得记忆/教训/思考 + 统计)
+- ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Gap 4a — processStream (浏览器主 UI 路径) 是功能贫瘠的: 无记忆/教训/思考注入、无工具调用、无统计 → 用户默认聊天路径"最笨"
+- **提取 `_buildSysPrompt` 共享方法**: 记忆(语义+关键词) + 教训 + 思考注入 + 工具提示 → 返回 {sysPrompt, toolTrigger}; generateResponse 复用 (消除内联冗余 ~45 行)
+- **processStream 功能对齐**: 
+  - 动态 sysPrompt (复用 _buildSysPrompt, 含记忆/教训/思考注入)
+  - 意图分析 + smartStore (用户消息 + 回复, 与 processMessage 对称, 匿名不写)
+  - stats 计数 (totalMessages/totalLatency/llm.attempts/successes)
+- **验证 (真实 Ollama)**: 流式 23 chunks + source ollama; stats 更新 (attempts 1/successes 1/totalMessages 1)
+- **重构**: generateResponse 内联注入块替换为 _buildSysPrompt 调用 (代码复用, 行为不变)
+- **验证**: 全量 343/16,834/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 1 文件
+- 相关文件: `server/services/chatService.js`
+
+---
+
 ## 运维记录: opencode 数据迁移 C盘→D盘 + 卡顿修复 (2026-08-15)
 
 ### 背景问题

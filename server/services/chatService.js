@@ -269,6 +269,56 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 构建动态 system prompt（记忆 + 教训 + 思考注入 + 工具提示）
+   * @returns {{sysPrompt: string, toolTrigger: boolean}}
+   */
+  async _buildSysPrompt(text, conversation) {
+    const personality = (conversation && conversation.personality) || 'default';
+    const lastIntent = conversation && conversation.context ? conversation.context.lastIntent : null;
+    let memoryText = '';
+    try {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      let mem = [];
+      if (BrainSystem.smartSearchSemantic) {
+        mem = (await BrainSystem.smartSearchSemantic(text, 3)) || [];
+      }
+      if (mem.length === 0 && BrainSystem.smartSearch) {
+        mem = BrainSystem.smartSearch(text, 3);
+      }
+      if (mem.length > 0) {
+        memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
+      }
+    } catch (e) { /* 记忆可选，失败静默 */ }
+    let lessonText = '';
+    try {
+      const LessonLibrary = require('../../src/core/LessonLibrary');
+      const lib = new LessonLibrary({ quiet: true });
+      const lessons = lib.search ? lib.search(text, { limit: 3 }) : [];
+      if (Array.isArray(lessons) && lessons.length > 0) {
+        lessonText = `参考经验教训：${lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；')}。`;
+      }
+    } catch (e) { /* 教训可选，失败静默 */ }
+    let thinkText = '';
+    try {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      if (BrainSystem.forceThink) {
+        const thinking = BrainSystem.forceThink(text);
+        const qs = (thinking && thinking.metaQuestions) || [];
+        if (Array.isArray(qs) && qs.length > 0) {
+          const questions = qs.filter((q) => q && q.question).map((q) => q.question);
+          if (questions.length > 0) {
+            thinkText = `回答前请先思考：${questions.slice(0, 3).join('；')}。`;
+          }
+        }
+      }
+    } catch (e) { /* 思考可选，失败静默 */ }
+    const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
+    const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
+    const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${toolPrompt}`;
+    return { sysPrompt, toolTrigger };
+  }
+
+  /**
    * 处理消息
    */
   async processMessage({ text, personality, context, userId }) {
@@ -411,52 +461,8 @@ class ChatService extends EventEmitter {
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content
         }));
-        // 动态 system prompt：融入人格 + 意图 + 相关记忆（多轮一致性 + 记忆增强）
-        const personality = conversation.personality || 'default';
-        const lastIntent = conversation.context && conversation.context.lastIntent;
-        let memoryText = '';
-        try {
-          const { BrainSystem } = require('../../src/core/BrainSystem');
-          let mem = [];
-          if (BrainSystem.smartSearchSemantic) {
-            mem = (await BrainSystem.smartSearchSemantic(text, 3)) || [];
-          }
-          if (mem.length === 0 && BrainSystem.smartSearch) {
-            mem = BrainSystem.smartSearch(text, 3);
-          }
-          if (mem.length > 0) {
-            memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
-          }
-        } catch (e) { /* 记忆可选，失败静默 */ }
-        // 注入相关经验教训（学习到的知识影响回复）
-        let lessonText = '';
-        try {
-          const LessonLibrary = require('../../src/core/LessonLibrary');
-          const lib = new LessonLibrary({ quiet: true });
-          const lessons = lib.search ? lib.search(text, { limit: 3 }) : [];
-          if (Array.isArray(lessons) && lessons.length > 0) {
-            lessonText = `参考经验教训：${lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；')}。`;
-          }
-        } catch (e) { /* 教训可选，失败静默 */ }
-        // 注入思考前置（BrainSystem 的深层思考驱动更可靠的回答）
-        let thinkText = '';
-        try {
-          const { BrainSystem } = require('../../src/core/BrainSystem');
-          if (BrainSystem.forceThink) {
-            const thinking = BrainSystem.forceThink(text);
-            const qs = (thinking && thinking.metaQuestions) || [];
-            if (Array.isArray(qs) && qs.length > 0) {
-              const questions = qs.filter((q) => q && q.question).map((q) => q.question);
-              if (questions.length > 0) {
-                thinkText = `回答前请先思考：${questions.slice(0, 3).join('；')}。`;
-              }
-            }
-          }
-        } catch (e) { /* 思考可选，失败静默 */ }
-        // 工具触发检测：仅当用户请求与文档生成相关时才启用工具调用（避免模型频繁误触发）
-        const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
-        const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
-        const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${toolPrompt}`;
+        // 动态 system prompt：融入人格 + 意图 + 记忆 + 教训 + 思考 + 工具提示
+        const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation);
         const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? await this._buildToolsSchema() : undefined });
         this.stats.llm.attempts++;
         // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
@@ -591,6 +597,18 @@ class ChatService extends EventEmitter {
         timestamp: new Date()
       });
 
+      // BrainSystem 感知：意图分析 + 记忆存储（非侵入式，与 processMessage 对称）
+      try {
+        const { BrainSystem } = require('../../src/core/BrainSystem');
+        if (BrainSystem.analyzeIntent) {
+          const intent = BrainSystem.analyzeIntent(text);
+          conversation.context = { ...conversation.context, lastIntent: intent };
+        }
+        if (BrainSystem.smartStore && userId && userId !== 'anonymous') {
+          BrainSystem.smartStore(`chat_${userId}_${Date.now()}`, { input: text, role: 'user', userId });
+        }
+      } catch (e) { /* BrainSystem 可选，失败静默 */ }
+
       // 真实 Ollama 流式输出（非侵入式，Ollama 不可用回退话术）
       const bridge = this._getOllamaBridge();
       if (bridge) {
@@ -599,7 +617,7 @@ class ChatService extends EventEmitter {
             role: m.role === 'user' ? 'user' : 'assistant',
             content: m.content
           }));
-          const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${conversation.personality}」。`;
+          const { sysPrompt } = await this._buildSysPrompt(text, conversation);
           const messages = [{ role: 'system', content: sysPrompt }, ...history];
           const stream = await bridge.chat(messages, { stream: true, temperature: 0.7 });
           let fullText = '';
@@ -619,6 +637,17 @@ class ChatService extends EventEmitter {
             timestamp: new Date(),
             latency: Date.now() - startTime
           });
+          // 统计 + 记忆（与 processMessage 对称）
+          this.stats.totalMessages++;
+          this.stats.totalLatency += (Date.now() - startTime);
+          this.stats.llm.attempts++;
+          this.stats.llm.successes++;
+          try {
+            const { BrainSystem } = require('../../src/core/BrainSystem');
+            if (BrainSystem.smartStore && userId && userId !== 'anonymous') {
+              BrainSystem.smartStore(`chat_reply_${userId}_${Date.now()}`, { input: text, output: fullText, userId });
+            }
+          } catch (e) { /* 记忆可选，失败静默 */ }
           this._saveConversations();
           onEnd({ source: 'ollama', text: fullText });
           return;
