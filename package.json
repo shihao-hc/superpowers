@@ -96,7 +96,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "jsonwebtoken": "^9.0.3",
     "mineflayer": "^4.35.0",
     "mineflayer-pathfinder": "^2.4.5",
@@ -118,17 +118,17 @@
   "overrides": {
     "protobufjs": "8.6.6",
     "uuid": "11.1.1",
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "brace-expansion": "5.0.9",
-    "fast-uri": "3.1.5",
-    "hono": "4.12.34",
+    "fast-uri": "4.1.4",
+    "hono": "4.13.7",
     "@hono/node-server": "2.0.11",
     "@xenova/transformers": {
-      "sharp": "0.35.3"
+      "sharp": "0.35.4"
     },
     "babel-plugin-istanbul": {
       "@istanbuljs/load-nyc-config": {
-        "js-yaml": "4.3.1"
+        "js-yaml": "4.3.2"
       }
     },
     "discord.js": {
@@ -141,6 +141,7 @@
       "@discordjs/rest": {
         "undici": "6.28.0"
       }
-    }
+    },
+    "qs": "6.16.0"
   }
 }
