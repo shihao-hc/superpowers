@@ -2552,6 +2552,23 @@ Session 锚点: 2026-08-12 (第83次b — npm audit 新公告清零: sharp/js-ya
 
 ---
 
+Session 锚点: 2026-08-12 (第84次 — 工具循环部分成功诚实化 + 全栈集成测试)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,838 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Gap 4b (工具循环部分成功静默吞掉) + Gap 2 (全栈集成测试缺失) — 两个高价值内部项
+- **Gap 4b 部分成功诚实化**: 工具循环摘要 LLM 调用失败 (Ollama 挂了但 docx 已生成) → 此前外层 catch 返回 canned fallback (用户不知文档已生成) → 加 `_lastToolResults` 捕获 + catch 时返回 `_describeToolResult` (诚实告知工具结果)
+  - 验证: mock 工具成功 + 摘要 LLM 抛错 → 返回 DOCX 结果描述, 非 fallback
+- **Gap 2 全栈集成测试** (`tests/unit/skill-fullstack.integration.test.js`, 3 tests): crown-jewel 回归锁 — 此前所有工具测试都 mock `_executeToolCalls`, 真实 docx 生成从未测过
+  - chat → 真实 _executeToolCalls → mock bridge tool_call → 验证 toolResults
+  - 真实 AsyncExecutor → 真实 DocxExecutor → 真实 .docx 文件 (tmp cwd, 断言文件存在 >100B)
+  - path-traversal skillName → 白名单强制 (文件写回 uploads/skills/docx, 不逃逸)
+- **测试隔离**: tmp cwd (mkdtemp) + afterEach 清理 BrainSystem 共享实例 interval (forceThink → _getSharedInstance 泄漏)
+- **新增 1 测试**: 部分成功诚实化 (工具成功 + LLM 失败 → 工具结果描述)
+- **验证**: 全量 344/16,838/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (30→31), `tests/unit/skill-fullstack.integration.test.js` (新)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

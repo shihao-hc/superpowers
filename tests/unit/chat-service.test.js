@@ -241,6 +241,33 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('honestly reports tool results when summary LLM call fails (partial success)', async () => {
+      const mockBridge = {
+        chat: jest.fn()
+          .mockResolvedValueOnce({
+            ok: true,
+            text: '',
+            tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'docx', title: '报告' } } }]
+          })
+          .mockRejectedValueOnce(new Error('ollama died after tool exec'))
+      };
+      const origBridge = chatService.ollamaBridge;
+      const execSpy = jest.spyOn(chatService, '_executeToolCalls').mockResolvedValue([{ tool: 'generate_document', ok: true, result: { type: 'docx', message: '已生成' } }]);
+      try {
+        chatService.ollamaBridge = mockBridge;
+        const conv = { personality: 'default', messages: [{ role: 'user', content: '生成报告' }], context: {} };
+        const r = await chatService.generateResponse('帮我生成一份报告', conv);
+        // 工具已执行，LLM 失败 → 诚实告知工具结果，非 canned fallback
+        expect(r.toolResults).toBeDefined();
+        expect(r.toolResults.length).toBeGreaterThan(0);
+        expect(r.text).toContain('DOCX');
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        execSpy.mockRestore();
+        chatService._lastToolResults = null;
+      }
+    });
+
     it('_executeToolCalls fails honestly for placeholder skill (no real executor)', async () => {
       // '../../evil' 或未知类型 → AsyncExecutor placeholder → 诚实失败而非假装成功
       const r1 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: '../../evil' } } }]);
