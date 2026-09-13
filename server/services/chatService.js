@@ -102,7 +102,8 @@ class ChatService extends EventEmitter {
     let type = 'docx';
     if (/pdf/i.test(t)) { type = 'pdf'; }
     else if (/图形|海报|图片|图标|chart|canvas/i.test(t)) { type = 'canvas-design'; }
-    else if (/word|docx|文档|报告|周报|表格/i.test(t)) { type = 'docx'; }
+    else if (/excel|xlsx|电子表格|工作表/i.test(t)) { type = 'xlsx'; }
+    else if (/word|docx|文档|报告|周报/i.test(t)) { type = 'docx'; }
     // 若只是问"能生成吗"而非明确请求，不触发
     if (/能(否|不能|可以)?生成|是否|怎么生成|如何生成/.test(t) && !/帮我|请|给我|帮我生成|请生成/.test(t)) {
       return null;
@@ -131,14 +132,14 @@ class ChatService extends EventEmitter {
         type: 'function',
         function: {
           name: 'generate_document',
-          description: '生成 Office 文档（Word/PDF/Canvas 图形）。当用户要求创建/生成文档、报告、表格、图形时使用。',
+          description: '生成 Office 文档（Word/PDF/Excel/Canvas 图形）。当用户要求创建/生成文档、报告、表格、Excel 表格、图形时使用。',
           parameters: {
             type: 'object',
             properties: {
-              type: { type: 'string', enum: ['docx', 'pdf', 'canvas-design'], description: '文档类型' },
+              type: { type: 'string', enum: ['docx', 'pdf', 'xlsx', 'canvas-design'], description: '文档类型' },
               title: { type: 'string', description: '文档标题' },
               content: { type: 'string', description: '文档内容或描述' },
-              action: { type: 'string', enum: ['create'], description: '操作，默认 create' }
+              action: { type: 'string', enum: ['create', 'createWithData'], description: '操作，默认 create' }
             },
             required: ['type']
           }

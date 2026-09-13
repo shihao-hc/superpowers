@@ -2640,6 +2640,23 @@ Session 锚点: 2026-08-12 (第89次 — 死代码清理: xlsx/pptx stale whitel
 
 ---
 
+Session 锚点: 2026-08-12 (第90次 — 真实 xlsx 执行器: Excel 表格生成)
+- ESLint: 0/0 (相关文件) | Tests: **345 passed suites / 4 skipped / 0 failed** (16,848 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent B5)**: xlsx/pptx 曾归档为 JSON stub; 用户要 Excel 表格得不到真实 .xlsx
+- **XlsxExecutor 实现 (真实)**: `src/skills/executors/XlsxExecutor.js` — 用 exceljs (新依赖, 纯 JS 无编译, 3s 安装, audit 0) 生成真实 .xlsx
+  - `create`: 基础表格 (标题 + sheet)
+  - `createWithData`: 表头 + 数据行 (数组/对象)
+  - `read`: 读取工作簿内容 (工作表 + 行)
+  - `_resolveOutputPath`: 白名单安全路径 (uploads/skills/<skillName>), stat 失败 size=0 健壮
+- **AsyncExecutor**: 白名单 + executorMap 加回 `xlsx` (真实执行器); 工具 schema enum 加 xlsx; `_ruleBasedDocumentCall` 加 `/excel|xlsx|电子表格|工作表/` → xlsx (`表格` 保持 docx Word 表格)
+- **验证 (真实)**: create → 真实 .xlsx (6.5KB); createWithData → 带数据; read 回读 5 行; 路径穿越安全
+- **新增 5 测试** (mock exceljs): create/createWithData/read/unsupported-action/AsyncExecutor 强制 skill 名
+- **验证**: 全量 345/16,848/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 5 文件
+- 相关文件: `src/skills/executors/XlsxExecutor.js` (新), `src/skills/agent/AsyncExecutor.js`, `server/services/chatService.js`, `tests/unit/xlsx-executor.test.js` (新), `package.json`
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)
