@@ -506,6 +506,16 @@ describe('ChatService (BrainSystem-wired)', () => {
       expect(stats.activeConversations).toBe(1);
       expect(stats.averageLatency).toBeGreaterThanOrEqual(0);
     });
+
+    it('includes tool usage counters in stats structure', async () => {
+      const stats = chatService.getStats();
+      expect(stats.tools).toBeDefined();
+      expect(stats.tools).toHaveProperty('calls');
+      expect(stats.tools).toHaveProperty('success');
+      expect(stats.tools).toHaveProperty('failed');
+      expect(stats.tools).toHaveProperty('filesGenerated');
+      expect(stats.tools).toHaveProperty('byType');
+    });
   });
 
   describe('cleanupInactiveSessions', () => {

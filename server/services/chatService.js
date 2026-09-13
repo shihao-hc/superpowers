@@ -23,7 +23,14 @@ class ChatService extends EventEmitter {
       totalMessages: 0,
       totalLatency: 0,
       errors: 0,
-      llm: { attempts: 0, successes: 0, fallbacks: 0 }
+      llm: { attempts: 0, successes: 0, fallbacks: 0 },
+      tools: {
+        calls: 0,
+        success: 0,
+        failed: 0,
+        filesGenerated: 0,
+        byType: {}
+      }
     };
 
     // LLM 推理（Ollama）— 可注入 mock，默认惰性创建
@@ -268,6 +275,21 @@ class ChatService extends EventEmitter {
     }
     if (process.env.DEBUG_TOOLS === '1') {
       console.log('[_executeToolCalls] results:', JSON.stringify(results).slice(0, 200));
+    }
+    // 工具调用统计（可观测性）
+    for (const r of results) {
+      this.stats.tools.calls++;
+      if (r.ok === true) {
+        this.stats.tools.success++;
+        if (r.result && r.result.type) {
+          this.stats.tools.byType[r.result.type] = (this.stats.tools.byType[r.result.type] || 0) + 1;
+        }
+        if (r.result && r.result.path) {
+          this.stats.tools.filesGenerated++;
+        }
+      } else {
+        this.stats.tools.failed++;
+      }
     }
     return results;
   }

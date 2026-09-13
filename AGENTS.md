@@ -2723,6 +2723,20 @@ Session 锚点: 2026-08-12 (第94次 — processStream 多轮工具循环: 主 U
 
 ---
 
+Session 锚点: 2026-08-12 (第95次 — 工具调用可观测性: stats.tools 计数)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,857 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: admin 可观测性 — chatService 无工具/文档生成计数, admin 无法看工具循环是否被用
+- **stats.tools 计数**: `chatService.stats.tools` = {calls, success, failed, filesGenerated, byType} — `_executeToolCalls` 遍历 results 累加 (成功/失败/文件/类型分布)
+  - GET /api/chat/stats 自动透传 (getStats 展开 stats)
+- **验证**: 生成 Excel → calls 4/success 4/filesGenerated 4/byType {xlsx:4} (4 轮多轮循环每轮执行); stats 结构含 tools
+- **新增 1 测试**: includes tool usage counters in stats structure
+- **时序 flaky**: session-manager TTL 断言 5001 vs 5000 (毫秒边界) — 单独跑 33/33 过, 非回归
+- **验证**: 全量 346/16,857/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (37→38)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)
