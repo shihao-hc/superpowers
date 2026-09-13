@@ -418,6 +418,37 @@ describe('ChatService (BrainSystem-wired)', () => {
     });
   });
 
+  describe('context compaction', () => {
+    it('compacts conversation when shouldCompact is true', async () => {
+      // 模拟压缩触发：spyOn shouldCompact + compact（自动 restore，不破坏真实实例）
+      const shouldSpy = jest.spyOn(chatService.contextCompact, 'shouldCompact').mockReturnValue(true);
+      const compactSpy = jest.spyOn(chatService.contextCompact, 'compact').mockResolvedValue({
+        success: true, preTokens: 1000, postTokens: 500
+      });
+      const origMessages = chatService.contextCompact.messages;
+      chatService.contextCompact.messages = [
+        { role: 'system', content: '[Earlier conversation summarized]', timestamp: Date.now() },
+        { role: 'user', content: '最近消息', timestamp: Date.now() }
+      ];
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: '回复' }) };
+      const origExec = chatService._executeToolCalls;
+      chatService._executeToolCalls = jest.fn().mockResolvedValue([]);
+      try {
+        await chatService.processMessage({ text: '触发压缩', userId: 'compact-1' });
+        const conv = chatService.conversations.get('compact-1');
+        expect(conv.messages.length).toBeGreaterThan(0);
+        expect(conv.messages[0].content).toContain('summarized');
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        chatService._executeToolCalls = origExec;
+        chatService.contextCompact.messages = origMessages;
+        shouldSpy.mockRestore();
+        compactSpy.mockRestore();
+      }
+    });
+  });
+
   describe('getStats', () => {
     it('returns stats with active conversations', async () => {
       await chatService.processMessage({ text: 's', userId: 's1' });
