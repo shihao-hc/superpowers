@@ -554,6 +554,20 @@ class ChatService extends EventEmitter {
     }
     this.stats.llm.fallbacks++;
 
+    // 确定性兜底：Ollama 不可用时，用户明确请求文档仍可生成（不依赖 LLM）
+    const fallbackTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|excel|xlsx|周报|海报|图片|图标/i.test(text);
+    if (fallbackTrigger) {
+      try {
+        const ruleBased = this._ruleBasedDocumentCall(text);
+        if (ruleBased) {
+          const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
+          if (toolResults.some((r) => r.ok === true)) {
+            return { text: this._describeToolResult(toolResults), confidence: 0.7, source: 'rule-based', toolResults, ruleBased: true };
+          }
+        }
+      } catch (e) { /* 规则兜底失败，继续话术 */ }
+    }
+
     const personality = conversation.personality || 'default';
     const _context = conversation.context || {};
 

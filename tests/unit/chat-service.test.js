@@ -268,6 +268,25 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('generates documents via rule-based fallback when Ollama is unavailable', async () => {
+      const origGetBridge = chatService._getOllamaBridge;
+      const origExec = chatService._executeToolCalls;
+      // Ollama 完全不可用
+      chatService._getOllamaBridge = () => null;
+      chatService._executeToolCalls = jest.fn().mockResolvedValue([{ tool: 'generate_document', ok: true, result: { type: 'docx', message: '已生成' } }]);
+      try {
+        const conv = { personality: 'default', messages: [], context: {} };
+        const r = await chatService.generateResponse('帮我生成一份标题为"测试"的 Word 文档', conv, 'rule-user');
+        expect(r.ruleBased).toBe(true);
+        expect(r.source).toBe('rule-based');
+        expect(r.toolResults.length).toBeGreaterThan(0);
+        expect(chatService._executeToolCalls).toHaveBeenCalled();
+      } finally {
+        chatService._getOllamaBridge = origGetBridge;
+        chatService._executeToolCalls = origExec;
+      }
+    });
+
     it('_executeToolCalls fails honestly for placeholder skill (no real executor)', async () => {
       // '../../evil' 或未知类型 → AsyncExecutor placeholder → 诚实失败而非假装成功
       const r1 = await chatService._executeToolCalls([{ function: { name: 'generate_document', arguments: { type: '../../evil' } } }]);

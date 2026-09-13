@@ -2696,6 +2696,19 @@ Session 锚点: 2026-08-12 (第92次 — 文件交付: 下载路由 + SSE 工具
 
 ---
 
+Session 锚点: 2026-08-12 (第93次 — 规则文档生成脱离 LLM 依赖: Ollama 宕机仍能生成文档)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,855 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: Rank 2 — `_ruleBasedDocumentCall` 是纯确定性解析 (正则标题/类型), executors 也是纯函数, 但只在 `if (bridge)` + `result.ok` 路径内调用 → Ollama 宕机时文档生成完全死亡 (虽完全确定, 不依赖 LLM)
+- **修复**: `generateResponse` fallback 路径 (catch 后, canned 话术前) 加规则兜底 — Ollama 不可用时, 用户明确请求文档仍确定性生成 (source: 'rule-based', ruleBased: true)
+  - 不绕过 LLM: 仅在 LLM 失败后才走规则 (Ollama 可用时优先 LLM 路径)
+- **验证**: `_getOllamaBridge` 返回 null → 文档请求 → rule-based 生成文件 (tools 1); 普通对话 → fallback 话术
+- **新增 1 测试**: generates documents via rule-based fallback when Ollama unavailable
+- **验证**: 全量 346/16,855/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (35→36)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)
