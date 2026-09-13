@@ -2627,6 +2627,19 @@ Session 锚点: 2026-08-12 (第88次 — _lastToolResults 跨请求泄漏 + sema
 
 ---
 
+Session 锚点: 2026-08-12 (第89次 — 死代码清理: xlsx/pptx stale whitelist + contextCompact 激活)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,843 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **死代码清理 (subagent B5/B6)**: 
+  - `AsyncExecutor.js` `builtinExecutable` + executorMap 含 `xlsx`/`pptx` 但对应 executor 文件已归档 → `_loadExecutorModule` 返回 null → 静默 placeholder (stale trap) → 移除死引用
+  - `chatService.js` contextCompact 块 inert — `compact()` 返回 `{success,preTokens,...}` 无 `.messages` 字段 → L379 `if (compacted.messages)` 恒 false → 整个压缩功能从未生效 + 未 await (fire-and-forget)
+- **contextCompact 激活修复**: `await this.contextCompact.compact()` + 从 `this.contextCompact.messages` 取压缩后消息 (compact 内部更新) → 映射回 conversation.messages; 包 try-catch 非侵入式 (压缩失败不影响对话)
+- **诚实判断**: `表格` → docx 保留 (docx createDocumentWithTable 支持表格), 不误导; LLM 明确要 Excel/PPT 会诚实告知无此能力
+- **验证**: 全量 344/16,843/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `server/services/chatService.js`
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

@@ -501,7 +501,7 @@ class AsyncExecutor {
    */
   _getDefaultExecutor() {
     const skillManager = this.skillManager;
-    const builtinExecutable = ['docx', 'pdf', 'canvas-design', 'canvas', 'xlsx', 'pptx'];
+    const builtinExecutable = ['docx', 'pdf', 'canvas-design', 'canvas'];
     return {
       execute: async (skillName, parameters, _options) => {
         // 真实技能执行：白名单校验 → per-skill executor 或 SkillToNode 脚本
@@ -565,9 +565,7 @@ class AsyncExecutor {
         'docx': 'DocxExecutor',
         'pdf': 'PdfExecutor',
         'canvas-design': 'CanvasExecutor',
-        'canvas': 'CanvasExecutor',
-        'xlsx': 'XlsxExecutor',
-        'pptx': 'PptxExecutor'
+        'canvas': 'CanvasExecutor'
       };
       const className = executorMap[skillName];
       if (!className) { return null; }

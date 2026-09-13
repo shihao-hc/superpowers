@@ -373,13 +373,23 @@ class ChatService extends EventEmitter {
       // Claude Code 风格的上下文压缩
       this.contextCompact.addMessage(userMessage);
 
-      // 检查是否需要压缩
+      // 检查是否需要压缩（非侵入式：压缩失败不影响对话）
       if (this.contextCompact.shouldCompact()) {
-        const compacted = this.contextCompact.compact();
-        if (compacted.messages) {
-          conversation.messages = compacted.messages;
-        }
-        this.emit('context:compacted', { userId, compacted: compacted.stats });
+        try {
+          const compacted = await this.contextCompact.compact();
+          if (compacted && compacted.success) {
+            // 从 ContextCompactService 取压缩后的消息（compact 内部更新了 this.messages）
+            const compactedMessages = this.contextCompact.messages || [];
+            if (Array.isArray(compactedMessages) && compactedMessages.length > 0) {
+              conversation.messages = compactedMessages.map((m) => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.content || '',
+                timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+              }));
+            }
+          }
+          this.emit('context:compacted', { userId, compacted });
+        } catch (e) { /* 压缩失败静默，不影响对话 */ }
       }
 
       // 生成回复
