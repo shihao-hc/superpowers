@@ -2657,6 +2657,19 @@ Session 锚点: 2026-08-12 (第90次 — 真实 xlsx 执行器: Excel 表格生�
 
 ---
 
+Session 锚点: 2026-08-12 (第90次b — 夯实: 通用路径透传 bug 修复 (所有 executor 文件路径曾为 null))
+- ESLint: 0/0 (相关文件) | Tests: **345 passed suites / 4 skipped / 0 failed** (16,849 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **xlsx 真实端到端夯实**: chat 工具调用生成 Excel → toolResults {type:xlsx} + 真实 .xlsx 落盘; 普通对话不误触发
+- **🔴 通用路径透传 bug 修复 (5.3 发现即修复)**: `_executeToolCalls` L238 `finalResult.result ? (result.path || finalResult.path) : null` — AsyncExecutor 的 `waitForCompletion` resolve `execution.result` (executor 直接返回 `{type,path,...}` 无 `.result` 字段) → `finalResult.result` undefined → **整个表达式返回 null, 所有 executor 的文件路径从未透传给用户** (docx/pdf/xlsx 都受影响, Round 71 引入)
+  - 修复: `(finalResult.result && finalResult.result.path) || finalResult.path || null` (兼容 result 包装或直接返回)
+  - 验证: xlsx + docx 均正确返回真实路径; 新增 1 测试 (真实执行 + tmp cwd, 断言路径存在且 .xlsx)
+- **教训**: 清理 uploads/skills/ 时又误删已跟踪测试产物 → git checkout 恢复 (Round 71c 同教训重复)
+- **验证**: 全量 345/16,849/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (33→34)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

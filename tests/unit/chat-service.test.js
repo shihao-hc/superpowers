@@ -277,6 +277,29 @@ describe('ChatService (BrainSystem-wired)', () => {
       expect(r2[0].ok).toBe(false);
     }, 20000);
 
+    it('_executeToolCalls returns real file path for generated documents', async () => {
+      // 真实执行：AsyncExecutor + XlsxExecutor 生成文件，验证路径透传（L238 提取修复）
+      const os = require('os');
+      const fs2 = require('fs');
+      const path2 = require('path');
+      const origCwd = process.cwd();
+      const tmpDir = fs2.mkdtempSync(path2.join(os.tmpdir(), 'tool-path-'));
+      process.chdir(tmpDir);
+      try {
+        const r = await chatService._executeToolCalls([
+          { function: { name: 'generate_document', arguments: { type: 'xlsx', title: '路径测试' } } }
+        ]);
+        expect(r[0].ok).toBe(true);
+        expect(r[0].result.path).toBeTruthy();
+        expect(r[0].result.path.endsWith('.xlsx')).toBe(true);
+        // 文件真实存在
+        expect(fs2.existsSync(r[0].result.path)).toBe(true);
+      } finally {
+        process.chdir(origCwd);
+        try { fs2.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
+      }
+    });
+
     it('_executeToolCalls rejects unknown tools', async () => {
       const r = await chatService._executeToolCalls([{ function: { name: 'not_a_tool', arguments: {} } }]);
       expect(r[0].ok).toBe(false);

@@ -235,7 +235,10 @@ class ChatService extends EventEmitter {
             content: args.content || ''
           });
           const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 30000 });
-          const filePath = finalResult && finalResult.result ? (finalResult.result.path || finalResult.path || null) : null;
+          // 提取文件路径（兼容 result 包装或直接返回）
+          const filePath = (finalResult && finalResult.result && finalResult.result.path) ||
+            (finalResult && finalResult.path) ||
+            null;
           // placeholder 非真实执行 → 诚实失败
           const placeholder = finalResult ? finalResult.placeholder : false;
           if (placeholder) {
