@@ -2599,6 +2599,19 @@ Session 锚点: 2026-08-12 (第86次 — 记忆跨用户隔离 + processStream l
 
 ---
 
+Session 锚点: 2026-08-12 (第87次 — 语义嵌入熔断: 消除每消息浪费的失败 HTTP 调用)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,843 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: #2 语义检索探针 — 每次聊天消息 `_buildSysPrompt` 先调 `smartSearchSemantic` → `new OllamaBridge()` + `embedder(query)` → `client.embeddings` HTTP round-trip 失败 → 降级关键词 (每消息浪费一次失败调用, 含 Ollama 日志错误噪音)
+- **OllamaBridge.embed 熔断**: 首次失败缓存 `_embedUnavailableAt` (静态类级), 5 分钟内不重试 (嵌入不可用是配置问题 — 需 --embeddings + pull nomic-embed-text, 非瞬时故障); 5 分钟 TTL 允许用户中途启用后恢复
+- **验证**: 首次失败 → 第二次调用不发 HTTP (client.embeddings 只调 1 次); 成功返回 embedding
+- **新增 2 测试**: embed 成功返回 + 失败熔断 (5 分钟不重试)
+- **注意**: 嵌入真正可用仍需用户配置 (Ollama --embeddings + pull nomic-embed-text) — 代码侧已就绪
+- **验证**: 全量 344/16,843/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `src/localInferencing/OllamaBridge.js`, `tests/unit/ollama-bridge.test.js` (37→39)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

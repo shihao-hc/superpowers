@@ -30,13 +30,19 @@ class OllamaBridge {
     const model = options.model || process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
     const prompt = String(text || '').slice(0, MAX_INPUT_LENGTH);
     if (!prompt) { return null; }
+    // 熔断：嵌入不可用通常是配置问题（需 --embeddings + pull 模型），5 分钟内不重试（避免每消息浪费失败调用）
+    if (OllamaBridge._embedUnavailableAt && Date.now() - OllamaBridge._embedUnavailableAt < 300000) {
+      return null;
+    }
     try {
       const response = await this.client.embeddings({ model, prompt });
       if (response && Array.isArray(response.embedding)) {
         return response.embedding;
       }
+      OllamaBridge._embedUnavailableAt = Date.now();
       return null;
     } catch (e) {
+      OllamaBridge._embedUnavailableAt = Date.now();
       return null;
     }
   }

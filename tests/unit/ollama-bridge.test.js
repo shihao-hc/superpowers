@@ -7,6 +7,7 @@ class MockOllama {
     this.list = jest.fn();
     this.chat = jest.fn();
     this.generate = jest.fn();
+    this.embeddings = jest.fn();
     mockOllamaInstances.push(this);
   }
 }
@@ -410,6 +411,32 @@ describe('OllamaBridge', () => {
       const bridge = makeBridge();
       jest.spyOn(bridge, 'listModels').mockRejectedValue(new Error('internal'));
       expect(await bridge.listVisionModels()).toEqual([]);
+    });
+  });
+
+  describe('embed', () => {
+    test('returns embedding on success', async () => {
+      const bridge = makeBridge();
+      const inst = mockOllamaInstances[mockOllamaInstances.length - 1];
+      inst.embeddings.mockResolvedValue({ embedding: [0.1, 0.2, 0.3] });
+      const result = await bridge.embed('测试文本');
+      expect(result).toEqual([0.1, 0.2, 0.3]);
+      expect(inst.embeddings).toHaveBeenCalledWith({ model: 'nomic-embed-text', prompt: '测试文本' });
+    });
+
+    test('returns null on failure and circuit-breaks for 5 min', async () => {
+      const bridge = makeBridge();
+      const inst = mockOllamaInstances[mockOllamaInstances.length - 1];
+      inst.embeddings.mockRejectedValue(new Error('not supported'));
+      // 清理静态熔断标记
+      delete require('../../src/localInferencing/OllamaBridge').OllamaBridge._embedUnavailableAt;
+      expect(await bridge.embed('x')).toBeNull();
+      expect(inst.embeddings).toHaveBeenCalledTimes(1);
+      // 熔断：第二次调用不再发 HTTP
+      expect(await bridge.embed('y')).toBeNull();
+      expect(inst.embeddings).toHaveBeenCalledTimes(1);
+      // 清理熔断标记（避免影响其他测试）
+      delete require('../../src/localInferencing/OllamaBridge').OllamaBridge._embedUnavailableAt;
     });
   });
 });
