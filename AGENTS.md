@@ -2709,6 +2709,20 @@ Session 锚点: 2026-08-12 (第93次 — 规则文档生成脱离 LLM 依赖: Ol
 
 ---
 
+Session 锚点: 2026-08-12 (第94次 — processStream 多轮工具循环: 主 UI 与 POST 路径对齐)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,856 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: processStream 工具块是单次检测 (调一次 LLM 带 tools, 有 tool_calls 执行一次), 与 generateResponse 的 4 轮循环不一致 → 主 UI 用户无法链式多轮 (读→生成)
+- **修复**: processStream 工具块改多轮循环 (最多 4 轮, 与 generateResponse 一致): 每轮执行 tool_calls → 累积 roundHistory → 再调 LLM; 累积所有 toolResults; 达上限诚实告知 truncated
+  - 无工具结果 → 回退流式 (不误拦截纯文本对话)
+- **验证 (mock)**: 连续 2 轮 tool_calls + 最终文本 → toolResults 2 + bridge calls 3 (1 首轮 + 2 工具轮); 普通 SSE 对话仍流式 (27 chunks)
+- **新增 1 测试**: supports multi-round tool calls in the stream path
+- **诚实记录**: 真实 LLM (llama3.2) 在"读取文件"prompt 下偶尔幻觉 (编造 JSON 而非调工具) — 模型行为非代码 bug
+- **验证**: 全量 346/16,856/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js` (36→37)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

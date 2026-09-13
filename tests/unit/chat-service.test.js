@@ -413,6 +413,36 @@ describe('ChatService (BrainSystem-wired)', () => {
         chatService.ollamaBridge = origBridge;
       }
     });
+
+    it('supports multi-round tool calls in the stream path', async () => {
+      let calls = 0;
+      const mockBridge = {
+        chat: jest.fn(async () => {
+          calls++;
+          if (calls === 1) return { ok: true, text: '', tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'xlsx', title: 'A' } } }] };
+          if (calls === 2) return { ok: true, text: '', tool_calls: [{ function: { name: 'generate_document', arguments: { type: 'docx', title: 'B' } } }] };
+          return { ok: true, text: '已完成' };
+        })
+      };
+      const origBridge = chatService.ollamaBridge;
+      const origExec = chatService._executeToolCalls;
+      chatService._executeToolCalls = jest.fn().mockResolvedValue([{ tool: 'x', ok: true, result: {} }]);
+      chatService._mcpTried = true;
+      let endInfo = null;
+      try {
+        chatService.ollamaBridge = mockBridge;
+        await chatService.processStream({
+          text: '帮我生成 Excel 和 Word 文档', userId: 'stream-multi-round',
+          onData: () => {}, onEnd: (r) => { endInfo = r; }, onError: () => {}
+        });
+        expect(endInfo).toBeDefined();
+        expect(endInfo.toolResults.length).toBe(2); // 2 轮工具
+        expect(calls).toBe(3); // 1 首轮 + 2 工具轮
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        chatService._executeToolCalls = origExec;
+      }
+    });
   });
 
   describe('getHistory / clearHistory', () => {

@@ -669,18 +669,37 @@ class ChatService extends EventEmitter {
           const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation, userId);
           const messages = [{ role: 'system', content: sysPrompt }, ...history];
 
-          // 工具调用检测：用户请求文档/读文件等 → 先非流式调 LLM 带 tools，若触发工具则执行
+          // 工具调用多轮循环（与 generateResponse 一致）：LLM 请求工具 → 执行 → 结果回填 → 再调 LLM
           if (toolTrigger) {
             try {
               const toolSchema = await this._buildToolsSchema();
-              const toolResult = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolSchema });
+              const maxRounds = 4;
+              let roundHistory = [...history];
+              let roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory, { tools: toolSchema });
               this.stats.llm.attempts++;
-              if (toolResult && toolResult.ok && Array.isArray(toolResult.tool_calls) && toolResult.tool_calls.length > 0) {
-                const toolResults = await this._executeToolCalls(toolResult.tool_calls);
-                this._lastToolResults = toolResults;
-                const partial = toolResults.some((r) => r.ok === true);
+              const allToolResults = [];
+              for (let round = 0; round < maxRounds; round++) {
+                if (!(roundResult && roundResult.ok && Array.isArray(roundResult.tool_calls) && roundResult.tool_calls.length > 0)) {
+                  break;
+                }
+                const toolResults = await this._executeToolCalls(roundResult.tool_calls);
+                allToolResults.push(...toolResults);
+                this._lastToolResults = allToolResults;
+                const toolMessages = [
+                  { role: 'assistant', content: roundResult.text || '', tool_calls: roundResult.tool_calls },
+                  ...toolResults.map((r) => ({
+                    role: 'tool',
+                    content: JSON.stringify(r).substring(0, 500)
+                  }))
+                ];
+                roundHistory = [...roundHistory, ...toolMessages];
+                roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory);
+                this.stats.llm.attempts++;
+              }
+              if (allToolResults.length > 0) {
+                const partial = allToolResults.some((r) => r.ok === true);
                 const finalText = partial
-                  ? this._describeToolResult(toolResults)
+                  ? this._describeToolResult(allToolResults)
                   : '工具调用未能成功完成。已尝试的操作见工具结果。';
                 conversation.messages.push({
                   id: Date.now().toString(36) + Math.random().toString(36).substr(2),
@@ -689,16 +708,43 @@ class ChatService extends EventEmitter {
                   timestamp: new Date(),
                   latency: Date.now() - startTime
                 });
+                if (conversation.messages.length > 100) {
+                  conversation.messages = conversation.messages.slice(-50);
+                }
                 this.stats.totalMessages++;
                 this.stats.totalLatency += (Date.now() - startTime);
                 this.stats.llm.successes++;
                 // 单次发送工具结果（前端无需逐 token）
                 onData({ type: 'chunk', content: finalText, fullText: finalText, progress: 1 });
                 this._saveConversations();
-                onEnd({ source: 'ollama', text: finalText, toolResults });
+                onEnd({ source: 'ollama', text: finalText, toolResults: allToolResults });
                 return;
               }
-              // 无工具调用 → 回退到流式（工具 schema 已传但 LLM 选择纯文本）
+              // 无工具结果 → 回退到流式（不在此返回，落到下方 stream 分支）
+              // 达轮次上限但工具部分执行 → 诚实告知
+              if (allToolResults.length > 0) {
+                const partial = allToolResults.some((r) => r.ok === true);
+                const finalText = partial
+                  ? this._describeToolResult(allToolResults)
+                  : '工具调用未能成功完成。已尝试的操作见工具结果。';
+                conversation.messages.push({
+                  id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                  role: 'assistant',
+                  content: finalText,
+                  timestamp: new Date(),
+                  latency: Date.now() - startTime
+                });
+                if (conversation.messages.length > 100) {
+                  conversation.messages = conversation.messages.slice(-50);
+                }
+                this.stats.totalMessages++;
+                this.stats.totalLatency += (Date.now() - startTime);
+                this.stats.llm.successes++;
+                onData({ type: 'chunk', content: finalText, fullText: finalText, progress: 1 });
+                this._saveConversations();
+                onEnd({ source: 'ollama', text: finalText, toolResults: allToolResults, truncated: true });
+                return;
+              }
             } catch (e) { /* 工具检测失败，回退流式 */ }
           }
 
