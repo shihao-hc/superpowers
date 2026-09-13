@@ -2584,6 +2584,21 @@ Session 锚点: 2026-08-12 (第85次 — 会话数量上限 + 清理接线 + cle
 
 ---
 
+Session 锚点: 2026-08-12 (第86次 — 记忆跨用户隔离 + processStream lastActivity 修复)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,841 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 发现 2 个真实缺陷 — #4 记忆跨用户泄漏 (隐私) + #5 processStream 不更新 lastActivity (数据丢失)
+- **#4 记忆跨用户泄漏修复 (隐私, 最高价值)**: `smartSearch` 纯关键词匹配, **不按 userId 过滤** — 用户 A 的存储文本会注入用户 B 的 prompt (两个用户聊"密码/项目X"会看到对方内容)
+  - SmartMemory.search/semanticSearch 加 `userId` 过滤 (metadata.userId 匹配); BrainSystem.smartSearch/smartSearchSemantic 透传; chatService._buildSysPrompt 加 userId → generateResponse/processStream 传 userId
+  - 验证: A/B 相同关键词记忆 → A 只看到 A, B 只看到 B; 无 userId → 全量 (向后兼容)
+  - 新增 1 测试: search filters by userId (cross-user isolation)
+- **#5 processStream lastActivity 修复 (数据丢失)**: 主 UI 路径 (index.html → /api/chat/stream) 的 processStream **从不更新 lastActivity** → 活跃流式会话 >1h 在 shutdown 被删除持久化 (重启数据丢失)
+  - 修复: 用户消息处 + fallback 处加 lastActivity; fallback 路径补 stats + _saveConversations (与 Ollama 路径对称)
+- **验证**: 全量 344/16,841/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 4 文件
+- 相关文件: `src/core/SmartMemory.js`, `src/core/BrainSystem.js`, `server/services/chatService.js`, `tests/unit/smart-memory.test.js` (24→25)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

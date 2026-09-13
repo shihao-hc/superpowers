@@ -31,11 +31,15 @@ class SmartMemory {
     return { stored: true, key };
   }
 
-  search(query, limit = 5) {
+  search(query, limit = 5, userId) {
     const results = [];
     const queryLower = query.toLowerCase();
 
     for (const memory of this._memories) {
+      // 用户隔离：仅检索当前用户的记忆（metadata.userId 匹配）
+      if (userId && memory.metadata && memory.metadata.userId && memory.metadata.userId !== userId) {
+        continue;
+      }
       const keyLower = memory.key.toLowerCase();
       const valueLower = JSON.stringify(memory.value).toLowerCase();
 
@@ -60,17 +64,21 @@ class SmartMemory {
    * 语义检索 — 基于嵌入的余弦相似度
    * embedder: (text) => Promise<number[]>，失败/不可用时降级为关键词 search
    */
-  async semanticSearch(query, limit = 5, embedder) {
+  async semanticSearch(query, limit = 5, embedder, userId) {
     if (typeof embedder !== 'function') {
-      return this.search(query, limit);
+      return this.search(query, limit, userId);
     }
     try {
       const queryEmbed = await embedder(String(query || ''));
       if (!Array.isArray(queryEmbed) || queryEmbed.length === 0) {
-        return this.search(query, limit);
+        return this.search(query, limit, userId);
       }
       const scored = [];
       for (const memory of this._memories) {
+        // 用户隔离：仅检索当前用户的记忆
+        if (userId && memory.metadata && memory.metadata.userId && memory.metadata.userId !== userId) {
+          continue;
+        }
         let memEmbed = this._embeddings.get(memory.key);
         if (!Array.isArray(memEmbed) || memEmbed.length === 0) {
           memEmbed = await embedder(`${memory.key} ${JSON.stringify(memory.value)}`);
@@ -83,13 +91,13 @@ class SmartMemory {
         scored.push({ ...memory, score: sim });
       }
       if (scored.length === 0) {
-        return this.search(query, limit);
+        return this.search(query, limit, userId);
       }
       scored.sort((a, b) => b.score - a.score);
       const top = scored[0] ? scored[0].score : 0;
       // 仅当语义相似度足够时采用语义结果，否则回退关键词
       if (top < 0.3) {
-        return this.search(query, limit);
+        return this.search(query, limit, userId);
       }
       return scored.slice(0, limit);
     } catch (e) {

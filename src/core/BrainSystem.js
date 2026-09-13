@@ -1498,16 +1498,16 @@ BrainSystem._hydrateSmartMemory = function() {
 /**
  * 智能检索
  */
-BrainSystem.smartSearch = function(query, limit) {
+BrainSystem.smartSearch = function(query, limit, userId) {
   BrainSystem._hydrateSmartMemory();
-  return BrainSystem._smartMemory.search(query, limit);
+  return BrainSystem._smartMemory.search(query, limit, userId);
 };
 
 /**
  * 语义智能检索 — 优先嵌入余弦，失败降级关键词
  * 返回 Promise<Array>
  */
-BrainSystem.smartSearchSemantic = async function(query, limit) {
+BrainSystem.smartSearchSemantic = async function(query, limit, userId) {
   BrainSystem._hydrateSmartMemory();
   let embedder = null;
   try {
@@ -1515,7 +1515,7 @@ BrainSystem.smartSearchSemantic = async function(query, limit) {
     const bridge = new OllamaBridge();
     embedder = (text) => bridge.embed(text);
   } catch (e) { /* 嵌入不可用，降级关键词 */ }
-  return BrainSystem._smartMemory.semanticSearch(query, limit, embedder);
+  return BrainSystem._smartMemory.semanticSearch(query, limit, embedder, userId);
 };
 
 /**

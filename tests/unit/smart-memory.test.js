@@ -147,6 +147,21 @@ describe('SmartMemory (direct class)', () => {
     expect(results.some((r) => r.key === 'key1')).toBe(true);
   });
 
+  test('search filters by userId (cross-user isolation)', () => {
+    const memory = new SmartMemory();
+    memory.store('chat_A', { input: '项目机密 A' }, { userId: 'A' });
+    memory.store('chat_B', { input: '项目机密 B' }, { userId: 'B' });
+    const rA = memory.search('项目', 5, 'A');
+    expect(rA.every((m) => m.metadata.userId === 'A')).toBe(true);
+    expect(rA.map((m) => m.key)).not.toContain('chat_B');
+    const rB = memory.search('项目', 5, 'B');
+    expect(rB.every((m) => m.metadata.userId === 'B')).toBe(true);
+    expect(rB.map((m) => m.key)).not.toContain('chat_A');
+    // 无 userId → 全量（向后兼容）
+    const rAll = memory.search('项目', 5);
+    expect(rAll.length).toBe(2);
+  });
+
   test('search returns empty when no words score', () => {
     memory.store('key1', 'value1');
     const results = memory.search('zzz');

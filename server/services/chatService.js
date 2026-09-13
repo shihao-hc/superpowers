@@ -272,7 +272,7 @@ class ChatService extends EventEmitter {
    * 构建动态 system prompt（记忆 + 教训 + 思考注入 + 工具提示）
    * @returns {{sysPrompt: string, toolTrigger: boolean}}
    */
-  async _buildSysPrompt(text, conversation) {
+  async _buildSysPrompt(text, conversation, userId) {
     const personality = (conversation && conversation.personality) || 'default';
     const lastIntent = conversation && conversation.context ? conversation.context.lastIntent : null;
     let memoryText = '';
@@ -280,10 +280,10 @@ class ChatService extends EventEmitter {
       const { BrainSystem } = require('../../src/core/BrainSystem');
       let mem = [];
       if (BrainSystem.smartSearchSemantic) {
-        mem = (await BrainSystem.smartSearchSemantic(text, 3)) || [];
+        mem = (await BrainSystem.smartSearchSemantic(text, 3, userId)) || [];
       }
       if (mem.length === 0 && BrainSystem.smartSearch) {
-        mem = BrainSystem.smartSearch(text, 3);
+        mem = BrainSystem.smartSearch(text, 3, userId);
       }
       if (mem.length > 0) {
         memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
@@ -383,7 +383,7 @@ class ChatService extends EventEmitter {
       }
 
       // 生成回复
-      const response = await this.generateResponse(text, conversation);
+      const response = await this.generateResponse(text, conversation, userId);
 
       // 添加助手回复
       const assistantMessage = {
@@ -452,7 +452,7 @@ class ChatService extends EventEmitter {
   /**
    * 生成回复
    */
-  async generateResponse(text, conversation) {
+  async generateResponse(text, conversation, userId) {
     // 优先使用 Ollama 真实推理（非侵入式，失败回退话术）
     try {
       const bridge = this._getOllamaBridge();
@@ -462,7 +462,7 @@ class ChatService extends EventEmitter {
           content: m.content
         }));
         // 动态 system prompt：融入人格 + 意图 + 记忆 + 教训 + 思考 + 工具提示
-        const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation);
+        const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation, userId);
         const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? await this._buildToolsSchema() : undefined });
         this.stats.llm.attempts++;
         // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
@@ -614,6 +614,7 @@ class ChatService extends EventEmitter {
         content: text,
         timestamp: new Date()
       });
+      conversation.lastActivity = new Date();
 
       // BrainSystem 感知：意图分析 + 记忆存储（非侵入式，与 processMessage 对称）
       try {
@@ -635,7 +636,7 @@ class ChatService extends EventEmitter {
             role: m.role === 'user' ? 'user' : 'assistant',
             content: m.content
           }));
-          const { sysPrompt } = await this._buildSysPrompt(text, conversation);
+          const { sysPrompt } = await this._buildSysPrompt(text, conversation, userId);
           const messages = [{ role: 'system', content: sysPrompt }, ...history];
           const stream = await bridge.chat(messages, { stream: true, temperature: 0.7 });
           let fullText = '';
@@ -699,6 +700,12 @@ class ChatService extends EventEmitter {
         timestamp: new Date(),
         latency: Date.now() - startTime
       });
+      conversation.lastActivity = new Date();
+      // 统计 + 持久化（与 Ollama 路径对称）
+      this.stats.totalMessages++;
+      this.stats.totalLatency += (Date.now() - startTime);
+      this.stats.llm.fallbacks++;
+      this._saveConversations();
 
       onEnd({ source: 'fallback', text: currentText });
     } catch (error) {
