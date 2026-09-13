@@ -1109,6 +1109,21 @@
                   aiResponse += chunk.content;
                   contentDiv.textContent = aiResponse;
                 }
+                // 工具执行完成 → 渲染文件下载链接
+                if (chunk.type === 'end' && chunk.toolResults && chunk.toolResults.length > 0) {
+                  const links = chunk.toolResults.filter((r) => r && r.ok && r.result && r.result.path)
+                    .map((r) => {
+                      const fn = r.result.path.split(/[\\/]/).pop();
+                      const skill = r.result.type || 'docx';
+                      return `<a href="/api/files/${encodeURIComponent(skill)}/${encodeURIComponent(fn)}" class="file-link" download>📄 下载 ${fn}</a>`;
+                    });
+                  if (links.length > 0) {
+                    const linkDiv = document.createElement('div');
+                    linkDiv.className = 'tool-results';
+                    linkDiv.innerHTML = links.join(' ');
+                    contentDiv.appendChild(linkDiv);
+                  }
+                }
               } catch (e) { /* 忽略无法解析的 chunk */ }
             }
           }

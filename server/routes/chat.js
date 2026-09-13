@@ -136,7 +136,9 @@ router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
       onData: (chunk) => {
         res.write(`data: ${JSON.stringify(chunk)}\n\n`);
       },
-      onEnd: () => {
+      onEnd: (result) => {
+        // 透传 source/toolResults（供前端渲染文件链接）
+        res.write(`data: ${JSON.stringify({ type: 'end', source: result ? result.source : null, toolResults: result ? result.toolResults : null })}\n\n`);
         res.write('data: [DONE]\n\n');
         res.end();
       },
