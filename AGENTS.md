@@ -2612,6 +2612,21 @@ Session 锚点: 2026-08-12 (第87次 — 语义嵌入熔断: 消除每消息浪�
 
 ---
 
+Session 锚点: 2026-08-12 (第88次 — _lastToolResults 跨请求泄漏 + semanticSearch catch 丢 userId + processStream 工具循环)
+- ESLint: 0/0 (相关文件) | Tests: **344 passed suites / 4 skipped / 0 failed** (16,843 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 发现 2 个真实 bug + 主 UI 能力缺口
+- **B1 (HIGH) _lastToolResults 跨请求泄漏修复**: 工具循环设 `this._lastToolResults` 但 catch 读取从不重置 → 成功工具请求后, 后续普通消息 Ollama 失败返回**上一个用户的文档描述** (跨用户信息泄漏) → generateResponse 开头重置 `_lastToolResults = null`
+- **B2 (MEDIUM) semanticSearch catch 丢 userId 修复**: `SmartMemory.js:104` catch 返回 `this.search(query, limit)` 丢 userId → embedder 抛错时降级搜索**所有用户**记忆 (隐私泄漏) → 加 userId
+- **processStream 工具调用循环 (主 UI 能力补齐)**: SSE 路径 (浏览器主 UI) 此前无法生成文档/读文件 → 混合方案: toolTrigger 时先非流式调 LLM 带 tools → 若有 tool_calls 执行 (`_executeToolCalls`) → 单次发送结果; 无工具则流式回复
+  - 验证: SSE 用户"生成 Word 文档" → TOOL EXECUTED; 普通 SSE 对话仍流式 (22 chunks 不误触发)
+- **processStream 消息上限补齐**: 与 processMessage 对称 (100→50 截断), 防 SSE 会话无限增长
+- **B3 每次保存 enforceConversationLimit**: `_saveConversations` 防抖回调加 silent enforce (5000), 防长期运行累积超限
+- **验证**: 全量 344/16,843/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 2 文件
+- 相关文件: `server/services/chatService.js`, `src/core/SmartMemory.js`
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

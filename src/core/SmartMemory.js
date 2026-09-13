@@ -101,7 +101,7 @@ class SmartMemory {
       }
       return scored.slice(0, limit);
     } catch (e) {
-      return this.search(query, limit);
+      return this.search(query, limit, userId);
     }
   }
 

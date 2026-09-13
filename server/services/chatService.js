@@ -453,6 +453,8 @@ class ChatService extends EventEmitter {
    * 生成回复
    */
   async generateResponse(text, conversation, userId) {
+    // 重置工具结果（防跨请求残留泄漏到其他用户）
+    this._lastToolResults = null;
     // 优先使用 Ollama 真实推理（非侵入式，失败回退话术）
     try {
       const bridge = this._getOllamaBridge();
@@ -636,8 +638,42 @@ class ChatService extends EventEmitter {
             role: m.role === 'user' ? 'user' : 'assistant',
             content: m.content
           }));
-          const { sysPrompt } = await this._buildSysPrompt(text, conversation, userId);
+          const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation, userId);
           const messages = [{ role: 'system', content: sysPrompt }, ...history];
+
+          // 工具调用检测：用户请求文档/读文件等 → 先非流式调 LLM 带 tools，若触发工具则执行
+          if (toolTrigger) {
+            try {
+              const toolSchema = await this._buildToolsSchema();
+              const toolResult = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolSchema });
+              this.stats.llm.attempts++;
+              if (toolResult && toolResult.ok && Array.isArray(toolResult.tool_calls) && toolResult.tool_calls.length > 0) {
+                const toolResults = await this._executeToolCalls(toolResult.tool_calls);
+                this._lastToolResults = toolResults;
+                const partial = toolResults.some((r) => r.ok === true);
+                const finalText = partial
+                  ? this._describeToolResult(toolResults)
+                  : '工具调用未能成功完成。已尝试的操作见工具结果。';
+                conversation.messages.push({
+                  id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                  role: 'assistant',
+                  content: finalText,
+                  timestamp: new Date(),
+                  latency: Date.now() - startTime
+                });
+                this.stats.totalMessages++;
+                this.stats.totalLatency += (Date.now() - startTime);
+                this.stats.llm.successes++;
+                // 单次发送工具结果（前端无需逐 token）
+                onData({ type: 'chunk', content: finalText, fullText: finalText, progress: 1 });
+                this._saveConversations();
+                onEnd({ source: 'ollama', text: finalText, toolResults });
+                return;
+              }
+              // 无工具调用 → 回退到流式（工具 schema 已传但 LLM 选择纯文本）
+            } catch (e) { /* 工具检测失败，回退流式 */ }
+          }
+
           const stream = await bridge.chat(messages, { stream: true, temperature: 0.7 });
           let fullText = '';
           for await (const chunk of stream) {
@@ -656,6 +692,10 @@ class ChatService extends EventEmitter {
             timestamp: new Date(),
             latency: Date.now() - startTime
           });
+          // 消息上限（与 processMessage 对称）
+          if (conversation.messages.length > 100) {
+            conversation.messages = conversation.messages.slice(-50);
+          }
           // 统计 + 记忆（与 processMessage 对称）
           this.stats.totalMessages++;
           this.stats.totalLatency += (Date.now() - startTime);
@@ -783,7 +823,7 @@ class ChatService extends EventEmitter {
   /**
    * 会话数量上限（LRU 淘汰最久未活跃的会话，防止 data/conversations.json 无限增长）
    */
-  enforceConversationLimit(maxConversations = 5000) {
+  enforceConversationLimit(maxConversations = 5000, silent = false) {
     if (this.conversations.size <= maxConversations) { return 0; }
     const sorted = [...this.conversations.entries()]
       .sort((a, b) => (a[1].lastActivity ? a[1].lastActivity.getTime() : 0) - (b[1].lastActivity ? b[1].lastActivity.getTime() : 0));
@@ -793,7 +833,7 @@ class ChatService extends EventEmitter {
       this.conversations.delete(userId);
       evicted++;
     }
-    if (evicted > 0) {
+    if (evicted > 0 && !silent) {
       this._saveConversations();
     }
     return evicted;
@@ -878,6 +918,8 @@ class ChatService extends EventEmitter {
       this._saveTimer = null;
       if (!this._conversationsDirty) { return; }
       this._conversationsDirty = false;
+      // 每次保存前限制会话数量（防止长期运行累积超出上限）
+      this.enforceConversationLimit(5000, true);
       try {
         const dir = path.dirname(CONVERSATIONS_FILE);
         if (!fs.existsSync(dir)) {
