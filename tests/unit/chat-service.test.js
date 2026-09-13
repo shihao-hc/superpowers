@@ -317,7 +317,7 @@ describe('ChatService (BrainSystem-wired)', () => {
         process.chdir(origCwd);
         try { fs2.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
       }
-    });
+    }, 20000);
 
     it('_executeToolCalls rejects unknown tools', async () => {
       const r = await chatService._executeToolCalls([{ function: { name: 'not_a_tool', arguments: {} } }]);

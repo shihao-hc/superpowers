@@ -2737,6 +2737,22 @@ Session 锚点: 2026-08-12 (第95次 — 工具调用可观测性: stats.tools �
 
 ---
 
+Session 锚点: 2026-08-12 (第96次 — 匿名会话隔离: 各浏览器会话独立上下文)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,857 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 所有匿名浏览器用户共享 `userId='anonymous'` 的 conversation → lastIntent/历史串流 (跨浏览器会话污染)
+- **匿名会话隔离**: `server/routes/chat.js` 加 `getSessionUserId(req, res)`:
+  - 已认证用户 → req.user.id
+  - 匿名用户 → header `x-session-id` (首次生成 `anon_<uuid>` 存响应 header, 各浏览器会话独立)
+  - regex `/^[a-zA-Z0-9_-]{16,64}$/` 校验 (防注入)
+  - `frontend/index.html`: localStorage 存储/携带 x-session-id (上下文跨请求保留)
+- **验证**: 不同匿名会话 distinct (isolated); 同 sid 复用 → 上下文保留 (4 messages); 注入 sid 被拒
+- **测试超时修复**: "returns real file path" 真实生成 xlsx 全量下超时 5000ms → 加 20000ms
+- **验证**: 全量 346/16,857/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `server/routes/chat.js`, `frontend/index.html`, `tests/unit/chat-service.test.js` (38→38)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

@@ -4,9 +4,28 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { authMiddleware, optionalAuth, chatLimiter } = require('../middleware');
 const chatService = require('../services/chatService');
 const { errorLog } = require('../utils/logger');
+
+/**
+ * 获取会话用户 ID：
+ * - 已认证用户 → req.user.id
+ * - 匿名用户 → cookie 中的 x-session-id（首次生成 uuid 存 cookie，隔离各浏览器会话）
+ */
+function getSessionUserId(req, res) {
+  if (req.user && req.user.id) {
+    return req.user.id;
+  }
+  const existing = req.headers['x-session-id'];
+  if (existing && /^[a-zA-Z0-9_-]{16,64}$/.test(existing)) {
+    return existing;
+  }
+  const sessionId = `anon_${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
+  res.setHeader('X-Session-Id', sessionId);
+  return sessionId;
+}
 
 /**
  * POST /api/chat
@@ -32,7 +51,7 @@ router.post('/', optionalAuth, chatLimiter, async (req, res) => {
     }
 
     // 获取用户ID（如果已登录）
-    const userId = req.user?.id || 'anonymous';
+    const userId = getSessionUserId(req, res);
 
     // 处理消息
     const response = await chatService.processMessage({
@@ -120,7 +139,7 @@ router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
       });
     }
 
-    const userId = req.user?.id || 'anonymous';
+    const userId = getSessionUserId(req, res);
 
     // 设置SSE响应头
     res.setHeader('Content-Type', 'text/event-stream');
