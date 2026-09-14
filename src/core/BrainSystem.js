@@ -167,7 +167,8 @@ class BrainSystem {
       this.comprehensiveChecker = new _ComprehensiveChecker.ComprehensiveChecker({
         projectRoot: process.cwd()
       });
-      console.log('[BrainSystem] 全方面检查: 已加载', this.comprehensiveChecker.getStats().total, '项检查');
+      const _ccStats = _ComprehensiveChecker.ComprehensiveChecker.getStats ? _ComprehensiveChecker.ComprehensiveChecker.getStats() : null;
+      console.log('[BrainSystem] 全方面检查: 已注册', _ccStats ? _ccStats.total : 0, '项检查 (14维度, 启动后真实运行)');
     }
 
     // v11.0 新增 - 持久化加载
@@ -1318,6 +1319,22 @@ BrainSystem.forceThink = function(input) {
     beforeOutput: true,
     processed: true  // 标记已处理
   };
+};
+
+/**
+ * 运行全方面检查（14维度56项），返回结果并存入实例
+ * 由 server 启动时显式调用（生产路径真实运行）
+ */
+BrainSystem.runComprehensiveCheck = async function() {
+  const instance = BrainSystem._getSharedInstance();
+  if (!instance.comprehensiveChecker) {
+    console.warn('[BrainSystem] 全方面检查器不可用');
+    return null;
+  }
+  const result = await instance.comprehensiveChecker.run();
+  instance._comprehensiveResult = result;
+  console.log(`[BrainSystem] 全方面检查完成: ${result.stats.total} 项 | ${result.stats.passed} 通过 | ${result.stats.failed} 失败 | ${result.stats.warnings} 警告`);
+  return result;
 };
 
 /**

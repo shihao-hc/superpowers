@@ -159,6 +159,13 @@ function initializeModules() {
     logger.warn('[BrainSystem] 钩子连接失败:', e.message);
   }
 
+  // 1b. 运行全方面检查（14维度56项，异步不阻塞启动）
+  try {
+    BrainSystem.runComprehensiveCheck().catch(() => {});
+  } catch (e) {
+    logger.warn('[BrainSystem] 全方面检查启动失败:', e.message);
+  }
+
   // 2. 初始化 BrainBridge（断路器/循环防护/审计日志/Phase C决策）
   try {
     brainBridge = new BrainBridge();
