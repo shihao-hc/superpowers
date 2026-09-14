@@ -4,6 +4,9 @@ describe('ChatService (BrainSystem-wired)', () => {
   beforeEach(() => {
     chatService.conversations.clear();
     jest.restoreAllMocks();
+    // 阻止 processMessage 写真实记忆库（测试隔离，防污染 .opencode/evolution/memory.json）
+    const { BrainSystem } = require('../../src/core/BrainSystem');
+    jest.spyOn(BrainSystem, 'smartStore').mockImplementation(() => {});
     // 默认 mock bridge，避免测试触发真实 Ollama（慢/超时）
     chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'mock reply' }) };
     // 禁用 MCP 初始化（避免测试 spawn 真实 MCP 进程导致挂起）
