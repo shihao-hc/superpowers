@@ -149,6 +149,7 @@ class SelfCodeImprover {
       if (check.found) {
         issues.push({
           file: fileName,
+          path: filePath,
           type: name,
           severity: check.severity,
           line: check.line,
@@ -408,6 +409,14 @@ class SelfCodeImprover {
 
       try {
         const result = this._applyFix(issue);
+        if (result.success) {
+          // 自主行动闭环：关联相关教训 → markApplied → 记录行动日志
+          const lesson = this._findRelatedLesson(issue);
+          if (lesson) {
+            try { this._getLessonLib().markApplied(lesson.id); } catch (e) { /* 标记失败不阻塞 */ }
+          }
+          this._recordAction({ type: issue.type, file: issue.file, action: 'auto-fix', lessonRef: lesson ? lesson.id : null, result: 'fixed' });
+        }
         fixes.push({
           issue: issue.message,
           result: result.success ? 'fixed' : 'failed',
@@ -453,7 +462,7 @@ class SelfCodeImprover {
    * 安全保证：仅处理顶层纯 require 行（行首无缩进）；语法校验通过才写盘，否则保留原文件
    */
   _fixDuplicateRequire(issue) {
-    const filePath = issue.file;
+    const filePath = issue.path || issue.file;
     if (!filePath || !fs.existsSync(filePath)) { return { success: false, error: '文件不存在' }; }
     const content = fs.readFileSync(filePath, 'utf8');
     const seen = new Set();
@@ -472,6 +481,66 @@ class SelfCodeImprover {
     try { new vm.Script(fixed); } catch (e) { return { success: false, error: `语法校验失败: ${e.message}` }; }
     fs.writeFileSync(filePath, fixed);
     return { success: true, file: filePath };
+  }
+
+  /**
+   * 惰性获取教训库（供关联教训使用）
+   */
+  _getLessonLib() {
+    if (!this._lessonLib) {
+      const LessonLibrary = require('./LessonLibrary');
+      this._lessonLib = new LessonLibrary({ quiet: true });
+    }
+    return this._lessonLib;
+  }
+
+  /**
+   * 从教训库匹配与 issue 相关的未应用教训
+   */
+  _findRelatedLesson(issue) {
+    try {
+      const lib = this._getLessonLib();
+      const matches = lib.searchByType(issue.type, issue.tags || []);
+      return matches.length > 0 ? matches[0] : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 读取行动日志
+   */
+  _loadActions() {
+    const file = path.join(process.cwd(), '.opencode', 'evolution', 'actions.json');
+    try {
+      if (!fs.existsSync(file)) { return []; }
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * 记录一次自主行动到行动日志（去重：相同 type+file+action+result 不重复记录）
+   */
+  _recordAction(action) {
+    try {
+      const file = path.join(process.cwd(), '.opencode', 'evolution', 'actions.json');
+      const dir = path.dirname(file);
+      if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+      const actions = this._loadActions();
+      const dup = actions.some((a) =>
+        a.type === action.type && a.file === action.file &&
+        a.action === action.action && a.result === action.result
+      );
+      if (dup) { return { recorded: false, reason: 'duplicate' }; }
+      actions.push({ timestamp: new Date().toISOString(), ...action });
+      fs.writeFileSync(file, JSON.stringify(actions.slice(-200), null, 2));
+      return { recorded: true };
+    } catch (e) {
+      return { recorded: false, reason: e.message };
+    }
   }
 
   /**
@@ -520,10 +589,18 @@ class SelfCodeImprover {
     const scanResult = this.fullScan();
     console.log(`  扫描: 发现 ${scanResult.issues.length} 个问题`);
 
+    // 自主行动闭环：记录需人工处理的问题（去重，避免循环噪音）
+    const manualIssues = scanResult.issues.filter((i) => !this._canAutoFix(i.type));
+    for (const issue of manualIssues) {
+      this._recordAction({ type: issue.type, file: issue.file, action: 'manual-required', lessonRef: null, result: 'needs-human' });
+    }
+
     if (scanResult.fixes.length > 0) {
-      console.log(`  修复: 已应用 ${scanResult.fixes.length} 个修复`);
+      console.log(`  修复: 已应用 ${scanResult.fixes.length} 个修复 (已关联教训并标记已应用)`);
+    } else if (manualIssues.length > 0) {
+      console.log(`  修复: ${manualIssues.length} 个问题需人工处理 (已记录行动日志)`);
     } else {
-      console.log('  修复: 需要手动处理');
+      console.log('  修复: 无需修复');
     }
 
     if (this.brain && this.brain.evolution) {

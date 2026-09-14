@@ -2854,6 +2854,25 @@ Session 锚点: 2026-08-12 (第100次 — 自我改进真实化: 检测器误报
 
 ---
 
+Session 锚点: 2026-09-14 (第101次 — 自主行动闭环: 观察→决策→行动→记录 + 教训驱动标记)
+- ESLint: 0/0 | Tests: **346 passed suites / 4 skipped / 0 failed** (16,872 passed / 46 skipped, +11) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户选方案B"自主行动边界"**: 让自我改进从"定时扫描+记录"升级为"自主观察→决策→行动→记录"闭环, 并把学习(教训库)真正连接到行动(修复)); 设计文档 `docs/superpowers/specs/2026-09-14-autonomous-action-loop-design.md`
+- **LessonLibrary.searchByType(issueType, tags)**: 按问题类型关键词映射 (duplicate-require/empty-catch/version-inconsistency/...) + tags 匹配相关**未应用** (排除 `_applied`) 教训; 复用已有 markApplied
+- **SelfCodeImprover 自主行动闭环**:
+  - `_getLessonLib()` 惰性 + `_findRelatedLesson(issue)` 匹配教训
+  - `_recordAction(action)` 行动日志 `.opencode/evolution/actions.json` (去重: 同 type+file+action+result 不重复记录, 防循环噪音; 限长 200)
+  - `_autoFix` 成功时: 关联教训 → markApplied → 记录行动 (含 lessonRef)
+  - `runImprovementCycle` 升级: 不可修复问题记录 `manual-required` (needs-human) 到行动日志
+- **发现并修复真实 bug (5.3)**: `_scanFile` 的 issue.file 是 **basename** (如 'BrainBridge.js'), 而 `_fixDuplicateRequire` 用它做路径 → existsSync 恒失败 → 自动修复**永远无法定位文件** (第100次未暴露因扫描0问题) → issue 加 `path` (完整路径) 字段, `_fixDuplicateRequire` 用 `issue.path || issue.file`
+- **测试根治 (防污染)**: lesson-library.test.js 只 mock `_load` 没 mock `_save` → `add()` 测试真实写盘污染 `.opencode/lessons.json` (2 条 "a"/"b" 垃圾) → beforeAll 补 `_save` mock; 清理真实数据
+- **集成验证 (非 mock)**: 临时目录真实文件 + 教训库 → scan 1 issue (path 完整) → _autoFix 1 → 顶层 fs require 1 → 教训 markApplied YES → 行动日志 1 条 `{type,file,action:'auto-fix',lessonRef:'lesson_1',result:'fixed'}`
+- **测试**: lesson-library +4 (searchByType 匹配/tags/排除已应用/无匹配), self-code-improver +7 (闭环 7), 共 +11
+- **运行时验证**: 0 问题 → 0 行动 (无噪音), 教训库统计正常
+- **工作树审计**: 提交只含本会话 5 文件 + spec (已提交)
+- 相关文件: `src/core/LessonLibrary.js`, `src/core/SelfCodeImprover.js`, `tests/unit/{lesson-library,self-code-improver}.test.js`, `docs/superpowers/specs/2026-09-14-autonomous-action-loop-design.md`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线

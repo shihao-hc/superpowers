@@ -602,4 +602,64 @@ describe('SelfCodeImprover', () => {
       expect(suggestions).toHaveLength(0);
     });
   });
+
+  describe('autonomous action loop', () => {
+    test('_findRelatedLesson returns matching lesson', () => {
+      const lesson = { id: 'l1' };
+      improver._getLessonLib = () => ({ searchByType: () => [lesson] });
+      expect(improver._findRelatedLesson({ type: 'duplicate-require' })).toBe(lesson);
+    });
+
+    test('_findRelatedLesson returns null when no match', () => {
+      improver._getLessonLib = () => ({ searchByType: () => [] });
+      expect(improver._findRelatedLesson({ type: 'x' })).toBeNull();
+    });
+
+    test('_recordAction writes action to log', () => {
+      let store = '[]';
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockImplementation((p) => (String(p).includes('actions') ? store : 'module.exports = {};'));
+      fs.writeFileSync.mockImplementation((p, d) => { if (String(p).includes('actions')) { store = d; } });
+      const r = improver._recordAction({ type: 'duplicate-require', file: 'a.js', action: 'auto-fix', result: 'fixed' });
+      expect(r.recorded).toBe(true);
+      expect(JSON.parse(store)).toHaveLength(1);
+    });
+
+    test('_recordAction dedupes identical actions', () => {
+      let store = '[]';
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockImplementation((p) => (String(p).includes('actions') ? store : 'module.exports = {};'));
+      fs.writeFileSync.mockImplementation((p, d) => { if (String(p).includes('actions')) { store = d; } });
+      const a = { type: 'duplicate-require', file: 'a.js', action: 'auto-fix', result: 'fixed' };
+      improver._recordAction(a);
+      const r2 = improver._recordAction(a);
+      expect(r2.recorded).toBe(false);
+      expect(JSON.parse(store)).toHaveLength(1);
+    });
+
+    test('_autoFix links lesson and marks applied on success', () => {
+      const markApplied = jest.fn();
+      improver._getLessonLib = () => ({ searchByType: () => [{ id: 'l1' }], markApplied });
+      improver._applyFix = () => ({ success: true, file: 'a.js' });
+      improver._recordAction = jest.fn();
+      improver._autoFix([{ type: 'duplicate-require', file: 'a.js', message: 'dup' }]);
+      expect(markApplied).toHaveBeenCalledWith('l1');
+      expect(improver._recordAction).toHaveBeenCalled();
+    });
+
+    test('_autoFix skips non-autofixable issues', () => {
+      improver._applyFix = jest.fn();
+      const fixes = improver._autoFix([{ type: 'empty-catch', file: 'a.js', message: 'e' }]);
+      expect(improver._applyFix).not.toHaveBeenCalled();
+      expect(fixes).toHaveLength(0);
+    });
+
+    test('_autoFix still records fix when no related lesson', () => {
+      improver._getLessonLib = () => ({ searchByType: () => [] });
+      improver._applyFix = () => ({ success: true, file: 'a.js' });
+      improver._recordAction = jest.fn();
+      improver._autoFix([{ type: 'duplicate-require', file: 'a.js', message: 'dup' }]);
+      expect(improver._recordAction).toHaveBeenCalledWith(expect.objectContaining({ lessonRef: null }));
+    });
+  });
 });

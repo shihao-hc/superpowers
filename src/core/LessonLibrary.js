@@ -56,6 +56,35 @@ class LessonLibrary {
     return results;
   }
 
+  /**
+   * 按问题类型/标签匹配相关未应用教训（供自我改进关联教训使用）
+   */
+  searchByType(issueType, tags = []) {
+    const typeKeywords = {
+      'duplicate-require': ['duplicate', 'require', '重复', 'code-quality', 'refactor', 'clean'],
+      'empty-catch': ['catch', 'error', '错误', 'empty', 'exception', '静默'],
+      'version-inconsistency': ['version', '版本', 'inconsistency'],
+      'unused-variable': ['unused', '变量', 'dead'],
+      'console-log-leak': ['console', 'log', '日志'],
+      'sync-file-ops': ['sync', '同步', 'file'],
+      'security-hardcoded-secret': ['security', 'secret', '安全', '密钥', 'hardcode']
+    };
+    const keywords = [...(typeKeywords[issueType] || [issueType]), ...tags];
+    const kw = keywords.map((k) => k.toLowerCase());
+    if (kw.length === 0) { return []; }
+    return this._lessons.filter((l) => {
+      if (l._applied) { return false; }
+      const hay = [
+        l.tags ? l.tags.join(' ') : '',
+        l.category || '',
+        l.lesson || '',
+        l.improvement || '',
+        l.problem || ''
+      ].join(' ').toLowerCase();
+      return kw.some((k) => hay.includes(k));
+    });
+  }
+
   markApplied(lessonId) {
     const lesson = this._lessons.find((l) => l.id === lessonId);
     if (lesson) { lesson._applied = true; }

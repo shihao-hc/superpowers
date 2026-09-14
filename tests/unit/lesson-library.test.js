@@ -6,6 +6,7 @@ describe('LessonLibrary', () => {
     jest.spyOn(LessonLibrary.prototype, '_load').mockImplementation(function () {
       this._lessons = [];
     });
+    jest.spyOn(LessonLibrary.prototype, '_save').mockImplementation(function () {});
   });
 
   afterAll(() => {
@@ -260,6 +261,35 @@ describe('LessonLibrary', () => {
       lib.add({ title: 'a' });
       lib.add({ title: 'b' });
       expect(lib.search(null, { type: 'failure' })).toHaveLength(2);
+    });
+  });
+
+  describe('searchByType', () => {
+    it('matches lessons by issue-type keywords', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib._lessons = [{ id: 'l1', tags: ['refactor', 'code-quality'], lesson: 'clean duplicate requires' }];
+      const r = lib.searchByType('duplicate-require');
+      expect(r).toHaveLength(1);
+      expect(r[0].id).toBe('l1');
+    });
+
+    it('matches lessons by provided tags', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib._lessons = [{ id: 'l2', category: 'error', lesson: 'handle exceptions' }];
+      const r = lib.searchByType('empty-catch', ['error']);
+      expect(r).toHaveLength(1);
+    });
+
+    it('excludes already-applied lessons', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib._lessons = [{ id: 'l3', tags: ['refactor'], _applied: true }];
+      expect(lib.searchByType('duplicate-require')).toHaveLength(0);
+    });
+
+    it('returns empty when nothing matches', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib._lessons = [{ id: 'l4', tags: ['security'], lesson: 'xss' }];
+      expect(lib.searchByType('duplicate-require')).toHaveLength(0);
     });
   });
 });
