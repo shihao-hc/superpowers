@@ -2767,6 +2767,21 @@ Session 锚点: 2026-08-12 (第97次 — 多轮工具 schema 修复 + MCP 每消
 
 ---
 
+Session 锚点: 2026-08-12 (第98次 — 诚实错误提示: 后端故障对用户可见)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,857 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 后端故障对用户不可见 — SSE onError 发 `{error}` chunk 但前端忽略 (只处理 content/end) → 静默走 canned 话术"狐九在听"; POST 500 的 `{error}` 也被掩盖为 fallback
+- **前端诚实错误处理** (`frontend/index.html`):
+  - SSE 循环处理 `chunk.error` → 显示 "⚠️ AI 服务暂时不可用" (不静默 fallback)
+  - 降级提示: `source === 'fallback'` → "（AI 服务暂不可用，以上为自动回复）"; `source === 'rule-based'` → "（AI 服务不可用，已用规则生成）"
+  - 非流式回退检查 `data.error` → 显示错误 (非 canned)
+  - `hasError` 标记 → 跳过 fallback 话术
+- **验证**: SSE error 事件端到端 (`{error:"test backend failure"}` 发送成功); 前端 6 项改动 + script 标签平衡
+- **验证**: 全量 346/16,857/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 1 文件
+- 相关文件: `frontend/index.html`
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)

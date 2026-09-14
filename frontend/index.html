@@ -1102,6 +1102,7 @@
           const reader = streamResponse.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
+          let hasError = false;
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -1118,6 +1119,19 @@
                 if (chunk.content) {
                   aiResponse += chunk.content;
                   contentDiv.textContent = aiResponse;
+                }
+                // 服务端错误 → 诚实显示（不静默 fallback）
+                if (chunk.error) {
+                  aiResponse = '⚠️ AI 服务暂时不可用，请稍后重试。';
+                  contentDiv.textContent = aiResponse;
+                  hasError = true;
+                }
+                // 降级模式提示（source: fallback/rule-based）
+                if (chunk.type === 'end' && chunk.source === 'fallback') {
+                  contentDiv.textContent = aiResponse + '\n\n（AI 服务暂不可用，以上为自动回复）';
+                }
+                if (chunk.type === 'end' && chunk.source === 'rule-based') {
+                  contentDiv.textContent = aiResponse + '\n\n（AI 服务不可用，已用规则生成）';
                 }
                 // 工具执行完成 → 渲染文件下载链接
                 if (chunk.type === 'end' && chunk.toolResults && chunk.toolResults.length > 0) {
@@ -1138,7 +1152,7 @@
             }
           }
           typingDiv.classList.add('message');
-          if (!aiResponse) {
+          if (!aiResponse && !hasError) {
             typingDiv.remove();
             addMessage('ai', generateFallbackResponse(text));
           }
@@ -1146,9 +1160,13 @@
           // 非流式回退
           typingDiv.remove();
           const data = await streamResponse.json();
-          const nestedData = data.data || data;
-          aiResponse = nestedData.text || nestedData.response || nestedData.message || data.text || data.response || data.message || generateFallbackResponse(text);
-          addMessage('ai', aiResponse);
+          if (data.error) {
+            addMessage('ai', `⚠️ ${data.error}`);
+          } else {
+            const nestedData = data.data || data;
+            aiResponse = nestedData.text || nestedData.response || nestedData.message || data.text || data.response || data.message || generateFallbackResponse(text);
+            addMessage('ai', aiResponse);
+          }
         }
         
         // Update emotion based on response
