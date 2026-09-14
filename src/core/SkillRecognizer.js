@@ -358,7 +358,7 @@ class SkillRecognizer {
   _parseSkill(filePath) {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
-      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
 
       if (!fmMatch) {
         return {

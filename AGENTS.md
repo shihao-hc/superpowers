@@ -3099,3 +3099,17 @@ Session 锚点: 2026-09-14 (第107次 — 自定义模块执行: 爬虫接入 + 
 - **诚实边界**: 爬虫仅 SSRF 防护 (拒绝内网), 外部恶意站点风险仍在 (爬虫本身特性, 非 SSRF); 真实爬取需网络
 - **验证**: 全量 349/16,906/0 + ESLint 0/0
 - 相关文件: `src/skills/executors/ScrapeExecutor.js` (新), `src/skills/agent/AsyncExecutor.js`, `server/services/chatService.js`, `tests/unit/scrape-executor.test.js` (新)
+
+---
+
+Session 锚点: 2026-09-14 (第108次 — 技能库完整性审计 + CRLF frontmatter bug 修复)
+- ESLint: 0/0 | Tests: **349 passed suites / 4 skipped / 0 failed** (16,907 passed / 46 skipped, +1) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户"检查技能库是否都可完整使用")**: 系统性审计 292 个技能目录
+- **审计发现 (首次误报)**: 263 个技能"frontmatter 无效" — 根因是 **CRLF bug**: SKILL.md 用 `\r\n` 换行 (Windows), 但 `_parseSkill` 的 frontmatter 正则 `/^---\n/` 只匹配 `\n` → 263 个 CRLF 文件的 name/description/trigger 全未解析 (name 靠目录名 fallback, trigger 仅 24 个, description 仅 42 个)
+- **真实影响**: trigger 自动提取 (第106次, keywordMap 126→209) 只覆盖了 24 个 LF 文件的 trigger — **263 个 CRLF 技能的 trigger 全部漏掉**; 识别靠硬编码 126 关键词才部分工作
+- **修复**: `_parseSkill` frontmatter 正则 `/^---\r?\n([\s\S]*?)\r?\n---/` (兼容 CRLF)
+- **修复效果**: trigger 24→**287** | description 42→**305** | keywordMap 209→**691** (+482 trigger 词) | "CSS动画"→advanced-css-animations (现经 trigger 而非硬编码)
+- **重新审计 (CRLF 兼容)**: 292 目录 → **290 SKILL.md 完好** (2 个缺 SKILL.md 为 superpowers/_templates 模板目录, 合理)
+- **测试**: skill-recognizer-trigger.test.js +1 (CRLF frontmatter 解析)
+- **验证**: 全量 349/16,907/0 + ESLint 0/0
+- 相关文件: `src/core/SkillRecognizer.js`, `tests/unit/skill-recognizer-trigger.test.js`

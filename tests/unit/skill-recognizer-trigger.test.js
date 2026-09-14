@@ -48,4 +48,15 @@ describe('SkillRecognizer trigger keyword extraction', () => {
     expect(r.length).toBeGreaterThan(0);
     expect(r[0].skill.name).toBe('perf-skill');
   });
+
+  it('parses frontmatter with CRLF line endings (Windows)', () => {
+    const dir = path.join(tmpDir, 'crlf-skill');
+    fs.mkdirSync(dir, { recursive: true });
+    // 用 CRLF (\r\n) 写 SKILL.md，模拟 Windows 文件
+    fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\r\nname: crlf-skill\r\ntrigger: "CRLF触发词"\r\n---\r\n# 技能\r\n内容');
+    const sr = new SkillRecognizer({ skillsDir: tmpDir });
+    expect(sr.keywordMap.get('CRLF触发词')).toBe('crlf-skill');
+    const skill = sr.skills.find((s) => s.name === 'crlf-skill');
+    expect(skill.trigger).toContain('CRLF触发词');
+  });
 });
