@@ -44,6 +44,7 @@ let inferenceBridge = null;
 let brainBridge = null;
 let brainCodeImprover = null;
 let brainProactiveAdvisor = null;
+let brainTaskEngine = null;
 let securityWatcher = null;
 
 function initializeModules() {
@@ -178,6 +179,17 @@ function initializeModules() {
     logger.warn('[SelfCodeImprover] 启动失败:', e.message);
   }
 
+  // 3b. 启动 ProactiveTaskEngine 自主任务引擎（教训验证 + 健康巡检，每 30 分钟）
+  try {
+    const ProactiveTaskEngine = require('../src/core/ProactiveTaskEngine');
+    const pte = new ProactiveTaskEngine();
+    pte.startAutoLoop(30 * 60 * 1000);
+    brainTaskEngine = pte;
+    logger.info('[ProactiveTaskEngine] 自主任务引擎已启动 (间隔: 30分钟)');
+  } catch (e) {
+    logger.warn('[ProactiveTaskEngine] 启动失败:', e.message);
+  }
+
   // 4. 启动 ProactiveAdvisor 定期扫描（每小时）
   try {
     const ProactiveAdvisor = require('../src/core/ProactiveAdvisor');
@@ -216,6 +228,9 @@ function cleanupModules() {
   if (brainCodeImprover) {
     try { brainCodeImprover.stopAutoImprovementLoop(); } catch (e) { /* */ }
   }
+  if (brainTaskEngine) {
+    try { brainTaskEngine.stopAutoLoop(); } catch (e) { /* */ }
+  }
   if (BrainSystem.isHooksConnected()) {
     try { BrainSystem.disconnectHooks(); } catch (e) { /* */ }
   }
@@ -238,7 +253,7 @@ const app = express();
 app.getModules = () => ({
   messageService, fuzzyMatcher, suggestionPipeline, unifiedMemory,
   settingsSync, selfLearning, mcpManager, inferenceBridge, hooksManager,
-  brainBridge, brainCodeImprover, brainProactiveAdvisor
+  brainBridge, brainCodeImprover, brainProactiveAdvisor, brainTaskEngine
 });
 const port = config.get('server.port');
 const host = config.get('server.host');

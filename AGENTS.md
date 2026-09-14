@@ -2884,6 +2884,25 @@ Session 锚点: 2026-09-14 (第101次b — 完整测试验证中发现并修复:
 
 ---
 
+Session 锚点: 2026-09-14 (第102次 — 自主任务引擎: 教训验证 + 健康巡检)
+- ESLint: 0/0 | Tests: **347 passed suites / 4 skipped / 0 failed** (16,885 passed / 46 skipped, +12) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户选"补自主任务缺口" → "两者结合")**: 让系统从"被动等输入"变"主动发起"; 用户确认**分离设计** (教训验证只标记+记录, 自动修复仅限已有安全机制)
+- **设计文档**: `docs/superpowers/specs/2026-09-14-proactive-task-engine-design.md`
+- **新建 `src/core/ProactiveTaskEngine.js`**:
+  - `runTasks()` = `runLessonVerification()` + `runHealthCheck()`
+  - **任务1 教训验证** (启发式只读): active 教训 → `_extractKeywords` (英文词+停用词过滤) → `_buildSrcIndex` (一次扫描 src 6 目录, 限 1500 文件) → 命中 markApplied / 未命中记录待办; **不自动改代码**
+  - **任务2 健康巡检** (只读): pending 积压 / actions manual-required 积压 / 教训 active 比例 >0.8 → 异常写行动日志; 健康无噪音
+  - `_recordAction` 复用 actions.json (去重: type+action+lessonRef+result)
+  - `startAutoLoop(30min)` / `stopAutoLoop()`
+- **接入 `server/index.js`**: 启动时 `new ProactiveTaskEngine().startAutoLoop(30*60*1000)` + `brainTaskEngine` 声明/清理/导出
+- **受控验证 (真实 src)**: 34 条预置教训 → verified 4 + pending 30; markApplied **持久化 OK** (applied 0→4); 行动日志 30 verify-pending + 4 verify-applied + 1 health; 引擎启动日志 YES
+- **诚实局限 (记录)**: 教训验证是**启发式** (自然语言无法精确映射代码); 预置中文教训命中率低 (4/34, 因英文关键词少) → 保守只标记确凿命中, 不乐观误判; 引擎**只读验证+标记+报告, 不自动改代码**
+- **测试**: `tests/unit/proactive-task-engine.test.js` (新, 12 tests): 教训验证 (命中标记/未命中待办/跳过已应用/空)/健康巡检 (积压/比例/健康无噪音)/去重/启停
+- **工作树审计**: 提交只含本会话 3 文件 + spec
+- 相关文件: `src/core/ProactiveTaskEngine.js` (新), `server/index.js`, `tests/unit/proactive-task-engine.test.js` (新), `docs/superpowers/specs/2026-09-14-proactive-task-engine-design.md`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线
