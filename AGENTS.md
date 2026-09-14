@@ -3075,3 +3075,14 @@ Session 锚点: 2026-09-14 (第105次 — 技能注入补强: 完整效果检验
 - **测试**: chat-service.test.js +5 (空文本防御/自定义模块/essence 提取/前3章节截断/断言更新)
 - **验证**: 全量 347/16,896/0 + ESLint 0/0
 - 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js`
+
+---
+
+Session 锚点: 2026-09-14 (第106次 — 匹配覆盖: 从 SKILL.md trigger 自动提取关键词)
+- ESLint: 0/0 | Tests: **348 passed suites / 4 skipped / 0 failed** (16,900 passed / 46 skipped, +4) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户选"关键词扩展")**: keywordMap 硬编码 126 个关键词覆盖不全; 发现 SKILL.md 有 `trigger:` 字段 (如 `trigger: "性能优化 | Redis缓存"`) 可自动提取
+- **实现**: `SkillRecognizer._parseSkill` 解析 trigger (去除前后引号); `_loadSkills` 加载后从每个 SKILL.md 的 trigger 按 `[|，,、;；]` 分割 → 补充 keywordMap (**不覆盖已有硬编码映射**)
+- **效果**: keywordMap 126 → **209** (+83 trigger 词); "性能优化"→performance-optimization / "UI设计"→ui-ux-design / "代码审查"→code-review / "设计系统"→awesome-design-md 全部注入
+- **测试**: `tests/unit/skill-recognizer-trigger.test.js` (新, 4 tests): trigger 提取/多分隔符/不覆盖硬编码/按 trigger 词识别
+- **验证**: 全量 348/16,900/0 + ESLint 0/0
+- 相关文件: `src/core/SkillRecognizer.js`, `tests/unit/skill-recognizer-trigger.test.js` (新)

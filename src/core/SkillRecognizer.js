@@ -319,6 +319,17 @@ class SkillRecognizer {
       }
     }
 
+    // 从 SKILL.md 的 trigger 字段自动补充关键词映射（覆盖更全，不覆盖已有硬编码映射）
+    for (const skill of this.skills) {
+      if (!skill.trigger) { continue; }
+      const triggers = skill.trigger.split(/[|，,、;；]/).map((t) => t.trim()).filter((t) => t.length >= 2);
+      for (const t of triggers) {
+        if (!this.keywordMap.has(t)) {
+          this.keywordMap.set(t, skill.name);
+        }
+      }
+    }
+
     console.log(`[SkillRecognizer] 已加载 ${this.skills.length} 个技能指令库（SKILL.md，供 AI 参考；可执行工具由 AsyncExecutor 白名单提供）`);
   }
 
@@ -361,10 +372,15 @@ class SkillRecognizer {
       const fm = fmMatch[1];
       const nameMatch = fm.match(/^name:\s*(.+)$/m);
       const descMatch = fm.match(/^description:\s*(.+)$/m);
+      const triggerMatch = fm.match(/^trigger:\s*(.+)$/m);
+      // 去除 trigger 值的前后引号（如 "性能优化 | Redis缓存"）
+      const rawTrigger = triggerMatch ? triggerMatch[1].trim() : '';
+      const trigger = rawTrigger.replace(/^["']|["']$/g, '');
 
       return {
         name: nameMatch ? nameMatch[1].trim() : path.basename(path.dirname(filePath)),
         description: descMatch ? descMatch[1].trim() : '',
+        trigger,
         path: filePath,
         category: this._guessCategory(filePath)
       };
