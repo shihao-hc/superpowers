@@ -2014,7 +2014,12 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.POST_TOOL_USE,
       name: 'brain-lesson-learner',
       handler: (ctx) => {
-        try { new (require('./LessonLearner'))().recordEvent('POST_TOOL_USE', ctx); } catch (e) { console.warn('[BrainSystem] LessonLearner hook error:', e.message); }
+        try {
+          const learner = new (require('./LessonLearner'))();
+          learner.recordEvent('POST_TOOL_USE', ctx);
+          // 学习闭环：低风险教训自动生效（security 保持人工审核）
+          learner.autoApproveSafeLessons();
+        } catch (e) { console.warn('[BrainSystem] LessonLearner hook error:', e.message); }
         return ctx;
       }
     });

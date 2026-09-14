@@ -92,16 +92,18 @@ class LessonLearner {
   }
 
   _extractLesson(data) {
+    // 生成实质教训内容（而非占位符），使 pending 可读、可审核、可生效
     const pending = {
       id: `pending-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       date: new Date().toISOString(),
       problem: this._str(data.error || data.input || '').substring(0, 500),
-      lesson: '（待审核）',
-      improvement: '（待审核）',
+      lesson: this._inferLessonText(data).substring(0, 500),
+      improvement: this._inferImprovement(data).substring(0, 500),
       context: this._str(data.context || data.input || '').substring(0, 200),
       source: 'lesson-learner',
       status: 'pending',
-      tags: this._inferTags(data)
+      tags: this._inferTags(data),
+      priority: this._inferTags(data).includes('security') ? 'high' : 'medium'
     };
     this._savePending(pending);
     if (this._audit) {this._audit.log({ level: 'info', module: 'learner', action: 'pending_added', id: pending.id });}
@@ -128,6 +130,26 @@ class LessonLearner {
     } catch (e) {
       return [];
     }
+  }
+
+  /**
+   * 自动审核低风险 pending 教训（使学习闭环运转）
+   * - 非 security 标签 + 有实质内容的教训 → 自动生效
+   * - security 教训保持人工审核（防污染风险决策）
+   */
+  autoApproveSafeLessons() {
+    const pendings = this.getPendingLessons();
+    const safe = pendings.filter((p) => {
+      const tags = p.tags || [];
+      const hasContent = p.lesson && p.lesson !== '（待审核）' && p.lesson.length > 5;
+      return !tags.includes('security') && hasContent;
+    });
+    let approved = 0;
+    for (const p of safe) {
+      const r = this.approveLesson(p.id);
+      if (r && r.status === 'approved') { approved++; }
+    }
+    return { approved, remaining: this.getPendingLessons().length };
   }
 
   approveLesson(id, edits = {}) {

@@ -2821,6 +2821,25 @@ Session 锚点: 2026-08-12 (第79次 — 前端响应合约修复: 浏览器用�
 
 ---
 
+Session 锚点: 2026-08-12 (第99次 — 教训学习闭环真实化: 占位符 → 实质内容 + 自动审核)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,859 passed / 46 skipped, +2) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户质疑"成果是否有作用、进步是否应用在自身" — 用数据诚实审计)**:
+  - 功能层真实可用 (对话/工具/文档/流式/文件交付/隔离/安全)
+  - **但自我进化层是名义的**: `growth.json` → `lessonsLearned: 0`; 28 条 pending 全是占位符 `（待审核）`; improvements.json 70 条是交互日志非代码修复; 教训库 70 条 title 全是 "a"/"b" (测试垃圾)
+  - 根因: `requireApproval: true` (默认) → 所有教训走 `_extractLesson` (写占位符) → 无自动审核 → pending 卡死; 且教训来源仅 MCP POST_TOOL_USE
+- **修复 1 — 教训实质内容** (`LessonLearner._extractLesson`): `lesson: '（待审核）'` → `this._inferLessonText(data)`; `improvement` 同理; 新增 `priority` (security→high)
+- **修复 2 — 自动审核低风险教训** (`LessonLearner.autoApproveSafeLessons`): 非 security + 有实质内容 (length>5) 的 pending → 自动 approve 生效; **security 保持人工审核** (防污染风险决策, 延续 Round 55/68)
+- **修复 3 — 闭环运转接入** (`BrainSystem.js:2017` POST_TOOL_USE 钩子): recordEvent 后调 autoApproveSafeLessons (低风险自动生效)
+- **真实验证 (非 mock)**: 真实 `globalHookRegistry.trigger(HookEvents.POST_TOOL_USE, ctx)` → 触发前 lessons 0 → **触发后 1 条** ("成功修复: 修复了数据库连接泄漏 bug" 实质内容) + 剩余 pending 0
+  - 关键: registry API 是 `trigger` 非 `emit` (用错则静默无操作)
+- **清理**: 测试污染数据重置 (lessons.json 70 条 "a"/"b" 垃圾 → 空库; pending-lessons.json 28 条占位符 → 空)
+- **测试**: `lesson-learner.test.js` +2 (实质内容非占位符 / 自动审核低风险+security保留); mock 用内存 store 支持写入后读回
+- **验证**: 全量 346/16,859/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `src/core/LessonLearner.js`, `src/core/BrainSystem.js`, `tests/unit/lesson-learner.test.js`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线

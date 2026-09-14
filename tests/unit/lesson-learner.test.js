@@ -333,4 +333,39 @@ describe('LessonLearner', () => {
       expect(record).toBeNull();
     });
   });
+
+  describe('learning closed loop', () => {
+    beforeEach(() => {
+      let pendingStore = '[]';
+      let lessonsStore = '{"lessons":[]}';
+      fs.readFileSync.mockImplementation((p) => (String(p).includes('pending') ? pendingStore : lessonsStore));
+      fs.writeFileSync.mockImplementation((p, data) => {
+        if (String(p).includes('pending')) { pendingStore = data; } else { lessonsStore = data; }
+      });
+    });
+
+    it('generates substantive lesson content (not placeholder)', () => {
+      const l = new LessonLearner({ requireApproval: true });
+      const result = l.recordEvent('POST_TOOL_USE', { input: '修复了 N+1 查询性能问题', result: 'fixed' }, 0.5);
+      expect(result.status).toBe('pending');
+      expect(result.lesson).not.toBe('（待审核）');
+      expect(result.lesson.length).toBeGreaterThan(5);
+      expect(result.improvement).not.toBe('（待审核）');
+    });
+
+    it('auto-approves safe lessons but keeps security pending', () => {
+      const l = new LessonLearner({ requireApproval: true });
+      // 低风险 fix 教训
+      l.recordEvent('POST_TOOL_USE', { input: '修复了缓存问题', result: 'fixed' }, 0.5);
+      // security 教训
+      l.recordEvent('POST_TOOL_USE', { input: '修复安全漏洞', tags: ['security', 'fix'] }, 0.5);
+      const pendings = l.getPendingLessons();
+      expect(pendings.length).toBe(2);
+      const r = l.autoApproveSafeLessons();
+      expect(r.approved).toBe(1); // 仅低风险
+      const remaining = l.getPendingLessons();
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].tags).toContain('security'); // security 保留
+    });
+  });
 });
