@@ -727,6 +727,24 @@ describe('AsyncExecutor', () => {
       expect(receivedInputs.skill.name).not.toContain('..');
     });
 
+    test('falls back to create when executor rejects unknown action (LLM hallucination)', async () => {
+      const ae2 = new AsyncExecutor();
+      let callCount = 0;
+      let lastAction = null;
+      ae2._loadExecutorModule = jest.fn(() => ({
+        execute: jest.fn(async (inputs) => {
+          callCount++;
+          lastAction = inputs.action;
+          if (inputs.action !== 'create') { throw new Error(`PdfExecutor failed: Unsupported action: ${inputs.action}`); }
+          return { ok: true, path: '/tmp/x.pdf' };
+        })
+      }));
+      const r = await ae2._getDefaultExecutor().execute('pdf', { action: 'createWithData' });
+      expect(callCount).toBe(2);
+      expect(lastAction).toBe('create');
+      expect(r.ok).toBe(true);
+    });
+
     test('throws honest error for unknown skill with skillManager', async () => {
       const ae2 = new AsyncExecutor({
         skillManager: { getAllSkills: () => [{ name: 'docx', version: '1.0' }] }

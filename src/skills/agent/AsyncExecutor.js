@@ -515,7 +515,16 @@ class AsyncExecutor {
             const inputs = { ...(parameters || {}), action: (parameters && parameters.action) || 'create' };
             // 安全加固：强制 executor 用白名单技能名（防止用户经 parameters.skill.name 路径穿越写入）
             inputs.skill = { name: skillName };
-            return await executorModule.execute(inputs);
+            try {
+              return await executorModule.execute(inputs);
+            } catch (e) {
+              // LLM 幻觉的 action 名（如 createWithData）→ 回退基础 create，避免文档生成失败
+              if (inputs.action && inputs.action !== 'create' && /unsupported action/i.test(e.message || '')) {
+                inputs.action = 'create';
+                return await executorModule.execute(inputs);
+              }
+              throw e;
+            }
           }
           if (isCustom) {
             throw new Error(`Skill '${skillName}' has no executable implementation (metadata-only)`);
