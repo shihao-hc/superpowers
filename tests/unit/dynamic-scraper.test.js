@@ -166,6 +166,7 @@ describe('DynamicScraper', () => {
         screenshotDir: '/x',
         headless: false,
         stealth: true,
+        proxy: null,
       });
       expect(browser.init).toHaveBeenCalled();
     });

@@ -76,7 +76,8 @@ class DynamicScraper {
         timeout: this.options.timeout,
         screenshotDir: this.options.screenshotDir,
         headless: this.options.headless,
-        stealth: this.options.stealth
+        stealth: this.options.stealth,
+        proxy: this.options.proxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null
       });
       await this.browser.init();
     }

@@ -13,6 +13,7 @@ class BrowserAgent {
     this._playwright = null;
     this._stealthMode = options.stealth !== false;
     this._platform = options.platform || 'desktop';
+    this._proxy = options.proxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null;
   }
 
   async init() {
@@ -57,13 +58,15 @@ class BrowserAgent {
   }
 
   _getContextOptions() {
+    const proxy = this._proxy ? { proxy: { server: this._proxy } } : {};
     if (this._platform === 'mobile') {
       return {
         viewport: { width: 375, height: 812 },
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
         deviceScaleFactor: 3,
         isMobile: true,
-        hasTouch: true
+        hasTouch: true,
+        ...proxy
       };
     }
 
@@ -71,7 +74,8 @@ class BrowserAgent {
       viewport: this.viewport,
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       locale: 'zh-CN',
-      timezoneId: 'Asia/Shanghai'
+      timezoneId: 'Asia/Shanghai',
+      ...proxy
     };
   }
 
