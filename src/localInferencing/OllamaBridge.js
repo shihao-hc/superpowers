@@ -35,7 +35,13 @@ class OllamaBridge {
       return null;
     }
     try {
-      const response = await this.client.embeddings({ model, prompt });
+      const timeoutMs = options.timeout || 5000;
+      let timer;
+      const response = await Promise.race([
+        this.client.embeddings({ model, prompt }),
+        new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('embed timeout')), timeoutMs); })
+      ]);
+      clearTimeout(timer);
       if (response && Array.isArray(response.embedding)) {
         return response.embedding;
       }

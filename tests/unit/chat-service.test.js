@@ -645,4 +645,56 @@ describe('ChatService conversation persistence', () => {
     expect(conv.context.lastIntent.intent).toBe('code');
     expect(conv.messages[0].timestamp instanceof Date).toBe(true);
   });
+
+  describe('skill guidance injection', () => {
+    const projectRoot = require('path').resolve(__dirname, '../../');
+    beforeEach(() => {
+      // 防御：确保 cwd 回到项目根（其他测试可能 chdir 污染，技能路径依赖 cwd）
+      process.chdir(projectRoot);
+      chatService._skillRecognizer = null;
+    });
+
+    it('injects skill guidance when task matches a skill', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
+      const text = chatService._buildSkillGuidance('帮我优化代码性能');
+      expect(text).toContain('performance-optimization');
+      expect(text).toContain('技能指导');
+    });
+
+    it('returns empty when no skill matches', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => []) };
+      expect(chatService._buildSkillGuidance('你好')).toBe('');
+    });
+
+    it('returns empty when match score is below threshold', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'x' }, score: 0.1 }]) };
+      expect(chatService._buildSkillGuidance('随便聊聊')).toBe('');
+    });
+
+    it('returns empty when skill file does not exist', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'nonexistent-skill' }, score: 0.9 }]) };
+      expect(chatService._buildSkillGuidance('测试任务')).toBe('');
+    });
+
+    it('injects SKILL.md body content', () => {
+      const path = require('path');
+      const fs = require('fs');
+      const realJoin = path.join;
+      const realExists = fs.existsSync;
+      const realRead = fs.readFileSync;
+      path.join = () => '/fake/skill.md';
+      fs.existsSync = () => true;
+      fs.readFileSync = () => '---\nname: t\n---\n# 技能\n按以下方法执行任务';
+      try {
+        chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 't' }, score: 0.9 }]) };
+        const text = chatService._buildSkillGuidance('测试任务');
+        expect(text).toContain('按以下方法执行任务');
+        expect(text).not.toContain('---'); // frontmatter 已去除
+      } finally {
+        path.join = realJoin;
+        fs.existsSync = realExists;
+        fs.readFileSync = realRead;
+      }
+    });
+  });
 });

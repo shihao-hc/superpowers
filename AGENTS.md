@@ -3046,3 +3046,16 @@ python -c "..."               # DB 完整性检查 (readOnly)
 - 备份位置: `D:\opencode-backup-20260815\auto\` (SQLite 在线一致性备份, 自动保留最近5份)
 - 设计原则: **只读+复制, 绝不删除用户数据** (仅自动清理自身旧备份)
 - 验证: 手动+定时触发均成功, DB integrity=ok, 快照3仓库健康, 版本检查正常
+
+---
+
+Session 锚点: 2026-09-14 (第104次 — 技能价值发挥: 对话注入 SKILL.md 技能指导)
+- ESLint: 0/0 | Tests: **348 passed suites / 4 skipped / 0 failed** (16,893 passed / 46 skipped, +6) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户"先发挥技能价值")**: 305 技能是 SKILL.md 指令文档 (290 含 SKILL.md, 0 可执行脚本), 是给 AI 助手读的指令, 运行时 server 无法自动执行 → 接入: 对话时匹配技能 → 注入 SKILL.md 指导 → LLM 按指令行动
+- **接入 `chatService._buildSkillGuidance(text)`**: 提取独立方法 (分离关注点, 可独立测试); SkillRecognizer.recognize 匹配 top1 (score>=0.5) → 读 SKILL.md 摘要 (去 frontmatter, 限 1000 字符) → 注入 sysPrompt; 非侵入式 (无匹配/失败 → 空, 不影响对话); 惰性单例 `_skillRecognizer`
+- **发现并修复真实 bug (5.3)**: `OllamaBridge.embed` 的 `client.embeddings` 无超时 → Ollama 无 embeddings 端点时 HTTP 挂起 (测试/首次调用偶发挂起) → 加 5s 超时 (Promise.race + clearTimeout)
+- **测试根治**: chat-service 技能测试被 conv-persist chdir 污染 (cwd 变 temp → 技能路径不存在 → 不注入) → skill describe beforeEach 显式 `process.chdir(projectRoot)` 防御
+- **端到端验证**: "帮我优化代码性能" → source ollama → 回复按 performance-optimization 方法论 ("有哪些性能瓶颈/优化目标")
+- **测试**: chat-service.test.js +5 (匹配注入/无匹配/阈值/文件不存在/SKILL.md body)
+- **验证**: 全量 348/16,893/0 + ESLint 0/0
+- 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `tests/unit/chat-service.test.js`

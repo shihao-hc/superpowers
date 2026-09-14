@@ -338,10 +338,38 @@ class ChatService extends EventEmitter {
         }
       }
     } catch (e) { /* 思考可选，失败静默 */ }
+    // 技能指导注入：识别任务领域 → 注入相关 SKILL.md（让 LLM 按技能指令行动，发挥 305 技能价值）
+    const skillText = this._buildSkillGuidance(text);
     const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
     const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
-    const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${toolPrompt}`;
+    const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${skillText}${toolPrompt}`;
     return { sysPrompt, toolTrigger };
+  }
+
+  /**
+   * 技能指导注入：识别任务领域 → 匹配技能 → 注入相关 SKILL.md（让 LLM 按技能指令行动）
+   * 非侵入式：无匹配/失败 → 返回空，不影响对话
+   */
+  _buildSkillGuidance(text) {
+    try {
+      if (!this._skillRecognizer) {
+        const SkillRecognizer = require('../../src/core/SkillRecognizer');
+        this._skillRecognizer = new SkillRecognizer();
+      }
+      const matches = this._skillRecognizer.recognize(text, { topN: 1 });
+      if (matches && matches.length > 0 && matches[0].score >= 0.5) {
+        const skillName = matches[0].skill.name;
+        const skMd = path.join(process.cwd(), '.opencode', 'skills', skillName, 'SKILL.md');
+        if (fs.existsSync(skMd)) {
+          const body = fs.readFileSync(skMd, 'utf8').replace(/^---[\s\S]*?---/, '').trim();
+          return `\n任务领域「${skillName}」的技能指导（请参考并遵循）：\n${body.slice(0, 1000)}`;
+        }
+      }
+      return '';
+    } catch (e) {
+      if (process.env.DEBUG_SKILL === '1') { console.error('[skill injection error]', e.message); }
+      return '';
+    }
   }
 
   /**
