@@ -676,6 +676,21 @@ describe('ChatService conversation persistence', () => {
       expect(chatService._buildSkillGuidance('测试任务')).toBe('');
     });
 
+    it('returns empty for empty/whitespace/short input', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'advanced-css-animations' }, score: 0.8 }]) };
+      expect(chatService._buildSkillGuidance('')).toBe('');
+      expect(chatService._buildSkillGuidance('   ')).toBe('');
+      expect(chatService._buildSkillGuidance('a')).toBe('');
+      expect(chatService._skillRecognizer.recognize).not.toHaveBeenCalled();
+    });
+
+    it('injects capability description for custom module skills', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'DynamicScraper', description: '爬虫系统', isCustomModule: true }, score: 1.0 }]) };
+      const text = chatService._buildSkillGuidance('写一个爬虫');
+      expect(text).toContain('DynamicScraper');
+      expect(text).toContain('爬虫系统');
+    });
+
     it('injects SKILL.md body content', () => {
       const path = require('path');
       const fs = require('fs');

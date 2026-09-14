@@ -352,17 +352,24 @@ class ChatService extends EventEmitter {
    */
   _buildSkillGuidance(text) {
     try {
+      const t = String(text || '').trim();
+      // 空/极短文本不注入（避免 SkillRecognizer 对空输入的兜底匹配注入无关技能）
+      if (t.length < 2) { return ''; }
       if (!this._skillRecognizer) {
         const SkillRecognizer = require('../../src/core/SkillRecognizer');
         this._skillRecognizer = new SkillRecognizer();
       }
-      const matches = this._skillRecognizer.recognize(text, { topN: 1 });
+      const matches = this._skillRecognizer.recognize(t, { topN: 1 });
       if (matches && matches.length > 0 && matches[0].score >= 0.5) {
-        const skillName = matches[0].skill.name;
-        const skMd = path.join(process.cwd(), '.opencode', 'skills', skillName, 'SKILL.md');
+        const skill = matches[0].skill;
+        // 自定义代码模块（如爬虫系统）→ 注入能力描述（告知 LLM 系统具备该能力）
+        if (skill.isCustomModule) {
+          return `\n系统具备相关能力「${skill.name}」：${skill.description || skill.type || ''}。`;
+        }
+        const skMd = path.join(process.cwd(), '.opencode', 'skills', skill.name, 'SKILL.md');
         if (fs.existsSync(skMd)) {
           const body = fs.readFileSync(skMd, 'utf8').replace(/^---[\s\S]*?---/, '').trim();
-          return `\n任务领域「${skillName}」的技能指导（请参考并遵循）：\n${body.slice(0, 1000)}`;
+          return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${body.slice(0, 1000)}`;
         }
       }
       return '';
