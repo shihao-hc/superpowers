@@ -158,7 +158,8 @@ class BrainSystem {
     // v17.0 新增 - Skill自动识别
     if (_SkillRecognizer) {
       this.skillRecognizer = new _SkillRecognizer({
-        skillsDir: path.join(process.cwd(), '.opencode', 'skills')
+        skillsDir: path.join(process.cwd(), '.opencode', 'skills'),
+        extraSkillsDirs: [path.join(process.cwd(), 'skills')]
       });
       console.log('[BrainSystem] 技能指令库: 已加载', this.skillRecognizer.getStats().total, '个 SKILL.md（供 AI 参考；可执行工具 5 个: docx/pdf/canvas/xlsx）');
     }

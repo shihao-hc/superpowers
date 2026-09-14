@@ -10,6 +10,7 @@ const path = require('path');
 class SkillRecognizer {
   constructor(options = {}) {
     this.skillsDir = options.skillsDir || 'D:/龙虾/.opencode/skills';
+    this.extraSkillsDirs = options.extraSkillsDirs || [];
     this.skills = [];
     this.categories = {};
     this.keywordMap = new Map();
@@ -298,24 +299,30 @@ class SkillRecognizer {
    * 加载所有 Skills
    */
   _loadSkills() {
-    if (!fs.existsSync(this.skillsDir)) {
+    const dirs = [this.skillsDir, ...(this.extraSkillsDirs || [])].filter((d) => d && fs.existsSync(d));
+    if (dirs.length === 0) {
       console.log('[SkillRecognizer] Skills目录不存在:', this.skillsDir);
       return;
     }
 
-    const files = this._getSkillFiles(this.skillsDir);
+    const seen = new Set();
+    for (const dir of dirs) {
+      const files = this._getSkillFiles(dir);
 
-    for (const file of files) {
-      const skill = this._parseSkill(file);
-      if (skill) {
-        this.skills.push(skill);
+      for (const file of files) {
+        const skill = this._parseSkill(file);
+        if (skill) {
+          if (seen.has(skill.name)) { continue; } // 跨目录去重（同名技能）
+          seen.add(skill.name);
+          this.skills.push(skill);
 
-        // 分类
-        const cat = skill.category || '其他';
-        if (!this.categories[cat]) {
-          this.categories[cat] = [];
+          // 分类
+          const cat = skill.category || '其他';
+          if (!this.categories[cat]) {
+            this.categories[cat] = [];
+          }
+          this.categories[cat].push(skill);
         }
-        this.categories[cat].push(skill);
       }
     }
 
