@@ -191,7 +191,7 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
           personality: 'default',
           context: { lastIntent: intent },
           messages: history
-        });
+        }, req.user && req.user.id);
         if (r && r.text) {
           reply = { text: r.text, source: r.source || 'fallback' };
         }

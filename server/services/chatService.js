@@ -159,7 +159,7 @@ class ChatService extends EventEmitter {
       const plugin = this._getMCPPlugin();
       if (plugin) {
         try {
-          if (plugin.status !== 'ready' && typeof plugin.onLoad === 'function') {
+          if (plugin.status !== 'loaded' && plugin.status !== 'ready' && typeof plugin.onLoad === 'function') {
             await Promise.race([
               plugin.onLoad(),
               new Promise((_, rej) => setTimeout(() => rej(new Error('MCP init timeout')), 5000))
@@ -501,7 +501,8 @@ class ChatService extends EventEmitter {
         }));
         // 动态 system prompt：融入人格 + 意图 + 记忆 + 教训 + 思考 + 工具提示
         const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation, userId);
-        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolTrigger ? await this._buildToolsSchema() : undefined });
+        const toolSchema = toolTrigger ? await this._buildToolsSchema() : undefined;
+        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolSchema });
         this.stats.llm.attempts++;
         // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
         if (toolTrigger && result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length === 0) {
@@ -536,7 +537,7 @@ class ChatService extends EventEmitter {
               }))
             ];
             roundHistory = [...roundHistory, ...toolMessages];
-            roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory);
+            roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory, { tools: toolSchema });
             this.stats.llm.attempts++;
           }
           if (roundResult && roundResult.ok && roundResult.text) {
@@ -715,7 +716,7 @@ class ChatService extends EventEmitter {
                   }))
                 ];
                 roundHistory = [...roundHistory, ...toolMessages];
-                roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory);
+                roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory, { tools: toolSchema });
                 this.stats.llm.attempts++;
               }
               if (allToolResults.length > 0) {

@@ -212,6 +212,10 @@ describe('ChatService (BrainSystem-wired)', () => {
         expect(r.toolResults).toHaveLength(2); // 2 轮工具结果
         expect(execSpy).toHaveBeenCalledTimes(2);
         expect(mockBridge.chat.mock.calls.length).toBe(3); // 1 首轮 + 2 工具回填
+        // 所有轮次都必须传 tools schema（否则 Ollama 无法返回 tool_calls）
+        for (const call of mockBridge.chat.mock.calls) {
+          expect(call[1]).toEqual(expect.objectContaining({ tools: expect.any(Array) }));
+        }
       } finally {
         chatService.ollamaBridge = origBridge;
         execSpy.mockRestore();

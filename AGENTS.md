@@ -2753,6 +2753,20 @@ Session 锚点: 2026-08-12 (第96次 — 匿名会话隔离: 各浏览器会话�
 
 ---
 
+Session 锚点: 2026-08-12 (第97次 — 多轮工具 schema 修复 + MCP 每消息重载修复 + agent 跨用户记忆泄漏)
+- ESLint: 0/0 (相关文件) | Tests: **346 passed suites / 4 skipped / 0 failed** (16,857 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
+- **方向探查 (subagent)**: 发现 2 个真实 bug + 1 隐私泄漏
+- **#1 多轮工具调用被真实 Ollama 破坏 (crown-jewel 功能)**: 工具循环第 1 轮传 tools schema, 但**后续每轮** `_chatWithRetry(bridge, sysPrompt, roundHistory)` 不带 tools → Ollama 无法返回 tool_calls → 链式任务 (读→生成) 生产中断; 且 `toolSchema` 变量未定义 (ReferenceError 被 try 吞 → fallback) → 修复: 提取 toolSchema 变量 + 每轮传 `{ tools: toolSchema }` (generateResponse + processStream)
+  - 验证: round1 + round2 都带 tools (BOTH FIXED); 单测加 tools 传递断言
+- **#2 MCP plugin 每消息重新加载**: `_buildToolsSchema` 检查 `plugin.status !== 'ready'` 但 MCPPlugin 成功 status='loaded' (永不 ready) → 每消息 onLoad 重新 spawn MCP 子进程 → 修复: 检查 `!== 'loaded' && !== 'ready'`
+  - 验证: loaded 不重载 (onLoad 0 次); 真实 onLoad 设 loaded
+- **#4 agent 路由跨用户记忆泄漏**: `agent.js` 调 generateResponse 没传 userId (第三参) → 记忆检索无过滤 → 用户 A 的记忆注入 B 的 prompt → 修复: 传 `req.user.id`
+- **验证**: 全量 346/16,857/0 + ESLint 0/0 + Security 0 HIGH
+- **工作树审计**: 提交只含本会话 3 文件
+- 相关文件: `server/services/chatService.js`, `server/routes/agent.js`, `tests/unit/chat-service.test.js` (38→38)
+
+---
+
 Session 锚点: 2026-08-12 (第77次c — 多轮工具调用测试保护: truncated 单测)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,832 passed / 46 skipped) 连续两次全量全绿 | npm audit: 0 vulns | Security: **0 HIGH**
 - **测试保护补齐**: truncated 分支 (L492-494) 此前无单测 (仅探针验证) → 加单测: mock bridge 恒返回 tool_calls → 4 轮截断 → truncated:true + toolResults 4 + bridgeCalls 5 (1 首轮 + 4 工具轮)
