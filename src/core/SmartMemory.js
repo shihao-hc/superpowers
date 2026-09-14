@@ -36,8 +36,9 @@ class SmartMemory {
     const queryLower = query.toLowerCase();
 
     for (const memory of this._memories) {
-      // 用户隔离：仅检索当前用户的记忆（metadata.userId 匹配）
-      if (userId && memory.metadata && memory.metadata.userId && memory.metadata.userId !== userId) {
+      // 用户隔离：仅检索当前用户的记忆（metadata.userId 或 value.userId 匹配）
+      const memUserId = (memory.metadata && memory.metadata.userId) || (memory.value && memory.value.userId);
+      if (userId && memUserId && memUserId !== userId) {
         continue;
       }
       const keyLower = memory.key.toLowerCase();
@@ -75,8 +76,9 @@ class SmartMemory {
       }
       const scored = [];
       for (const memory of this._memories) {
-        // 用户隔离：仅检索当前用户的记忆
-        if (userId && memory.metadata && memory.metadata.userId && memory.metadata.userId !== userId) {
+        // 用户隔离：仅检索当前用户的记忆（metadata.userId 或 value.userId 匹配）
+        const memUserId = (memory.metadata && memory.metadata.userId) || (memory.value && memory.value.userId);
+        if (userId && memUserId && memUserId !== userId) {
           continue;
         }
         let memEmbed = this._embeddings.get(memory.key);

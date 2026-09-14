@@ -2903,6 +2903,18 @@ Session 锚点: 2026-09-14 (第102次 — 自主任务引擎: 教训验证 + 健
 
 ---
 
+Session 锚点: 2026-09-14 (第102次b — 完整验证中发现并修复: 记忆跨用户隔离失效)
+- ESLint: 0/0 | Tests: **347 passed suites / 4 skipped / 0 failed** (16,886 passed / 46 skipped, +1) | npm audit: 0 vulns | Security: **0 HIGH**
+- **发现 (实际效果验证时)**: `BrainSystem.smartSearch('...', 5, 'other')` 命中其他用户记忆 → 跨用户隔离**失效** (隐私 bug)
+- **根因**: `SmartMemory.search`/`semanticSearch` 的用户过滤只检查 `memory.metadata.userId`，但 `chatService` 用 `smartStore(key, { input, userId })` 把 userId 放在 **value** 里（metadata 为空）→ `metadata.userId` undefined → 过滤永不生效
+- **为何测试未捕获**: 现有隔离测试用 `store(key, value, { userId })`（metadata.userId），未覆盖 chatService 实际用法（value.userId）
+- **修复**: `search` + `semanticSearch` 过滤改为 `(metadata.userId) || (value.userId)`（兼容两种存储）
+- **验证**: 自己用户命中 / 其他用户 **0 命中**（隔离生效）; 新增回归测试 `search isolates by value.userId (chatService pattern)`
+- **注意**: 无 userId 的记忆仍共享（设计：系统记忆）；仅带 userId 的记忆隔离
+- 相关文件: `src/core/SmartMemory.js`, `tests/unit/smart-memory.test.js` (25→26)
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线

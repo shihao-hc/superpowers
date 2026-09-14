@@ -162,6 +162,19 @@ describe('SmartMemory (direct class)', () => {
     expect(rAll.length).toBe(2);
   });
 
+  test('search isolates by value.userId (chatService pattern)', () => {
+    const memory = new SmartMemory();
+    // chatService 把 userId 放在 value 里（metadata 为空）
+    memory.store('chat_A_1', { input: '项目机密 A', userId: 'A' });
+    memory.store('chat_B_1', { input: '项目机密 B', userId: 'B' });
+    const rA = memory.search('项目', 5, 'A');
+    expect(rA.length).toBe(1);
+    expect(rA[0].value.userId).toBe('A');
+    const rB = memory.search('项目', 5, 'B');
+    expect(rB.length).toBe(1);
+    expect(rB[0].value.userId).toBe('B');
+  });
+
   test('search returns empty when no words score', () => {
     memory.store('key1', 'value1');
     const results = memory.search('zzz');
