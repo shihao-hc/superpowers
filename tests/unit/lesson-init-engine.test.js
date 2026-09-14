@@ -44,6 +44,13 @@ describe('LessonInitEngine', () => {
       expect(applied).toHaveLength(1);
     });
 
+    it('does not re-add defaults when library already has lessons (idempotent)', () => {
+      bs.lessonLibrary.getStats.mockReturnValue({ total: 34 });
+      bs.lessonLibrary.lessons = [{ lesson: 'normal lesson', applied: false }];
+      engine._initDefaultLessons();
+      expect(bs.lessonLibrary.add).not.toHaveBeenCalled();
+    });
+
     it('handles duplicate/invalid lesson add errors gracefully', () => {
       const addMock = bs.lessonLibrary.add;
       addMock.mockImplementationOnce(() => { throw new Error('duplicate'); });

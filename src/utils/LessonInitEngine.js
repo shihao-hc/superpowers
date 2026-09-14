@@ -41,6 +41,9 @@ class LessonInitEngine {
         }
         bs.lessonLibrary._save();
       }
+
+      // 已有教训 = 已初始化 → 幂等，跳过默认预设（防每次启动重复累积 34 条）
+      return;
     }
 
     const defaultLessons = [

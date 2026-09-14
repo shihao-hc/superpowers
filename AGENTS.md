@@ -2873,6 +2873,17 @@ Session 锚点: 2026-09-14 (第101次 — 自主行动闭环: 观察→决策→
 
 ---
 
+Session 锚点: 2026-09-14 (第101次b — 完整测试验证中发现并修复: 教训库启动重复累积 bug)
+- ESLint: 0/0 | Tests: **346 passed suites / 4 skipped / 0 failed** (16,873 passed / 46 skipped, +1) | npm audit: 0 vulns | Security: **0 HIGH**
+- **发现 (完整测试验证时)**: 每次 server 启动 lessons.json **追加 34 条** (34→68→...→340) → 教训库无限增长 (之前读到的 340 = 34×10)
+- **根因**: `LessonInitEngine._initDefaultLessons` 在 `existingStats.total > 0` 时只清理 designNotes，但**无条件**追加 34 条预设教训 → 每次启动重复
+- **修复 (5.3 发现即修复)**: `total > 0` 分支末尾加 `return` (已有教训 = 已初始化 → 幂等跳过默认预设)
+- **验证**: 启动前 0 → 第1次 34 → 第2次仍 34 (幂等生效); 新增回归测试 (total>0 时 add 不被调)
+- **注意**: lessons.json 是运行时数据 (未跟踪); 34 条为合法预置教训 (保留)
+- 相关文件: `src/utils/LessonInitEngine.js`, `tests/unit/lesson-init-engine.test.js`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线
