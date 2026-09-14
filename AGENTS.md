@@ -2915,6 +2915,21 @@ Session 锚点: 2026-09-14 (第102次b — 完整验证中发现并修复: 记�
 
 ---
 
+Session 锚点: 2026-09-14 (第103次 — 真实使用验证 + 误导性声明根治)
+- ESLint: 0/0 | Tests: **347 passed suites / 4 skipped / 0 failed** (16,887 passed / 46 skipped, +1) | npm audit: 0 vulns | Security: **0 HIGH**
+- **真实使用验证 (HTTP 用户入口)**: 对话 200/source ollama + 文档生成真实文件 + /health + GET / 全部工作 → 系统可通过真实用户入口使用
+- **发现并修复真实 bug (5.3)**: PDF 生成失败 — LLM 幻觉返回 `action:'createWithData'`（不存在的 action）→ PdfExecutor "Unsupported action" → AsyncExecutor 捕获后**回退 create** (AsyncExecutor.js:515 区域) + 回归测试 +1
+- **记忆持久化验证**: 正确传 `x-session-id` header → 同会话记忆命中（之前未命中是 probe 未传 header，非 bug）
+- **误导性声明根治 (诚实化)**:
+  - "305 个Skills" → `技能指令库: 已加载 305 个 SKILL.md（供 AI 参考；可执行工具 5 个: docx/pdf/canvas/xlsx）` (BrainSystem.js + SkillRecognizer.js log)
+  - "全方面检查 14维度56项自动触发" → "启动时真实运行" (log 修正, 上轮已接入真实 run)
+  - 多代理/情感/价值观/内省 → `接入状态: 对话/记忆/教训/思考/工具=已接入用户路径; 多代理/情感/价值观/内省=实验性(未接入用户对话)` (BrainSystem.js 构造后标注)
+- **验证**: 启动日志诚实 (无残留 "个Skills"/"自动触发" 误导); 全量 347/16,887/0
+- **工作树审计**: 提交只含本会话文件
+- 相关文件: `src/skills/agent/AsyncExecutor.js`, `tests/unit/async-executor.test.js`, `src/core/BrainSystem.js`, `src/core/SkillRecognizer.js`, `docs/audit/2026-09-14-system-honest-audit.md`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线

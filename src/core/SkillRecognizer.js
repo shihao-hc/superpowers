@@ -319,7 +319,7 @@ class SkillRecognizer {
       }
     }
 
-    console.log('[SkillRecognizer] 已加载', this.skills.length, '个Skills');
+    console.log(`[SkillRecognizer] 已加载 ${this.skills.length} 个技能指令库（SKILL.md，供 AI 参考；可执行工具由 AsyncExecutor 白名单提供）`);
   }
 
   /**

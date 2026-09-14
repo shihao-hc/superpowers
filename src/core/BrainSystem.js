@@ -160,7 +160,7 @@ class BrainSystem {
       this.skillRecognizer = new _SkillRecognizer({
         skillsDir: path.join(process.cwd(), '.opencode', 'skills')
       });
-      console.log('[BrainSystem] Skill自动识别: 已加载', this.skillRecognizer.getStats().total, '个Skills');
+      console.log('[BrainSystem] 技能指令库: 已加载', this.skillRecognizer.getStats().total, '个 SKILL.md（供 AI 参考；可执行工具 5 个: docx/pdf/canvas/xlsx）');
     }
     // v18.0 新增 - 全方面检查系统
     if (_ComprehensiveChecker) {
@@ -275,8 +275,11 @@ class BrainSystem {
       console.log('[BrainSystem] 自我代码改进: 自检 + 自动修复');
     }
     if (_ComprehensiveChecker) {
-      console.log('[BrainSystem] 全方面检查系统: 14维度56项自动触发');
+      console.log('[BrainSystem] 全方面检查: 14维度56项（启动时真实运行）');
     }
+
+    // 诚实标注接入状态（避免误导性声明：区分已接入用户路径 vs 实验性未接入）
+    console.log('[BrainSystem] 接入状态: 对话/记忆/教训/思考/工具=已接入用户路径; 多代理/情感/价值观/内省=实验性(未接入用户对话)');
 
     // 自动启动日常自检闭环（每5分钟自检一次）
     this._autoStartDailyCheck();
