@@ -84,7 +84,7 @@ class AgentRegistry {
 
   _notify(event, data) {
     for (const cb of this.listeners) {
-      try { cb(event, data); } catch (e) {}
+      try { cb(event, data); } catch (e) { console.warn('[AgentRegistry] event listener error:', e.message); }
     }
   }
 }

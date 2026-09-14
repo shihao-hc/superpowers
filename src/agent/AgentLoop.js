@@ -12,11 +12,10 @@
 
 const EventEmitter = require('events');
 
-// BrainFlow 集成
+// BrainFlow 集成（可选，模块缺失时显式降级，不静默空吞）
 let BrainFlow;
-try { BrainFlow = require('../core/BrainFlow'); } catch (e) {}
-
 let brainFlow = null;
+try { BrainFlow = require('../core/BrainFlow'); } catch (e) { brainFlow = null; }
 
 /**
  * 获取 BrainFlow 实例

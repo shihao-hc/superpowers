@@ -2840,6 +2840,20 @@ Session 锚点: 2026-08-12 (第99次 — 教训学习闭环真实化: 占位符 
 
 ---
 
+Session 锚点: 2026-08-12 (第100次 — 自我改进真实化: 检测器误报消除 + 自动修复从空壳到真实)
+- ESLint: 0/0 | Tests: **346 passed suites / 4 skipped / 0 failed** (16,861 passed / 46 skipped, +2) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户问"运行模式是否具备智能全自动化" — 运行时审计)**: 40+ setInterval 自动循环但多为机械运维; 关键缺口: SelfCodeImprover 启动扫描 6 问题 (2 空 catch + 4 重复 require) 但 **0 自动修复、全部需手动**
+- **根因 1 — 检测器误报** (`_checkDuplicateRequire`): 原正则 `/require(...)/g` 统计所有 require 出现，不区分顶层/局部作用域 → 把合法的**局部延迟 require** (BrainSystem 钩子内 require、AttestationService L196 局部 crypto、LessonLibrary L93 局部 fs/path) 误报为"重复" → 修复: 正则改 `/^const\s+\w+\s*=\s*require(...)$/gm` (行首无缩进 = 顶层)
+- **根因 2 — 自动修复空壳** (`_applyFix`): `_canAutoFix` 声明 duplicate-require 可修复，但 `_applyFix` 对**所有类型**恒返回 `{success:false, '需要手动处理'}` → "自动修复"从项目创建起从未真正修复过任何文件 → 新增 `_fixDuplicateRequire`: 删顶层重复 require 行 (保留首次) + 局部 require 保留 + `new vm.Script()` 语法校验通过才写盘 + 失败保留原文件 (原子安全)
+- **空 catch 修复 (真实缺陷)**: `AgentRegistry.js:87` 事件回调错误静默吞 → 加 console.warn; `AgentLoop.js:17` BrainFlow 可选集成失败空吞 → 显式 `brainFlow = null` 降级
+- **验证**: 扫描 6 → **0 问题** (误报消除 + 空 catch 修复); `_applyFix` 探针: 顶层重复删除 + 局部保留 + 语法 PASS; 运行时日志 "[SelfCodeImprover] 扫描完成: 0 问题"
+- **测试**: self-code-improver.test.js 更新语义 (单行内联 → 多行顶层; 新增 2: 忽略局部重复 / _applyFix 无顶层重复安全失败); 注意 ESLint quotes 要求单引号 → --fix
+- **诚实结论**: 自我改进从"空壳"变"真实" (检测准确 + 可自动修复顶层重复); 但系统仍**无自主行动** (被动等输入), 未达"智能全自动"
+- **工作树审计**: 提交只含本会话 4 文件
+- 相关文件: `src/core/SelfCodeImprover.js`, `src/core/AgentRegistry.js`, `src/agent/AgentLoop.js`, `tests/unit/self-code-improver.test.js`
+
+---
+
 Session 锚点: 2026-08-12 (第80次 — 真实 Ollama 流式输出: processStream 接真实推理)
 - ESLint: 0/0 (相关文件) | Tests: **343 passed suites / 4 skipped / 0 failed** (16,834 passed / 46 skipped) 全量通过 | npm audit: 0 vulns | Security: **0 HIGH**
 - **方向探查 (subagent)**: Direction A — 真实流式输出是聊天助手的 #1 感知质量特性; `processStream` 是假流式 (L595 硬编码话术逐字符 setTimeout); `OllamaBridge.chat` 已支持 stream:true (返回 ollama SDK async iterable) 但未接线

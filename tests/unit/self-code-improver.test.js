@@ -47,11 +47,17 @@ describe('SelfCodeImprover', () => {
 
   describe('_checkDuplicateRequire', () => {
     test('detects duplicate requires', () => {
-      const content = 'const a = require(\'fs\'); const b = require(\'fs\');';
+      const content = 'const a = require(\'fs\');\nconst b = require(\'fs\');';
       const result = improver._checkDuplicateRequire(content, 'test.js');
       expect(result.found).toBe(true);
       expect(result.severity).toBe('high');
       expect(result.message).toContain('fs');
+    });
+
+    test('ignores local (non-top-level) duplicate requires', () => {
+      const content = 'const a = require(\'fs\');\nfunction f() { const b = require(\'fs\'); }';
+      const result = improver._checkDuplicateRequire(content, 'test.js');
+      expect(result.found).toBe(false);
     });
 
     test('returns not found when no duplicates', () => {
@@ -156,7 +162,7 @@ describe('SelfCodeImprover', () => {
 
   describe('_scanFile', () => {
     test('reads file and runs all checks', () => {
-      fs.readFileSync.mockReturnValue('const x = require(\'fs\'); require(\'fs\');');
+      fs.readFileSync.mockReturnValue('const x = require(\'fs\');\nconst y = require(\'fs\');');
       const issues = improver._scanFile('/fake/test.js');
       expect(issues.length).toBeGreaterThan(0);
       expect(issues[0].file).toBe('test.js');
@@ -169,7 +175,7 @@ describe('SelfCodeImprover', () => {
     });
 
     test('includes file name in issues', () => {
-      fs.readFileSync.mockReturnValue('const a = require(\'x\'); const b = require(\'x\');');
+      fs.readFileSync.mockReturnValue('const a = require(\'x\');\nconst b = require(\'x\');');
       const issues = improver._scanFile('/some/path/myfile.js');
       expect(issues[0].file).toBe('myfile.js');
     });
@@ -231,10 +237,18 @@ describe('SelfCodeImprover', () => {
   });
 
   describe('_applyFix', () => {
-    test('duplicate-require returns manual handle', () => {
-      const result = improver._applyFix({ type: 'duplicate-require' });
+    test('duplicate-require auto-fixes top-level duplicates', () => {
+      fs.readFileSync.mockReturnValue('const a = require(\'fs\');\nconst b = require(\'fs\');\nmodule.exports = {};');
+      const result = improver._applyFix({ type: 'duplicate-require', file: '/tmp/fixme.js' });
+      expect(result.success).toBe(true);
+      expect(fs.writeFileSync).toHaveBeenCalled();
+    });
+
+    test('duplicate-require fails safely when no top-level duplicate', () => {
+      fs.readFileSync.mockReturnValue('const a = require(\'fs\');\nmodule.exports = {};');
+      const result = improver._applyFix({ type: 'duplicate-require', file: '/tmp/clean.js' });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('手动');
+      expect(result.error).toContain('无顶层重复');
     });
 
     test('version-inconsistency returns manual confirm', () => {
@@ -469,7 +483,8 @@ describe('SelfCodeImprover', () => {
   describe('_scanFile (deep branches)', () => {
     test('triggers multiple check types in single file', () => {
       const content = [
-        'const a = require(\'fs\'); const b = require(\'fs\');',
+        'const a = require(\'fs\');',
+        'const b = require(\'fs\');',
         '@version 1.0.0 @version 2.0.0',
         'try { x() } catch (e) {}',
         'console.log("d"); console.log("d"); console.log("d");',
@@ -491,7 +506,7 @@ describe('SelfCodeImprover', () => {
     });
 
     test('includes file name in issues', () => {
-      fs.readFileSync.mockReturnValue('const a = require(\'x\'); const b = require(\'x\');');
+      fs.readFileSync.mockReturnValue('const a = require(\'x\');\nconst b = require(\'x\');');
       const issues = improver._scanFile('/some/path/myfile.js');
       expect(issues[0]).toHaveProperty('file');
       expect(issues[0]).toHaveProperty('type');

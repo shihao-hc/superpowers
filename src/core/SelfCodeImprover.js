@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { splitLines } = require('../utils/UltraWorkUtils');
 
 class SelfCodeImprover {
@@ -165,7 +166,8 @@ class SelfCodeImprover {
    */
   _checkDuplicateRequire(content, _fileName) {
     const requireCounts = {};
-    const requirePattern = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+    // 只统计顶层 require（行首无缩进）；局部 require 是合法的延迟加载模式，不算重复
+    const requirePattern = /^const\s+\w+\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*$/gm;
     let match;
 
     while ((match = requirePattern.exec(content)) != null) { // eslint-disable-line eqeqeq
@@ -436,7 +438,7 @@ class SelfCodeImprover {
    */
   _applyFix(issue) {
     if (issue.type === 'duplicate-require') {
-      return { success: false, error: '需要手动处理' };
+      return this._fixDuplicateRequire(issue);
     }
 
     if (issue.type === 'version-inconsistency') {
@@ -444,6 +446,32 @@ class SelfCodeImprover {
     }
 
     return { success: false, error: '未知问题类型' };
+  }
+
+  /**
+   * 自动修复顶层重复 require：保留首次出现，删除后续重复行
+   * 安全保证：仅处理顶层纯 require 行（行首无缩进）；语法校验通过才写盘，否则保留原文件
+   */
+  _fixDuplicateRequire(issue) {
+    const filePath = issue.file;
+    if (!filePath || !fs.existsSync(filePath)) { return { success: false, error: '文件不存在' }; }
+    const content = fs.readFileSync(filePath, 'utf8');
+    const seen = new Set();
+    let modified = false;
+    const outLines = [];
+    for (const line of content.split('\n')) {
+      const m = line.match(/^const\s+\w+\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*$/);
+      if (m) {
+        if (seen.has(m[1])) { modified = true; continue; }
+        seen.add(m[1]);
+      }
+      outLines.push(line);
+    }
+    if (!modified) { return { success: false, error: '无顶层重复 require' }; }
+    const fixed = outLines.join('\n');
+    try { new vm.Script(fixed); } catch (e) { return { success: false, error: `语法校验失败: ${e.message}` }; }
+    fs.writeFileSync(filePath, fixed);
+    return { success: true, file: filePath };
   }
 
   /**
