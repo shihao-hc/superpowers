@@ -151,6 +151,20 @@ class ChatService extends EventEmitter {
             required: ['type']
           }
         }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'scrape_web',
+          description: '爬取公开网页内容（含 SSRF 防护，仅允许公开 http/https URL）。当用户要求抓取网页、爬取网站数据、获取网页内容时使用。',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: '要爬取的公开网页 URL' }
+            },
+            required: ['url']
+          }
+        }
       }
     ];
 
@@ -260,6 +274,19 @@ class ChatService extends EventEmitter {
                 path: filePath
               }
             });
+          }
+        } else if (name === 'scrape_web') {
+          const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
+          executor = new AsyncExecutor();
+          const execution = await executor.execute('dynamic-scraper', { url: args.url });
+          const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 60000 });
+          const r = (finalResult && finalResult.result) || {};
+          if (finalResult && finalResult.error) {
+            results.push({ tool: name, ok: false, error: finalResult.error });
+          } else if (r.error) {
+            results.push({ tool: name, ok: false, error: r.error });
+          } else {
+            results.push({ tool: name, ok: true, result: { type: 'scrape', url: args.url, data: r.data } });
           }
         } else {
           results.push({ tool: name, ok: false, error: `Unknown tool: ${name}` });

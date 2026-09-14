@@ -3086,3 +3086,16 @@ Session 锚点: 2026-09-14 (第106次 — 匹配覆盖: 从 SKILL.md trigger 自
 - **测试**: `tests/unit/skill-recognizer-trigger.test.js` (新, 4 tests): trigger 提取/多分隔符/不覆盖硬编码/按 trigger 词识别
 - **验证**: 全量 348/16,900/0 + ESLint 0/0
 - 相关文件: `src/core/SkillRecognizer.js`, `tests/unit/skill-recognizer-trigger.test.js` (新)
+
+---
+
+Session 锚点: 2026-09-14 (第107次 — 自定义模块执行: 爬虫接入 + SSRF 防护)
+- ESLint: 0/0 | Tests: **349 passed suites / 4 skipped / 0 failed** (16,906 passed / 46 skipped, +6) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (项 1: 自定义模块从"告知"到"执行")**: DynamicScraper 有完整接口 (init/scrape/scrapeMultiple/close) 但只注入 description → 接入 AsyncExecutor
+- **新建 `src/skills/executors/ScrapeExecutor.js`**: 适配 DynamicScraper (类实例方法) 为 static execute 接口; **SSRF 防护 `isSafeUrl`** — 拒绝 localhost/127.x/10.x/192.168.x/172.16-31.x/0.0.0.0/[::1]/非 http(s)/非 URL, 仅允许公开 http(s)
+- **接入**: AsyncExecutor `builtinExecutable` + `executorMap` 加 `'dynamic-scraper': 'ScrapeExecutor'`; chatService 工具 schema 加 `scrape_web` 工具 + `_executeToolCalls` 加 scrape_web 分支 (经 AsyncExecutor 执行, SSRF 拦截在 executor 内)
+- **验证**: SSRF 防护 12/12 正确; 爬虫执行路径 (mock DynamicScraper): 公开 URL 执行 / 内网拦截 / 缺 url 报错 全过
+- **测试**: `tests/unit/scrape-executor.test.js` (新, 6 tests): isSafeUrl 白名单+黑名单 / execute 公开URL / SSRF拦截 / 缺url / 非string url
+- **诚实边界**: 爬虫仅 SSRF 防护 (拒绝内网), 外部恶意站点风险仍在 (爬虫本身特性, 非 SSRF); 真实爬取需网络
+- **验证**: 全量 349/16,906/0 + ESLint 0/0
+- 相关文件: `src/skills/executors/ScrapeExecutor.js` (新), `src/skills/agent/AsyncExecutor.js`, `server/services/chatService.js`, `tests/unit/scrape-executor.test.js` (新)
