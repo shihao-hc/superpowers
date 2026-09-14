@@ -32,7 +32,14 @@ class ScrapeExecutor {
       throw new Error('Blocked by SSRF protection: only public http(s) URLs allowed');
     }
     const ds = new DynamicScraper();
-    await ds.init();
+    try {
+      await ds.init();
+    } catch (e) {
+      if (/executable doesn't exist|browserType\.launch/i.test(e.message || '')) {
+        throw new Error('爬虫需要 Playwright 浏览器：请运行 `npx playwright install chromium` 后重试', { cause: e });
+      }
+      throw new Error(`爬虫初始化失败: ${e.message}`, { cause: e });
+    }
     try {
       const result = await ds.scrape(url, inputs.options || {});
       const data = result && typeof result === 'object' ? result : { content: String(result || '') };
