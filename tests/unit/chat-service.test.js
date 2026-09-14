@@ -658,7 +658,7 @@ describe('ChatService conversation persistence', () => {
       chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
       const text = chatService._buildSkillGuidance('帮我优化代码性能');
       expect(text).toContain('performance-optimization');
-      expect(text).toContain('技能指导');
+      expect(text).toContain('技能方法论');
     });
 
     it('returns empty when no skill matches', () => {
@@ -699,17 +699,36 @@ describe('ChatService conversation persistence', () => {
       const realRead = fs.readFileSync;
       path.join = () => '/fake/skill.md';
       fs.existsSync = () => true;
-      fs.readFileSync = () => '---\nname: t\n---\n# 技能\n按以下方法执行任务';
+      fs.readFileSync = () => '---\nname: t\n---\n# 技能\n## 核心原则\n1. 先分析再动手\n2. 验证结果\n- 记录经验';
       try {
         chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 't' }, score: 0.9 }]) };
         const text = chatService._buildSkillGuidance('测试任务');
-        expect(text).toContain('按以下方法执行任务');
+        expect(text).toContain('核心原则');
+        expect(text).toContain('先分析再动手');
         expect(text).not.toContain('---'); // frontmatter 已去除
       } finally {
         path.join = realJoin;
         fs.existsSync = realExists;
         fs.readFileSync = realRead;
       }
+    });
+
+    it('extracts structured essence (headings/steps/points, skips code blocks)', () => {
+      const body = '## 步骤\n```js\nconst x = 1;\n```\n1. 第一步\n2. 第二步\n- 要点A\n- 要点B\n## 总结\n结束';
+      const essence = chatService._extractSkillEssence(body);
+      expect(essence).toContain('步骤');
+      expect(essence).toContain('1. 第一步');
+      expect(essence).toContain('要点A');
+      expect(essence).not.toContain('const x = 1'); // 代码块跳过
+    });
+
+    it('stops after 3 top-level sections (avoids trailing metadata)', () => {
+      const body = '## 核心\n内容\n## 模式\n内容\n## 指标\n内容\n## 更新日志\n不应提取';
+      const essence = chatService._extractSkillEssence(body);
+      expect(essence).toContain('核心');
+      expect(essence).toContain('模式');
+      expect(essence).toContain('指标');
+      expect(essence).not.toContain('更新日志'); // 第 4 个主章节被跳过
     });
   });
 });

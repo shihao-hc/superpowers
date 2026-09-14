@@ -3059,3 +3059,19 @@ Session 锚点: 2026-09-14 (第104次 — 技能价值发挥: 对话注入 SKILL
 - **测试**: chat-service.test.js +5 (匹配注入/无匹配/阈值/文件不存在/SKILL.md body)
 - **验证**: 全量 348/16,893/0 + ESLint 0/0
 - 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `tests/unit/chat-service.test.js`
+
+---
+
+Session 锚点: 2026-09-14 (第105次 — 技能注入补强: 完整效果检验 + 结构化提取 + 边界修复)
+- ESLint: 0/0 | Tests: **347 passed suites / 4 skipped / 0 failed** (16,896 passed / 46 skipped, +5) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户"是否完整测试检验实际效果是否达标")**: 补做完整效果检验 (多领域匹配/对比实验/边界/HTTP入口) → 发现 2 真实不足 + 局限
+- **完整效果检验**:
+  - 多领域: performance/ui-ux/security-audit/docker/code-review 匹配注入; "爬虫"未匹配 (发现缺口)
+  - 对比实验: 有技能 vs 无技能 → 回复不同 YES (但提升有限, 小模型遵循度)
+  - 边界: 空文本注入 advanced-css-animations (发现 bug); HTTP 入口 200 + 技能方法论回复
+- **修复 1 (空文本注入 bug)**: `recognize('')` 兜底匹配 css 技能 → `_buildSkillGuidance` 空/极短文本 (length<2) 直接返回空
+- **修复 2 (自定义模块只告知不执行)**: 自定义模块 (DynamicScraper 爬虫等, isCustomModule) → 注入能力描述 `系统具备「DynamicScraper」：拾号-爬虫系统...` (告知能力; 执行需接入 AsyncExecutor, 留待后续)
+- **结构化技能提取 (解决小模型遵循度)**: `_extractSkillEssence(body)` 提取 SKILL.md 骨架 (前 3 主章节的标题/步骤/要点, 跳过代码块与尾部元数据) 而非塞 1000 字符正文 → LLM 更容易遵循 (code-review 端到端: "代码审查结果 → 1. Correctness → ...")
+- **测试**: chat-service.test.js +5 (空文本防御/自定义模块/essence 提取/前3章节截断/断言更新)
+- **验证**: 全量 347/16,896/0 + ESLint 0/0
+- 相关文件: `server/services/chatService.js`, `tests/unit/chat-service.test.js`

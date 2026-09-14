@@ -369,7 +369,12 @@ class ChatService extends EventEmitter {
         const skMd = path.join(process.cwd(), '.opencode', 'skills', skill.name, 'SKILL.md');
         if (fs.existsSync(skMd)) {
           const body = fs.readFileSync(skMd, 'utf8').replace(/^---[\s\S]*?---/, '').trim();
-          return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${body.slice(0, 1000)}`;
+          // 结构化技能提取：注入骨架（章节/步骤/要点）而非长正文，小模型更容易遵循
+          const essence = this._extractSkillEssence(body);
+          if (essence) {
+            return `\n任务领域「${skill.name}」的技能方法论（请遵循）：\n${essence}`;
+          }
+          return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${body.slice(0, 800)}`;
         }
       }
       return '';
@@ -377,6 +382,34 @@ class ChatService extends EventEmitter {
       if (process.env.DEBUG_SKILL === '1') { console.error('[skill injection error]', e.message); }
       return '';
     }
+  }
+
+  /**
+   * 从 SKILL.md 提取结构化骨架（章节标题/步骤/要点，跳过代码块），供注入
+   */
+  _extractSkillEssence(body) {
+    const lines = String(body || '').split('\n');
+    const out = [];
+    let inCode = false;
+    let topSections = 0; // 主章节计数（## 级别）
+    for (const line of lines) {
+      if (line.trim().startsWith('```')) { inCode = !inCode; continue; }
+      if (inCode) { continue; }
+      const t = line.trim();
+      if (/^##\s/.test(t)) {
+        topSections++;
+        if (topSections > 3) { break; } // 只取前 3 个主章节（核心内容），跳过尾部元数据（更新日志等）
+        out.push(`【${t.replace(/^##\s*/, '').replace(/[#*`]/g, '').trim()}】`);
+      } else if (/^###\s/.test(t) && topSections <= 3) {
+        out.push(`· ${t.replace(/^###\s*/, '').replace(/[#*`]/g, '').trim().slice(0, 60)}`);
+      } else if (/^\d+[.、)]\s/.test(t) && topSections <= 3) {
+        out.push(t.replace(/^(\d+)[.、)]\s*/, '$1. ').slice(0, 90));
+      } else if (/^[-*]\s/.test(t) && topSections <= 3) {
+        out.push(`  - ${t.replace(/^[-*]\s*/, '').slice(0, 80)}`);
+      }
+      if (out.length >= 15) { break; }
+    }
+    return out.join('\n');
   }
 
   /**
