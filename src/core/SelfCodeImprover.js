@@ -468,7 +468,7 @@ class SelfCodeImprover {
     const seen = new Set();
     let modified = false;
     const outLines = [];
-    for (const line of content.split('\n')) {
+    for (const line of splitLines(content)) {
       const m = line.match(/^const\s+\w+\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)\s*;?\s*$/);
       if (m) {
         if (seen.has(m[1])) { modified = true; continue; }

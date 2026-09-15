@@ -12,6 +12,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const { splitLines } = require('../utils/UltraWorkUtils');
 
 /**
  * 记忆 Section 定义
@@ -386,7 +387,7 @@ ${this.getRecentMessages(session).slice(-20).map((m) => `${m.role}: ${m.content}
    * 从 Markdown 解析
    */
   parseFromMarkdown(content) {
-    const lines = content.split('\n');
+    const lines = splitLines(content);
     let currentSection = null;
     let currentContent = [];
 
