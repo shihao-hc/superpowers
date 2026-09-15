@@ -395,13 +395,18 @@ class ChatService extends EventEmitter {
         }
         const skMd = path.join(process.cwd(), '.opencode', 'skills', skill.name, 'SKILL.md');
         if (fs.existsSync(skMd)) {
-          const body = fs.readFileSync(skMd, 'utf8').replace(/^---[\s\S]*?---/, '').trim();
-          // 结构化技能提取：注入骨架（章节/步骤/要点）而非长正文，小模型更容易遵循
-          const essence = this._extractSkillEssence(body);
-          if (essence) {
-            return `\n任务领域「${skill.name}」的技能方法论（请遵循）：\n${essence}`;
+          // 缓存技能内容（避免每消息读盘同步 IO）
+          if (!this._skillEssenceCache) { this._skillEssenceCache = new Map(); }
+          if (!this._skillEssenceCache.has(skill.name)) {
+            const body = fs.readFileSync(skMd, 'utf8').replace(/^---[\s\S]*?---/, '').trim();
+            const essence = this._extractSkillEssence(body);
+            this._skillEssenceCache.set(skill.name, { body, essence });
           }
-          return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${body.slice(0, 800)}`;
+          const cached = this._skillEssenceCache.get(skill.name);
+          if (cached.essence) {
+            return `\n任务领域「${skill.name}」的技能方法论（请遵循）：\n${cached.essence}`;
+          }
+          return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${cached.body.slice(0, 800)}`;
         }
       }
       return '';

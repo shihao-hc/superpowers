@@ -652,6 +652,7 @@ describe('ChatService conversation persistence', () => {
       // 防御：确保 cwd 回到项目根（其他测试可能 chdir 污染，技能路径依赖 cwd）
       process.chdir(projectRoot);
       chatService._skillRecognizer = null;
+      chatService._skillEssenceCache = null;
     });
 
     it('injects skill guidance when task matches a skill', () => {
@@ -720,6 +721,14 @@ describe('ChatService conversation persistence', () => {
       expect(essence).toContain('1. 第一步');
       expect(essence).toContain('要点A');
       expect(essence).not.toContain('const x = 1'); // 代码块跳过
+    });
+
+    it('caches skill essence (no re-read on repeat calls)', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
+      const first = chatService._buildSkillGuidance('优化性能');
+      expect(chatService._skillEssenceCache.has('performance-optimization')).toBe(true);
+      const second = chatService._buildSkillGuidance('优化性能');
+      expect(second).toBe(first); // 缓存命中，结果一致
     });
 
     it('stops after 3 top-level sections (avoids trailing metadata)', () => {
