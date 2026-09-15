@@ -3113,3 +3113,16 @@ Session 锚点: 2026-09-14 (第108次 — 技能库完整性审计 + CRLF frontm
 - **测试**: skill-recognizer-trigger.test.js +1 (CRLF frontmatter 解析)
 - **验证**: 全量 349/16,907/0 + ESLint 0/0
 - 相关文件: `src/core/SkillRecognizer.js`, `tests/unit/skill-recognizer-trigger.test.js`
+
+---
+
+Session 锚点: 2026-09-14 (第109次 — 学习闭环真实运转: 对话纠正触发学习)
+- ESLint: 0/0 | Tests: **349 passed suites / 4 skipped / 0 failed** (16,912 passed / 46 skipped, +5) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户"让学习闭环真实运转")**: `lessonsLearned: 0` 揭示真实缺口 — 教训学习只在 MCP POST_TOOL_USE 触发, 对话/文档生成不触发 → 真实使用中学不到东西
+- **修复 (补全接线, 非造新组件)**:
+  - `LessonLearner.recordFeedback({ feedback, previousReply })`: 检测纠正信号 (`不对|错了|不是这样|应该是|修正|incorrect|should be` 等) → `_extractLesson` 记录教训 (input="用户纠正: X", result='corrected', tags=['fix','correction'])
+  - `chatService.processMessage`: 用户消息后调 `recordFeedback` (关联上一轮助手回复) + `autoApproveSafeLessons` (低风险自动生效, security 保持人工); 非侵入式 try-catch
+- **真实使用验证**: 对话纠正 ("不对，应该用索引而不是全表扫描") → 教训库 **34 → 38 (+4)**; 新教训 "从实践中学习: 用户纠正: ..."; 普通消息 ("今天天气不错") 不触发 ✅
+- **测试**: lesson-learner.test.js +4 (纠正识别/普通不记录/空/多种纠正信号)
+- **验证**: 全量 349/16,912/0 + ESLint 0/0
+- 相关文件: `src/core/LessonLearner.js`, `server/services/chatService.js`, `tests/unit/lesson-learner.test.js`

@@ -496,6 +496,17 @@ class ChatService extends EventEmitter {
         }
       } catch (e) { /* BrainSystem 可选，失败静默 */ }
 
+      // 学习闭环：检测用户纠正 → 学习教训（让学习在真实对话中运转，非侵入式）
+      try {
+        const lastReply = conversation.messages.filter((m) => m.role === 'assistant').slice(-1)[0];
+        const LessonLearner = require('../../src/core/LessonLearner');
+        const learner = new LessonLearner();
+        const pending = learner.recordFeedback({ feedback: text, previousReply: lastReply ? lastReply.content : '' });
+        if (pending) {
+          learner.autoApproveSafeLessons(); // 低风险教训自动生效（security 保持人工）
+        }
+      } catch (e) { /* 学习可选，失败静默 */ }
+
       // Claude Code 风格的上下文压缩
       this.contextCompact.addMessage(userMessage);
 

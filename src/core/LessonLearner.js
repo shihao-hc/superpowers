@@ -37,6 +37,25 @@ class LessonLearner {
     return this._extractLesson(data);
   }
 
+  /**
+   * 从对话反馈中学习（用户纠正 → 教训）
+   * 让学习闭环在真实对话中运转（对话路径触发，非仅 MCP 工具）
+   */
+  recordFeedback({ feedback, previousReply }) {
+    const text = this._str(feedback);
+    if (!text) { return null; }
+    // 纠正/负面信号检测
+    const isCorrection = /不对|错了|不是这样|应该是|应该用|改成|修正|有误|不正确|不合适|wrong|incorrect|should be|that's not/i.test(text);
+    if (!isCorrection) { return null; }
+    const data = {
+      input: `用户纠正: ${text.substring(0, 150)}`,
+      result: 'corrected',
+      tags: ['fix', 'correction'],
+      context: previousReply ? `上一轮回复: ${this._str(previousReply).substring(0, 80)}` : 'conversation'
+    };
+    return this._extractLesson(data);
+  }
+
   _autoApproveLesson(data) {
     // 从 fix 数据自动推断教训内容
     const lesson = this._inferLessonText(data);

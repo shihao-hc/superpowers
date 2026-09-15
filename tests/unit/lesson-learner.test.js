@@ -368,4 +368,30 @@ describe('LessonLearner', () => {
       expect(remaining[0].tags).toContain('security'); // security 保留
     });
   });
+
+  describe('recordFeedback (conversation learning)', () => {
+    it('records lesson on correction signal', () => {
+      const l = new LessonLearner({ requireApproval: true });
+      const r = l.recordFeedback({ feedback: '不对，应该用 async/await', previousReply: '使用回调' });
+      expect(r.status).toBe('pending');
+      expect(r.lesson).toContain('用户纠正');
+    });
+
+    it('returns null for non-correction messages', () => {
+      const l = new LessonLearner();
+      expect(l.recordFeedback({ feedback: '今天天气不错' })).toBeNull();
+    });
+
+    it('returns null for empty feedback', () => {
+      const l = new LessonLearner();
+      expect(l.recordFeedback({ feedback: '' })).toBeNull();
+    });
+
+    it('detects various correction signals', () => {
+      const l = new LessonLearner();
+      ['错了', '不是这样', '应该是 X', '修正一下', 'that\'s not right', 'incorrect'].forEach((f) => {
+        expect(l.recordFeedback({ feedback: f })).toBeTruthy();
+      });
+    });
+  });
 });
