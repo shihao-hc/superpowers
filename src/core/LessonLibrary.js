@@ -41,19 +41,42 @@ class LessonLibrary {
   search(query, options = {}) {
     let results = [...this._lessons];
     if (query) {
-      const q = query.toLowerCase();
-      results = results.filter((l) =>
-        (l.title && l.title.toLowerCase().includes(q)) ||
-        (l.problem && l.problem.toLowerCase().includes(q)) ||
-        (l.lesson && l.lesson.toLowerCase().includes(q)) ||
-        (l.tags && l.tags.some((t) => t.toLowerCase().includes(q)))
-      );
+      // 中文感知：整句 includes 对中文自然语言查询永不命中（真实缺陷，与 SmartMemory 同源）
+      // 改为 bigram 分词，任一 token 命中即匹配
+      const tokens = LessonLibrary._tokenize(query);
+      results = results.filter((l) => {
+        const text = `${l.title || ''} ${l.problem || ''} ${l.lesson || ''} ${(l.tags || []).join(' ')}`.toLowerCase();
+        return tokens.some((t) => t.length >= 2 && text.includes(t));
+      });
     }
     if (options.type && options.type === 'success') {
       results = results.filter((l) => l._applied);
     }
     if (options.limit) { results = results.slice(0, options.limit); }
     return results;
+  }
+
+  /**
+   * 中文感知分词：英文词原样，中文连续段切 CJK 二元组（bigram）
+   * 与 SmartMemory._tokenize 逻辑一致（保持检索语义统一）
+   */
+  static _tokenize(text) {
+    const s = String(text || '').toLowerCase();
+    const tokens = [];
+    const enWords = s.match(/[a-z0-9][a-z0-9._-]*/g) || [];
+    tokens.push(...enWords);
+    const cjkRuns = s.match(/[\u4e00-\u9fff]+/g) || [];
+    for (const run of cjkRuns) {
+      if (run.length <= 2) {
+        if (!tokens.includes(run)) { tokens.push(run); }
+      } else {
+        for (let i = 0; i < run.length - 1; i++) {
+          const bigram = run.slice(i, i + 2);
+          if (!tokens.includes(bigram)) { tokens.push(bigram); }
+        }
+      }
+    }
+    return tokens;
   }
 
   /**

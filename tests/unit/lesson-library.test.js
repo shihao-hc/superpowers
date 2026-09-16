@@ -73,6 +73,15 @@ describe('LessonLibrary', () => {
       lib.add({ title: 'b' });
       expect(lib.search(null, { limit: 1 })).toHaveLength(1);
     });
+
+    it('matches Chinese natural-language queries via bigram (whole-sentence was broken)', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib.add({ title: '性能优化经验：缓存与索引' });
+      lib.add({ title: '数据库连接管理' });
+      // 旧实现：整句 includes → '帮我优化代码性能' 无法命中短标题 → 教训从不注入
+      const results = lib.search('帮我优化代码性能');
+      expect(results.some((l) => l.title.includes('性能优化'))).toBe(true);
+    });
   });
 
   describe('getSuggestions', () => {
