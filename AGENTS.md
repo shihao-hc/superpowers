@@ -122,6 +122,24 @@ node brain-bridge.js --status
 git commit ...  →  立即 git push origin main  →  确认 git status -sb 无 ahead
 ```
 
+## 4.2 存储策略（强制）
+
+> **C 盘空间有限，所有大型数据/模型/缓存一律存 D 盘**（C 盘只留系统与必要应用）。
+
+已配置（用户级，持久）：
+
+| 项 | 位置 |
+|----|------|
+| Ollama 模型 | `OLLAMA_MODELS=D:\ollama-models` |
+| 默认模型 | `OLLAMA_MODEL=qwen2.5:7b`（备用 llama3.2）|
+| opencode 数据 | `XDG_DATA_HOME=D:\opencode-data` |
+| npm cache | `D:\npm-cache` |
+| pnpm store | `D:\pnpm-store` |
+| pip cache | `PIP_CACHE_DIR=D:\pip-cache` |
+| bun cache | `BUN_INSTALL_CACHE_DIR=D:\bun-cache` |
+
+原则：新增任何会落盘的工具/数据/缓存时，默认配置到 D 盘，不写 C 盘。
+
 ---
 
 ## 5. Fix 安全协议（强制）
