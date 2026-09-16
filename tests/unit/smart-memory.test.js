@@ -181,6 +181,19 @@ describe('SmartMemory (direct class)', () => {
     expect(results).toEqual([]);
   });
 
+  test('search matches Chinese text via CJK bigram (whole-sentence token was broken)', () => {
+    // 中文整句：旧实现 query.split(/\s+/) 把整句当一个词 → value 不含整句 → 永不命中
+    memory.store('mem_tech', { text: '用户的技术栈偏好：喜欢用 Vue 和 Tailwind 开发前端', userId: 'u1' });
+    const results = memory.search('我平时用什么技术栈开发前端', 5, 'u1');
+    expect(results.some((r) => r.key === 'mem_tech')).toBe(true);
+  });
+
+  test('search matches short Chinese query via bigram overlap', () => {
+    memory.store('mem_vue', { text: '用户喜欢用 Vue 开发前端', userId: 'u2' });
+    const results = memory.search('前端技术', 5, 'u2');
+    expect(results.some((r) => r.key === 'mem_vue')).toBe(true);
+  });
+
   test('getRecent returns last N memories', () => {
     memory.store('a', '1');
     memory.store('b', '2');

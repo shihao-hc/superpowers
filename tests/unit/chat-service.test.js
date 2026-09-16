@@ -879,5 +879,21 @@ describe('ChatService conversation persistence', () => {
         kwSpy.mockRestore();
       }
     });
+
+    it('injects memory input text instead of raw JSON (cleaner, no userId leak)', async () => {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      chatService._skillRecognizer = { recognize: jest.fn(() => []) };
+      const semSpy = jest.spyOn(BrainSystem, 'smartSearchSemantic').mockResolvedValue([{ value: { input: '用户喜欢用Vue开发前端', role: 'user', userId: 'u1' } }]);
+      const kwSpy = jest.spyOn(BrainSystem, 'smartSearch').mockReturnValue([]);
+      try {
+        const { sysPrompt } = await chatService._buildSysPrompt('技术栈', { personality: 'default', context: {}, messages: [] }, 'u1');
+        expect(sysPrompt).toContain('用户喜欢用Vue开发前端');
+        expect(sysPrompt).not.toContain('userId');
+        expect(sysPrompt).not.toContain('"input"');
+      } finally {
+        semSpy.mockRestore();
+        kwSpy.mockRestore();
+      }
+    });
   });
 });

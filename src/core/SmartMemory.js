@@ -33,7 +33,7 @@ class SmartMemory {
 
   search(query, limit = 5, userId) {
     const results = [];
-    const queryLower = query.toLowerCase();
+    const queryTokens = SmartMemory._tokenize(query);
 
     for (const memory of this._memories) {
       // 用户隔离：仅检索当前用户的记忆（metadata.userId 或 value.userId 匹配）
@@ -41,15 +41,15 @@ class SmartMemory {
       if (userId && memUserId && memUserId !== userId) {
         continue;
       }
-      const keyLower = memory.key.toLowerCase();
-      const valueLower = JSON.stringify(memory.value).toLowerCase();
+      const keyText = String(memory.key || '').toLowerCase();
+      const valueText = JSON.stringify(memory.value).toLowerCase();
 
       let score = 0;
-      const queryWords = queryLower.split(/\s+/);
-      for (const word of queryWords) {
-        if (word.length < 2) { continue; }
-        if (keyLower.includes(word)) { score += 2; }
-        if (valueLower.includes(word)) { score += 1; }
+      for (const token of queryTokens) {
+        if (token.length < 2) { continue; }
+        // key 命中权重更高（与旧逻辑一致），value 命中次之
+        if (keyText.includes(token)) { score += 2; }
+        else if (valueText.includes(token)) { score += 1; }
       }
 
       if (score > 0) {
@@ -59,6 +59,29 @@ class SmartMemory {
 
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, limit);
+  }
+
+  /**
+   * 中文感知分词：英文词按原样，中文连续段切成 CJK 二元组（bigram）
+   * 修复：旧实现 query.split(/\s+/) 英文分词 → 中文整句永不匹配 value（真实缺陷）
+   */
+  static _tokenize(text) {
+    const s = String(text || '').toLowerCase();
+    const tokens = [];
+    const enWords = s.match(/[a-z0-9][a-z0-9._-]*/g) || [];
+    tokens.push(...enWords);
+    const cjkRuns = s.match(/[\u4e00-\u9fff]+/g) || [];
+    for (const run of cjkRuns) {
+      if (run.length <= 2) {
+        if (!tokens.includes(run)) { tokens.push(run); }
+      } else {
+        for (let i = 0; i < run.length - 1; i++) {
+          const bigram = run.slice(i, i + 2);
+          if (!tokens.includes(bigram)) { tokens.push(bigram); }
+        }
+      }
+    }
+    return tokens;
   }
 
   /**

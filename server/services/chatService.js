@@ -369,8 +369,13 @@ class ChatService extends EventEmitter {
         mem = BrainSystem.smartSearch(text, 3, userId);
       }
       if (mem.length > 0) {
+        // 提取可读内容（value.input 优先），避免把含 userId 的原始 JSON 塞进 prompt（不友好 + 隐私）
+        let memBody = mem.map((m) => {
+          if (typeof m.value === 'string') { return m.value; }
+          if (m.value && typeof m.value.input === 'string') { return m.value.input; }
+          return JSON.stringify(m.value);
+        }).join('；');
         // 安全阀：限长防止超长记忆撑爆上下文（正常 3 条记忆远小于上限，不触发）
-        let memBody = mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；');
         if (memBody.length > 600) { memBody = `${memBody.slice(0, 600)}…`; }
         memoryText = `你记得与该用户相关的信息：${memBody}。`;
       }
