@@ -38,7 +38,7 @@ class SelfCheckEngine {
       console.log(`[BrainSystem] ⚠️ 教训应用率低: ${Math.round(applicationRate * 100)}%`);
 
       const highPriority = bs.lessonLibrary.lessons
-        .filter((l) => l.priority === 'high' && !l.applied)
+        .filter((l) => l.priority === 'high' && !l._applied)
         .slice(0, 1);
 
       if (highPriority.length > 0) {

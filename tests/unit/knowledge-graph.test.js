@@ -1,12 +1,12 @@
-const KnowledgeGraph = require('../../src/utils/KnowledgeGraph');
+﻿const KnowledgeGraph = require('../../src/utils/KnowledgeGraph');
 
-const makeLesson = (id, lesson, category, problem = '', priority = 'medium', applied = false) => ({
+const makeLesson = (id, lesson, category, problem = '', priority = 'medium', _applied = false) => ({
   id,
   lesson,
   category,
   problem,
   priority,
-  applied,
+  _applied,
 });
 
 describe('KnowledgeGraph.buildKnowledgeGraph', () => {

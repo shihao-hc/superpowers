@@ -1,4 +1,4 @@
-const BrainUtils = require('./BrainUtils');
+﻿const BrainUtils = require('./BrainUtils');
 
 class KnowledgeGraph {
   buildKnowledgeGraph(bs) {
@@ -16,7 +16,7 @@ class KnowledgeGraph {
         label: `${lesson.lesson.substring(0, 30)}...`,
         category: lesson.category,
         priority: lesson.priority,
-        applied: lesson.applied
+        applied: lesson._applied
       });
     }
 

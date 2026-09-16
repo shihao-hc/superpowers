@@ -83,7 +83,7 @@ class ProactiveAdvisor {
       if (!fs.existsSync(this._lessonLibPath)) {return [];}
       const lib = JSON.parse(fs.readFileSync(this._lessonLibPath, 'utf8'));
       return (lib.lessons || []).filter(function(l) {
-        return l.priority === 'high' && (!l.applied || l.applyCount < 1);
+        return l.priority === 'high' && (!l._applied || l.applyCount < 1);
       }).slice(0, this._maxResults);
     } catch (e) {
       return [];

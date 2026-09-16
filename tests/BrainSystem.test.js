@@ -1572,8 +1572,8 @@ describe('getLessonHistory', () => {
   test('returns filtered applied lessons', () => {
     const bs = new BrainSystem();
     bs.lessonLibrary.search.mockReturnValue([
-      { id: 'l1', lesson: 'lesson 1', applied: true, lastApplied: '2024-01-01', applyCount: 3 },
-      { id: 'l2', lesson: 'lesson 2', applied: false }
+      { id: 'l1', lesson: 'lesson 1', _applied: true, lastApplied: '2024-01-01', applyCount: 3 },
+      { id: 'l2', lesson: 'lesson 2', _applied: false }
     ]);
     const result = bs.getLessonHistory(10);
     expect(result.length).toBe(1);

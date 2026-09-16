@@ -242,43 +242,41 @@ describe('LessonLearner', () => {
     });
 
     it('approves pending lesson with edits', () => {
-      fs.readFileSync.mockReturnValue('[{"id":"p1","lesson":"old","source":"learner"}]');
-      fs.readFileSync.mockReturnValueOnce('[{"id":"p1","lesson":"old","source":"learner"}]');
-      fs.readFileSync.mockReturnValueOnce('[{"id":"p1","lesson":"old","source":"learner"}]');
-      fs.readFileSync.mockReturnValueOnce('{"lessons":[]}');
+      fs.readFileSync
+        .mockReturnValueOnce('[{"id":"p1","lesson":"old","source":"learner"}]') // getPendingLessons
+        .mockReturnValueOnce('{"lessons":[]}') // _insertIntoLibrary
+        .mockReturnValueOnce('[{"id":"p1","lesson":"old","source":"learner"}]'); // _removePending
       const result = learner.approveLesson('p1', { lesson: 'new lesson' });
       expect(result.status).toBe('approved');
       expect(result.lesson.lesson).toBe('new lesson');
     });
 
-    it('returns lesson fallback when insertIntoLibrary returns null', () => {
-      fs.existsSync.mockReturnValueOnce(true);
-      fs.existsSync.mockReturnValueOnce(false);
+    it('returns insert error and keeps pending when library insert fails (no data loss)', () => {
+      fs.existsSync.mockImplementation((p) => String(p).endsWith('lessons.json') && String(p).includes('pending'));
       fs.readFileSync.mockReturnValue('[{"id":"p1","lesson":"fallback lesson"}]');
       const result = learner.approveLesson('p1');
-      expect(result.status).toBe('approved');
-      expect(result.lesson.lesson).toBe('fallback lesson');
+      expect(result.error).toBe('insert_failed');
     });
 
     it('logs audit when audit is configured and inserted succeeds', () => {
       const audit = { log: jest.fn() };
       const l = new LessonLearner({ requireApproval: true, audit });
-      fs.existsSync.mockImplementation(() => true);
       fs.readFileSync
-        .mockReturnValueOnce('[{"id":"p1","lesson":"old"}]')
-        .mockReturnValueOnce('[{"id":"p1","lesson":"old"}]')
-        .mockReturnValueOnce('{"lessons":[]}');
+        .mockReturnValueOnce('[{"id":"p1","lesson":"old"}]') // pending
+        .mockReturnValueOnce('{"lessons":[]}') // lessons
+        .mockReturnValueOnce('[{"id":"p1","lesson":"old"}]'); // remove pending
       l.approveLesson('p1');
       expect(audit.log).toHaveBeenCalled();
     });
 
-    it('logs audit when audit is configured and inserted is null', () => {
+    it('returns error without audit when insert fails (pending kept)', () => {
       const audit = { log: jest.fn() };
       const l = new LessonLearner({ requireApproval: true, audit });
-      fs.existsSync.mockImplementation((p) => p.includes('pending'));
+      fs.existsSync.mockImplementation((p) => String(p).endsWith('lessons.json') && String(p).includes('pending'));
       fs.readFileSync.mockReturnValue('[{"id":"p1","lesson":"old"}]');
-      l.approveLesson('p1');
-      expect(audit.log).toHaveBeenCalled();
+      const result = l.approveLesson('p1');
+      expect(result.error).toBe('insert_failed');
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 

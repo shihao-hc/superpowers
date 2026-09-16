@@ -1,4 +1,4 @@
-describe('ProactiveAdvisor', () => {
+﻿describe('ProactiveAdvisor', () => {
   let ProactiveAdvisor;
   let fs;
   const AUDIT_DIR = 'test-audit';
@@ -174,7 +174,7 @@ describe('ProactiveAdvisor', () => {
       });
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
-          lessons: [{ id: 'l1', lesson: 'fix this', priority: 'high', applied: false, applyCount: 0 }]
+          lessons: [{ id: 'l1', lesson: 'fix this', priority: 'high', _applied: false, applyCount: 0 }]
         });
         return '';
       });
@@ -220,7 +220,7 @@ describe('ProactiveAdvisor', () => {
       });
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
-          lessons: [{ id: 'l1', lesson: 'low priority', priority: 'low', applied: false }]
+          lessons: [{ id: 'l1', lesson: 'low priority', priority: 'low', _applied: false }]
         });
         return '';
       });
@@ -240,7 +240,7 @@ describe('ProactiveAdvisor', () => {
       });
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
-          lessons: [{ id: 'only-id', priority: 'high', applied: false }]
+          lessons: [{ id: 'only-id', priority: 'high', _applied: false }]
         });
         return '';
       });
@@ -267,9 +267,9 @@ describe('ProactiveAdvisor', () => {
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
           lessons: [
-            { id: 'l1', lesson: 'high unapplied', priority: 'high', applied: false },
-            { id: 'l2', lesson: 'medium applied', priority: 'medium', applied: true },
-            { id: 'l3', lesson: 'high applied', priority: 'high', applied: true, applyCount: 2 }
+            { id: 'l1', lesson: 'high unapplied', priority: 'high', _applied: false },
+            { id: 'l2', lesson: 'medium applied', priority: 'medium', _applied: true },
+            { id: 'l3', lesson: 'high applied', priority: 'high', _applied: true, applyCount: 2 }
           ]
         });
         return '';
@@ -295,7 +295,7 @@ describe('ProactiveAdvisor', () => {
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
           lessons: [
-            { id: 'l1', lesson: 'needs reapply', priority: 'high', applied: true, applyCount: 0 }
+            { id: 'l1', lesson: 'needs reapply', priority: 'high', _applied: true, applyCount: 0 }
           ]
         });
         return '';
@@ -311,7 +311,7 @@ describe('ProactiveAdvisor', () => {
       jest.spyOn(fs, 'readFileSync').mockImplementation((p) => {
         if (p === LESSONS_PATH) return JSON.stringify({
           lessons: [
-            { id: 'l1', priority: 'high', applied: false }
+            { id: 'l1', priority: 'high', _applied: false }
           ]
         });
         return '';
@@ -524,7 +524,7 @@ describe('ProactiveAdvisor', () => {
           ].join('\n');
         }
         if (p === LESSONS_PATH) return JSON.stringify({
-          lessons: [{ id: 'l1', lesson: 'fix db', priority: 'high', applied: false, applyCount: 0 }]
+          lessons: [{ id: 'l1', lesson: 'fix db', priority: 'high', _applied: false, applyCount: 0 }]
         });
         return '';
       });
@@ -568,7 +568,7 @@ describe('ProactiveAdvisor', () => {
           ].join('\n');
         }
         if (p === LESSONS_PATH) return JSON.stringify({
-          lessons: [{ id: 'l1', lesson: 'auth fix', priority: 'high', applied: false }]
+          lessons: [{ id: 'l1', lesson: 'auth fix', priority: 'high', _applied: false }]
         });
         if (p === DECISIONS_PATH) return JSON.stringify({ history });
         return '';

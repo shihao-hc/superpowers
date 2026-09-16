@@ -176,10 +176,14 @@ class LessonLearner {
     const idx = pendings.findIndex((l) => l.id === id);
     if (idx === -1) {return { error: 'not_found' };}
     const lesson = { ...pendings[idx], ...edits, status: 'approved' };
-    this._removePending(id);
+    // 修复：先插入成功再删 pending（原先删后插，插入失败则教训两头消失 = 数据丢失）
     const inserted = this._insertIntoLibrary(lesson);
+    if (!inserted) {
+      return { error: 'insert_failed', lesson };
+    }
+    this._removePending(id);
     if (this._audit) {this._audit.log({ level: 'info', module: 'learner', action: 'approved', id, lessonId: inserted ? inserted.id : null });}
-    return { status: 'approved', lesson: inserted || lesson };
+    return { status: 'approved', lesson: inserted };
   }
 
   rejectLesson(id) {
@@ -201,7 +205,7 @@ class LessonLearner {
       if (!fs.existsSync(this._lessonsPath)) {return null;}
       const lib = JSON.parse(fs.readFileSync(this._lessonsPath, 'utf8'));
       const record = {
-        id: `lesson-auto-${Date.now()}`,
+        id: `lesson-auto-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         date: new Date().toISOString(),
         type: lesson.type || 'general',
         category: lesson.category || 'pattern',

@@ -1,4 +1,4 @@
-describe('LessonInitEngine', () => {
+﻿describe('LessonInitEngine', () => {
   let LessonInitEngine;
   let engine;
   let bs;
@@ -40,7 +40,7 @@ describe('LessonInitEngine', () => {
       ];
       engine._initDefaultLessons();
       expect(bs.lessonLibrary._save).toHaveBeenCalled();
-      const applied = bs.lessonLibrary.lessons.filter(l => l.applied);
+      const applied = bs.lessonLibrary.lessons.filter(l => l._applied);
       expect(applied).toHaveLength(1);
     });
 
@@ -66,7 +66,7 @@ describe('LessonInitEngine', () => {
         { lesson: 'normal lesson', applied: false }
       ];
       expect(() => engine._initDefaultLessons()).not.toThrow();
-      const applied = bs.lessonLibrary.lessons.filter(l => l.applied);
+      const applied = bs.lessonLibrary.lessons.filter(l => l._applied);
       expect(applied).toHaveLength(1);
     });
   });

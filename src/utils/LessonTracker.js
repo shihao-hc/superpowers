@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LessonTracker - 教训应用追踪
  *
  * 自动自检、教训应用追踪、教训有效性评估、教训历史查询
@@ -69,10 +69,10 @@ class LessonTracker {
         id: lesson.id,
         lesson: `${lesson.lesson.substring(0, 50)}...`,
         relevance: 'queried',
-        wasApplied: lesson.applied
+        wasApplied: lesson._applied
       });
 
-      if (!lesson.applied) {
+      if (!lesson._applied) {
         bs.lessonLibrary.markApplied(lesson.id);
         tracking.lessonsApplied.push(lesson.id);
         console.log(`[BrainSystem] ✓ 教训已应用: ${lesson.lesson.substring(0, 30)}...`);
@@ -108,7 +108,7 @@ class LessonTracker {
     const applied = this.bs.lessonLibrary.search('', {
       type: 'success',
       limit: limit
-    }).filter((l) => l.applied);
+    }).filter((l) => l._applied);
 
     return applied.map((l) => ({
       id: l.id,

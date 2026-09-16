@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DecisionEngine - 决策引擎
  *
  * 处理决策前/后的元认知、教训应用追踪、自检触发
@@ -54,7 +54,7 @@ class DecisionEngine {
       selfCheck,
       context,
       lessonWarnings: pendingWarnings,
-      relatedLessons: relatedLessons.map((l) => ({ id: l.id, lesson: l.lesson, applied: l.applied })),
+      relatedLessons: relatedLessons.map((l) => ({ id: l.id, lesson: l.lesson, applied: l._applied })),
       timestamp: Date.now()
     };
   }

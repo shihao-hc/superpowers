@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LessonInitEngine - 预设教训库初始化
  *
  * 初始化34条核心经验和清理无效的设计笔记教训
@@ -37,7 +37,7 @@ class LessonInitEngine {
       if (designNotes.length > 0) {
         console.log(`[BrainSystem] 清理 ${designNotes.length} 条无效教训`);
         for (const l of designNotes) {
-          l.applied = true;
+          l._applied = true;
         }
         bs.lessonLibrary._save();
       }

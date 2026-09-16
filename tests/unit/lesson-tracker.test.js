@@ -1,4 +1,4 @@
-describe('LessonTracker', () => {
+﻿describe('LessonTracker', () => {
   let LessonTracker;
   let tracker;
   let bs;
@@ -84,8 +84,8 @@ describe('LessonTracker', () => {
         { lessonId: 'l1' }, { lessonId: 'l2' }
       ]);
       bs.lessonLibrary.get
-        .mockReturnValueOnce({ id: 'l1', lesson: 'test lesson one', applied: true })
-        .mockReturnValueOnce({ id: 'l2', lesson: 'test lesson two', applied: false });
+        .mockReturnValueOnce({ id: 'l1', lesson: 'test lesson one', _applied: true })
+        .mockReturnValueOnce({ id: 'l2', lesson: 'test lesson two', _applied: false });
       const result = tracker._trackLessonUsage('ctx');
       expect(result.lessonsUsed).toHaveLength(2);
       expect(result.lessonsApplied).toEqual(['l2']);
@@ -93,7 +93,7 @@ describe('LessonTracker', () => {
 
     it('marks unapplied lessons as applied', () => {
       bs.lessonLibrary.getSuggestions.mockReturnValue([{ lessonId: 'l1' }]);
-      bs.lessonLibrary.get.mockReturnValue({ id: 'l1', lesson: 'test lesson', applied: false });
+      bs.lessonLibrary.get.mockReturnValue({ id: 'l1', lesson: 'test lesson', _applied: false });
       tracker._trackLessonUsage('ctx');
       expect(bs.lessonLibrary.markApplied).toHaveBeenCalledWith('l1');
     });
@@ -145,8 +145,8 @@ describe('LessonTracker', () => {
 
     it('returns only applied lessons mapped correctly', () => {
       bs.lessonLibrary.search.mockReturnValue([
-        { id: 'l1', lesson: 'lesson one', applied: true, lastApplied: '2024-01-01', applyCount: 3 },
-        { id: 'l2', lesson: 'lesson two', applied: false, lastApplied: null, applyCount: 0 }
+        { id: 'l1', lesson: 'lesson one', _applied: true, lastApplied: '2024-01-01', applyCount: 3 },
+        { id: 'l2', lesson: 'lesson two', _applied: false, lastApplied: null, applyCount: 0 }
       ]);
       const result = tracker.getLessonHistory();
       expect(result).toHaveLength(1);
