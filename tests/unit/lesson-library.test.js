@@ -122,6 +122,14 @@ describe('LessonLibrary', () => {
       lib.add({ title: 'c' });
       expect(lib.getRelated('anything', 2)).toHaveLength(2);
     });
+
+    it('matches lessons by query (was ignoring query entirely)', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      lib.add({ title: '性能优化经验', lesson: '用缓存优化' });
+      lib.add({ title: '数据库连接', lesson: '连接池' });
+      const related = lib.getRelated('帮我优化性能');
+      expect(related.some((l) => l.title.includes('性能优化'))).toBe(true);
+    });
   });
 
   describe('markApplied', () => {

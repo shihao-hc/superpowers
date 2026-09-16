@@ -533,16 +533,17 @@ describe('ChatService (BrainSystem-wired)', () => {
 
   describe('context compaction', () => {
     it('compacts conversation when shouldCompact is true', async () => {
-      // 模拟压缩触发：spyOn shouldCompact + compact（自动 restore，不破坏真实实例）
-      const shouldSpy = jest.spyOn(chatService.contextCompact, 'shouldCompact').mockReturnValue(true);
-      const compactSpy = jest.spyOn(chatService.contextCompact, 'compact').mockResolvedValue({
+      const { ContextCompactService } = require('../../src/agent/ContextCompactService');
+      const cc = new ContextCompactService();
+      const shouldSpy = jest.spyOn(cc, 'shouldCompact').mockReturnValue(true);
+      const compactSpy = jest.spyOn(cc, 'compact').mockResolvedValue({
         success: true, preTokens: 1000, postTokens: 500
       });
-      const origMessages = chatService.contextCompact.messages;
-      chatService.contextCompact.messages = [
+      cc.messages = [
         { role: 'system', content: '[Earlier conversation summarized]', timestamp: Date.now() },
         { role: 'user', content: '最近消息', timestamp: Date.now() }
       ];
+      chatService._contextCompacts.set('compact-1', cc);
       const origBridge = chatService.ollamaBridge;
       chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: '回复' }) };
       const origExec = chatService._executeToolCalls;
@@ -555,9 +556,36 @@ describe('ChatService (BrainSystem-wired)', () => {
       } finally {
         chatService.ollamaBridge = origBridge;
         chatService._executeToolCalls = origExec;
-        chatService.contextCompact.messages = origMessages;
+        chatService._contextCompacts.delete('compact-1');
         shouldSpy.mockRestore();
         compactSpy.mockRestore();
+      }
+    });
+
+    it('does not mix another user messages into this conversation on compaction (cross-user isolation)', async () => {
+      const { ContextCompactService } = require('../../src/agent/ContextCompactService');
+      // 用户 A：压缩触发，只有 A 自己的消息
+      const ccA = new ContextCompactService();
+      jest.spyOn(ccA, 'shouldCompact').mockReturnValue(true);
+      jest.spyOn(ccA, 'compact').mockResolvedValue({ success: true, preTokens: 1, postTokens: 1 });
+      ccA.messages = [{ role: 'user', content: 'A 自己的消息', timestamp: Date.now() }];
+      chatService._contextCompacts.set('isolated-A', ccA);
+      // 用户 B：独立实例，消息不应进入 A 的会话
+      const ccB = new ContextCompactService();
+      ccB.addMessage({ role: 'user', content: 'B 的机密内容', timestamp: Date.now() });
+      chatService._contextCompacts.set('isolated-B', ccB);
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'ok' }) };
+      try {
+        await chatService.processMessage({ text: '触发', userId: 'isolated-A' });
+        const convA = chatService.conversations.get('isolated-A');
+        const allText = convA.messages.map((m) => m.content).join(' ');
+        expect(allText).toContain('A 自己的消息');
+        expect(allText).not.toContain('B 的机密内容');
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        chatService._contextCompacts.delete('isolated-A');
+        chatService._contextCompacts.delete('isolated-B');
       }
     });
   });

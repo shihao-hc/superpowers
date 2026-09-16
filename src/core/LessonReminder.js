@@ -46,8 +46,12 @@ function getRelevantLessons(taskType = 'default', maxLessons = 5) {
     // 1. 高优先级优先
     // 2. 使用次数少的优先（需要多复习）
     // 3. 有效性高的优先
+    // 修复：真实教训无 status 字段（0/35），旧条件 l.status === 'active' 恒 false → 提醒永远为空。
+    // 改为：未应用（!_applied）且 status 非显式 inactive 才提醒，分类匹配。
     const relevant = lessons.filter((l) =>
-      l.status === 'active' && categories.includes(l.category)
+      !l._applied &&
+      (l.status === undefined || l.status === 'active') &&
+      categories.includes(l.category)
     ).sort((a, b) => {
       const priorityOrder = { high: 0, medium: 1, low: 2 };
       const aP = priorityOrder[a.priority] ?? 2;

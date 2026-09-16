@@ -6,14 +6,24 @@
 const express = require('express');
 const router = express.Router();
 const { TaskService } = require('../../src/agent/TaskService');
-const { StateStore } = require('../../src/agent/StateStore');
 const { MessageService } = require('../../src/agent/MessageService');
 const { authMiddleware, memoryLimiter } = require('../middleware');
 
 // 初始化服务
 const taskService = new TaskService();
-const stateStore = new StateStore();
 const messageService = new MessageService();
+
+// 按用户隔离的数据容器
+// 修复：原 stateStore/messageService 为模块级单例（跨用户共享 = 用户 A 数据进用户 B 请求 = 隐私泄露）；
+// 且 stateStore.set/get 方法根本不存在（StateStore 只有 setState/getState）导致接口 100% 500。
+const agentData = new Map();
+function getAgentData(userId) {
+  const key = userId || 'anonymous';
+  if (!agentData.has(key)) {
+    agentData.set(key, { states: new Map(), messages: [] });
+  }
+  return agentData.get(key);
+}
 
 /**
  * GET /api/agent
@@ -48,7 +58,8 @@ router.post('/task', memoryLimiter, authMiddleware, async (req, res) => {
     const task = await taskService.createTask({
       type,
       payload,
-      priority
+      priority,
+      userId: req.user && req.user.id
     });
 
     res.json({
@@ -77,6 +88,10 @@ router.get('/task/:id', authMiddleware, (req, res) => {
       code: 'NOT_FOUND'
     });
   }
+  // 跨用户隔离：仅本人可读自己的任务
+  if (task.userId && req.user && task.userId !== req.user.id) {
+    return res.status(403).json({ error: '无权访问该任务', code: 'FORBIDDEN' });
+  }
 
   res.json({
     success: true,
@@ -91,7 +106,12 @@ router.get('/task/:id', authMiddleware, (req, res) => {
 router.get('/tasks', authMiddleware, (req, res) => {
   const { status, limit = 20 } = req.query;
 
-  const tasks = taskService.getTasks({ status, limit: parseInt(limit) });
+  // 修复：TaskService 无 getTasks（只有 getAllTasks）；按 userId 过滤实现隔离
+  const all = taskService.getAllTasks() || [];
+  const tasks = all
+    .filter((t) => !t.userId || !req.user || t.userId === req.user.id)
+    .filter((t) => !status || t.status === status)
+    .slice(0, parseInt(limit) || 20);
 
   res.json({
     success: true,
@@ -114,7 +134,8 @@ router.post('/state', memoryLimiter, authMiddleware, (req, res) => {
       });
     }
 
-    stateStore.set(key, value, namespace);
+    const ad = getAgentData(req.user && req.user.id);
+    ad.states.set(`${namespace}:${key}`, value);
 
     res.json({
       success: true,
@@ -136,7 +157,7 @@ router.get('/state/:key', authMiddleware, (req, res) => {
   const { key } = req.params;
   const { namespace = 'default' } = req.query;
 
-  const value = stateStore.get(key, namespace);
+  const value = getAgentData(req.user && req.user.id).states.get(`${namespace}:${key}`);
 
   res.json({
     success: true,
@@ -159,6 +180,9 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
       });
     }
 
+    const ad = getAgentData(req.user && req.user.id);
+    // 用户消息按 userId 隔离存储（原 messageService 为全局单例，跨用户混合）
+    ad.messages.push({ type: role, content, metadata, timestamp: Date.now() });
     const message = await messageService.processMessage({
       content,
       role,
@@ -183,7 +207,8 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
         const { BrainSystem } = require('../../src/core/BrainSystem');
         const chatService = require('../services/chatService');
         const intent = (BrainSystem && BrainSystem.analyzeIntent) ? BrainSystem.analyzeIntent(content) : null;
-        const history = messageService.getMessages().slice(-6).map((m) => ({
+        // 历史按 userId 隔离（不再从全局 messageService 取混合消息）
+        const history = ad.messages.slice(-6).map((m) => ({
           role: m.type === 'assistant' ? 'assistant' : 'user',
           content: typeof m.content === 'string' ? m.content : ''
         }));
@@ -194,6 +219,8 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
         }, req.user && req.user.id);
         if (r && r.text) {
           reply = { text: r.text, source: r.source || 'fallback' };
+          // AI 回复写回该用户历史（原从未写回，多轮语义断裂）
+          ad.messages.push({ type: 'assistant', content: r.text, timestamp: Date.now() });
         }
       } catch (e) { /* BrainSystem/Ollama 可选，保持只存行为 */ }
     }
@@ -216,12 +243,16 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
  * 获取统计信息
  */
 router.get('/stats', authMiddleware, (req, res) => {
+  // 修复：taskService.getStats/stateStore.getStats 均不存在（曾导致 500）
+  const allTasks = taskService.getAllTasks() || [];
+  const userKey = (req.user && req.user.id) || 'anonymous';
+  const ad = agentData.get(userKey) || { states: new Map(), messages: [] };
   res.json({
     success: true,
     data: {
-      tasks: taskService.getStats(),
-      state: stateStore.getStats(),
-      messages: messageService.getStats()
+      tasks: { total: allTasks.length, mine: allTasks.filter((t) => t.userId === userKey).length },
+      state: { entries: ad.states.size },
+      messages: { total: ad.messages.length }
     }
   });
 });

@@ -17,13 +17,26 @@ class LessonLibrary {
   get categories() { return this._categories; }
 
   getSuggestions(_context) {
+    // 返回完整教训字段（lesson/priority/improvement）——修复：原只返回 {lessonId, score}，
+    // DecisionEngine 读 s.priority/s.lesson 恒 undefined → forceThink 教训警告永远为空
     return this._lessons
       .filter((l) => !l._applied)
       .slice(0, 3)
-      .map((l) => ({ lessonId: l.id, score: l.priority || 1 }));
+      .map((l) => ({
+        lessonId: l.id,
+        lesson: l.lesson || l.problem || l.title || '',
+        priority: l.priority || 'medium',
+        improvement: l.improvement || '',
+        score: 1
+      }));
   }
 
   getRelated(query, limit = 3) {
+    // 修复：原完全忽略 query 恒返回前 N 条（forceThink 的相关教训与用户输入无关）
+    if (query) {
+      const matches = this.search(query, { limit });
+      if (matches.length > 0) { return matches; }
+    }
     return this._lessons.slice(0, limit);
   }
 

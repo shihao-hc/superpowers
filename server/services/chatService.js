@@ -43,6 +43,8 @@ class ChatService extends EventEmitter {
     this.contextLength = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
 
     // 初始化上下文压缩服务（预算 = 真实 num_ctx，预留输出 + 安全余量）
+    // 注：this.contextCompact 是兼容/默认实例；processMessage 实际使用按 userId 隔离的实例
+    // （修复：全局共享实例会把所有用户的消息混合压缩后写进单个用户会话 = 跨用户串扰/隐私泄露）
     this.contextCompact = new ContextCompactService({
       maxTokens: this.contextLength,
       bufferTokens: Math.max(512, Math.round(this.contextLength * 0.1)),
@@ -50,6 +52,24 @@ class ChatService extends EventEmitter {
       preserveRecentMessages: 10,
       autoCompactEnabled: true
     });
+    this._contextCompacts = new Map();
+  }
+
+  /**
+   * 获取按 userId 隔离的上下文压缩实例（防跨用户串扰）
+   */
+  _getContextCompact(userId) {
+    const key = userId || 'default';
+    if (!this._contextCompacts.has(key)) {
+      this._contextCompacts.set(key, new ContextCompactService({
+        maxTokens: this.contextLength,
+        bufferTokens: Math.max(512, Math.round(this.contextLength * 0.1)),
+        warningThreshold: Math.max(1024, Math.round(this.contextLength * 0.2)),
+        preserveRecentMessages: 10,
+        autoCompactEnabled: true
+      }));
+    }
+    return this._contextCompacts.get(key);
   }
 
   /**
@@ -554,16 +574,17 @@ class ChatService extends EventEmitter {
         }
       } catch (e) { /* 学习可选，失败静默 */ }
 
-      // Claude Code 风格的上下文压缩
-      this.contextCompact.addMessage(userMessage);
+      // Claude Code 风格的上下文压缩（按 userId 隔离实例，防跨用户串扰）
+      const userCompact = this._getContextCompact(userId);
+      userCompact.addMessage(userMessage);
 
       // 检查是否需要压缩（非侵入式：压缩失败不影响对话）
-      if (this.contextCompact.shouldCompact()) {
+      if (userCompact.shouldCompact()) {
         try {
-          const compacted = await this.contextCompact.compact();
+          const compacted = await userCompact.compact();
           if (compacted && compacted.success) {
-            // 从 ContextCompactService 取压缩后的消息（compact 内部更新了 this.messages）
-            const compactedMessages = this.contextCompact.messages || [];
+            // 从该用户的压缩实例取压缩后的消息（compact 内部更新了 messages）
+            const compactedMessages = userCompact.messages || [];
             if (Array.isArray(compactedMessages) && compactedMessages.length > 0) {
               conversation.messages = compactedMessages.map((m) => ({
                 role: m.role === 'user' ? 'user' : 'assistant',
