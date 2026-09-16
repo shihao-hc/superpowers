@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BrainSystem - AI大脑核心 v22.1
  *
  * 完整意识系统，整合五大核心能力 + 感知层 + 执行层 + 控制器
@@ -1371,7 +1371,7 @@ BrainSystem.getProof = function() {
   };
 
   try {
-    const instance = new BrainSystem();
+    const instance = BrainSystem._getSharedInstance();
     const thinkResult = instance.beforeDecision('系统自检');
 
     result.processed = true;
@@ -1415,7 +1415,7 @@ BrainSystem.verifyIntent = verifyIntent;
  * 自动持久化 - 每次交互后自动保存
  */
 BrainSystem.autoPersist = function() {
-  const instance = new BrainSystem();
+  const instance = BrainSystem._getSharedInstance();
   return Persistence.persistAll(instance);
 };
 
@@ -1614,7 +1614,7 @@ BrainSystem.fullProcess = function(input, aiResponse = '') {
 
   try {
     // 1. 强制思考
-    const instance = new BrainSystem();
+    const instance = BrainSystem._getSharedInstance();
     results.forceThink = instance.beforeDecision?.(input) || { processed: true };
 
     // 2. 调用证明
@@ -1675,7 +1675,7 @@ BrainSystem.getFullStatus = function() {
 
 // 导出统一智能（已迁移到最终导出）
 BrainSystem.process = function(input, options = {}) {
-  const bs = new BrainSystem();
+  const bs = BrainSystem._getSharedInstance();
 
   // 1. 强制思考
   const think = bs.forceThink?.(input) || {};
