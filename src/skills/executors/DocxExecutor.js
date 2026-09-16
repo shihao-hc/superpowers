@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { assertPathWithinUploads } = require('../../utils/pathSafety');
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun,
   Header, Footer, AlignmentType, PageOrientation: _PageOrientation, HeadingLevel, BorderStyle,
   WidthType, ShadingType, VerticalAlign, PageNumber, PageBreak,
@@ -415,6 +416,8 @@ class DocxExecutor {
       for (const imageData of images) {
         if (imageData.path && fs.existsSync(imageData.path)) {
           try {
+            // 安全：只允许读取 uploads/skills 白名单内的图片（防任意文件读取嵌入）
+            assertPathWithinUploads(imageData.path);
             const imageBuffer = fs.readFileSync(imageData.path);
             const imageWidthValue = imageData.width || imageWidth || 400;
             const imageHeightValue = imageData.height || imageHeight || 300;
@@ -716,7 +719,9 @@ class DocxExecutor {
   static async readDocument(inputs) {
     const { filePath } = inputs;
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    // 安全：只允许读取 uploads/skills 白名单内的文件（防任意文件读取）
+    assertPathWithinUploads(filePath);
+    if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath || 'undefined'}`);
     }
 
@@ -743,7 +748,9 @@ class DocxExecutor {
   static async editDocument(inputs) {
     const { filePath, data, content, modifications } = inputs;
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    // 安全：只允许编辑 uploads/skills 白名单内的文件（防任意路径写入）
+    assertPathWithinUploads(filePath);
+    if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath || 'undefined'}`);
     }
 

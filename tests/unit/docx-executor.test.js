@@ -37,8 +37,8 @@ const { DocxExecutor } = require('../../src/skills/executors/DocxExecutor');
 
 describe('DocxExecutor', () => {
   const mockCwd = 'C:\\test\\project';
-  const existingFile = path.join(mockCwd, 'existing.docx');
-  const imagePath = path.join(mockCwd, 'image.png');
+  const existingFile = path.join(mockCwd, 'uploads', 'skills', 'existing.docx');
+  const imagePath = path.join(mockCwd, 'uploads', 'skills', 'image.png');
   const mockStats = {
     size: 12345,
     birthtime: new Date('2024-01-01'),
@@ -122,6 +122,18 @@ describe('DocxExecutor', () => {
       });
       expect(result.type).toBe('text');
       expect(result.content).toContain('Document content extracted');
+    });
+
+    it('rejects read of path outside uploads/skills (arbitrary file read)', async () => {
+      await expect(DocxExecutor.readDocument({ filePath: 'C:\\Windows\\secret.txt' })).rejects.toThrow('uploads/skills');
+    });
+
+    it('rejects edit of path outside uploads/skills (arbitrary path write)', async () => {
+      await expect(DocxExecutor.editDocument({ filePath: 'C:\\Windows\\secret.docx' })).rejects.toThrow('uploads/skills');
+    });
+
+    it('rejects read of traversal path (../ escape)', async () => {
+      await expect(DocxExecutor.readDocument({ filePath: path.join(mockCwd, '..', 'outside.txt') })).rejects.toThrow('uploads/skills');
     });
 
     it('dispatches to editDocument for action "edit"', async () => {
@@ -565,12 +577,12 @@ describe('DocxExecutor', () => {
     });
 
     it('throws when filePath is missing', async () => {
-      await expect(DocxExecutor.readDocument({})).rejects.toThrow('File not found: undefined');
+      await expect(DocxExecutor.readDocument({})).rejects.toThrow('filePath required');
     });
 
-    it('throws when file does not exist', async () => {
+    it('throws when file is outside uploads or does not exist', async () => {
       await expect(DocxExecutor.readDocument({ filePath: 'missing.docx' })).rejects.toThrow(
-        'File not found: missing.docx'
+        'uploads/skills'
       );
     });
   });
@@ -609,14 +621,14 @@ describe('DocxExecutor', () => {
       expect(result.type).toBe('file');
     });
 
-    it('throws when file is missing', async () => {
+    it('throws when file is outside uploads or missing', async () => {
       await expect(DocxExecutor.editDocument({ filePath: 'nope.docx' })).rejects.toThrow(
-        'File not found: nope.docx'
+        'uploads/skills'
       );
     });
 
     it('throws when filePath is missing', async () => {
-      await expect(DocxExecutor.editDocument({})).rejects.toThrow('File not found: undefined');
+      await expect(DocxExecutor.editDocument({})).rejects.toThrow('filePath required');
     });
   });
 

@@ -61,6 +61,14 @@ describe('AsyncExecutor', () => {
       expect(result.checkProgressUrl).toContain(result.executionId);
     });
 
+    test('rejects filePath outside uploads/skills (arbitrary file access defense)', async () => {
+      await expect(ae.execute('docx', { action: 'read', filePath: 'C:\\Windows\\secret.docx' })).rejects.toThrow('uploads/skills');
+    });
+
+    test('rejects backgroundImage outside uploads/skills (canvas arbitrary image read)', async () => {
+      await expect(ae.execute('canvas-design', { action: 'createBanner', backgroundImage: '/etc/passwd' })).rejects.toThrow('uploads/skills');
+    });
+
     test('should store execution with pending status', () => {
       const eid = makeId(ae);
       ae.execute('testSkill', { key: 'value' }, { executionId: eid });

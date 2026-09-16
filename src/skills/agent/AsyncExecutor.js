@@ -2,6 +2,7 @@
  * Async Execution System with Progress Feedback
  * Handles asynchronous skill execution with real-time progress updates
  */
+const { assertPathWithinUploads } = require('../../utils/pathSafety');
 
 class AsyncExecutor {
   constructor(options = {}) {
@@ -22,6 +23,14 @@ class AsyncExecutor {
    * Execute a skill asynchronously
    */
   async execute(skillName, parameters, options = {}) {
+    // 安全：parameters 中的文件路径必须位于 uploads/skills 白名单内（防任意文件读写/路径穿越）
+    const pathFields = ['filePath', 'backgroundImage', 'templatePath'];
+    for (const f of pathFields) {
+      if (parameters && parameters[f]) {
+        assertPathWithinUploads(parameters[f]);
+      }
+    }
+
     const executionId = options.executionId || this._generateExecutionId();
     const sessionId = options.sessionId || null;
 
