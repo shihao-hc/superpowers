@@ -792,4 +792,9 @@ Session 锚点: 2026-09-16 (第110次 — 上下文校准: token 预算与真实
 - **诚实放弃 (质量风险/收益不确定)**: prompt 前缀 KV 缓存 (动态注入破坏前缀稳定性)、小模型路由、语义缓存接 chat 均不做
 - **验证**: 全量 349/16,926/0 + ESLint 0/0 + Security 0 HIGH + 真实 HTTP 端到端 (第 2 条同技能请求 2953ms→457ms, 去重+KV 复用); 临时基准脚本已清理
 - **已知限制 (诚实)**: SSE 空流只诚实告知未重试 (流式重试复杂); jest 偶发 open-handle 不退出 (--forceExit 可过, 非回归)
+- **质量评测 (真实 A/B/C 对比, 提交 8008c25)**: 3 场景 × 3 版本 (完整/无thinkText/纯基础) 真实 Ollama 实测 →
+  - **发现**: forceThink 元认知提问注入对 llama3.2 净负面 — "回答前请先思考：…？" 被弱模型误认为用户输入 (曾现"我看到两个question符号"回复), 且干扰技能 essence 遵循 (场景2 去 thinkText 后回复更贴合技能方法)
+  - **修复**: _buildSysPrompt 移除 thinkText 注入 (forceThink 保留为 BrainSystem 内部能力, 仅不注入用户 prompt)
+  - **实证**: 技能注入有效 (V2 回复采用 Redis/PM2/函数记忆化 = essence 方法); 移除后真实复测技能遵循正常
+  - 测试 +1 (sysPrompt 不得含思考提问)
 - 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `src/agent/ContextCompactService.js`, `tests/unit/{chat-service,ollama-bridge,context-compact-service}.test.js`, `tests/unit/skill-fullstack.integration.test.js` (flaky 超时修复)
