@@ -864,5 +864,20 @@ describe('ChatService conversation persistence', () => {
         kwSpy.mockRestore();
       }
     });
+
+    it('does not inject meta-cognitive thinking questions into sysPrompt (confuses weak models)', async () => {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      chatService._skillRecognizer = { recognize: jest.fn(() => []) };
+      const semSpy = jest.spyOn(BrainSystem, 'smartSearchSemantic').mockResolvedValue([]);
+      const kwSpy = jest.spyOn(BrainSystem, 'smartSearch').mockReturnValue([]);
+      try {
+        const { sysPrompt } = await chatService._buildSysPrompt('你好，请介绍一下你自己', { personality: 'default', context: {}, messages: [] }, 'u');
+        expect(sysPrompt).not.toContain('回答前请先思考');
+        expect(sysPrompt).not.toContain('我真正理解这个问题了吗');
+      } finally {
+        semSpy.mockRestore();
+        kwSpy.mockRestore();
+      }
+    });
   });
 });

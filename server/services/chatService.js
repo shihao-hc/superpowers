@@ -387,25 +387,15 @@ class ChatService extends EventEmitter {
         lessonText = `参考经验教训：${lessonBody}。`;
       }
     } catch (e) { /* 教训可选，失败静默 */ }
-    let thinkText = '';
-    try {
-      const { BrainSystem } = require('../../src/core/BrainSystem');
-      if (BrainSystem.forceThink) {
-        const thinking = BrainSystem.forceThink(text);
-        const qs = (thinking && thinking.metaQuestions) || [];
-        if (Array.isArray(qs) && qs.length > 0) {
-          const questions = qs.filter((q) => q && q.question).map((q) => q.question);
-          if (questions.length > 0) {
-            thinkText = `回答前请先思考：${questions.slice(0, 3).join('；')}。`;
-          }
-        }
-      }
-    } catch (e) { /* 思考可选，失败静默 */ }
+    // 注意：不再注入 thinkText（forceThink 元认知提问）。A/B/C 实测（2026-09-16）:
+    // 对 llama3.2 这类弱模型，"回答前请先思考：…？" 会被误认为用户输入（真实出现
+    // "我看到你发送的两个question符号"），且干扰技能遵循（场景2 去 thinkText 后质量更高）。
+    // forceThink 本身保留（BrainSystem 内部能力），仅不注入用户 prompt。
     // 技能指导注入：识别任务领域 → 注入相关 SKILL.md（让 LLM 按技能指令行动，发挥 305 技能价值）
     const skillText = this._buildSkillGuidance(text, conversation);
     const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
     const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
-    const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${skillText}${toolPrompt}`;
+    const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${skillText}${toolPrompt}`;
     return { sysPrompt, toolTrigger };
   }
 
