@@ -799,5 +799,6 @@ Session 锚点: 2026-09-16 (第110次 — 上下文校准: token 预算与真实
   - 测试 +1 (sysPrompt 不得含思考提问)
 - **记忆检索修复 (提交 1e76c01)**: SmartMemory.search 用 `split(/\s+/)` 英文分词 → 中文整句永不匹配 value → **记忆存了但从未被检索** (probe: 存"用户喜欢用Vue开发前端", 查"我平时用什么技术栈" → 空) → `_tokenize` 切 CJK bigram + 英文词; 注入改为提取 `value.input` (不再把含 userId 的原始 JSON 塞进 prompt, 隐私+省 token); 真实复验模型正确回复"你喜欢用 Vue 和 Tailwind"; 测试 +3
 - **教训检索修复 (提交 ca1aae1)**: LessonLibrary.search 整句 includes → 中文自然语言查询永不命中短标题 → **教训注入从未生效** → 同款 bigram 分词; 真实复验 "优化代码性能" 0→3 命中, sysPrompt 现含教训注入; 测试 +1
+- **自我进化闭环端到端验证 (提交 94501df)**: 对话纠正→教训学习→再问同类问题→教训注入→回复体现 完整打通 — 发现对话纠正学习的教训把主题存在 `context` 字段但 search 不匹配 → 加了 context 字段匹配; 真实闭环: 纠正"应该用索引而不是全表扫描" → 教训+1 → 再问"优化数据库查询" → 教训注入 true → 模型回复"使用索引：在需要的列上建立索引"; 测试 +1
 - **质量评测结论**: 注入系统 (思考/记忆/教训) 全部真实验证 — 思考净负面(已移除)、记忆/教训此前从未生效(已修复)、技能净正(保留); 遗留: `_extractTags` 中文标签仅统计不影响检索(低优先)
 - 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `src/agent/ContextCompactService.js`, `src/core/{SmartMemory,LessonLibrary}.js`, `tests/unit/{chat-service,ollama-bridge,context-compact-service,smart-memory,lesson-library}.test.js`, `tests/unit/skill-fullstack.integration.test.js` (flaky 超时修复)
