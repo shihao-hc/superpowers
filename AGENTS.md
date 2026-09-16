@@ -765,3 +765,21 @@ Session 锚点: 2026-09-14 (第109次 — 学习闭环真实运转: 对话纠正
 - **测试**: lesson-learner.test.js +4 (纠正识别/普通不记录/空/多种纠正信号)
 - **验证**: 全量 349/16,912/0 + ESLint 0/0
 - 相关文件: `src/core/LessonLearner.js`, `server/services/chatService.js`, `tests/unit/lesson-learner.test.js`
+
+---
+
+Session 锚点: 2026-09-16 (第110次 — 上下文校准: token 预算与真实能力对齐 + 真实账本 + 无损优化)
+- ESLint: 0/0 | Tests: **349 passed suites / 4 skipped / 0 failed** (16,926 passed / 46 skipped, +13) | npm audit: 0 vulns | Security: **0 HIGH**
+- **背景 (用户: token 是最关键问题, 但质量为先, 不能为省 token 牺牲质量)**: 数据基准揭示根因不是"撑爆窗口"而是"预算与现实的错配 + 全程不可见"
+- **P1 上下文校准 (bug 级修复)**:
+  - `OllamaBridge.js`: 显式 `num_ctx` (默认 8192, env `OLLAMA_NUM_CTX`), 修复 Ollama 默认 2048 → 模型静默截断 (此前压缩预算 100K vs 真实 ~2K 的错配 = 最大质量缺陷)
+  - `chatService.js`: ContextCompact 预算对齐真实 num_ctx (100000→8192, buffer/warning 按比例); `stats.tokens {prompt, completion, total, requests}` 用真实 `prompt_eval_count/eval_count` 记账 (Ollama 已返回却一直被丢弃); >80% 利用率 console.warn (静默截断风险可见); getStats 暴露 contextLength
+  - `ContextCompactService.js`: 中文感知 token 估算 (CJK ≈ 1 字符 1 token, 替代 chars/4 低估 → 压缩触发过晚)
+- **基准采集 (真实 Ollama 4 场景)**: 普通对话 73 prompt / 技能对话 243 (技能注入 +170) / 文档生成 203 (tools +130) / 40 条历史→回放 6 条仅 +92 (slice(-6) 锁死, 长会话不膨胀)
+- **修复空文本静默降级 (诊断发现的质量缺陷)**: LLM 成功但返回空文本 → 曾静默 canned 话术 (前端误显示"AI 服务不可用") → POST 路径空文本重试一次 + 仍空返回 `source:'empty-response'` 诚实告知; SSE 路径空流同样诚实告知
+- **无损优化: 技能 essence 同会话去重**: 同会话同技能只完整注入一次, 后续极简引用 (LLM 从对话历史延续) → 实测同技能第 2 条 prompt **243→95 (-61%)**
+- **memory/lessons 注入安全阀**: memBody ≤600 字符 / lessonBody ≤300 (正常不触发, 防极端超长撑爆上下文)
+- **诚实放弃 (质量风险/收益不确定)**: prompt 前缀 KV 缓存 (动态注入破坏前缀稳定性)、小模型路由、语义缓存接 chat 均不做
+- **验证**: 全量 349/16,926/0 + ESLint 0/0 + Security 0 HIGH + 真实 HTTP 端到端 (第 2 条同技能请求 2953ms→457ms, 去重+KV 复用); 临时基准脚本已清理
+- **已知限制 (诚实)**: SSE 空流只诚实告知未重试 (流式重试复杂); jest 偶发 open-handle 不退出 (--forceExit 可过, 非回归)
+- 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `src/agent/ContextCompactService.js`, `tests/unit/{chat-service,ollama-bridge,context-compact-service}.test.js`, `tests/unit/skill-fullstack.integration.test.js` (flaky 超时修复)

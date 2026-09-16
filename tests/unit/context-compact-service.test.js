@@ -102,6 +102,14 @@ describe('ContextCompactService', () => {
       expect(service._defaultTokenEstimator(null)).toBe(0);
       expect(service._defaultTokenEstimator(undefined)).toBe(0);
     });
+
+    test('should estimate CJK characters as ~1 token each (realistic for Chinese)', () => {
+      // 中文助手：CJK 按 1 字符 ≈ 1 token 估算（避免 chars/4 低估导致压缩触发过晚 → 静默截断）
+      expect(service._defaultTokenEstimator('你好世界')).toBe(4);
+      expect(service._defaultTokenEstimator('中文')).toBe(2);
+      // 混合：2 CJK + 5 ASCII → ceil(2 + 1.25) = 4
+      expect(service._defaultTokenEstimator('你好hello')).toBe(4);
+    });
   });
 
   describe('_calculateTotalTokens', () => {

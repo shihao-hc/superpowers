@@ -13,6 +13,9 @@ class OllamaBridge {
 
     this.maxTokens = parseInt(process.env.MAX_TOKENS) || 256;
     this.defaultTemperature = parseFloat(process.env.DEFAULT_TEMPERATURE) || 0.8;
+    // 显式上下文窗口（默认 8192）：避免 Ollama 默认 num_ctx 过小（2048）导致静默截断
+    // 与 ContextCompactService 的 maxTokens 预算对齐（见 chatService 构造）
+    this.numCtx = parseInt(options.numCtx || process.env.OLLAMA_NUM_CTX, 10) || 8192;
   }
 
   async checkConnection() {
@@ -68,6 +71,7 @@ class OllamaBridge {
     const maxTokens = options.maxTokens || this.maxTokens;
     const stream = options.stream || false;
     const tools = options.tools || null;
+    const numCtx = options.numCtx || this.numCtx;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       throw new Error('Invalid messages array');
@@ -88,7 +92,7 @@ class OllamaBridge {
     const chatPayload = {
       model,
       messages: sanitizedMessages,
-      options: { temperature, num_predict: maxTokens },
+      options: { temperature, num_predict: maxTokens, num_ctx: numCtx },
       stream
     };
     if (tools) {

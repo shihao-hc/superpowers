@@ -34,6 +34,8 @@ describe('Full-stack autonomous document generation', () => {
   });
 
   it('chat → real _executeToolCalls → real DocxExecutor → real file', async () => {
+    // 真实 BrainSystem 初始化 + 真实 docx 生成较慢，全量并行下会超默认 5s（同 Round 96 xlsx 修复）
+    jest.setTimeout(20000);
     const chatService = require('../../server/services/chatService');
     // mock bridge 返回 generate_document tool_call，让循环执行真实工具
     const mockBridge = {

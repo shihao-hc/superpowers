@@ -162,6 +162,42 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('retries once when LLM returns empty text, then returns the retried reply', async () => {
+      const mockBridge = {
+        chat: jest.fn()
+          .mockResolvedValueOnce({ ok: true, text: '' })
+          .mockResolvedValueOnce({ ok: true, text: '重试后的回复' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        const r = await chatService.generateResponse('hi', conv);
+        expect(r.source).toBe('ollama');
+        expect(r.text).toBe('重试后的回复');
+        expect(mockBridge.chat.mock.calls.length).toBe(2);
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
+    it('marks empty-response honestly when retry still returns empty text (not fake "unavailable")', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockResolvedValue({ ok: true, text: '' })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        const r = await chatService.generateResponse('hi', conv);
+        expect(r.source).toBe('empty-response');
+        expect(r.text).toContain('空内容');
+        expect(mockBridge.chat.mock.calls.length).toBe(2); // 首轮 + 重试
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
     it('executes tool calls when LLM returns tool_calls', async () => {
       const toolResults = [{ tool: 'generate_document', ok: true, result: { type: 'docx', message: 'generated' } }];
       const mockBridge = {
@@ -421,6 +457,27 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('emits honest text when the stream yields no content (not silent empty)', async () => {
+      async function* emptyStream() { /* 无任何 chunk */ }
+      const mockBridge = { chat: jest.fn().mockResolvedValue(emptyStream()) };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      let endInfo = null;
+      const chunks = [];
+      try {
+        await chatService.processStream({
+          text: '你好', userId: 'stream-empty',
+          onData: (d) => chunks.push(d),
+          onEnd: (r) => { endInfo = r; },
+          onError: () => {}
+        });
+        expect(endInfo.text).toContain('空内容');
+        expect(chunks.some((c) => (c.content || '').includes('空内容'))).toBe(true);
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
     it('supports multi-round tool calls in the stream path', async () => {
       let calls = 0;
       const mockBridge = {
@@ -522,6 +579,47 @@ describe('ChatService (BrainSystem-wired)', () => {
       expect(stats.tools).toHaveProperty('failed');
       expect(stats.tools).toHaveProperty('filesGenerated');
       expect(stats.tools).toHaveProperty('byType');
+    });
+
+    it('tracks real token usage from LLM responses into stats.tokens', async () => {
+      const mockBridge = {
+        chat: jest.fn().mockResolvedValue({ ok: true, text: 'r', promptEvalCount: 120, evalCount: 45 })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      const before = { ...chatService.stats.tokens };
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        await chatService.generateResponse('hi', conv);
+        expect(chatService.stats.tokens.prompt - before.prompt).toBe(120);
+        expect(chatService.stats.tokens.completion - before.completion).toBe(45);
+        expect(chatService.stats.tokens.total - before.total).toBe(165);
+        expect(chatService.stats.tokens.requests - before.requests).toBe(1);
+      } finally {
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+
+    it('exposes context length (num_ctx) in stats', () => {
+      const stats = chatService.getStats();
+      expect(stats.contextLength).toBe(8192);
+    });
+
+    it('warns when prompt usage approaches context limit (silent truncation risk)', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockBridge = {
+        chat: jest.fn().mockResolvedValue({ ok: true, text: 'r', promptEvalCount: 7000, evalCount: 10 })
+      };
+      const origBridge = chatService.ollamaBridge;
+      chatService.ollamaBridge = mockBridge;
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: 'hi' }], context: {} };
+        await chatService.generateResponse('hi', conv);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('上下文利用率'));
+      } finally {
+        chatService.ollamaBridge = origBridge;
+        warnSpy.mockRestore();
+      }
     });
   });
 
@@ -731,6 +829,17 @@ describe('ChatService conversation persistence', () => {
       expect(second).toBe(first); // 缓存命中，结果一致
     });
 
+    it('uses a slim reference on same-session repeat of the same skill (no repeated essence)', () => {
+      chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
+      const conv = { personality: 'default', context: {}, messages: [] };
+      const first = chatService._buildSkillGuidance('优化性能', conv);
+      expect(first).toContain('技能方法论'); // 首条完整注入
+      const second = chatService._buildSkillGuidance('优化性能', conv);
+      expect(second).toContain('继续沿用'); // 同会话同技能 → 极简引用
+      expect(second).not.toContain('技能方法论');
+      expect(second.length).toBeLessThan(first.length);
+    });
+
     it('stops after 3 top-level sections (avoids trailing metadata)', () => {
       const body = '## 核心\n内容\n## 模式\n内容\n## 指标\n内容\n## 更新日志\n不应提取';
       const essence = chatService._extractSkillEssence(body);
@@ -738,6 +847,22 @@ describe('ChatService conversation persistence', () => {
       expect(essence).toContain('模式');
       expect(essence).toContain('指标');
       expect(essence).not.toContain('更新日志'); // 第 4 个主章节被跳过
+    });
+  });
+
+  describe('sysPrompt context safety', () => {
+    it('caps over-long injected memory so it cannot blow up the context (safety valve)', async () => {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      chatService._skillRecognizer = { recognize: jest.fn(() => []) }; // 隔离技能注入
+      const semSpy = jest.spyOn(BrainSystem, 'smartSearchSemantic').mockResolvedValue([{ value: '很长的记忆内容'.repeat(400) }]);
+      const kwSpy = jest.spyOn(BrainSystem, 'smartSearch').mockReturnValue([]);
+      try {
+        const { sysPrompt } = await chatService._buildSysPrompt('测试输入', { personality: 'default', context: {}, messages: [] }, 'u');
+        expect(sysPrompt.length).toBeLessThan(1500); // 2800 字符记忆被限长，未撑爆
+      } finally {
+        semSpy.mockRestore();
+        kwSpy.mockRestore();
+      }
     });
   });
 });

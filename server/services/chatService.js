@@ -24,6 +24,7 @@ class ChatService extends EventEmitter {
       totalLatency: 0,
       errors: 0,
       llm: { attempts: 0, successes: 0, fallbacks: 0 },
+      tokens: { prompt: 0, completion: 0, total: 0, requests: 0 },
       tools: {
         calls: 0,
         success: 0,
@@ -37,11 +38,15 @@ class ChatService extends EventEmitter {
     this.ollamaBridge = options.ollamaBridge || null;
     this._ollamaTried = false;
 
-    // 初始化上下文压缩服务
+    // 真实上下文窗口（与 OllamaBridge 的 num_ctx 对齐）：压缩预算必须等于模型真实能力，
+    // 否则压缩永远不触发、模型静默截断（此前 100K 预算 vs ~2K 真实上下文是核心质量缺陷）
+    this.contextLength = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
+
+    // 初始化上下文压缩服务（预算 = 真实 num_ctx，预留输出 + 安全余量）
     this.contextCompact = new ContextCompactService({
-      maxTokens: 100000,
-      bufferTokens: 13000,
-      warningThreshold: 20000,
+      maxTokens: this.contextLength,
+      bufferTokens: Math.max(512, Math.round(this.contextLength * 0.1)),
+      warningThreshold: Math.max(1024, Math.round(this.contextLength * 0.2)),
       preserveRecentMessages: 10,
       autoCompactEnabled: true
     });
@@ -92,7 +97,32 @@ class ChatService extends EventEmitter {
       () => bridge.chat(messages, { temperature: 0.7, tools: options.tools }),
       { maxAttempts: 3, delay: 500, backoff: 2 }
     );
+    if (result && result.ok) {
+      this._recordTokenUsage(result);
+    }
     return result;
+  }
+
+  /**
+   * 真实 token 账本：用 Ollama 返回的 prompt_eval_count/eval_count 记账（非估算）
+   * 同时在 prompt 逼近 num_ctx 时预警（静默截断 = 质量风险）
+   */
+  _recordTokenUsage(result) {
+    if (!result || typeof result !== 'object') { return; }
+    const prompt = Number(result.promptEvalCount);
+    const completion = Number(result.evalCount);
+    if (Number.isFinite(prompt) && prompt > 0) { this.stats.tokens.prompt += prompt; }
+    if (Number.isFinite(completion) && completion > 0) { this.stats.tokens.completion += completion; }
+    if ((Number.isFinite(prompt) && prompt > 0) || (Number.isFinite(completion) && completion > 0)) {
+      this.stats.tokens.requests++;
+    }
+    this.stats.tokens.total = this.stats.tokens.prompt + this.stats.tokens.completion;
+    if (Number.isFinite(prompt) && prompt > 0 && this.contextLength > 0) {
+      const utilization = prompt / this.contextLength;
+      if (utilization > 0.8) {
+        console.warn(`[chatService] 上下文利用率 ${(utilization * 100).toFixed(1)}%（${prompt}/${this.contextLength} tokens）接近上限，可能发生静默截断（质量风险）`);
+      }
+    }
   }
 
   /**
@@ -339,7 +369,10 @@ class ChatService extends EventEmitter {
         mem = BrainSystem.smartSearch(text, 3, userId);
       }
       if (mem.length > 0) {
-        memoryText = `你记得与该用户相关的信息：${mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；')}。`;
+        // 安全阀：限长防止超长记忆撑爆上下文（正常 3 条记忆远小于上限，不触发）
+        let memBody = mem.map((m) => typeof m.value === 'string' ? m.value : JSON.stringify(m.value)).join('；');
+        if (memBody.length > 600) { memBody = `${memBody.slice(0, 600)}…`; }
+        memoryText = `你记得与该用户相关的信息：${memBody}。`;
       }
     } catch (e) { /* 记忆可选，失败静默 */ }
     let lessonText = '';
@@ -348,7 +381,10 @@ class ChatService extends EventEmitter {
       const lib = new LessonLibrary({ quiet: true });
       const lessons = lib.search ? lib.search(text, { limit: 3 }) : [];
       if (Array.isArray(lessons) && lessons.length > 0) {
-        lessonText = `参考经验教训：${lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；')}。`;
+        // 安全阀：限长（每条已截 60 字符，此处再限总长，防极端情况）
+        let lessonBody = lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；');
+        if (lessonBody.length > 300) { lessonBody = `${lessonBody.slice(0, 300)}…`; }
+        lessonText = `参考经验教训：${lessonBody}。`;
       }
     } catch (e) { /* 教训可选，失败静默 */ }
     let thinkText = '';
@@ -366,7 +402,7 @@ class ChatService extends EventEmitter {
       }
     } catch (e) { /* 思考可选，失败静默 */ }
     // 技能指导注入：识别任务领域 → 注入相关 SKILL.md（让 LLM 按技能指令行动，发挥 305 技能价值）
-    const skillText = this._buildSkillGuidance(text);
+    const skillText = this._buildSkillGuidance(text, conversation);
     const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential/i.test(text);
     const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
     const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${thinkText}${skillText}${toolPrompt}`;
@@ -376,8 +412,9 @@ class ChatService extends EventEmitter {
   /**
    * 技能指导注入：识别任务领域 → 匹配技能 → 注入相关 SKILL.md（让 LLM 按技能指令行动）
    * 非侵入式：无匹配/失败 → 返回空，不影响对话
+   * 无损去重：同一会话内同一技能只完整注入一次，后续用极简引用（省重复开销，质量不变）
    */
-  _buildSkillGuidance(text) {
+  _buildSkillGuidance(text, conversation) {
     try {
       const t = String(text || '').trim();
       // 空/极短文本不注入（避免 SkillRecognizer 对空输入的兜底匹配注入无关技能）
@@ -389,8 +426,13 @@ class ChatService extends EventEmitter {
       const matches = this._skillRecognizer.recognize(t, { topN: 1 });
       if (matches && matches.length > 0 && matches[0].score >= 0.5) {
         const skill = matches[0].skill;
+        // 同会话同技能：完整 essence 已注入过 → 只给极简引用（LLM 可从对话历史延续）
+        if (conversation && conversation.context && conversation.context.lastInjectedSkill === skill.name) {
+          return `\n任务领域「${skill.name}」：请继续沿用上文的技能方法，直接回答。`;
+        }
         // 自定义代码模块（如爬虫系统）→ 注入能力描述（告知 LLM 系统具备该能力）
         if (skill.isCustomModule) {
+          this._markSkillInjected(conversation, skill.name);
           return `\n系统具备相关能力「${skill.name}」：${skill.description || skill.type || ''}。`;
         }
         const skMd = path.join(process.cwd(), '.opencode', 'skills', skill.name, 'SKILL.md');
@@ -403,6 +445,7 @@ class ChatService extends EventEmitter {
             this._skillEssenceCache.set(skill.name, { body, essence });
           }
           const cached = this._skillEssenceCache.get(skill.name);
+          this._markSkillInjected(conversation, skill.name);
           if (cached.essence) {
             return `\n任务领域「${skill.name}」的技能方法论（请遵循）：\n${cached.essence}`;
           }
@@ -414,6 +457,15 @@ class ChatService extends EventEmitter {
       if (process.env.DEBUG_SKILL === '1') { console.error('[skill injection error]', e.message); }
       return '';
     }
+  }
+
+  /**
+   * 记录会话已注入的技能（供同会话去重）
+   */
+  _markSkillInjected(conversation, skillName) {
+    if (!conversation) { return; }
+    if (!conversation.context) { conversation.context = {}; }
+    conversation.context.lastInjectedSkill = skillName;
   }
 
   /**
@@ -613,8 +665,14 @@ class ChatService extends EventEmitter {
         // 动态 system prompt：融入人格 + 意图 + 记忆 + 教训 + 思考 + 工具提示
         const { sysPrompt, toolTrigger } = await this._buildSysPrompt(text, conversation, userId);
         const toolSchema = toolTrigger ? await this._buildToolsSchema() : undefined;
-        const result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolSchema });
+        let result = await this._chatWithRetry(bridge, sysPrompt, history, { tools: toolSchema });
         this.stats.llm.attempts++;
+        // LLM 成功但返回空文本 → 重试一次（带强化指令），避免静默降级到 canned 话术（质量）
+        if (result && result.ok && !result.text &&
+            !(Array.isArray(result.tool_calls) && result.tool_calls.length > 0)) {
+          result = await this._chatWithRetry(bridge, `${sysPrompt} 请直接给出完整回答，不要输出空内容。`, history, { tools: toolSchema });
+          this.stats.llm.attempts++;
+        }
         // 确定性兜底：用户明确请求生成文档但 LLM 未触发工具 → 规则解析直接执行（不依赖模型 tool_calls 质量）
         if (toolTrigger && result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length === 0) {
           const ruleBased = this._ruleBasedDocumentCall(text);
@@ -626,6 +684,12 @@ class ChatService extends EventEmitter {
         if (result && result.ok && result.text) {
           this.stats.llm.successes++;
           return { text: result.text, confidence: 0.9, source: 'ollama' };
+        }
+        // 重试后仍空（且无工具调用）→ 诚实告知空回复，不伪装为"AI 服务不可用"（Round 98 诚实原则）
+        if (result && result.ok && !result.text &&
+            !(Array.isArray(result.tool_calls) && result.tool_calls.length > 0)) {
+          this.stats.llm.fallbacks++;
+          return { text: 'AI 未能生成回复（返回了空内容）。请换个说法再试一次，或简化你的问题。', confidence: 0.4, source: 'empty-response' };
         }
         // 工具调用多轮循环（自主做事）：LLM 请求工具 → 执行 → 结果回填 → 再调 LLM，直至无工具调用或达上限
         if (result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length > 0) {
@@ -892,6 +956,12 @@ class ChatService extends EventEmitter {
             }
           }
 
+          // 流为空（模型未输出任何内容）→ 诚实告知，不静默返回空（与 POST 路径一致）
+          if (!fullText) {
+            fullText = 'AI 未能生成回复（返回了空内容）。请换个说法再试一次。';
+            onData({ type: 'chunk', content: fullText, fullText, progress: 1 });
+          }
+
           // 添加助手回复
           conversation.messages.push({
             id: Date.now().toString(36) + Math.random().toString(36).substr(2),
@@ -1001,6 +1071,7 @@ class ChatService extends EventEmitter {
   getStats() {
     return {
       ...this.stats,
+      contextLength: this.contextLength,
       activeConversations: this.conversations.size,
       averageLatency: this.stats.totalMessages > 0 ?
         this.stats.totalLatency / this.stats.totalMessages : 0

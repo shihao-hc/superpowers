@@ -29,6 +29,7 @@ describe('OllamaBridge', () => {
     delete process.env.OLLAMA_MODEL;
     delete process.env.MAX_TOKENS;
     delete process.env.DEFAULT_TEMPERATURE;
+    delete process.env.OLLAMA_NUM_CTX;
     mockOllama.mockReset();
     mockOllamaInstances.length = 0;
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -71,11 +72,22 @@ describe('OllamaBridge', () => {
     expect(bridge.defaultTemperature).toBe(0.3);
   });
 
-  test('constructor falls back to defaults when env unset', () => {
-    const bridge = makeBridge();
-    expect(bridge.maxTokens).toBe(256);
-    expect(bridge.defaultTemperature).toBe(0.8);
-  });
+test('constructor falls back to defaults when env unset', () => {
+      const bridge = makeBridge();
+      expect(bridge.maxTokens).toBe(256);
+      expect(bridge.defaultTemperature).toBe(0.8);
+    });
+
+    test('constructor defaults numCtx to 8192 when env unset', () => {
+      const bridge = makeBridge();
+      expect(bridge.numCtx).toBe(8192);
+    });
+
+    test('constructor parses OLLAMA_NUM_CTX env', () => {
+      process.env.OLLAMA_NUM_CTX = '4096';
+      const bridge = new OllamaBridge();
+      expect(bridge.numCtx).toBe(4096);
+    });
 
   describe('checkConnection', () => {
     test('returns true when client.list succeeds', async () => {
@@ -137,7 +149,7 @@ describe('OllamaBridge', () => {
       expect(bridge.client.chat).toHaveBeenCalledWith({
         model: 'llama3.2',
         messages: [{ role: 'user', content: longContent.substring(0, 10000) }],
-        options: { temperature: 0.8, num_predict: 256 },
+        options: { temperature: 0.8, num_predict: 256, num_ctx: 8192 },
         stream: false,
       });
       expect(result).toEqual({
@@ -158,7 +170,7 @@ describe('OllamaBridge', () => {
       expect(bridge.client.chat).toHaveBeenCalledWith({
         model: 'llama3.2',
         messages: [{ role: 'user', content: '' }],
-        options: { temperature: 0.8, num_predict: 256 },
+        options: { temperature: 0.8, num_predict: 256, num_ctx: 8192 },
         stream: false,
       });
       expect(result.text).toBe('');
@@ -193,7 +205,23 @@ describe('OllamaBridge', () => {
       });
       const call = bridge.client.chat.mock.calls[0][0];
       expect(call.model).toBe('custom');
-      expect(call.options).toEqual({ temperature: 0.1, num_predict: 999 });
+      expect(call.options).toEqual({ temperature: 0.1, num_predict: 999, num_ctx: 8192 });
+    });
+
+    test('sends num_ctx in options by default', async () => {
+      const bridge = makeBridge();
+      bridge.client.chat.mockResolvedValue({ message: { content: 'x' } });
+      await bridge.chat([{ role: 'user', content: 'hi' }]);
+      const call = bridge.client.chat.mock.calls[0][0];
+      expect(call.options).toEqual({ temperature: 0.8, num_predict: 256, num_ctx: 8192 });
+    });
+
+    test('honors numCtx option override', async () => {
+      const bridge = makeBridge();
+      bridge.client.chat.mockResolvedValue({ message: { content: 'x' } });
+      await bridge.chat([{ role: 'user', content: 'hi' }], { numCtx: 4096 });
+      const call = bridge.client.chat.mock.calls[0][0];
+      expect(call.options).toEqual({ temperature: 0.8, num_predict: 256, num_ctx: 4096 });
     });
   });
 

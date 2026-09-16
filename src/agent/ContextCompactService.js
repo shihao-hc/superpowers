@@ -38,10 +38,24 @@ class ContextCompactService extends EventEmitter {
     this.tokenEstimator = options.tokenEstimator || this._defaultTokenEstimator;
   }
 
-  // 默认 token 估算 (约 4 字符 = 1 token)
+  // 默认 token 估算（中文感知：CJK ≈ 1 字符 1 token，ASCII ≈ 4 字符 1 token）
+  // 原因：chars/4 对中文严重低估（中文约 1 字符 ≈ 1 token）→ 压缩触发过晚 → 模型静默截断（质量下降）
   _defaultTokenEstimator(text) {
     if (!text) {return 0;}
-    return Math.ceil(text.length / 4);
+    const s = String(text);
+    let cjk = 0;
+    let other = 0;
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i);
+      if ((code >= 0x4e00 && code <= 0x9fff) ||
+          (code >= 0x3400 && code <= 0x4dbf) ||
+          (code >= 0xf900 && code <= 0xfaff)) {
+        cjk++;
+      } else {
+        other++;
+      }
+    }
+    return Math.ceil(cjk + other / 4);
   }
 
   // 添加消息
