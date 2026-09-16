@@ -895,5 +895,20 @@ describe('ChatService conversation persistence', () => {
         kwSpy.mockRestore();
       }
     });
+
+    it('triggers tool prompt for scraping requests (was missing -> scrape tool never invoked)', async () => {
+      const { BrainSystem } = require('../../src/core/BrainSystem');
+      chatService._skillRecognizer = { recognize: jest.fn(() => []) };
+      const semSpy = jest.spyOn(BrainSystem, 'smartSearchSemantic').mockResolvedValue([]);
+      const kwSpy = jest.spyOn(BrainSystem, 'smartSearch').mockReturnValue([]);
+      try {
+        const { sysPrompt, toolTrigger } = await chatService._buildSysPrompt('抓取 https://example.com 的网页内容', { personality: 'default', context: {}, messages: [] }, 'u');
+        expect(toolTrigger).toBe(true);
+        expect(sysPrompt).toContain('scrape_web');
+      } finally {
+        semSpy.mockRestore();
+        kwSpy.mockRestore();
+      }
+    });
   });
 });
