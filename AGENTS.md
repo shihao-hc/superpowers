@@ -801,4 +801,9 @@ Session 锚点: 2026-09-16 (第110次 — 上下文校准: token 预算与真实
 - **教训检索修复 (提交 ca1aae1)**: LessonLibrary.search 整句 includes → 中文自然语言查询永不命中短标题 → **教训注入从未生效** → 同款 bigram 分词; 真实复验 "优化代码性能" 0→3 命中, sysPrompt 现含教训注入; 测试 +1
 - **自我进化闭环端到端验证 (提交 94501df)**: 对话纠正→教训学习→再问同类问题→教训注入→回复体现 完整打通 — 发现对话纠正学习的教训把主题存在 `context` 字段但 search 不匹配 → 加了 context 字段匹配; 真实闭环: 纠正"应该用索引而不是全表扫描" → 教训+1 → 再问"优化数据库查询" → 教训注入 true → 模型回复"使用索引：在需要的列上建立索引"; 测试 +1
 - **质量评测结论**: 注入系统 (思考/记忆/教训) 全部真实验证 — 思考净负面(已移除)、记忆/教训此前从未生效(已修复)、技能净正(保留); 遗留: `_extractTags` 中文标签仅统计不影响检索(低优先)
+- **模型能力评测 + 升级 (提交 90d206d)**: 13 题真实 A/B (中文/代码/逻辑/多轮) → **llama3.2 77% vs qwen2.5:7b 88.5%**; 决定性差异在多步推理短板区 (灯泡开关/汽水瓶 llama 全失败, qwen 全对; 成语出处 qwen 正确); 系统级验证 qwen 技能遵循更明确
+  - **Ollama 模型目录迁移 D 盘** (C 盘满): `OLLAMA_MODELS=D:\ollama-models` (用户级) + robocopy 迁移 6.2GB (清理 4.36GB partial 残留)
+  - **默认模型切换**: `OLLAMA_MODEL=qwen2.5:7b` (用户级); llama3.2 保留作备用
+  - **模型自动降级 (fallback)**: `fallbackModels` (默认 llama3.2, env `OLLAMA_FALLBACK_MODELS`); 主模型失败→依次尝试备用→都失败才 canned; `result.model` 报告实际使用模型; 真实验证 nonexistent-model→降级 llama3.2 成功; 测试 +3
+  - 权衡: qwen 质量 +11.5% 但响应更慢 (7B CPU, 5-15s vs 3B 2-3s)
 - 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `src/agent/ContextCompactService.js`, `src/core/{SmartMemory,LessonLibrary}.js`, `tests/unit/{chat-service,ollama-bridge,context-compact-service,smart-memory,lesson-library}.test.js`, `tests/unit/skill-fullstack.integration.test.js` (flaky 超时修复)
