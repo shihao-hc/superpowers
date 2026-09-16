@@ -15,23 +15,35 @@ const PRIVATE_IP_RANGES = [
   /^172\.(1[6-9]|2[0-9]|3[01])\./,
   /^192\.168\./,
   /^0\./,
+  // 169.254.0.0/16 link-local —— 云元数据整段（AWS/Azure/GCP/阿里云等，含 ECS 169.254.170.2）
+  /^169\.254\./,
+  // 100.64.0.0/10 CGNAT
+  /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./,
   // IPv6 native
   /^::1$/,
   /^0:0:0:0:0:0:0:1$/,
   /^::$/,
   /^fe80:/i,
+  // IPv6 ULA fc00::/7（含 fc00-fcff 与 fd00-fdff）
+  /^fc/i,
+  /^fd/i,
   // IPv4-mapped IPv6 (dotted, e.g. ::ffff:127.0.0.1)
   /^::ffff:127\./i,
   /^::ffff:10\./i,
   /^::ffff:172\.(1[6-9]|2[0-9]|3[01])\./i,
   /^::ffff:192\.168\./i,
   /^::ffff:0\./i,
+  /^::ffff:169\.254\./i,
+  /^::ffff:100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\./i,
   // IPv4-mapped IPv6 (hex, Node URL parser compresses, e.g. ::ffff:7f00:1)
   /^::ffff:7f00:/i,
   /^::ffff:a00:/i,
   /^::ffff:ac1[0-9a-f]:/i,
   /^::ffff:c0a8:/i,
-  /^::ffff:0:/i
+  /^::ffff:0:/i,
+  /^::ffff:a9fe:/i,
+  // CGNAT hex：100.64.0.0/10 → 0x6440-0x647f
+  /^::ffff:64(4[0-9a-f]|[5-7][0-9a-f]):/i
 ];
 
 function isLoopback(hostname) {

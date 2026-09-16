@@ -48,6 +48,21 @@ describe('SSRFValidator', () => {
     expect(validateUrl(url)).toBe(false);
   });
 
+  const blockedMetadataMore = [
+    ['http://169.254.170.2/creds', 'AWS ECS task metadata endpoint'],
+    ['http://169.254.169.253/x', '169.254.169.253'],
+    ['http://169.254.100.5/x', '169.254.0.0/16 link-local (cloud metadata whole range)'],
+    ['http://100.64.0.1/x', 'CGNAT 100.64.0.0/10'],
+    ['http://100.127.255.254/x', 'CGNAT upper bound'],
+    ['http://[fc00::1]/x', 'IPv6 ULA fc00::/7'],
+    ['http://[fd12:3456::1]/x', 'IPv6 ULA fd00::/7'],
+    ['http://[::ffff:169.254.169.254]/x', 'IPv4-mapped metadata'],
+    ['http://[::ffff:100.64.0.1]/x', 'IPv4-mapped CGNAT'],
+  ];
+  test.each(blockedMetadataMore)('blocks metadata/link-local %s (%s)', (url) => {
+    expect(validateUrl(url)).toBe(false);
+  });
+
   test.each(blockedPrivate)('blocks private IP %s (%s)', (url) => {
     expect(validateUrl(url)).toBe(false);
   });

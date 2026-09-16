@@ -143,21 +143,33 @@ class DockerPythonExecutor {
       // Create a custom Docker image with dependencies
       const imageTag = `skill-${skillName}-${crypto.randomBytes(4).toString('hex')}`;
 
-      // Build Dockerfile with dependencies
-      const dockerfileContent = `
-FROM ${this.dockerImage}
-
-USER root
-RUN pip install --no-cache-dir ${requirements.join(' ')}
-USER skilluser
-
-WORKDIR /home/skilluser/app
-`;
+      // 安全：校验每个 requirement（拒绝 shell 元字符），避免 Dockerfile RUN 命令注入
+      // eslint-disable-next-line security/detect-unsafe-regex -- 白名单校验，输入短且无嵌套量词
+      const invalidReq = (requirements || []).find((r) => !/^[A-Za-z0-9._-]+(\s*[<>=!~]?=?[\w.,[\]-]*)?$/.test(String(r).trim()));
+      if (invalidReq) {
+        throw new Error(`Unsafe requirement: ${invalidReq}`);
+      }
 
       const tempDir = path.join(this.baseVolumePath, skillName, '.docker');
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
       }
+
+      // requirements.txt 由 pip 解析（-r 安装），不再把包名拼进 RUN 命令 → 无 shell 注入面
+      const reqFilePath = path.join(tempDir, 'requirements.txt');
+      fs.writeFileSync(reqFilePath, (requirements || []).join('\n'));
+
+      // Build Dockerfile with dependencies
+      const dockerfileContent = `
+FROM ${this.dockerImage}
+
+USER root
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+USER skilluser
+
+WORKDIR /home/skilluser/app
+`;
 
       const dockerfilePath = path.join(tempDir, 'Dockerfile');
       fs.writeFileSync(dockerfilePath, dockerfileContent);

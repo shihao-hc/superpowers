@@ -110,10 +110,12 @@ function logPermissionDenied(req, toolFullName, params) {
 
 function createPermissionMiddleware() {
   return (req, res, next) => {
+    // fail-closed：permissionManager 未初始化时拒绝所有工具调用（绝不放行）
+    const noManager = { allowed: false, reason: 'permission manager not initialized' };
     if (req.body.toolFullName) {
       const access = permissionManager
         ? permissionManager.checkToolAccess(req.body.toolFullName, req.user?.role || 'viewer')
-        : { allowed: true };
+        : noManager;
       if (!access.allowed) {
         logPermissionDenied(req, req.body.toolFullName, req.body.params);
         return res.status(403).json({
@@ -129,7 +131,7 @@ function createPermissionMiddleware() {
         if (call && call.toolFullName) {
           const access = permissionManager
             ? permissionManager.checkToolAccess(call.toolFullName, req.user?.role || 'viewer')
-            : { allowed: true };
+            : noManager;
           if (!access.allowed) {
             logPermissionDenied(req, call.toolFullName, call.params);
             return res.status(403).json({

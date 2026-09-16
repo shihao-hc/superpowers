@@ -32,6 +32,18 @@ describe('ScrapeExecutor', () => {
       expect(DynamicScraper.DynamicScraper.prototype.scrape).not.toHaveBeenCalled();
     });
 
+    it('rejects cloud metadata / link-local / CGNAT URLs (unified SSRFValidator)', async () => {
+      const blocked = [
+        'http://169.254.169.254/latest/meta-data/',
+        'http://169.254.170.2/creds',
+        'http://100.64.0.1/x',
+        'http://[fc00::1]/x',
+      ];
+      for (const url of blocked) {
+        await expect(ScrapeExecutor.execute({ url })).rejects.toThrow('SSRF');
+      }
+    });
+
     it('throws when url missing', async () => {
       await expect(ScrapeExecutor.execute({})).rejects.toThrow('url');
     });

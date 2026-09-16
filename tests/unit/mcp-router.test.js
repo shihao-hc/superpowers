@@ -596,6 +596,19 @@ describe('MCP Router', () => {
       expect(res.body.error).toBe('Tool access denied');
     });
 
+    it('denies tool call when permissionManager is not initialized (fail-closed, no fail-open)', async () => {
+      setPermissionManager(null);
+      try {
+        const res = await api('post', '/call').set(auth()).send({
+          toolFullName: 'filesystem:write_file', params: { path: '/tmp/x' },
+        });
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Tool access denied');
+      } finally {
+        setPermissionManager(mockPlugin.permissionManager);
+      }
+    });
+
     it('handles execution error', async () => {
       mockPlugin.executeTool.mockRejectedValue(new Error('execution failed'));
       const res = await api('post', '/call').set(auth()).send({
@@ -654,11 +667,15 @@ describe('MCP Router', () => {
       }));
     });
 
-    it('allows tool call when permission manager is not configured', async () => {
+    it('denies tool call when permission manager is not configured (fail-closed)', async () => {
       setPermissionManager(null);
-      const res = await api('post', '/call').set(auth()).send({ toolFullName: 'filesystem:read_file' });
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
+      try {
+        const res = await api('post', '/call').set(auth()).send({ toolFullName: 'filesystem:read_file' });
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Tool access denied');
+      } finally {
+        setPermissionManager(mockPlugin.permissionManager);
+      }
     });
   });
 
@@ -772,13 +789,17 @@ describe('MCP Router', () => {
       expect(res.body.error).toBe('Batch call contains unauthorized tool');
     });
 
-    it('allows batch call when permission manager is not configured', async () => {
+    it('denies batch call when permission manager is not configured (fail-closed)', async () => {
       setPermissionManager(null);
-      const res = await api('post', '/batch-call').set(auth()).send({
-        calls: [{ toolFullName: 'filesystem:read_file', params: {} }],
-      });
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
+      try {
+        const res = await api('post', '/batch-call').set(auth()).send({
+          calls: [{ toolFullName: 'filesystem:read_file', params: {} }],
+        });
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Batch call contains unauthorized tool');
+      } finally {
+        setPermissionManager(mockPlugin.permissionManager);
+      }
     });
 
     it('uses viewer/anonymous fallbacks when batch user info missing', async () => {

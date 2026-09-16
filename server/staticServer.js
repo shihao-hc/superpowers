@@ -2834,18 +2834,11 @@ app.post('/api/mcp/call', authMiddleware, async (req, res) => {
     return res.status(503).json({ error: 'MCP not available' });
   }
 
-  const { toolFullName, params } = req.body || {};
-
-  if (!toolFullName) {
-    return res.status(400).json({ error: 'toolFullName required' });
-  }
-
-  try {
-    const result = await mcpPlugin.executeTool(toolFullName, params || {});
-    res.json({ success: true, result });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
+  // 安全：此处不再直接执行工具——/api/mcp/call 由 src/mcp/router.js 挂载的
+  // mcpRouter 先匹配处理（含 validateToolName + RBAC checkToolAccess + 限流）。
+  // 本冗余路由曾无任何权限校验，若 mcpRouter 未匹配则 fallthrough 到此形成绕过，
+  // 故改为明确拒绝，防止无校验兜底。
+  return res.status(501).json({ error: 'Use the MCP router endpoint', code: 'USE_MCP_ROUTER' });
 });
 
 app.get('/api/mcp/workflow/nodes', (req, res) => {

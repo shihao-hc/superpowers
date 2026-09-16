@@ -8,18 +8,12 @@ const { DynamicScraper } = require('../../agent/DynamicScraper');
 
 /**
  * SSRF 防护：拒绝内网/本地/保留地址，仅允许公开 http(s) URL
+ * 统一走 SSRFValidator（单一安全源，避免两套逻辑不一致漏拦截云元数据/CGNAT/IPv6 ULA 等）
  */
 function isSafeUrl(url) {
-  try {
-    const u = new URL(url);
-    if (u.protocol !== 'http:' && u.protocol !== 'https:') { return false; }
-    const host = u.hostname.toLowerCase();
-    if (host === 'localhost' || host.endsWith('.localhost')) { return false; }
-    if (host === '::1' || host === '0.0.0.0' || host === '[::1]') { return false; }
-    if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) { return false; }
-    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) { return false; }
-    return true;
-  } catch (e) { return false; }
+  const { validateURL } = require('../../utils/SSRFValidator');
+  const result = validateURL(url, { allowPrivate: false, allowLoopback: false });
+  return result.allowed;
 }
 
 class ScrapeExecutor {
