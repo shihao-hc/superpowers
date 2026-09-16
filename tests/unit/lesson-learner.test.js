@@ -393,5 +393,15 @@ describe('LessonLearner', () => {
         expect(l.recordFeedback({ feedback: f })).toBeTruthy();
       });
     });
+
+    it('_incrementGrowthCounter increments growth.lessonsLearned', () => {
+      let store = '{"lessonsLearned": 5}';
+      fs.existsSync.mockReturnValue(true);
+      fs.readFileSync.mockImplementation((p) => (String(p).includes('growth') ? store : '[]'));
+      fs.writeFileSync.mockImplementation((p, d) => { if (String(p).includes('growth')) { store = d; } });
+      const l = new LessonLearner();
+      l._incrementGrowthCounter();
+      expect(JSON.parse(store).lessonsLearned).toBe(6);
+    });
   });
 });

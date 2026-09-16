@@ -217,10 +217,27 @@ class LessonLearner {
       };
       lib.lessons.push(record);
       fs.writeFileSync(this._lessonsPath, JSON.stringify(lib, null, 2));
+      this._incrementGrowthCounter();
       return record;
     } catch (e) {
       return null;
     }
+  }
+
+  /**
+   * 更新成长计数（growth.lessonsLearned）——让学习效果在 growth 可观测
+   */
+  _incrementGrowthCounter() {
+    try {
+      const growthFile = path.join(process.cwd(), '.opencode', 'evolution', 'growth.json');
+      let growth = {};
+      if (fs.existsSync(growthFile)) {
+        growth = JSON.parse(fs.readFileSync(growthFile, 'utf8')) || {};
+      }
+      growth.lessonsLearned = (growth.lessonsLearned || 0) + 1;
+      growth.lastUpdated = Date.now();
+      fs.writeFileSync(growthFile, JSON.stringify(growth, null, 2));
+    } catch (e) { /* 计数器更新失败不影响学习 */ }
   }
 
   _savePending(entry) {
