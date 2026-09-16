@@ -82,6 +82,18 @@ describe('LessonLibrary', () => {
       const results = lib.search('帮我优化代码性能');
       expect(results.some((l) => l.title.includes('性能优化'))).toBe(true);
     });
+
+    it('matches lessons via context field (previous conversation topic)', () => {
+      // 对话纠正学习的教训：lesson 只含纠正建议，主题词在 context（上一轮对话）
+      const lib = new LessonLibrary({ quiet: true });
+      lib.add({
+        title: '从实践中学习: 用户纠正',
+        lesson: '用户纠正: 应该用索引而不是全表扫描',
+        context: '上一轮回复: 优化数据库查询应该怎么做'
+      });
+      const results = lib.search('优化数据库查询怎么做');
+      expect(results.length).toBeGreaterThan(0);
+    });
   });
 
   describe('getSuggestions', () => {

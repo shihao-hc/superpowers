@@ -45,7 +45,7 @@ class LessonLibrary {
       // 改为 bigram 分词，任一 token 命中即匹配
       const tokens = LessonLibrary._tokenize(query);
       results = results.filter((l) => {
-        const text = `${l.title || ''} ${l.problem || ''} ${l.lesson || ''} ${(l.tags || []).join(' ')}`.toLowerCase();
+        const text = `${l.title || ''} ${l.problem || ''} ${l.lesson || ''} ${l.context || ''} ${(l.tags || []).join(' ')}`.toLowerCase();
         return tokens.some((t) => t.length >= 2 && text.includes(t));
       });
     }
