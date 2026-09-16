@@ -16,6 +16,9 @@ class OllamaBridge {
     // 显式上下文窗口（默认 8192）：避免 Ollama 默认 num_ctx 过小（2048）导致静默截断
     // 与 ContextCompactService 的 maxTokens 预算对齐（见 chatService 构造）
     this.numCtx = parseInt(options.numCtx || process.env.OLLAMA_NUM_CTX, 10) || 8192;
+    // 备用模型列表（主模型失败时降级重试，避免主力模型宕机就降级到 canned 话术）
+    this.fallbackModels = options.fallbackModels ||
+      (process.env.OLLAMA_FALLBACK_MODELS || 'llama3.2').split(',').map((s) => s.trim()).filter(Boolean);
   }
 
   async checkConnection() {
@@ -98,7 +101,23 @@ class OllamaBridge {
     if (tools) {
       chatPayload.tools = tools;
     }
-    const response = await this.client.chat(chatPayload);
+
+    // 模型降级：主模型失败 → 依次尝试备用模型（避免主力宕机就降级 canned 话术）
+    const modelsToTry = [model, ...this.fallbackModels.filter((m) => m && m !== model)];
+    let lastError = null;
+    let response = null;
+    let usedModel = model;
+    for (const m of modelsToTry) {
+      try {
+        response = await this.client.chat({ ...chatPayload, model: m });
+        usedModel = m;
+        break;
+      } catch (e) {
+        lastError = e;
+        console.warn(`[OllamaBridge] 模型 ${m} 调用失败${modelsToTry.length > 1 ? '，降级重试' : ''}: ${e.message}`);
+      }
+    }
+    if (!response) { throw lastError; }
 
     if (stream) {
       return response;
@@ -107,7 +126,7 @@ class OllamaBridge {
     const chatResult = {
       ok: true,
       text: response.message?.content?.trim() || '',
-      model,
+      model: (response && response.model) || usedModel,
       done: true,
       evalCount: response.eval_count,
       promptEvalCount: response.prompt_eval_count

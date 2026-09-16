@@ -30,6 +30,8 @@ describe('OllamaBridge', () => {
     delete process.env.MAX_TOKENS;
     delete process.env.DEFAULT_TEMPERATURE;
     delete process.env.OLLAMA_NUM_CTX;
+    delete process.env.OLLAMA_FALLBACK_MODELS;
+    delete process.env.OLLAMA_MODEL;
     mockOllama.mockReset();
     mockOllamaInstances.length = 0;
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -222,6 +224,38 @@ test('constructor falls back to defaults when env unset', () => {
       await bridge.chat([{ role: 'user', content: 'hi' }], { numCtx: 4096 });
       const call = bridge.client.chat.mock.calls[0][0];
       expect(call.options).toEqual({ temperature: 0.8, num_predict: 256, num_ctx: 4096 });
+    });
+
+    test('parses fallback models from env', () => {
+      process.env.OLLAMA_FALLBACK_MODELS = 'llama3.2, qwen2.5:1.5b';
+      const bridge = new OllamaBridge();
+      expect(bridge.fallbackModels).toEqual(['llama3.2', 'qwen2.5:1.5b']);
+    });
+
+    test('falls back to fallback model when primary fails', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const bridge = new OllamaBridge({ model: 'qwen2.5:7b', fallbackModels: ['llama3.2'] });
+      bridge.client.chat
+        .mockRejectedValueOnce(new Error('model load failed'))
+        .mockResolvedValueOnce({ message: { content: 'backup reply' }, eval_count: 5, prompt_eval_count: 8 });
+      try {
+        const result = await bridge.chat([{ role: 'user', content: 'hi' }]);
+        expect(result.ok).toBe(true);
+        expect(result.text).toBe('backup reply');
+        expect(result.model).toBe('llama3.2'); // 报告实际使用的模型（非主模型名）
+        expect(bridge.client.chat).toHaveBeenCalledTimes(2);
+        expect(bridge.client.chat.mock.calls[1][0].model).toBe('llama3.2');
+        expect(warnSpy).toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    test('throws when primary and fallback models both fail', async () => {
+      const bridge = new OllamaBridge({ model: 'qwen2.5:7b', fallbackModels: ['llama3.2'] });
+      bridge.client.chat.mockRejectedValue(new Error('down'));
+      await expect(bridge.chat([{ role: 'user', content: 'hi' }])).rejects.toThrow('down');
+      expect(bridge.client.chat).toHaveBeenCalledTimes(2); // 主模型 + 备用
     });
   });
 
