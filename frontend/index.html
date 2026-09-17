@@ -1139,7 +1139,7 @@
                     .map((r) => {
                       const fn = r.result.path.split(/[\\/]/).pop();
                       const skill = r.result.type || 'docx';
-                      return `<a href="/api/files/${encodeURIComponent(skill)}/${encodeURIComponent(fn)}" class="file-link" download>📄 下载 ${fn}</a>`;
+                      return `<a href="/api/files/${encodeURIComponent(skill)}/${encodeURIComponent(fn)}" class="file-link" download>📄 下载 ${escapeHtml(fn)}</a>`;
                     });
                   if (links.length > 0) {
                     const linkDiv = document.createElement('div');

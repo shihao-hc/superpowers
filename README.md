@@ -37,6 +37,7 @@ npm start        # 启动 server（默认 qwen2.5:7b，备用 llama3.2）
 | /api/personality、/api/game、/api/vision、/api/workflow、/api/marketplace | 占位路由（返回 501 未实现）|
 | BrainSystem 部分"子系统"（Dream/Ethics/Controller 等）| 模块不存在（相关方法返回 not initialized）|
 | `src/commands`、`src/features`、`src/plugins`、`src/core/{agent-loop,compact,permissions,tools}` | 未接线的 TS 子系统（tsconfig 排除、测试用 vitest 未接入 jest）|
+| **生产 CSP nonce 断裂（前端审查 F1）** | nonce 从不注入 HTML → `NODE_ENV=production` 下内联脚本全被拦、前端 0 JS。当前以 dev 模式运行（前端可用）；生产部署前需正确注入 nonce 或改 CSP 策略 |
 
 ## 测试
 

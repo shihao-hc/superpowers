@@ -8,6 +8,19 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const { MCPClient } = require('../../src/mcp/MCPClient');
+
+/**
+ * 净化 MCP 工具元数据（防外部 MCP 服务器注入 HTML/JS → 前端 XSS，F2 源头修复）
+ * - name: 只允许单词字符/冒号/点/连字符（工具名格式）
+ * - description: 去除 < >（防 innerHTML 注入）
+ */
+function sanitizeToolMeta(tool) {
+  if (!tool || typeof tool !== 'object') { return tool; }
+  const s = { ...tool };
+  if (typeof s.name === 'string') { s.name = s.name.replace(/[^\w:.-]/g, '_'); }
+  if (typeof s.description === 'string') { s.description = s.description.replace(/[<>]/g, ''); }
+  return s;
+}
 const { infoLog, errorLog } = require('../utils/logger');
 const { authMiddleware, sensitiveLimiter } = require('../middleware');
 
@@ -189,7 +202,7 @@ router.get('/tools/:server', authMiddleware, (req, res) => {
 
   res.json({
     success: true,
-    data: tools
+    data: tools.map(sanitizeToolMeta)
   });
 });
 
@@ -202,7 +215,7 @@ const { DryRunEngine, dryRunEngine } = require('../../src/mcp/engines/DryRunEngi
 router.get('/status', authMiddleware, (req, res) => {
   res.json({
     servers: Array.from(mcpClients.entries()).map(([name]) => name),
-    tools: mcpClients.size > 0 ? Array.from(mcpClients.values()).flatMap((c) => c.tools || []) : []
+    tools: mcpClients.size > 0 ? Array.from(mcpClients.values()).flatMap((c) => c.tools || []).map(sanitizeToolMeta) : []
   });
 });
 
