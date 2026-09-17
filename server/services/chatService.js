@@ -178,6 +178,10 @@ class ChatService extends EventEmitter {
     const danger = /密钥|泄漏|安全审计|安全扫描|安全检查|漏洞|越权|硬编码|注入攻击|xss|渗透/i.test(t);
     const request = /帮我|检查|扫描|审计|看看|查一下|查查|有没有|找找|检测|查漏/i.test(t);
     if (!danger || !request) { return null; }
+    // 排除完成态/历史询问（"做了吗/完成了吗/之前"是问状态，不是请求执行）
+    if (/做了吗|做了没|完成了吗|完成了没|进展|之前|检查过了|回顾|复盘|有没有做|最近/.test(t)) {
+      return null;
+    }
     // 排除纯问题（"什么是X""怎么预防"），需要明确请求动作
     if (/^(什么|啥)是|怎么(预防|避免|防范|防止)|如何(预防|避免|防范|防止)/.test(t) && !/帮我|检查|扫描|查/.test(t)) {
       return null;

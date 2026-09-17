@@ -896,6 +896,11 @@ describe('ChatService conversation persistence', () => {
       expect(chatService._ruleBasedSecurityScan('怎么防止密钥泄漏')).toBeNull();
     });
 
+    it('returns null for completed-state questions (asking status, not requesting)', () => {
+      expect(chatService._ruleBasedSecurityScan('今天的代码安全检查做了吗')).toBeNull();
+      expect(chatService._ruleBasedSecurityScan('之前的安全扫描结果如何')).toBeNull();
+    });
+
     it('returns null for unrelated chat', () => {
       expect(chatService._ruleBasedSecurityScan('今天天气不错')).toBeNull();
       expect(chatService._ruleBasedSecurityScan('你好')).toBeNull();
