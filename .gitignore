@@ -70,3 +70,7 @@ data/corrupt-key.json
 data/test-key.json
 data/metrics/
 data/conversations.json
+
+# 运行时生成物（不提交）
+.tmp-*
+uploads/skills/
