@@ -981,3 +981,25 @@ Session 锚点: 2026-09-18 (第112次 — BrainSystem深度审计 + 真实场景
 | 验证前看既有模式 | 写验证脚本/测试：先 grep 现有 require 方式、测试框架 API、supertest 用法 |
 | PoC 红 → 追数据流到根因 | 任何测试/验证失败：不绕过不迁就，追数据流直到看清完整链路 |
 | 修复后真实验证 | 声称完成前：真实链路（真实数据/依赖/端点）+ 证据 |
+
+---
+
+Session 锚点: 2026-09-18 (第113次 — 确定性任务优先架构: 不依赖模型的可靠执行)
+- ESLint: 0/0 | Tests: **278 passed suites / 4 skipped / 0 failed** (13,072 passed / 46 skipped, +17) 全量通过
+- **背景 (用户洞察: "换更强模型只是概率改善，不排除同类型情况")**: qwen 7B 对开放安全/审计任务遵循弱
+  ("检查密钥泄漏"→"你遇到什么问题")，命令式注入(B+C)也无效 → **根本解: 系统知道怎么做的系统直接做，
+  模型只处理系统不知道的**（不依赖模型理解 = 确定性可靠）
+- **架构**: `generateResponse` 确定性优先链 `_ruleBasedSecurityScan || _ruleBasedCodeQuality`
+  → 命中则 `_executeToolCalls` 直接执行 → `source:'deterministic'`（不经模型）；未命中才走模型
+- **脚印1 SecurityScanExecutor** (确定性扫描): src/server 扫硬编码密钥/命令注入(exec+模板变量)/
+  宽松CORS/shell:true；eval 诚实放弃(正则无法区分真调用 vs 字符串/注释，由 eslint no-eval 负责)；
+  _ruleBasedSecurityScan 防误触发(排除"什么是/做了吗/怎么防止")
+- **脚印2 CodeQualityExecutor** (确定性 eslint): cmd /c 跑项目 eslint --format json，报错误/警告统计
+  (Windows .cmd 需 cmd /c + maxBuffer 20MB)；_ruleBasedCodeQuality 排除"怎么样/之前"评价询问
+- **沉淀验证 (每步真实分流)**: 执行请求→deterministic | "代码质量怎么样/做了吗"→ollama | 闲聊→ollama |
+  项目真实扫描 319 文件 0 发现(lint 0 硬编码0 CORS白名单 无shell:true)
+- **诚实边界**: 复合请求("检查安全和质量")只匹配单个确定性任务(单任务模型，多任务链留待后续)；
+  文档生成保持模型路径+fallback(内容生成类需模型，确定性只能搭框架——检查/执行类才确定性优先)
+- **验证**: 全量 278/13,072/0 + ESLint 0/0 + 真实HTTP分流测试
+- 相关文件: `src/skills/executors/{SecurityScan,CodeQuality}Executor.js` (新), `server/services/chatService.js`,
+  `tests/unit/{security-scan-executor,code-quality-executor}.test.js` (新), `tests/unit/chat-service.test.js`
