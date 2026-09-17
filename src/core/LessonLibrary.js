@@ -65,10 +65,14 @@ class LessonLibrary {
     if (options.type && options.type === 'success') {
       results = results.filter((l) => l._applied);
     }
-    // 修复：用户纠正产生的教训按 userId 隔离——带 userId 的教训只对本人可见（防跨用户 prompt 注入）；
+    // 修复：用户纠正/成功经验教训按 userId 隔离——带 userId 的教训只对本人可见（防跨用户 prompt 注入）；
     // 无 userId 的教训（系统/开发者）共享给所有人
+    // 且用户自己的教训最优先（此前共享预置教训命中多时会把用户经验挤出 limit，用户经验永远注入不了）
     if (options.userId) {
-      results = results.filter((l) => !l.userId || l.userId === options.userId);
+      const own = results.filter((l) => l.userId === options.userId);
+      const shared = results.filter((l) => !l.userId);
+      const others = results.filter((l) => l.userId && l.userId !== options.userId);
+      results = [...own, ...shared, ...others];
     }
     if (options.limit) { results = results.slice(0, options.limit); }
     return results;

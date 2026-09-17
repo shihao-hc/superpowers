@@ -74,6 +74,17 @@ describe('LessonLibrary', () => {
       expect(lib.search(null, { limit: 1 })).toHaveLength(1);
     });
 
+    it('prioritizes user-specific lessons over shared ones (not squeezed out by limit)', () => {
+      const lib = new LessonLibrary({ quiet: true });
+      for (let i = 0; i < 5; i++) {
+        lib.add({ title: `shared ${i}`, problem: '密钥 审计', lesson: '共享预置' });
+      }
+      lib.add({ title: 'my lesson', problem: '密钥 审计', lesson: '成功方法: 先 grep 搜密钥引用', userId: 'userX' });
+      const hits = lib.search('密钥', { limit: 3, userId: 'userX' });
+      expect(hits[0].userId).toBe('userX');
+      expect(hits[0].lesson).toContain('成功方法');
+    });
+
     it('matches Chinese natural-language queries via bigram (whole-sentence was broken)', () => {
       const lib = new LessonLibrary({ quiet: true });
       lib.add({ title: '性能优化经验：缓存与索引' });
