@@ -4,6 +4,7 @@
 
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const config = require('../config');
 const { error: errorLog, info: infoLog, warn: warnLog } = require('../utils/logger');
 
@@ -111,7 +112,8 @@ function createRateLimiter(options = {}) {
     keyGenerator: keyGenerator || ((req) => {
       // 安全：只用真实 TCP 连接地址，绝不信任客户端可伪造的 X-Forwarded-For
       // （已实证：原实现用 XFF 第一项，攻击者每次换值即获得全新限额桶，限流完全失效）
-      return req.socket.remoteAddress || req.ip || 'unknown';
+      // 修复：必须经 ipKeyGenerator 规范化（express-rate-limit v8 校验要求，否则 IPv6 可绕过）
+      return ipKeyGenerator(req.socket.remoteAddress || req.ip || 'unknown');
     })
   });
 }
