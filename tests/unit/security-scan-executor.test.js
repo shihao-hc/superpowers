@@ -39,6 +39,18 @@ describe('SecurityScanExecutor (deterministic security scan, no LLM)', () => {
     expect(r.result.findings.length).toBe(0);
   });
 
+  it('detects loose CORS wildcard and shell-enabled', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, 'src', 'server.js'),
+      'res.setHeader(\'Access-Control-Allow-Origin\', \'*\');\n');
+    fs.writeFileSync(path.join(tmpDir, 'src', 'exec.js'),
+      'execSync(cmd, { shell: true });\n');
+    const r = await SecurityScanExecutor.execute({ root: tmpDir, limit: 100 });
+    const types = r.result.findings.map((f) => f.type);
+    expect(types).toContain('cors-wildcard');
+    expect(types).toContain('shell-enabled');
+  });
+
   it('returns honest failure on invalid root', async () => {
     const r = await SecurityScanExecutor.execute({ root: path.join(tmpDir, 'nonexistent'), limit: 100 });
     expect(r.ok).toBe(true); // 目录不存在 → 空结果，不崩溃

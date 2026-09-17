@@ -20,6 +20,16 @@ const PATTERNS = [
     type: 'shell-injection',
     label: '命令注入风险（exec+模板变量）',
     regex: /exec(?:Sync)?\s*\(\s*[`"][^`"]*\$\{/g
+  },
+  {
+    type: 'cors-wildcard',
+    label: '宽松 CORS（允许任意源）',
+    regex: /Access-Control-Allow-Origin[^\n]{0,40}\*/g
+  },
+  {
+    type: 'shell-enabled',
+    label: '子进程 shell 开启（命令注入面）',
+    regex: /shell\s*:\s*true\b/g
   }
 ];
 
