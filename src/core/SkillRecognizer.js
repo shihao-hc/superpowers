@@ -126,6 +126,13 @@ class SkillRecognizer {
       ['安全', 'security-audit'],
       ['审计', 'security-audit'],
       ['漏洞', 'security-audit'],
+      ['密钥', 'security-audit'],
+      ['泄漏', 'security-audit'],
+      ['注入', 'security-audit'],
+      ['xss', 'security-audit'],
+      ['渗透', 'security-audit'],
+      ['越权', 'security-audit'],
+      ['扫描', 'security-audit'],
       ['permission', 'permission-system'],
       ['权限', 'permission-system'],
 

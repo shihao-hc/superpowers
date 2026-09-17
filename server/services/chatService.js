@@ -467,7 +467,8 @@ class ChatService extends EventEmitter {
           const cached = this._skillEssenceCache.get(skill.name);
           this._markSkillInjected(conversation, skill.name);
           if (cached.essence) {
-            return `\n任务领域「${skill.name}」的技能方法论（请遵循）：\n${cached.essence}`;
+            // B+C：命令式技能指令——"参考方法论"对弱模型无效，改为"必须执行的步骤清单"
+            return `\n【技能指令】当用户请求「${skill.name}」相关任务时，你必须按以下方法严格执行（先按步骤操作，不要只回答不行动）：\n${cached.essence}`;
           }
           return `\n任务领域「${skill.name}」的技能指导（请参考并遵循）：\n${cached.body.slice(0, 800)}`;
         }

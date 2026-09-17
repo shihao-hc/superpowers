@@ -792,7 +792,7 @@ describe('ChatService conversation persistence', () => {
       chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
       const text = chatService._buildSkillGuidance('帮我优化代码性能');
       expect(text).toContain('performance-optimization');
-      expect(text).toContain('技能方法论');
+      expect(text).toContain('技能指令');
     });
 
     it('returns empty when no skill matches', () => {
@@ -868,10 +868,10 @@ describe('ChatService conversation persistence', () => {
       chatService._skillRecognizer = { recognize: jest.fn(() => [{ skill: { name: 'performance-optimization' }, score: 1.0 }]) };
       const conv = { personality: 'default', context: {}, messages: [] };
       const first = chatService._buildSkillGuidance('优化性能', conv);
-      expect(first).toContain('技能方法论'); // 首条完整注入
+      expect(first).toContain('技能指令'); // 首条完整注入
       const second = chatService._buildSkillGuidance('优化性能', conv);
       expect(second).toContain('继续沿用'); // 同会话同技能 → 极简引用
-      expect(second).not.toContain('技能方法论');
+      expect(second).not.toContain('技能指令');
       expect(second.length).toBeLessThan(first.length);
     });
 
