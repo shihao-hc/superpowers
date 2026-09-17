@@ -419,6 +419,10 @@ describe('ComprehensiveChecker', () => {
 
     test('checkUnitTests passes when test file exists', async () => {
       fs.existsSync.mockReturnValue(true);
+      fs.readdirSync.mockImplementation((dir) => {
+        if (dir === path.join(mockRoot, 'tests')) { return [{ name: 'a.test.js', isDirectory: () => false }]; }
+        return [];
+      });
       const c = new ComprehensiveChecker({ projectRoot: mockRoot });
       const r = await c.executeCheck({ id: 'G-01', fn: 'checkUnitTests' });
       expect(r.status).toBe('passed');

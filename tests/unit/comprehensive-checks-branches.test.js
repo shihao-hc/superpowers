@@ -189,11 +189,18 @@ describe('F-maintainability 分支', () => {
 });
 
 describe('G-testability 分支', () => {
-  test('checkUnitTests: 有测试文件但无BrainSystem.test.js → passed', async () => {
-    const f = write('unit/foo.test.js', 'describe("x", () => {});');
+  test('checkUnitTests: tests/ 下有测试文件 → passed', async () => {
+    const f = write('tests/unit/foo.test.js', 'describe("x", () => {});');
     const r = await CHECK_IMPLEMENTATIONS.checkUnitTests(root, [f]);
     expect(r.status).toBe('passed');
-    expect(r.message).toBe('单元测试存在');
+    expect(r.message).toContain('单元测试存在');
+  });
+
+  test('checkUnitTests: tests/ 下无测试文件 → failed（不再误报）', async () => {
+    const f = write('src/foo.js', 'const x = 1;');
+    const r = await CHECK_IMPLEMENTATIONS.checkUnitTests(root, [f]);
+    expect(r.status).toBe('failed');
+    expect(r.message).toContain('缺少单元测试');
   });
 
   test('checkIntegrationTests: tests/integration存在 → passed', async () => {
