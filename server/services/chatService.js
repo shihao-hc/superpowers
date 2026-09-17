@@ -892,10 +892,12 @@ class ChatService extends EventEmitter {
               let roundResult = await this._chatWithRetry(bridge, sysPrompt, roundHistory, { tools: toolSchema });
               this.stats.llm.attempts++;
               const allToolResults = [];
+              let roundsUsed = 0;
               for (let round = 0; round < maxRounds; round++) {
                 if (!(roundResult && roundResult.ok && Array.isArray(roundResult.tool_calls) && roundResult.tool_calls.length > 0)) {
                   break;
                 }
+                roundsUsed++;
                 const toolResults = await this._executeToolCalls(roundResult.tool_calls);
                 allToolResults.push(...toolResults);
                 this._lastToolResults = allToolResults;
@@ -931,32 +933,7 @@ class ChatService extends EventEmitter {
                 // 单次发送工具结果（前端无需逐 token）
                 onData({ type: 'chunk', content: finalText, fullText: finalText, progress: 1 });
                 this._saveConversations();
-                onEnd({ source: 'ollama', text: finalText, toolResults: allToolResults });
-                return;
-              }
-              // 无工具结果 → 回退到流式（不在此返回，落到下方 stream 分支）
-              // 达轮次上限但工具部分执行 → 诚实告知
-              if (allToolResults.length > 0) {
-                const partial = allToolResults.some((r) => r.ok === true);
-                const finalText = partial
-                  ? this._describeToolResult(allToolResults)
-                  : '工具调用未能成功完成。已尝试的操作见工具结果。';
-                conversation.messages.push({
-                  id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-                  role: 'assistant',
-                  content: finalText,
-                  timestamp: new Date(),
-                  latency: Date.now() - startTime
-                });
-                if (conversation.messages.length > 100) {
-                  conversation.messages = conversation.messages.slice(-50);
-                }
-                this.stats.totalMessages++;
-                this.stats.totalLatency += (Date.now() - startTime);
-                this.stats.llm.successes++;
-                onData({ type: 'chunk', content: finalText, fullText: finalText, progress: 1 });
-                this._saveConversations();
-                onEnd({ source: 'ollama', text: finalText, toolResults: allToolResults, truncated: true });
+                onEnd({ source: 'ollama', text: finalText, toolResults: allToolResults, truncated: roundsUsed >= maxRounds });
                 return;
               }
             } catch (e) { /* 工具检测失败，回退流式 */ }

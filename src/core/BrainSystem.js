@@ -1994,8 +1994,20 @@ BrainSystem.autoLearn = function(input, result) {
   // 1. 记录到交互日志 (growth)
   Persistence.append('growth', { type: 'interaction', input, result: result?.intent || 'unknown' });
 
-  // 2. 记录到教训库 (lessons)
-  Persistence.append('lessons', { content: input, lesson: result?.manager || 'auto' });
+  // 2. 修复：写入 LessonLibrary 真正读取的文件（.opencode/lessons.json）
+  //    此前 Persistence.append('lessons') 写 evolution/lessons.json，无人读取（教训"学了但用不上"）
+  try {
+    const { LessonLibrary } = require('./LessonLibrary');
+    const lib = new LessonLibrary({ quiet: true });
+    lib.add({
+      title: 'auto',
+      problem: String(input || '').substring(0, 200),
+      lesson: String(result?.intent || result?.manager || 'auto').substring(0, 200),
+      priority: 'low',
+      category: 'pattern',
+      source: 'autoLearn'
+    });
+  } catch (e) { /* 教训可选，失败静默 */ }
 
   // 3. 内存中也记录
   BrainSystem.smartStore?.(`auto_${Date.now()}`, { input, result });
