@@ -25,8 +25,10 @@ class SemanticMemory {
     try {
       const { ChromaClient } = require('chromadb');
 
+      // 修复：ChromaClient 的 path 是 server URL（此前传本地目录 './chromadb' → Invalid URL，
+      // 每次启动误导性报错，语义记忆实际从未用向量存储）。改用 URL 配置（env CHROMA_URL 可覆盖）
       this.client = new ChromaClient({
-        path: this.options.persistDirectory
+        path: process.env.CHROMA_URL || this.options.chromaUrl || 'http://localhost:8000'
       });
 
       this.collection = await this.client.getOrCreateCollection({
@@ -40,8 +42,8 @@ class SemanticMemory {
       this.initialized = true;
       return true;
     } catch (error) {
-      console.error('Failed to initialize ChromaDB:', error.message);
-      // 降级到内存模式
+      // 诚实降级：ChromaDB server 未运行时用内存 Map（语义检索降级为顺序检索）
+      console.warn(`[SemanticMemory] ChromaDB 不可用（${error.message}），降级为内存 Map。设置 CHROMA_URL 指向 ChromaDB server 可启用向量存储`);
       this.memoryStore = new Map();
       this.initialized = true;
       return false;

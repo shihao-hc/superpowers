@@ -57,8 +57,8 @@ curl -X POST http://localhost:3000/api/chat \
 
 ### 4. 系统状态
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/api/chat/stats   # AI 路径指标
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/chat/stats   # AI 路径指标（需认证）
 ```
 
 ## 用于自身：真实使用建议

@@ -543,16 +543,16 @@ class AsyncExecutor {
           throw new Error(`Skill '${skillName}' not found`);
         }
 
-        // 占位执行器 — WS 路径未接线真实技能执行。返回 placeholder:true 标记，
-        // 客户端可据此识别这是模拟结果而非真实执行（诚实反映，不假装真实成功）
+        // 占位执行器 — WS 路径未接线真实技能执行。返回 placeholder:true + success:false，
+        // 诚实反映"未接线"，不假装真实成功（此前 success:true 会让直连调用方误以为执行成功）
         return new Promise((resolve, _reject) => {
           const duration = Math.random() * 5000 + 1000; // 1-6 seconds
 
           setTimeout(() => {
             resolve({
-              success: true,
+              success: false,
               placeholder: true,
-              message: `Skill ${skillName} executed successfully (placeholder — real executor not wired)`,
+              message: `Skill ${skillName} 未接线真实执行器（placeholder）`,
               data: { skillName, parameters },
               duration
             });

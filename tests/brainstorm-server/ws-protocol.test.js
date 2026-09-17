@@ -22,7 +22,8 @@ try {
 } catch (e) {
   console.error(`Cannot load ${SERVER_PATH}: ${e.message}`);
   console.error('This is expected if running tests before implementation.');
-  process.exit(1);
+  // 修复：process.exit(1) 在 jest 进程内会杀死整个测试套件（356 文件全灭）；改为抛出让该测试失败
+  throw e;
 }
 
 function makeClientFrame(opcode, payload, fin = true) {

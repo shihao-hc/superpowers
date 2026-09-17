@@ -4,6 +4,11 @@ Multi-agent AI skill platform with vertical domain markets
 
 **Version:** 2.0.0
 
+> ⚠️ **诚实声明（2026-09-17 审计）**：本文件及 `openapi.json/yaml` 描述的
+> `/api/v1/*` 端点（skills/workflows/intent/costs 等）**当前 server 未实现**
+> （server/index.js 与 staticServer.js 均无 `/api/v1` 挂载，请求将 404）。
+> 这些是规划中的 API 契约，不代表当前可用能力。实际可用端点见 `QUICKSTART.md`。
+
 ---
 
 ## Base URL

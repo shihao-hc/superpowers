@@ -890,7 +890,9 @@ describe('AsyncExecutor', () => {
       const promise = executor.execute('testSkill', {}, {});
       jest.advanceTimersByTime(6000);
       const result = await promise;
-      expect(result.success).toBe(true);
+      // 诚实：占位执行器返回 success:false（未接线真实执行，不假装成功）
+      expect(result.success).toBe(false);
+      expect(result.placeholder).toBe(true);
       expect(result.data.skillName).toBe('testSkill');
       jest.useRealTimers();
     });
