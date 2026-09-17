@@ -5,7 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { authMiddleware, optionalAuth, chatLimiter } = require('../middleware');
+const { authMiddleware, optionalAuth, chatLimiter, validateInput } = require('../middleware');
 const chatService = require('../services/chatService');
 const { errorLog } = require('../utils/logger');
 
@@ -31,7 +31,7 @@ function getSessionUserId(req, res) {
  * POST /api/chat
  * 发送消息
  */
-router.post('/', optionalAuth, chatLimiter, async (req, res) => {
+router.post('/', optionalAuth, chatLimiter, validateInput(), async (req, res) => {
   try {
     const { text, personality, context } = req.body;
 
@@ -128,7 +128,7 @@ router.delete('/history', authMiddleware, async (req, res) => {
  * POST /api/chat/stream
  * 流式聊天
  */
-router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
+router.post('/stream', optionalAuth, chatLimiter, validateInput(), async (req, res) => {
   try {
     const { text, personality, context } = req.body;
 

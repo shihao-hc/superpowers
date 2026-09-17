@@ -20,7 +20,14 @@ class SmartMemory {
       tags: this._extractTags(`${key} ${JSON.stringify(value)}`)
     };
 
-    this._memories.push(memory);
+    // 去重：同 key 已存在则替换（防 smartStore+水合竞态导致重复条目）
+    const existingIdx = this._memories.findIndex((m) => m.key === key);
+    if (existingIdx !== -1) {
+      delete this._index[this._memories[existingIdx].timestamp];
+      this._memories[existingIdx] = memory;
+    } else {
+      this._memories.push(memory);
+    }
     this._index[memory.timestamp] = memory;
 
     if (this._memories.length > this._maxSize) {
@@ -161,6 +168,11 @@ class SmartMemory {
       if (['function', 'class', 'module', 'code', 'bug', 'fix', 'test', 'api'].includes(word)) {
         tags.add(word);
       }
+    }
+    // 修复：中文标签此前完全提不到（原只提取英文词）→ 提取 CJK 2-4 字符词
+    const cjkWords = String(text || '').match(/[\u4e00-\u9fff]{2,4}/g) || [];
+    for (const w of cjkWords.slice(0, 6)) {
+      tags.add(w);
     }
     return Array.from(tags);
   }

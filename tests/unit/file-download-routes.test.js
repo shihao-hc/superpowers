@@ -11,7 +11,8 @@ jest.mock('../../server/middleware', () => ({
   chatLimiter: (req, res, next) => next(),
   sensitiveLimiter: (req, res, next) => next(),
   memoryLimiter: (req, res, next) => next(),
-  optionalAuth: (req, res, next) => { req.user = { id: 'test-user', role: 'user' }; next(); }
+  optionalAuth: (req, res, next) => { req.user = { id: 'test-user', role: 'user' }; next(); },
+  validateInput: () => (req, res, next) => next()
 }));
 
 jest.mock('../../server/services/dataMaskService', () => ({

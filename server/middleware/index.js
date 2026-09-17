@@ -247,16 +247,30 @@ function corsMiddleware(req, res, next) {
 }
 
 /**
- * 输入验证中间件
+ * 递归检查原型污染（__proto__/constructor/prototype，含嵌套对象）
+ */
+function hasProtoPollution(obj, seen = new Set()) {
+  if (!obj || typeof obj !== 'object') { return false; }
+  if (seen.has(obj)) { return false; }
+  seen.add(obj);
+  if (Object.prototype.hasOwnProperty.call(obj, '__proto__') ||
+      Object.prototype.hasOwnProperty.call(obj, 'constructor') ||
+      Object.prototype.hasOwnProperty.call(obj, 'prototype')) {
+    return true;
+  }
+  for (const key of Object.keys(obj)) {
+    if (hasProtoPollution(obj[key], seen)) { return true; }
+  }
+  return false;
+}
+
+/**
+ * 输入验证中间件（修复：原仅顶层检查且 schema 参数完全忽略 = 空壳；现递归防原型污染）
  */
 function validateInput(_schema) {
   return (req, res, next) => {
-    // 简单的输入验证
     if (req.body && typeof req.body === 'object') {
-      // 防止原型污染
-      if (Object.prototype.hasOwnProperty.call(req.body, '__proto__') ||
-          Object.prototype.hasOwnProperty.call(req.body, 'constructor') ||
-          Object.prototype.hasOwnProperty.call(req.body, 'prototype')) {
+      if (hasProtoPollution(req.body)) {
         return res.status(400).json({
           error: '无效的输入数据',
           code: 'INVALID_INPUT'

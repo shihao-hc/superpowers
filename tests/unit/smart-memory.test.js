@@ -175,6 +175,17 @@ describe('SmartMemory (direct class)', () => {
     expect(rB[0].value.userId).toBe('B');
   });
 
+  test('store with same key replaces instead of duplicating (hydration race)', () => {
+    const memory = new SmartMemory();
+    memory.store('k1', { input: '第一次' });
+    memory.store('k1', { input: '第二次' });
+    const dups = memory._memories.filter((m) => m.key === 'k1');
+    expect(dups.length).toBe(1);
+    expect(dups[0].value.input).toBe('第二次');
+    const results = memory.search('第二次');
+    expect(results.filter((r) => r.key === 'k1').length).toBe(1);
+  });
+
   test('search returns empty when no words score', () => {
     memory.store('key1', 'value1');
     const results = memory.search('zzz');
@@ -226,6 +237,11 @@ describe('SmartMemory (direct class)', () => {
     expect(tags).toContain('bug');
     expect(tags).toContain('function');
     expect(tags).toContain('code');
+  });
+
+  test('_extractTags extracts Chinese keywords (was English-only)', () => {
+    const tags = memory._extractTags('数据库查询优化 性能问题');
+    expect(tags.some((t) => /[\u4e00-\u9fff]/.test(t))).toBe(true);
   });
 
   test('_extractTags returns empty for no keywords', () => {

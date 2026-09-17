@@ -4,7 +4,8 @@ const request = require('supertest');
 jest.mock('../../server/middleware', () => ({
   optionalAuth: (req, res, next) => { req.user = { id: req.query.userId || 'test-user' }; next(); },
   chatLimiter: (req, res, next) => next(),
-  authMiddleware: (req, res, next) => { req.user = { id: req.query.userId || 'test-user' }; next(); }
+  authMiddleware: (req, res, next) => { req.user = { id: req.query.userId || 'test-user' }; next(); },
+  validateInput: () => (req, res, next) => next()
 }));
 
 const chatRouter = require('../../server/routes/chat');

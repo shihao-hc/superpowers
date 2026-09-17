@@ -17,14 +17,10 @@ const ALLOWED_MCP_COMMANDS = new Set(['npx', 'node', 'npm', 'deno', 'bun', 'pyth
 
 function isSafeMCPServerCommand(command: string): boolean {
   if (!command || typeof command !== 'string') return false;
-  
-  // 白名单检查
-  if (ALLOWED_MCP_COMMANDS.has(command.toLowerCase())) return true;
-  
-  // 允许字母数字下划线连字符点号
-  if (/^[a-zA-Z0-9_.-]+$/.test(command)) return true;
-  
-  return false;
+  // 只允许白名单命令
+  // 修复：原正则回退 /^[a-zA-Z0-9_.-]+$/ 接受任意合法文件名（如 'evil'），
+  // 配合 env 透传 + 无 flag 校验 = 任意命令执行，白名单形同虚设
+  return ALLOWED_MCP_COMMANDS.has(command.toLowerCase());
 }
 
 function sanitizeMCPArg(arg: unknown): string {

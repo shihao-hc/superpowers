@@ -1,6 +1,9 @@
 /**
  * UltraWork AI Inference Service
  * LLM inference with Ollama and fallback support
+ *
+ * ⚠️ 注意：本模块当前无任何路由/服务引用（死代码），保留供未来使用。
+ *   已修复 streamInfer 假流式 bug（此前恒抛 TypeError）。
  */
 
 const { EventEmitter } = require('events');
@@ -205,25 +208,32 @@ class InferenceService extends EventEmitter {
 
       let fullText = '';
 
-      for await (const chunk of response) {
-        if (chunk.message?.content) {
-          fullText += chunk.message.content;
-          yield {
-            type: 'chunk',
-            content: chunk.message.content,
-            fullText
-          };
+      // 修复：_makeRequest 对 stream:true 返回解析后的单 JSON（非 async iterable），
+      // 此前 for await 迭代普通对象恒抛 TypeError（假流式）→ 兼容单块输出
+      if (response && typeof response[Symbol.asyncIterator] === 'function') {
+        for await (const chunk of response) {
+          if (chunk.message?.content) {
+            fullText += chunk.message.content;
+            yield {
+              type: 'chunk',
+              content: chunk.message.content,
+              fullText
+            };
+          }
+          if (chunk.done) {
+            yield {
+              type: 'done',
+              fullText,
+              model: chunk.model,
+              evalCount: chunk.eval_count
+            };
+            break;
+          }
         }
-
-        if (chunk.done) {
-          yield {
-            type: 'done',
-            fullText,
-            model: chunk.model,
-            evalCount: chunk.eval_count
-          };
-          break;
-        }
+      } else if (response && response.message && response.message.content) {
+        fullText = response.message.content;
+        yield { type: 'chunk', content: fullText, fullText };
+        yield { type: 'done', fullText, model: response.model };
       }
     } catch (error) {
       yield {

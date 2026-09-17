@@ -477,7 +477,9 @@ class SelfCodeImprover {
       outLines.push(line);
     }
     if (!modified) { return { success: false, error: '无顶层重复 require' }; }
-    const fixed = outLines.join('\n');
+    // 修复：保留原文件行尾（CRLF/LF），避免修复后整文件被改写为 LF（产生巨大 diff）
+    const newline = content.includes('\r\n') ? '\r\n' : '\n';
+    const fixed = outLines.join(newline);
     try { new vm.Script(fixed); } catch (e) { return { success: false, error: `语法校验失败: ${e.message}` }; }
     fs.writeFileSync(filePath, fixed);
     return { success: true, file: filePath };

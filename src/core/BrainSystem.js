@@ -1490,6 +1490,8 @@ BrainSystem.smartStore = function(key, value, metadata) {
   if (!BrainSystem._smartMemory) {
     BrainSystem._smartMemory = new SmartMemory();
   }
+  // 先水合（确保内存含持久化条目），配合 SmartMemory.store 同 key 去重，防"先 store 后 search"竞态重复
+  BrainSystem._hydrateSmartMemory();
   // 持久化存储
   Persistence.append('memory', { key, value, metadata });
   return BrainSystem._smartMemory.store(key, value, metadata);

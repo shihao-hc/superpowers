@@ -251,6 +251,16 @@ describe('SelfCodeImprover', () => {
       expect(result.error).toContain('无顶层重复');
     });
 
+    test('duplicate-require preserves CRLF line endings (no whole-file LF rewrite)', () => {
+      const crlf = 'const a = require(\'fs\');\r\nconst b = require(\'fs\');\r\nmodule.exports = {};\r\n';
+      fs.readFileSync.mockReturnValue(crlf);
+      const result = improver._applyFix({ type: 'duplicate-require', file: '/tmp/crlf.js' });
+      expect(result.success).toBe(true);
+      const written = fs.writeFileSync.mock.calls.find((c) => c[0] === '/tmp/crlf.js');
+      expect(written[1]).toContain('\r\n');
+      expect(written[1]).not.toContain('\n\n');
+    });
+
     test('version-inconsistency returns manual confirm', () => {
       const result = improver._applyFix({ type: 'version-inconsistency' });
       expect(result.success).toBe(false);
