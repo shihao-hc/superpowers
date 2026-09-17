@@ -274,6 +274,24 @@ describe('SkillMarketplace', () => {
       await marketplace.updateSkill(skillId, { description: 'Updated' });
       expect(fs.writeFileSync).toHaveBeenCalled();
     });
+
+    it('should restrict to allowlisted fields and escape HTML strings (stored XSS)', async () => {
+      const updated = await marketplace.updateSkill(skillId, {
+        name: '<b>Evil</b>',
+        description: '<svg/onload=alert(1)>',
+        malicious: 'should be ignored'
+      });
+      expect(updated.name).toBe('&lt;b&gt;Evil&lt;/b&gt;');
+      expect(updated.description).toBe('&lt;svg/onload=alert(1)&gt;');
+      expect(updated.malicious).toBeUndefined();
+    });
+
+    it('should escape keywords array items', async () => {
+      const updated = await marketplace.updateSkill(skillId, {
+        keywords: ['safe', '<img src=x onerror=alert(1)>']
+      });
+      expect(updated.keywords).toEqual(['safe', '&lt;img src=x onerror=alert(1)&gt;']);
+    });
   });
 
   describe('listSkills', () => {
@@ -485,6 +503,18 @@ describe('SkillMarketplace', () => {
       fs.writeFileSync.mockClear();
       await marketplace.addReview(skillId, { rating: 5 });
       expect(fs.writeFileSync).toHaveBeenCalled();
+    });
+
+    it('should escape HTML in review title/content/reviewer (stored XSS)', async () => {
+      const review = await marketplace.addReview(skillId, {
+        rating: 5,
+        title: '<img src=x onerror=alert(1)>',
+        content: '<svg/onload=alert(1)>',
+        reviewer: '"><script>alert(1)</script>'
+      });
+      expect(review.title).toBe('&lt;img src=x onerror=alert(1)&gt;');
+      expect(review.content).toBe('&lt;svg/onload=alert(1)&gt;');
+      expect(review.reviewer).toContain('&lt;script&gt;');
     });
   });
 

@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+function escapeHtml(value) {
+  if (typeof value !== 'string') { return value; }
+  return value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
+}
+
+// 存储层净化：仅允许这些字段更新，字符串字段转义 HTML（防已认证用户播种存储型 XSS 的纵深防御）
+const UPDATE_ALLOWLIST = ['name', 'description', 'author', 'category', 'screenshot', 'usageExample', 'keywords', 'version', 'changelog', 'status', 'deprecationReason', 'deprecatedAt', 'archivedAt'];
+
 class SkillMarketplace {
   constructor(options = {}) {
     this.dataDir = options.dataDir || path.join(process.cwd(), 'data', 'marketplace');
@@ -138,9 +146,22 @@ class SkillMarketplace {
     }
 
     const now = new Date().toISOString();
+    const clean = {};
+    for (const key of UPDATE_ALLOWLIST) {
+      if (key in updates) {
+        const val = updates[key];
+        if (Array.isArray(val)) {
+          clean[key] = val.map((v) => (typeof v === 'string' ? escapeHtml(v) : v));
+        } else if (typeof val === 'string') {
+          clean[key] = escapeHtml(val);
+        } else {
+          clean[key] = val;
+        }
+      }
+    }
     const updatedSkill = {
       ...skill,
-      ...updates,
+      ...clean,
       updatedAt: now
     };
 
@@ -150,7 +171,7 @@ class SkillMarketplace {
       updatedSkill.versionHistory.push({
         version: skill.version,
         updatedAt: now,
-        changes: updates.changelog || 'No changelog provided'
+        changes: updates.changelog ? escapeHtml(updates.changelog) : 'No changelog provided'
       });
     }
 
@@ -268,9 +289,9 @@ class SkillMarketplace {
       id: reviewId,
       skillId,
       rating,
-      title,
-      content,
-      reviewer,
+      title: escapeHtml(title || ''),
+      content: escapeHtml(content || ''),
+      reviewer: escapeHtml(reviewer),
       createdAt: now,
       updatedAt: now,
       helpful: 0,
