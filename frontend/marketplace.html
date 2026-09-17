@@ -394,6 +394,11 @@
   <div class="toast-container" id="toastContainer"></div>
   
   <script>
+    function escapeHtml(text) {
+      return String(text ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
     class MarketplaceManager {
       constructor() {
         this.currentTab = 'browse';
@@ -636,25 +641,25 @@
         
         // Create screenshot placeholder
         const screenshotHTML = skill.screenshot ? 
-          `<img src="${skill.screenshot}" alt="${skill.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">` :
+          `<img src="${escapeHtml(skill.screenshot)}" alt="${escapeHtml(skill.name)}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; margin-bottom: 1rem;">` :
           `<div class="skill-screenshot">预览图不可用</div>`;
         
         // Create usage example if available
         const usageHTML = skill.usageExample ? 
-          `<div class="skill-usage"><strong>使用示例:</strong> ${skill.usageExample.substring(0, 100)}${skill.usageExample.length > 100 ? '...' : ''}</div>` : '';
+          `<div class="skill-usage"><strong>使用示例:</strong> ${escapeHtml(skill.usageExample.substring(0, 100))}${skill.usageExample.length > 100 ? '...' : ''}</div>` : '';
         
         // Create tags from keywords
         const tagsHTML = skill.keywords && skill.keywords.length > 0 ? 
-          `<div class="skill-tags">${skill.keywords.slice(0, 3).map(k => `<span class="skill-tag">${k}</span>`).join('')}${skill.keywords.length > 3 ? `<span class="skill-tag">+${skill.keywords.length - 3}</span>` : ''}</div>` : '';
+          `<div class="skill-tags">${skill.keywords.slice(0, 3).map(k => `<span class="skill-tag">${escapeHtml(k)}</span>`).join('')}${skill.keywords.length > 3 ? `<span class="skill-tag">+${skill.keywords.length - 3}</span>` : ''}</div>` : '';
         
         card.innerHTML = `
           <div class="skill-card-header">
             ${screenshotHTML}
             <div class="skill-card-title-row">
-              <div class="skill-name">${skill.name}</div>
-              <div class="skill-category">${skill.category || 'General'}</div>
+              <div class="skill-name">${escapeHtml(skill.name)}</div>
+              <div class="skill-category">${escapeHtml(skill.category || 'General')}</div>
             </div>
-            <div class="skill-description">${skill.description || '无描述'}</div>
+            <div class="skill-description">${escapeHtml(skill.description || '无描述')}</div>
             <div class="skill-meta">
               <span class="meta-tag version">v${skill.version}</span>
               <span class="meta-tag author">${skill.author}</span>
@@ -745,9 +750,9 @@
                     <div style="color: #fbbf24;">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
                     <div style="color: #888; font-size: 0.8rem;">${new Date(review.createdAt).toLocaleDateString()}</div>
                   </div>
-                  ${review.title ? `<div style="font-weight: 600; margin-bottom: 0.25rem;">${review.title}</div>` : ''}
-                  <div style="color: #aaa; font-size: 0.9rem;">${review.content || ''}</div>
-                  <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">by ${review.reviewer}</div>
+                  ${review.title ? `<div style="font-weight: 600; margin-bottom: 0.25rem;">${escapeHtml(review.title)}</div>` : ''}
+                  <div style="color: #aaa; font-size: 0.9rem;">${escapeHtml(review.content || '')}</div>
+                  <div style="color: #666; font-size: 0.8rem; margin-top: 0.5rem;">by ${escapeHtml(review.reviewer)}</div>
                 </div>
               `).join('')}
             </div>
@@ -945,13 +950,13 @@
           <div class="version-item">
             <div class="version-header">
               <div>
-                <span class="version-number">v${version.version}</span>
-                <span class="version-status ${version.status}">${version.status}</span>
+                <span class="version-number">v${escapeHtml(version.version)}</span>
+                <span class="version-status ${escapeHtml(version.status)}">${escapeHtml(version.status)}</span>
               </div>
               <div class="version-date">${new Date(version.createdAt).toLocaleDateString()}</div>
             </div>
-            ${version.description ? `<div style="color: #aaa; margin-bottom: 0.5rem;">${version.description}</div>` : ''}
-            ${version.changelog ? `<div class="version-changelog">${version.changelog}</div>` : ''}
+            ${version.description ? `<div style="color: #aaa; margin-bottom: 0.5rem;">${escapeHtml(version.description)}</div>` : ''}
+            ${version.changelog ? `<div class="version-changelog">${escapeHtml(version.changelog)}</div>` : ''}
             <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
               <button class="action-btn secondary" onclick="marketplaceManager.rollbackToVersion('${version.skillName}', '${version.version}')">回滚</button>
               <button class="action-btn secondary" onclick="marketplaceManager.deprecateVersion('${version.skillName}', '${version.version}')">弃用</button>

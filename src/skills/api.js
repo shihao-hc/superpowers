@@ -35,7 +35,15 @@ class SkillsApi {
         (publicGetPaths.includes(req.path) || publicGetPrefixes.some((p) => req.path.startsWith(p)))) {
         return next();
       }
-      return auth.authenticate(req, res, next);
+      return auth.authenticate(req, res, (err) => {
+        if (err) { return next(err); }
+        // 修复：guest（匿名）禁止一切写操作——此前 marketplace updateSkill/addReview/status
+        // 无角色检查且 authenticate 对无 token 放行 guest，匿名可播种存储型 XSS
+        if (req.user && req.user.role === 'guest') {
+          return res.status(401).json({ error: 'Authentication required for write operations' });
+        }
+        return next();
+      });
     });
 
     this._bindRoutes();

@@ -62,7 +62,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Global error handler (place at end before 404)
 // Note: Will be moved to end of file after all routes
@@ -84,10 +84,10 @@ if (rateLimit) {
     message: { error: '请求过于频繁，请稍后再试' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => {
-      const forwarded = req.headers['x-forwarded-for'];
-      if (forwarded) {return forwarded.split(',')[0].trim();}
-      return ipKeyGenerator(req, res);
+    keyGenerator: (req) => {
+      // 安全：只用真实 TCP 连接地址，绝不信任客户端可伪造的 X-Forwarded-For
+      // （与 server/middleware 修复一致；原实现用 XFF 首值，每请求换 IP 即获全新限额桶）
+      return ipKeyGenerator(req.socket.remoteAddress || req.ip || 'unknown');
     }
   });
   app.use('/api/', apiLimiter);
