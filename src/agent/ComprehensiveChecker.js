@@ -216,6 +216,9 @@ class ComprehensiveChecker {
   }
 
   async run() {
+    // 修复：每次运行重置统计（此前 stats 只在构造时初始化，多次 run 累积 → 56→112→...→840 误导）
+    this.stats = { total: 0, passed: 0, failed: 0, warnings: 0 };
+
     console.log(`\n${'═'.repeat(80)}`);
     console.log('                 全方面检查系统 v3.1 - 56项全面检查');
     console.log(`${'═'.repeat(80)}\n`);
