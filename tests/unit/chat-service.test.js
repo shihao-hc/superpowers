@@ -885,6 +885,39 @@ describe('ChatService conversation persistence', () => {
     });
   });
 
+  describe('deterministic security scan (no-LLM task-first)', () => {
+    it('parses a clear security-scan request', () => {
+      const r = chatService._ruleBasedSecurityScan('帮我检查代码里有没有密钥泄漏');
+      expect(r).toEqual({ name: 'security_scan', arguments: expect.any(Object) });
+    });
+
+    it('returns null for pure questions (not a request)', () => {
+      expect(chatService._ruleBasedSecurityScan('什么是密钥？')).toBeNull();
+      expect(chatService._ruleBasedSecurityScan('怎么防止密钥泄漏')).toBeNull();
+    });
+
+    it('returns null for unrelated chat', () => {
+      expect(chatService._ruleBasedSecurityScan('今天天气不错')).toBeNull();
+      expect(chatService._ruleBasedSecurityScan('你好')).toBeNull();
+    });
+
+    it('generateResponse takes deterministic path (bypasses LLM) for security-scan requests', async () => {
+      const origExec = chatService._executeToolCalls;
+      chatService._executeToolCalls = jest.fn().mockResolvedValue([
+        { tool: 'security_scan', ok: true, result: { type: 'security-scan', scannedFiles: 10, findings: [] } }
+      ]);
+      try {
+        const conv = { personality: 'default', messages: [{ role: 'user', content: '帮我检查密钥泄漏' }], context: {} };
+        const r = await chatService.generateResponse('帮我检查密钥泄漏', conv, 'scanuser1');
+        expect(r.source).toBe('deterministic');
+        expect(r.text).toContain('未发现硬编码密钥');
+        expect(r.ruleBased).toBe(true);
+      } finally {
+        chatService._executeToolCalls = origExec;
+      }
+    });
+  });
+
   describe('sysPrompt context safety', () => {
     it('caps over-long injected memory so it cannot blow up the context (safety valve)', async () => {
       const { BrainSystem } = require('../../src/core/BrainSystem');

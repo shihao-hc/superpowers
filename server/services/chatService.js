@@ -169,6 +169,37 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 确定性安全扫描解析（确定性任务优先：安全请求不经模型，直接执行）
+   * 弱模型对开放安全任务遵循弱（qwen 把"检查密钥泄漏"当"没具体问题"），
+   * 故由系统确定性识别 + 直接执行扫描，模型只做结果总结（甚至不做）
+   */
+  _ruleBasedSecurityScan(text) {
+    const t = String(text || '');
+    const danger = /密钥|泄漏|安全审计|安全扫描|安全检查|漏洞|越权|硬编码|注入攻击|xss|渗透/i.test(t);
+    const request = /帮我|检查|扫描|审计|看看|查一下|查查|有没有|找找|检测|查漏/i.test(t);
+    if (!danger || !request) { return null; }
+    // 排除纯问题（"什么是X""怎么预防"），需要明确请求动作
+    if (/^(什么|啥)是|怎么(预防|避免|防范|防止)|如何(预防|避免|防范|防止)/.test(t) && !/帮我|检查|扫描|查/.test(t)) {
+      return null;
+    }
+    return { name: 'security_scan', arguments: { root: process.cwd(), limit: 200 } };
+  }
+
+  /**
+   * 描述安全扫描结果（确定性路径回复）
+   */
+  _describeSecurityScan(result) {
+    const r = result && result.result ? result.result : {};
+    const findings = r.findings || [];
+    if (findings.length === 0) {
+      return `已完成安全扫描（扫描 ${r.scannedFiles || 0} 个文件）：未发现硬编码密钥或命令注入风险。`;
+    }
+    const lines = findings.slice(0, 5).map((f) => `${f.file}:${f.line} [${f.label}] ${f.snippet}`).join('\n');
+    const more = findings.length > 5 ? `\n...等共 ${findings.length} 处风险` : '';
+    return `安全扫描发现 ${findings.length} 处风险：\n${lines}${more}`;
+  }
+
+  /**
    * 描述工具执行结果（供兜底回复）
    */
   _describeToolResult(toolResults) {
@@ -329,6 +360,15 @@ class ChatService extends EventEmitter {
                 path: filePath
               }
             });
+          }
+        } else if (name === 'security_scan') {
+          // 确定性安全扫描（不依赖 LLM）：扫 src/server 找硬编码密钥/命令注入风险
+          const { SecurityScanExecutor } = require('../../src/skills/executors/SecurityScanExecutor');
+          const scan = await SecurityScanExecutor.execute(args || {});
+          if (scan.ok) {
+            results.push({ tool: name, ok: true, result: scan.result });
+          } else {
+            results.push({ tool: name, ok: false, error: scan.error });
           }
         } else if (name === 'scrape_web') {
           const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
@@ -678,6 +718,25 @@ class ChatService extends EventEmitter {
   async generateResponse(text, conversation, userId) {
     // 重置工具结果（防跨请求残留泄漏到其他用户）
     this._lastToolResults = null;
+    // 确定性任务优先：安全扫描类请求不经模型，直接确定性执行
+    // （弱模型不理解开放安全任务——qwen 把"检查密钥泄漏"当"没具体问题"；
+    //   系统知道怎么做的，系统直接做；系统不知道的才交给模型）
+    try {
+      const ruleBased = this._ruleBasedSecurityScan(text);
+      if (ruleBased) {
+        const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
+        if (toolResults.some((r) => r.ok === true)) {
+          this.stats.tools.calls += toolResults.length;
+          return {
+            text: this._describeSecurityScan(toolResults[0]),
+            confidence: 0.9,
+            source: 'deterministic',
+            toolResults,
+            ruleBased: true
+          };
+        }
+      }
+    } catch (e) { /* 确定性路径失败则回退模型路径 */ }
     // 优先使用 Ollama 真实推理（非侵入式，失败回退话术）
     try {
       const bridge = this._getOllamaBridge();
