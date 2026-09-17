@@ -9,7 +9,7 @@ const path = require('path');
 
 class SkillRecognizer {
   constructor(options = {}) {
-    this.skillsDir = options.skillsDir || 'D:/龙虾/.opencode/skills';
+    this.skillsDir = options.skillsDir || path.join(process.cwd(), '.opencode', 'skills');
     this.extraSkillsDirs = options.extraSkillsDirs || [];
     this.skills = [];
     this.categories = {};

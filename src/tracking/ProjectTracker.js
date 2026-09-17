@@ -13,7 +13,7 @@ const curlCmd = isWindows ? 'curl.exe' : 'curl';
 
 class ProjectTracker {
   constructor(options = {}) {
-    this.skillsDir = options.skillsDir || 'D:/龙虾/.opencode/skills';
+    this.skillsDir = options.skillsDir || path.join(process.cwd(), '.opencode', 'skills');
     this.projects = new Map();
     this._initProjects();
   }

@@ -72,10 +72,11 @@ class LessonTracker {
         wasApplied: lesson._applied
       });
 
+      // 修复：查询≠应用——此前在此无条件 markApplied，导致所有被查询的教训被误标为"已应用"，
+      // 教训库很快全部 _applied=true，LessonReminder/提醒机制永久失效（35 条全 applied 即此因）。
+      // 此处仅统计"本次使用的未应用教训"，不再自动 markApplied（应用标记应由真正影响回复的路径触发）。
       if (!lesson._applied) {
-        bs.lessonLibrary.markApplied(lesson.id);
         tracking.lessonsApplied.push(lesson.id);
-        console.log(`[BrainSystem] ✓ 教训已应用: ${lesson.lesson.substring(0, 30)}...`);
       }
     }
 

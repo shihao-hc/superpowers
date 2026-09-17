@@ -1,101 +1,50 @@
-# 拾号-金融 (ShiHao Finance)
+# UltraWork AI — BrainSystem 本地 AI 助手
 
-AI-driven automated stock selection and trading system.
+本地运行的 AI 助手 server：对话 + 文档生成 + 记忆 + 学习闭环 + 技能方法论。
 
-## Features
-
-### System 1: Stock Selection Engine
-- Multi-factor quantitative stock screening
-- LLM-enhanced analysis with aggregated search
-- Policy monitoring and daily review
-- Knowledge base with RAG
-
-### System 2: Trading Execution
-- Complete perceive-decide-execute-evolve closed loop
-- Paper trading simulator for backtest validation
-- Order state machine (CREATED → PENDING → SUBMITTED → PARTIAL_FILLED → FILLED)
-
-### Risk Management
-- Independent RiskManager with kill switch
-- Volatility-based dynamic position sizing
-- Stress testing module (2008 crisis, COVID crash, etc.)
-- Blacklist and position limits
-
-### Data & Performance
-- Unified Market Adapter (A-share, US, HK)
-- Multiple data source redundancy with failover
-- Numba-optimized backtesting
-- SQLite factor database with model versioning
-
-## Modules
-
-| Module | File | Description |
-|--------|------|-------------|
-| Data Pipeline | `data_quality.py` | Data quality checks & DataPipeline |
-| Stock Analysis | `stock_analysis.py` | Multi-factor analysis |
-| Policy Monitor | `policy_monitor.py` | Policy tracking |
-| Daily Review | `daily_review.py` | LLM-enhanced daily review |
-| Knowledge Base | `quant_knowledge_base.py` | RAG-based knowledge base |
-| Execution | `execution.py` | Order execution engine |
-| Paper Trading | `paper_trading_simulator.py` | Backtest validation |
-| Risk Manager | `risk_manager.py` | Risk control + dynamic sizing |
-| Stress Testing | `stress_testing.py` | Black swan scenarios |
-| Backtest | `advanced_backtest.py` | Cost model backtesting |
-| Monitoring | `monitoring.py` | Alerts & XAI output |
-| Market Adapter | `market_adapter.py` | Multi-market + redundancy |
-| Factor DB | `factor_db.py` | Factor & model versioning |
-
-## Quick Start
-
-```python
-from stock_selector import RiskManager, StressTestingEngine
-
-# Risk management with volatility-based sizing
-rm = RiskManager(
-    initial_capital=1000000,
-    max_position_pct=0.10,
-    max_daily_loss_pct=0.02
-)
-rm.update_dynamic_params(market_regime="volatile", confidence=0.8)
-
-# Stress testing
-engine = StressTestingEngine(max_acceptable_drawdown=0.30)
-positions = {"AAPL": {"quantity": 1000, "avg_price": 150}}
-report = engine.run_all_scenarios(positions)
-print(f"Worst case: {report.worst_case_drawdown_pct:.1%}")
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ShiHao Finance                          │
-├─────────────────────────────────────────────────────────────┤
-│  Stock Selection  │  Execution  │  Risk  │  Monitoring      │
-│  ───────────────  ───────────  ──────  ──────────         │
-│  ├─ DataPipeline  │  Trading   │  Risk  │  Alerts         │
-│  ├─ StockAnalysis │  Loop      │  Mgmt  │  XAI            │
-│  ├─ PolicyMonitor│  Execution │  Guard │  Metrics         │
-│  └─ DailyReview  │            │  Kill  │                 │
-│                  │            │  Switch│                 │
-├─────────────────────────────────────────────────────────────┤
-│  Data Layer: MarketAdapter (A-share/US/HK) + FactorDB     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Deployment
+## 快速开始
 
 ```bash
-# Docker
-docker-compose -f docker/shihao-docker-compose.yml up -d
+npm start        # 启动 server（默认 qwen2.5:7b，备用 llama3.2）
+# 或双击 start.bat（开机自启已配置）
 ```
 
-## Requirements
+访问 http://localhost:3000
 
-- Python 3.10+
-- pandas, numpy
-- akshare (A-share data)
-- yfinance (US data)
-- scikit-learn (ML models)
+依赖：Node.js ≥ 18、Ollama（`ollama serve` + `qwen2.5:7b`）。
 
-See `requirements.txt` for full list.
+## 真实能力（已真实验收）
+
+| 能力 | 状态 |
+|------|------|
+| 对话（POST /api/chat）| ✅ 真实 Ollama 推理 |
+| SSE 流式（/api/chat/stream）| ✅ 逐 token |
+| 文档生成 docx/pdf/xlsx | ✅ 真实文件（canvas 暂未启用：缺原生依赖）|
+| 网页爬取 + SSRF 防护 | ✅ 公开 URL 可爬、内网拦截 |
+| 记忆（存→检索→注入）| ✅ |
+| 教训学习闭环（纠正→学习→注入）| ✅ |
+| 技能方法论注入 | ✅ 291 技能 |
+| 模型自动降级（qwen→llama3.2）| ✅ |
+| 匿名会话隔离 | ✅ |
+| 认证防护 | ✅ JWT（JWT_SECRET 在 .env）|
+
+## 诚实状态（未实现 / 占位）
+
+| 项 | 说明 |
+|----|------|
+| PDF/DOCX 文本提取（read/edit action）| 未实现（需 pdf-parse/docx 解析库）|
+| canvas 图形生成 | 未启用（`canvas` 原生依赖未安装）|
+| /api/personality、/api/game、/api/vision、/api/workflow、/api/marketplace | 占位路由（返回 501 未实现）|
+| BrainSystem 部分"子系统"（Dream/Ethics/Controller 等）| 模块不存在（相关方法返回 not initialized）|
+
+## 测试
+
+```bash
+npm test          # 352 suites / ~17000 tests
+npm run lint
+npm run typecheck
+```
+
+## 详细使用
+
+见 `QUICKSTART.md`。

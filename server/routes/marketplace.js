@@ -1,7 +1,7 @@
-// Placeholder for marketplace routes
+﻿// Placeholder for marketplace routes
 const express = require('express');
 const router = express.Router();
 
-router.get('/', (req, res) => res.json({ routes: 'marketplace' }));
+router.get('/', (req, res) => res.status(501).json({ error: 'marketplace 功能未实现（占位路由）', code: 'NOT_IMPLEMENTED' }));
 
 module.exports = router;

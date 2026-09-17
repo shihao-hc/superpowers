@@ -337,7 +337,7 @@ module.exports = { ComprehensiveChecker, CHECKS };
 // ========== 直接运行 ==========
 
 if (require.main === module) {
-  const checker = new ComprehensiveChecker({ projectRoot: 'D:/龙虾' });
+  const checker = new ComprehensiveChecker({ projectRoot: process.cwd() });
   checker.run().then(({ stats }) => {
     console.log('\n检查完成！');
     process.exit(stats.failed > 0 ? 1 : 0);

@@ -340,6 +340,12 @@ app.use(express.static(staticPath, {
   maxAge: config.get('frontend.maxAge'),
   index: 'index.html'
 }));
+// 修复：前端 index.html 引用 /frontend/voice/*.js 与 /frontend/components/*.js，
+// 若仅挂根路径会映射到 staticPath/frontend/...（错位 404）→ 增加 /frontend 虚拟路径
+app.use('/frontend', express.static(staticPath, {
+  maxAge: config.get('frontend.maxAge'),
+  index: false
+}));
 
 // ============ API路由 ============
 

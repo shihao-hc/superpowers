@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const fs = require('fs');
 
@@ -10,7 +10,8 @@ jest.mock('../../src/utils/SafeExec', () => ({
 const { safeExecSync } = require('../../src/utils/SafeExec');
 const ProjectTracker = require('../../src/tracking/ProjectTracker');
 
-const DEFAULT_SKILLS_DIR = 'D:/龙虾/.opencode/skills';
+const path = require('path');
+const DEFAULT_SKILLS_DIR = path.join(process.cwd(), '.opencode', 'skills');
 const CUSTOM_SKILLS_DIR = 'D:/custom/skills';
 
 const GH_RELEASE_JSON = JSON.stringify({

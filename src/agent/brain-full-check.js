@@ -27,7 +27,7 @@ const BRAIN_FILES = [
   'src/agent/BrainDecisionMaker.js'
 ];
 
-const BASE_PATH = 'D:/龙虾/';
+const BASE_PATH = process.cwd();
 
 const RESULTS = { passed: 0, failed: 0, warnings: [], errors: [] };
 

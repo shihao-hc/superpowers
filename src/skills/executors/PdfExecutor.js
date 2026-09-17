@@ -821,7 +821,8 @@ class PdfExecutor {
     return {
       type: 'text',
       content: `PDF content extracted from ${filePath}\n[This is a placeholder - real implementation would extract actual text using pdf-parse library]\n\nFile information:\n- Size: ${stats.size} bytes\n- Created: ${stats.birthtime}\n- Modified: ${stats.mtime}\n\nNote: For actual PDF text extraction, install 'pdf-parse' package: npm install pdf-parse`,
-      message: `PDF read successfully from ${filePath}`,
+      // 诚实：不假装成功——文本提取实际未实现
+      message: 'PDF 文本提取未实现（需 pdf-parse 库）；仅返回文件信息',
       metadata: {
         size: stats.size,
         created: stats.birthtime,

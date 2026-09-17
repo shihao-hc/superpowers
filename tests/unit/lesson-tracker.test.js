@@ -91,11 +91,12 @@
       expect(result.lessonsApplied).toEqual(['l2']);
     });
 
-    it('marks unapplied lessons as applied', () => {
+    it('does not auto-mark lessons as applied (query != apply)', () => {
       bs.lessonLibrary.getSuggestions.mockReturnValue([{ lessonId: 'l1' }]);
       bs.lessonLibrary.get.mockReturnValue({ id: 'l1', lesson: 'test lesson', _applied: false });
-      tracker._trackLessonUsage('ctx');
-      expect(bs.lessonLibrary.markApplied).toHaveBeenCalledWith('l1');
+      const result = tracker._trackLessonUsage('ctx');
+      expect(bs.lessonLibrary.markApplied).not.toHaveBeenCalled();
+      expect(result.lessonsApplied).toEqual(['l1']);
     });
 
     it('skips lesson when get returns null', () => {

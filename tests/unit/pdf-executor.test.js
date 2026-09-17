@@ -507,7 +507,8 @@ describe('PdfExecutor', () => {
       expect(result.type).toBe('text');
       expect(result.content).toContain('PDF content extracted from existing.pdf');
       expect(result.metadata.size).toBe(12345);
-      expect(result.message).toContain('PDF read successfully');
+      // 诚实：文本提取未实现，message 明确标注（不再假装成功）
+      expect(result.message).toContain('未实现');
     });
 
     test('should throw for missing file', async () => {

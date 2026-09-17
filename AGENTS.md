@@ -90,10 +90,10 @@ deepReflect({ input, success });
 ## 2. 版本信息
 
 - BrainSystem: **v22.1**
-- 教训库: **41条活跃教训**
-- Skills: **304个**
-- 决策规则: **9种类别**
-- 桥梁: **brain-bridge.js v1 (已激活)**
+- 教训库: **35 条**（全未应用，提醒可用；此前"41 条活跃"为失实记录）
+- Skills: **291 个**（SkillRecognizer 实际加载数；此前"304"为失实记录）
+- 决策规则: 6 类（brain-decision）+ 9 类任务分类映射（LessonReminder）
+- 桥梁: **brain-bridge.js v1**（注意：loop-guard 曾触发熔断，需 `brain-bridge.js --status` 确认状态）
 - Phase C: **动态决策注入 (运行时上下文 ~> AGENTS.md)**
 
 ---

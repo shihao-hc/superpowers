@@ -43,7 +43,7 @@ curl -X POST http://localhost:3000/api/chat \
   -d '{"text": "生成一份标题为周报的 Word 文档"}'
 ```
 - LLM 自动调用 `generate_document` 工具
-- 生成真实 docx/pdf/xlsx/canvas 文件到 `uploads/skills/`
+- 生成真实 docx/pdf/xlsx 文件到 `uploads/skills/`（canvas 图形生成暂未启用：需要 `canvas` 原生依赖，未安装）
 - 工具结果返回文件路径
 
 ### 3. 网页爬取（含 SSRF 防护）

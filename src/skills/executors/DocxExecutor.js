@@ -731,7 +731,8 @@ class DocxExecutor {
     return {
       type: 'text',
       content: `Document content extracted from ${filePath}\n[This is a placeholder - real implementation would extract actual text]\n\nFile information:\n- Size: ${stats.size} bytes\n- Created: ${stats.birthtime}\n- Modified: ${stats.mtime}`,
-      message: `Document read successfully from ${filePath}`,
+      // 诚实：不假装成功——文本提取实际未实现
+      message: '文档文本提取未实现（真实实现需解析 docx）；仅返回文件信息',
       metadata: {
         size: stats.size,
         created: stats.birthtime,
