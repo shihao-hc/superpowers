@@ -901,6 +901,14 @@ describe('ChatService conversation persistence', () => {
       expect(chatService._ruleBasedSecurityScan('之前的安全扫描结果如何')).toBeNull();
     });
 
+    it('parses code-quality requests and excludes status/opinion queries', () => {
+      expect(chatService._ruleBasedCodeQuality('帮我检查代码质量')).toEqual({ name: 'code_quality', arguments: expect.any(Object) });
+      expect(chatService._ruleBasedCodeQuality('帮我审查一下代码有没有 lint 问题')).toEqual({ name: 'code_quality', arguments: expect.any(Object) });
+      expect(chatService._ruleBasedCodeQuality('代码质量怎么样')).toBeNull(); // 询问评价
+      expect(chatService._ruleBasedCodeQuality('之前检查过代码质量吗')).toBeNull(); // 状态询问
+      expect(chatService._ruleBasedCodeQuality('你好')).toBeNull();
+    });
+
     it('returns null for unrelated chat', () => {
       expect(chatService._ruleBasedSecurityScan('今天天气不错')).toBeNull();
       expect(chatService._ruleBasedSecurityScan('你好')).toBeNull();

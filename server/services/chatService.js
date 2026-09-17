@@ -190,6 +190,32 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 确定性代码质量检查解析（确定性任务优先：代码检查请求不经模型）
+   */
+  _ruleBasedCodeQuality(text) {
+    const t = String(text || '');
+    const topic = /代码质量|代码审查|代码规范|lint|检查代码|代码检查|有没有问题|代码健康/i.test(t);
+    const request = /帮我|检查|审查|看看|查|扫|检测|评估/i.test(t);
+    if (!topic || !request) { return null; }
+    // 排除状态/回顾询问（"代码质量怎么样/之前查过吗"不是请求执行）
+    if (/做了吗|完成了吗|进展|之前|回顾|复盘|最近/.test(t)) { return null; }
+    if (/^(什么|啥)是|怎么提升|如何提升|怎么看/.test(t)) { return null; }
+    return { name: 'code_quality', arguments: { root: process.cwd() } };
+  }
+
+  /**
+   * 描述代码质量检查结果
+   */
+  _describeCodeQuality(result) {
+    const r = result && result.result ? result.result : {};
+    if ((r.errors || 0) === 0 && (r.warnings || 0) === 0) {
+      return `已完成代码质量检查（检查 ${r.scannedFiles || 0} 个文件）：未发现 lint 错误或警告。`;
+    }
+    const lines = (r.issues || []).slice(0, 5).map((i) => `${i.file}: ${i.errors} 错误 / ${i.warnings} 警告`).join('\n');
+    return `代码质量检查发现 ${r.errors} 错误 / ${r.warnings} 警告（检查 ${r.scannedFiles} 个文件）：\n${lines}`;
+  }
+
+  /**
    * 描述安全扫描结果（确定性路径回复）
    */
   _describeSecurityScan(result) {
@@ -373,6 +399,15 @@ class ChatService extends EventEmitter {
             results.push({ tool: name, ok: true, result: scan.result });
           } else {
             results.push({ tool: name, ok: false, error: scan.error });
+          }
+        } else if (name === 'code_quality') {
+          // 确定性代码质量检查（不依赖 LLM）：eslint 扫 src/server 报告错误/警告
+          const { CodeQualityExecutor } = require('../../src/skills/executors/CodeQualityExecutor');
+          const q = await CodeQualityExecutor.execute(args || {});
+          if (q.ok) {
+            results.push({ tool: name, ok: true, result: q.result });
+          } else {
+            results.push({ tool: name, ok: false, error: q.error });
           }
         } else if (name === 'scrape_web') {
           const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
@@ -726,13 +761,13 @@ class ChatService extends EventEmitter {
     // （弱模型不理解开放安全任务——qwen 把"检查密钥泄漏"当"没具体问题"；
     //   系统知道怎么做的，系统直接做；系统不知道的才交给模型）
     try {
-      const ruleBased = this._ruleBasedSecurityScan(text);
+      const ruleBased = this._ruleBasedSecurityScan(text) || this._ruleBasedCodeQuality(text);
       if (ruleBased) {
         const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
         if (toolResults.some((r) => r.ok === true)) {
           this.stats.tools.calls += toolResults.length;
           return {
-            text: this._describeSecurityScan(toolResults[0]),
+            text: ruleBased.name === 'security_scan' ? this._describeSecurityScan(toolResults[0]) : this._describeCodeQuality(toolResults[0]),
             confidence: 0.9,
             source: 'deterministic',
             toolResults,
