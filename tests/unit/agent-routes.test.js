@@ -9,9 +9,6 @@ jest.mock('../../server/middleware', () => ({
 jest.mock('../../src/agent/TaskService', () => ({
   TaskService: jest.fn(() => ({})),
 }));
-jest.mock('../../src/agent/StateStore', () => ({
-  StateStore: jest.fn(() => ({})),
-}));
 
 const agentRouter = require('../../server/routes/agent');
 const chatService = require('../../server/services/chatService');
