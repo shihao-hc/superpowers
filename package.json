@@ -50,13 +50,12 @@
     "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "@modelcontextprotocol/server-sequential-thinking": "^2025.12.18",
     "@playwright/test": "^1.58.2",
+    "eslint": "10.10.0",
     "eslint-plugin-security": "4.0.1",
     "husky": "9.1.7",
     "jest": "^29.7.0",
-    "jsdom": "^29.0.1",
     "lint-staged": "17.0.8",
     "sharp": "^0.35.3",
-    "socket.io-client": "^4.8.3",
     "supertest": "^6.3.4",
     "typescript": "6.0.3"
   },
@@ -83,9 +82,6 @@
     ]
   },
   "dependencies": {
-    "@pixiv/three-vrm": "^3.5.1",
-    "@pixiv/three-vrm-animation": "^3.5.1",
-    "@xenova/transformers": "^2.17.2",
     "bcrypt": "^6.0.0",
     "chokidar": "5.0.0",
     "chromadb": "^3.4.0",
@@ -100,14 +96,10 @@
     "js-yaml": "4.3.2",
     "jsonwebtoken": "^9.0.3",
     "mineflayer": "^4.35.0",
-    "mineflayer-pathfinder": "^2.4.5",
     "ollama": "^0.6.3",
-    "otplib": "^13.4.0",
     "pdfkit": "^0.18.0",
-    "qrcode": "^1.5.4",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "three": "^0.183.2",
     "winston": "^3.19.0"
   },
   "lint-staged": {

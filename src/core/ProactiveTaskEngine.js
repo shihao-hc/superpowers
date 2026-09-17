@@ -19,6 +19,9 @@ class ProactiveTaskEngine {
     this._srcDirs = options.srcDirs || this._defaultSrcDirs();
     this._maxFiles = options.maxFiles || 1500;
     this._srcIndex = null;
+    this._srcIndexTs = 0;
+    // 索引缓存 TTL：2 小时内复用，避免每次 runTasks 全量重建（每次同步扫描 ~181 文件，阻塞事件循环）
+    this._indexTtl = options.indexTtl || 2 * 60 * 60 * 1000;
     this._engineLoop = null;
   }
 
@@ -40,7 +43,8 @@ class ProactiveTaskEngine {
    * 执行所有自主任务
    */
   runTasks() {
-    this._srcIndex = null; // 失效索引（代码可能变化）
+    // 不再每次强制重置索引（修复：此前每次 runTasks 全量重建 ~181 文件同步扫描，阻塞事件循环）
+    // 索引由 _buildSrcIndex 内部 TTL 控制（2 小时内复用）
     const lessonVerification = this.runLessonVerification();
     const healthCheck = this.runHealthCheck();
     return { lessonVerification, healthCheck };
@@ -89,7 +93,10 @@ class ProactiveTaskEngine {
    * 构建 src 索引（一次扫描，供所有教训匹配）
    */
   _buildSrcIndex() {
-    if (this._srcIndex) { return this._srcIndex; }
+    const now = Date.now();
+    if (this._srcIndex && (now - this._srcIndexTs) < this._indexTtl) {
+      return this._srcIndex;
+    }
     const index = [];
     let count = 0;
     for (const dir of this._srcDirs) {
@@ -102,6 +109,7 @@ class ProactiveTaskEngine {
       }
     }
     this._srcIndex = index;
+    this._srcIndexTs = now;
     return index;
   }
 

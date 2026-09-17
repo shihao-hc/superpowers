@@ -36,6 +36,7 @@ npm start        # 启动 server（默认 qwen2.5:7b，备用 llama3.2）
 | canvas 图形生成 | 未启用（`canvas` 原生依赖未安装）|
 | /api/personality、/api/game、/api/vision、/api/workflow、/api/marketplace | 占位路由（返回 501 未实现）|
 | BrainSystem 部分"子系统"（Dream/Ethics/Controller 等）| 模块不存在（相关方法返回 not initialized）|
+| `src/commands`、`src/features`、`src/plugins`、`src/core/{agent-loop,compact,permissions,tools}` | 未接线的 TS 子系统（tsconfig 排除、测试用 vitest 未接入 jest）|
 
 ## 测试
 
