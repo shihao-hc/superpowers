@@ -60,9 +60,12 @@ function strictInputValidation(req, res, next) {
   // 检查Content-Type
   if (req.method === 'POST' || req.method === 'PUT') {
     const contentType = req.headers['content-type'];
+    // 修复：contentType 为 undefined 时此前 !contentType.includes 抛 TypeError → 500
     if (!contentType || !contentType.includes('application/json')) {
       // 允许form-data用于文件上传
-      if (!contentType.includes('multipart/form-data')) {
+      if (contentType && contentType.includes('multipart/form-data')) {
+        // form-data 放行
+      } else {
         return res.status(415).json({
           error: '不支持的Content-Type',
           code: 'UNSUPPORTED_MEDIA_TYPE'

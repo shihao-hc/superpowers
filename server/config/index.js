@@ -169,10 +169,10 @@ const configManager = {
     const errors = [];
 
     // 验证必需的配置
-    if (!config.security.jwtSecret || config.security.jwtSecret.length < 32) {
-      if (process.env.NODE_ENV === 'production') {
-        errors.push('JWT_SECRET必须在生产环境中设置且长度至少32位');
-      }
+    // 生产环境必须显式设置 JWT_SECRET 环境变量（auto-generate 导致重启后所有 token 失效，
+    // 且 AGENTS.md 声称"强制要求设置"此前因随机密钥恒≥32 而形同虚设）
+    if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+      errors.push('JWT_SECRET必须在生产环境中显式设置（当前为自动生成，重启后 token 全失效）');
     }
 
     if (config.server.port < 1 || config.server.port > 65535) {

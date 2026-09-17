@@ -214,6 +214,13 @@ describe('hasPermission', () => {
     manager.setRoots([root]);
     expect(manager.hasPermission(rp('/other/file.txt'), 'read')).toBe(false);
   });
+
+  it('does not match sibling directory with shared prefix (path boundary)', () => {
+    const root = rp('/project');
+    manager.setRoots([root], ['read', 'write']);
+    // /projectevil 不应被 /project 根覆盖（startsWith 无路径分隔符边界会误匹配）
+    expect(manager.hasPermission(rp('/projectevil/secret.txt'), 'read')).toBe(false);
+  });
 });
 
 describe('validatePath', () => {

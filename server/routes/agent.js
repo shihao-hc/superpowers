@@ -179,6 +179,12 @@ router.post('/message', memoryLimiter, authMiddleware, async (req, res) => {
         code: 'INVALID_INPUT'
       });
     }
+    if (content.length > 5000) {
+      return res.status(400).json({
+        error: '消息内容过长（最多5000字符）',
+        code: 'INVALID_INPUT'
+      });
+    }
 
     const ad = getAgentData(req.user && req.user.id);
     // 用户消息按 userId 隔离存储（原 messageService 为全局单例，跨用户混合）

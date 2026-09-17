@@ -125,7 +125,8 @@ class RootsManager {
    */
   hasPermission(filePath, permission) {
     for (const config of this.roots) {
-      if (filePath.startsWith(config.path)) {
+      // 修复：startsWith 无路径分隔符边界会把 /project 误覆盖 /projectevil → 加 path.sep 边界
+      if (filePath === config.path || filePath.startsWith(config.path + path.sep)) {
         return config.permissions.includes(permission);
       }
     }

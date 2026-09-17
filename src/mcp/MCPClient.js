@@ -14,8 +14,11 @@ function hasDangerousExecFlag(args) {
   if (!Array.isArray(args)) { return false; }
   for (const arg of args) {
     const a = String(arg).trim();
-    if (DANGEROUS_EXEC_FLAGS.has(a)) {
-      return true;
+    for (const flag of DANGEROUS_EXEC_FLAGS) {
+      // 前缀匹配：同时拦截 `--eval` 与 `--eval=...`（原仅整串精确匹配，--eval= 可绕过）
+      if (a === flag || a.startsWith(`${flag}=`)) {
+        return true;
+      }
     }
   }
   return false;

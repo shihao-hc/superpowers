@@ -29,15 +29,18 @@ function init(server, expressApp) {
 
     // 解析 token
     const token = parsedUrl.query.token;
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, config.get('security.jwtSecret'));
-        ws.user = decoded;
-      } catch (error) {
-        logger.warn('WebSocket 认证失败，拒绝连接', { error: error.message });
-        ws.close(4001, 'AUTH_FAILED');
-        return;
-      }
+    // 修复：token 缺失时此前跳过验证直接接受连接（匿名客户端可任意 broadcast）→ 强制认证
+    if (!token) {
+      ws.close(4001, 'AUTH_REQUIRED');
+      return;
+    }
+    try {
+      const decoded = jwt.verify(token, config.get('security.jwtSecret'));
+      ws.user = decoded;
+    } catch (error) {
+      logger.warn('WebSocket 认证失败，拒绝连接', { error: error.message });
+      ws.close(4001, 'AUTH_FAILED');
+      return;
     }
 
     clients.set(clientId, { ws, user: ws.user, connectedAt: Date.now() });

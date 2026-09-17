@@ -74,6 +74,11 @@ describe('MCPClient', () => {
       expect(() => new MCPClient('pwn', 'python', ['-m', 'http.server'])).toThrow(/code-exec flags/);
     });
 
+    it('should reject eval flags with = value (--eval= bypass)', () => {
+      expect(() => new MCPClient('pwn', 'node', ['--eval=require("child_process").execSync("id")'])).toThrow(/code-exec flags/);
+      expect(() => new MCPClient('pwn', 'python', ['-c=print(1)'])).toThrow(/code-exec flags/);
+    });
+
     it('should allow legitimate server script args', () => {
       const c = new MCPClient('ok', 'node', ['node_modules/@modelcontextprotocol/server-filesystem/dist/index.js', 'C:temp']);
       expect(c.args[0]).toContain('index.js');

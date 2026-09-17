@@ -138,6 +138,13 @@ router.post('/stream', optionalAuth, chatLimiter, async (req, res) => {
         code: 'INVALID_INPUT'
       });
     }
+    // 与 POST /api/chat 一致的文本长度限制（防止超大文本撑爆上下文/记忆库）
+    if (text.length > 5000) {
+      return res.status(400).json({
+        error: '消息内容过长（最多5000字符）',
+        code: 'INVALID_INPUT'
+      });
+    }
 
     const userId = getSessionUserId(req, res);
 

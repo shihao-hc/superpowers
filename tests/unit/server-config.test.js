@@ -155,6 +155,22 @@ describe('server/config', () => {
       process.env.NODE_ENV = originalNodeEnv;
     });
 
+    test('production without JWT_SECRET env returns error (auto-generated secret is not enough)', () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      const originalSecret = process.env.JWT_SECRET;
+      process.env.NODE_ENV = 'production';
+      delete process.env.JWT_SECRET;
+      try {
+        const config = freshConfig();
+        const result = config.validate();
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((e) => e.includes('JWT_SECRET'))).toBe(true);
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+        if (originalSecret !== undefined) { process.env.JWT_SECRET = originalSecret; }
+      }
+    });
+
     test('production with empty JWT_SECRET returns error', () => {
       const originalNodeEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
