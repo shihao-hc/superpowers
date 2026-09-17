@@ -8,20 +8,28 @@
 const fs = require('fs');
 const path = require('path');
 module.exports = {
-  'checkUnitTests': async (root, files) => {
-    const testPatterns = ['.test.js', '.spec.js', 'test/', 'tests/', '__tests__/'];
-    const hasTests = files.some((f) => testPatterns.some((p) => f.includes(p)));
-
-    const testFile = path.join(root, 'src/core/BrainSystem.test.js');
-    if (fs.existsSync(testFile)) {
-      return { status: 'passed', message: '单元测试文件存在' };
+  'checkUnitTests': async (root, _files) => {
+    // 修复：原检查 root/src/core/BrainSystem.test.js（不存在）+ src 文件含 test/ 路径，
+    // 而真实测试全在 tests/ → 恒误报"缺少单元测试"。改为真实统计 tests/ 下的 .test.js
+    const testsDir = path.join(root, 'tests');
+    let testCount = 0;
+    if (fs.existsSync(testsDir)) {
+      const countDir = (dir) => {
+        let n = 0;
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) { n += countDir(p); } else if (e.name.endsWith('.test.js')) { n++; }
+        }
+        return n;
+      };
+      testCount = countDir(testsDir);
     }
 
-    if (!hasTests) {
-      return { status: 'failed', message: '缺少单元测试', details: '建议添加*.test.js文件' };
+    if (testCount > 0) {
+      return { status: 'passed', message: `单元测试存在（${testCount} 个测试文件）` };
     }
 
-    return { status: 'passed', message: '单元测试存在' };
+    return { status: 'failed', message: '缺少单元测试', details: 'tests/ 目录下无 *.test.js' };
   },
 
   'checkIntegrationTests': async (root) => {
