@@ -226,6 +226,13 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     });
 
+    it('handles invalid tool_calls elements (LLM hallucination) without throwing', async () => {
+      const results = await chatService._executeToolCalls([null, 'bad', 42]);
+      expect(results.length).toBe(3);
+      expect(results.every((r) => r.ok === false)).toBe(true);
+      expect(results.every((r) => r.error.includes('Invalid tool call'))).toBe(true);
+    });
+
     it('supports multi-round tool calls (read file then generate doc)', async () => {
       const mockBridge = {
         chat: jest.fn()

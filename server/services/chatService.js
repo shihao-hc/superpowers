@@ -263,6 +263,11 @@ class ChatService extends EventEmitter {
   async _executeToolCalls(toolCalls) {
     const results = [];
     for (const call of (toolCalls || [])) {
+      if (!call || typeof call !== 'object') {
+        // 修复：LLM 幻觉返回 null/原始值 tool_calls 元素 → 此前 TypeError 静默落 canned 话术
+        results.push({ tool: 'invalid', ok: false, error: 'Invalid tool call format' });
+        continue;
+      }
       const fn = call.function || call;
       const name = fn.name || '';
       const args = (typeof fn.arguments === 'string' ? (() => { try { return JSON.parse(fn.arguments); } catch { return {}; } })() : fn.arguments) || {};
