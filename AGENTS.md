@@ -915,3 +915,20 @@ Session 锚点: 2026-09-16 (第110次 — 上下文校准: token 预算与真实
   - **模型自动降级 (fallback)**: `fallbackModels` (默认 llama3.2, env `OLLAMA_FALLBACK_MODELS`); 主模型失败→依次尝试备用→都失败才 canned; `result.model` 报告实际使用模型; 真实验证 nonexistent-model→降级 llama3.2 成功; 测试 +3
   - 权衡: qwen 质量 +11.5% 但响应更慢 (7B CPU, 5-15s vs 3B 2-3s)
 - 相关文件: `server/services/chatService.js`, `src/localInferencing/OllamaBridge.js`, `src/agent/ContextCompactService.js`, `src/core/{SmartMemory,LessonLibrary}.js`, `tests/unit/{chat-service,ollama-bridge,context-compact-service,smart-memory,lesson-library}.test.js`, `tests/unit/skill-fullstack.integration.test.js` (flaky 超时修复)
+
+---
+
+Session 锚点: 2026-09-18 (第111次 — 支流检查: 前端XSS + 并发/重启验证 + 存储层净化)
+- ESLint: 0/0 | Tests: **276 passed suites / 4 skipped / 0 failed** (13,053 passed / 46 skipped, +4) 全量通过 | npm audit: 0 vulns
+- **背景 (用户"源头已修, 查支流和未检查部分")**: 高级审计协议(4.4)实战扩展到未覆盖面: 前端JS安全、并发/竞态、重启恢复、MCP其他工具、chatService边界
+- **前端XSS审查 (subagent) 发现+修复**:
+  - F2 [HIGH]: MCP工具元数据未转义 + onclick注入 (外部MCP name/description → 前端XSS, dev可利用) → **服务端 `sanitizeToolMeta`** (mcp.js: name安全字符集 + desc去尖括号, /tools + /status) — 验证: 恶意payload中和, 合法工具保留
+  - F3 [MEDIUM]: index.html 文件链接文本未转义 → `escapeHtml(fn)`
+  - F1 [HIGH记录]: **生产CSP nonce断裂** (nonce从不注入HTML → production下前端0 JS + XSS藏CSP后) → README诚实状态记录 (当前dev模式可用)
+- **staticServer限流绕过 [HIGH当前]**: 备用入口 staticServer.js apiLimiter **信任x-forwarded-for首值** (每请求换IP即获新桶; 主入口已修此入口漏) → 改 `ipKeyGenerator(req.socket.remoteAddress)`; 顺带 `extended:true→false`
+- **marketplace存储型XSS [HIGH潜伏]**: updateSkill/addReview/status无角色检查 + auth guest放行匿名 → **api.js中间件: 所有非GET写路由拒绝guest(401)** (PoC: 401×3/GET 200) + **SkillMarketplace存储层净化**: updateSkill白名单字段 + 字符串HTML转义, addReview转义title/content/reviewer (+3测试, 92 passed) — 纵深防御(已认证用户也不能播种)
+- **chatService边界修复**: LLM幻觉返回 `[null]` tool_calls → `call.function` TypeError → 静默canned话术 (同Round110空文本类) → _executeToolCalls 校验无效元素 push {ok:false} (真实链路验证: [null]→正常回复, 非canned; +1测试)
+- **真实验证通过 (非漏洞)**: 并发5请求全部隔离+持久化未损坏 | server重启后会话恢复 (重启后回答"你叫测试用户甲") | MCP工具双层白名单+bridge纵深扎实, sequential-thinking无副作用
+- **教训 (工作流)**: Write覆盖了已存在的711行测试文件 (教训: 写新文件前先 glob/检查存在性) → git checkout恢复 + 追加合并 + soft reset修正错误提交 (未推送可reset)
+- **验证**: 全量 276/13,053/0 + ESLint 0/0
+- 相关文件: `server/routes/mcp.js`, `server/staticServer.js`, `server/services/chatService.js`, `src/skills/api.js`, `src/skills/marketplace/SkillMarketplace.js`, `frontend/{index,marketplace}.html`, `tests/unit/{chat-service,skill-marketplace}.test.js`
