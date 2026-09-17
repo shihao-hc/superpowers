@@ -65,6 +65,11 @@ class LessonLibrary {
     if (options.type && options.type === 'success') {
       results = results.filter((l) => l._applied);
     }
+    // 修复：用户纠正产生的教训按 userId 隔离——带 userId 的教训只对本人可见（防跨用户 prompt 注入）；
+    // 无 userId 的教训（系统/开发者）共享给所有人
+    if (options.userId) {
+      results = results.filter((l) => !l.userId || l.userId === options.userId);
+    }
     if (options.limit) { results = results.slice(0, options.limit); }
     return results;
   }

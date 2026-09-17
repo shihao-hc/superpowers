@@ -55,6 +55,17 @@ describe('LessonLearner', () => {
       expect(result).toBeNull();
     });
 
+    it('returns null for empty-content fix results (no garbage lessons)', () => {
+      const result = learner.recordEvent('POST_TOOL_USE', { result: '{"success":true}' }, 0.9);
+      expect(result).toBeNull();
+    });
+
+    it('propagates userId through recordFeedback into the lesson', async () => {
+      const p = await learner.recordFeedback({ feedback: '不对，应该用索引', userId: 'userA' });
+      expect(p).not.toBeNull();
+      expect(p.userId).toBe('userA');
+    });
+
     it('auto-approves when confidence >= threshold and no approval required', () => {
       fs.readFileSync.mockReturnValue('{"lessons":[]}');
       const result = learner.recordEvent('POST_TOOL_USE', { input: 'fix security bug', tags: ['bug'] }, 0.9);

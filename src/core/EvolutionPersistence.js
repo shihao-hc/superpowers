@@ -156,6 +156,8 @@ const Persistence = {
   _deepMerge(target, source) {
     const result = { ...target };
     for (const key of Object.keys(source)) {
+      // 修复：跳过原型污染键（__proto__/constructor/prototype 会改写原型）
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') { continue; }
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
         result[key] = this._deepMerge(result[key] || {}, source[key]);
       } else {

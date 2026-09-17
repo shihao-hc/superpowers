@@ -409,7 +409,7 @@ class ChatService extends EventEmitter {
     try {
       const LessonLibrary = require('../../src/core/LessonLibrary');
       const lib = new LessonLibrary({ quiet: true });
-      const lessons = lib.search ? lib.search(text, { limit: 3 }) : [];
+      const lessons = lib.search ? lib.search(text, { limit: 3, userId }) : [];
       if (Array.isArray(lessons) && lessons.length > 0) {
         // 安全阀：限长（每条已截 60 字符，此处再限总长，防极端情况）
         let lessonBody = lessons.map((l) => (l.lesson || l.problem || '').substring(0, 60)).filter(Boolean).join('；');
@@ -573,7 +573,7 @@ class ChatService extends EventEmitter {
         const lastReply = conversation.messages.filter((m) => m.role === 'assistant').slice(-1)[0];
         const LessonLearner = require('../../src/core/LessonLearner');
         const learner = new LessonLearner();
-        const pending = learner.recordFeedback({ feedback: text, previousReply: lastReply ? lastReply.content : '' });
+        const pending = learner.recordFeedback({ feedback: text, previousReply: lastReply ? lastReply.content : '', userId });
         if (pending) {
           learner.autoApproveSafeLessons(); // 低风险教训自动生效（security 保持人工）
         }

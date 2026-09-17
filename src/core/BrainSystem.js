@@ -2078,7 +2078,9 @@ BrainSystem.connectHooks = function() {
           if (unique.length === 0) {return ctx;}
           try {
             const { safeExecSync } = require('../utils/SafeExec');
-            const result = safeExecSync('node', [toolPath.replace(/\\/g, '/'), 'verify', '--json', ...unique.map((f) => f.replace(/\\/g, '/'))], { cwd, timeout: 30000, encoding: 'utf8' });
+            // 修复：只读 verify 指定文件（--fast 不写 baseline + 不 tighten；guardrail-fix.js verify 默认不 --fix）
+            // 此前 verify 触发全项目扫描 + 每个文件 eslint --fix（改写源码）+ 30s 同步阻塞 = 远程 DoS + 源码完整性风险
+            const result = safeExecSync('node', [toolPath.replace(/\\/g, '/'), 'verify', '--fast', ...unique.map((f) => f.replace(/\\/g, '/'))], { cwd, timeout: 30000, encoding: 'utf8' });
             ctx._guardrailResult = { files: unique, output: result.trim() };
           } catch (ex) {
             ctx._guardrailResult = { files: unique, output: (ex.stdout || '').trim() || (ex.message || 'verify failed') };

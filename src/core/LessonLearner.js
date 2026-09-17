@@ -29,6 +29,12 @@ class LessonLearner {
     if (eventType !== 'POST_TOOL_USE') {return null;}
     const isFix = this._isFixOperation(data);
     if (!isFix) {return null;}
+    // 修复：无实质内容不产生垃圾教训——MCP 工具结果（JSON 含 success/fixed/pass 键）此前
+    // 被判定为 fix，生成空内容教训并 3 次同步写盘，持续污染共享教训库。精准拦截 JSON 结果标记
+    const resultText = this._str(data.result || '');
+    const resultIsJsonMarker = /^\s*\{\s*["']?success/.test(resultText) || /^\s*\{\s*["']?ok\s*:/.test(resultText);
+    const content = this._str(data.input || data.error || '');
+    if (content.length < 5 && resultIsJsonMarker) {return null;}
     // 自动批准: high confidence 且不要求审批
     const autoOk = !this._requireApproval && typeof confidence === 'number' && confidence >= this._autoApprovalThreshold;
     if (autoOk) {
@@ -41,7 +47,7 @@ class LessonLearner {
    * 从对话反馈中学习（用户纠正 → 教训）
    * 让学习闭环在真实对话中运转（对话路径触发，非仅 MCP 工具）
    */
-  recordFeedback({ feedback, previousReply }) {
+  recordFeedback({ feedback, previousReply, userId }) {
     const text = this._str(feedback);
     if (!text) { return null; }
     // 纠正/负面信号检测
@@ -51,6 +57,7 @@ class LessonLearner {
       input: `用户纠正: ${text.substring(0, 150)}`,
       result: 'corrected',
       tags: ['fix', 'correction'],
+      userId: userId || null,
       context: previousReply ? `上一轮回复: ${this._str(previousReply).substring(0, 80)}` : 'conversation'
     };
     return this._extractLesson(data);
@@ -71,6 +78,7 @@ class LessonLearner {
       improvement: improvement.substring(0, 500),
       context: (data.context || data.input || '').substring(0, 200),
       source: 'lesson-learner-auto',
+      userId: data.userId || null,
       tags: tags,
       priority: 'medium',
       applied: false,
@@ -120,6 +128,7 @@ class LessonLearner {
       improvement: this._inferImprovement(data).substring(0, 500),
       context: this._str(data.context || data.input || '').substring(0, 200),
       source: 'lesson-learner',
+      userId: data.userId || null,
       status: 'pending',
       tags: this._inferTags(data),
       priority: this._inferTags(data).includes('security') ? 'high' : 'medium'
@@ -214,6 +223,8 @@ class LessonLearner {
         improvement: (lesson.improvement || '').substring(0, 500),
         context: (lesson.context || '').substring(0, 200),
         source: lesson.source || 'lesson-learner',
+        // 修复：保留 userId（此前转 active 时丢弃 → 用户纠正教训变共享 → 跨用户 prompt 注入）
+        userId: lesson.userId || null,
         tags: lesson.tags || [],
         priority: lesson.priority || 'medium',
         applied: false,
