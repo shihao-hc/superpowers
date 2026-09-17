@@ -932,3 +932,52 @@ Session 锚点: 2026-09-18 (第111次 — 支流检查: 前端XSS + 并发/重�
 - **教训 (工作流)**: Write覆盖了已存在的711行测试文件 (教训: 写新文件前先 glob/检查存在性) → git checkout恢复 + 追加合并 + soft reset修正错误提交 (未推送可reset)
 - **验证**: 全量 276/13,053/0 + ESLint 0/0
 - 相关文件: `server/routes/mcp.js`, `server/staticServer.js`, `server/services/chatService.js`, `src/skills/api.js`, `src/skills/marketplace/SkillMarketplace.js`, `frontend/{index,marketplace}.html`, `tests/unit/{chat-service,skill-marketplace}.test.js`
+
+---
+
+Session 锚点: 2026-09-18 (第112次 — BrainSystem深度审计 + 真实场景验证 + 复盘机制落地)
+- ESLint: 0/0 | Tests: **276 passed suites / 4 skipped / 0 failed** (13,055 passed / 46 skipped, +2) 全量通过
+- **BrainSystem 深度审计 (威胁建模+数据流+边界穷举) 发现 4 个真实问题全修复**:
+  - F1 [HIGH当前]: guardrail hook 触发全项目 `eslint --fix` (30s同步阻塞+改写源码) → verify 只读(不--fix)+只查指定文件+--fast(不写baseline); 实测单文件verify mtime不变
+  - F2 [MEDIUM当前]: 用户纠正教训共享 → 跨用户prompt注入 → 教训带userId隔离 (根因: _insertIntoLibrary 转active时丢弃userId); 实测A命中自己/B看不到
+  - F3 [MEDIUM当前]: 每次MCP调用产生空垃圾教训+3次同步写盘 → recordEvent 拦截JSON success标记结果 (result:'fixed'仍记录)
+  - F4 [MEDIUM潜伏]: _deepMerge 原型污染 → 跳过 __proto__/constructor/prototype
+- **真实场景端到端 (qwen2.5:7b)**: 模型正确拒绝越权路径(server/ 不在MCP根) ✅ | 工具链真实生成docx(8643B) ✅ | 模型意图局限(把"查看目录"误解为"生成文档") — 诚实记录模型能力边界
+- **token 真实测量 (stats.tokens 记账)**: 普通75/技能123(-49% vs 校准后243)/文档151(-26%) — 对比"未校准前"更低(技能全文+思考注入+无安全阀已移除)
+- **复盘机制落地 (用户指导: 复盘对+复盘错)**:
+  - `LessonLearner.recordSuccess`: 用户正向反馈("对了/做得好/成功了") → 成功经验教训(tags success,positive, userId隔离) — 与 recordFeedback 构成"对+错"双轨
+  - `_inferLessonText` success → "成功方法:"; `_extractLesson` tags 合并显式+推断
+  - chatService processMessage 接线 recordSuccess (与 recordFeedback 对称)
+- **验证**: 全量 276/13,055/0 + ESLint 0/0 + 真实PoC (recordSuccess→生效→清理)
+- 相关文件: `tools/guardrail-fix.js`(gitignored本地), `src/core/{BrainSystem,LessonLearner,LessonLibrary,EvolutionPersistence}.js`, `server/services/chatService.js`, `tests/unit/{lesson-learner,skill-marketplace,chat-service}.test.js`
+
+---
+
+## 8. 复盘协议（强制）
+
+> **每个 session 末尾必须复盘"对"与"错"——不是流水账，是因果分析。**
+> 复盘错的 = 拉高下限（下次不再错）；复盘对的 = 复制成功（知道为何对才能再对）。
+> 复盘结论必须固化：错的 → 动作清单/纠错教训；对的 → 教训库成功经验（recordSuccess）。
+
+### 8.1 复盘错的（拉高下限）
+| 必答 | 说明 |
+|------|------|
+| 为什么错 | 找到根因（不是表象）|
+| 下次怎么做 | 具体防复发动作 |
+| 固化到哪 | 动作清单（8.3）或教训库纠错教训 |
+
+### 8.2 复盘对的（复制成功）
+| 必答 | 说明 |
+|------|------|
+| 为什么对 | 因果链（哪个习惯/方法导致成功）|
+| 可复制的方法 | 抽象成可重复的动作 |
+| 固化到哪 | 教训库成功经验（recordSuccess / 手动 lesson: 成功方法:...）|
+
+### 8.3 强制动作清单（每次操作前检查）
+| 动作 | 触发场景 |
+|------|----------|
+| 写文件前查存在性 | 任何 Write/新建：先 glob/Test-Path；已有文件用 Read+Edit，绝不 Write 覆盖 |
+| 修复前定义有效性边界 | 任何修复：先写正反测试用例（该记录的/该拦截的）锁定语义 |
+| 验证前看既有模式 | 写验证脚本/测试：先 grep 现有 require 方式、测试框架 API、supertest 用法 |
+| PoC 红 → 追数据流到根因 | 任何测试/验证失败：不绕过不迁就，追数据流直到看清完整链路 |
+| 修复后真实验证 | 声称完成前：真实链路（真实数据/依赖/端点）+ 证据 |

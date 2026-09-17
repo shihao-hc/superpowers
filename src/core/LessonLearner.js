@@ -63,6 +63,27 @@ class LessonLearner {
     return this._extractLesson(data);
   }
 
+  /**
+   * 从成功反馈中学习（复盘对的 → 成功经验教训）
+   * 用户说"做得好/对了/成功了"等正向信号 → 记录"成功方法"，下次同类任务注入
+   * 与 recordFeedback（纠错型）对称，构成"对+错"双轨复盘
+   */
+  recordSuccess({ feedback, previousReply, userId }) {
+    const text = this._str(feedback);
+    if (!text) { return null; }
+    // 正向信号检测（明确褒义词，防反讽/普通陈述误报）
+    const isPositive = /对了|正确|完美|很好|不错|太好了|厉害|成功了|做得好|great|correct|good job|well done|worked|nice/i.test(text);
+    if (!isPositive) { return null; }
+    const data = {
+      input: `成功经验: ${text.substring(0, 150)}`,
+      result: 'success',
+      tags: ['success', 'positive'],
+      userId: userId || null,
+      context: previousReply ? `上一轮成功回复: ${this._str(previousReply).substring(0, 80)}` : 'conversation'
+    };
+    return this._extractLesson(data);
+  }
+
   _autoApproveLesson(data) {
     // 从 fix 数据自动推断教训内容
     const lesson = this._inferLessonText(data);
@@ -95,6 +116,7 @@ class LessonLearner {
     const error = this._str(data.error);
     const result = this._str(data.result);
     if (error) {return `\u4fee\u590d\u95ee\u9898: ${error.substring(0, 100)}`;}
+    if (result.includes('success')) {return `\u6210\u529f\u65b9\u6cd5: ${input.substring(0, 100)}`;}
     if (result.includes('fixed') || result.includes('pass')) {return `\u6210\u529f\u4fee\u590d: ${input.substring(0, 100)}`;}
     return `\u4ece\u5b9e\u8df5\u4e2d\u5b66\u4e60: ${input.substring(0, 100)}`;
   }
@@ -102,6 +124,7 @@ class LessonLearner {
   _inferImprovement(data) {
     const result = this._str(data.result);
     const error = this._str(data.error);
+    if (result.includes('success')) {return '\u5728\u7c7b\u4f3c\u573a\u666f\u590d\u7528\u8fd9\u4e2a\u6210\u529f\u65b9\u6cd5';}
     if (result.includes('fixed')) {return '\u5e94\u7528\u76f8\u540c\u7684\u4fee\u590d\u7b56\u7565\u5230\u7c7b\u4f3c\u95ee\u9898';}
     if (error) {return `\u907f\u514d\u540c\u6837\u7684${error.substring(0, 60)}`;}
     return '\u4fdd\u6301\u826f\u597d\u5b9e\u8df5';
@@ -120,6 +143,7 @@ class LessonLearner {
 
   _extractLesson(data) {
     // 生成实质教训内容（而非占位符），使 pending 可读、可审核、可生效
+    const mergedTags = [...new Set([...(data.tags || []), ...this._inferTags(data)])];
     const pending = {
       id: `pending-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       date: new Date().toISOString(),
@@ -130,8 +154,8 @@ class LessonLearner {
       source: 'lesson-learner',
       userId: data.userId || null,
       status: 'pending',
-      tags: this._inferTags(data),
-      priority: this._inferTags(data).includes('security') ? 'high' : 'medium'
+      tags: mergedTags,
+      priority: mergedTags.includes('security') ? 'high' : 'medium'
     };
     this._savePending(pending);
     if (this._audit) {this._audit.log({ level: 'info', module: 'learner', action: 'pending_added', id: pending.id });}

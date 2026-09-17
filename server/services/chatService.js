@@ -573,7 +573,9 @@ class ChatService extends EventEmitter {
         const lastReply = conversation.messages.filter((m) => m.role === 'assistant').slice(-1)[0];
         const LessonLearner = require('../../src/core/LessonLearner');
         const learner = new LessonLearner();
-        const pending = learner.recordFeedback({ feedback: text, previousReply: lastReply ? lastReply.content : '', userId });
+        // 复盘双轨：纠错（错的经验）+ 成功（对的经验，知道为何对才能复制）
+        const pending = learner.recordFeedback({ feedback: text, previousReply: lastReply ? lastReply.content : '', userId })
+          || learner.recordSuccess({ feedback: text, previousReply: lastReply ? lastReply.content : '', userId });
         if (pending) {
           learner.autoApproveSafeLessons(); // 低风险教训自动生效（security 保持人工）
         }

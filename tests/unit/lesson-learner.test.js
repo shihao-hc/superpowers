@@ -66,6 +66,19 @@ describe('LessonLearner', () => {
       expect(p.userId).toBe('userA');
     });
 
+    it('recordSuccess records positive feedback as success lesson (review what went right)', () => {
+      const p = learner.recordSuccess({ feedback: '做得好，这个方法很有效', userId: 'userA' });
+      expect(p).not.toBeNull();
+      expect(p.tags).toContain('success');
+      expect(p.tags).toContain('positive');
+      expect(p.userId).toBe('userA');
+    });
+
+    it('recordSuccess returns null for non-positive feedback', () => {
+      const p = learner.recordSuccess({ feedback: '请把文件改一下' });
+      expect(p).toBeNull();
+    });
+
     it('auto-approves when confidence >= threshold and no approval required', () => {
       fs.readFileSync.mockReturnValue('{"lessons":[]}');
       const result = learner.recordEvent('POST_TOOL_USE', { input: 'fix security bug', tags: ['bug'] }, 0.9);
