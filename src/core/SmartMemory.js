@@ -46,7 +46,9 @@ class SmartMemory {
 
       let score = 0;
       for (const token of queryTokens) {
-        if (token.length < 2) { continue; }
+        if (!token) { continue; }
+        // 跳过英文单字符（'a' 等噪音），但保留 CJK 单字（如查"快"应命中"快"相关记忆）
+        if (token.length < 2 && /^[a-z0-9]$/.test(token)) { continue; }
         // key 命中权重更高（与旧逻辑一致），value 命中次之
         if (keyText.includes(token)) { score += 2; }
         else if (valueText.includes(token)) { score += 1; }

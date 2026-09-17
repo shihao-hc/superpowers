@@ -2209,8 +2209,7 @@ module.exports = {
   fullProcess: BrainSystem.fullProcess,
   AutonomousLearning: AutonomousLearning,
   autoTrigger: autoTrigger,
-  verifyIntent: BrainSystem.verifyIntent,
-  forceThinkEnhanced: BrainSystem.forceThinkEnhanced
+  verifyIntent: BrainSystem.verifyIntent
 };
 
 

@@ -61,6 +61,20 @@ router.use('/vertical-domains', verticalDomainRoutes);
 router.use('/marketplace', marketplaceRoutes);
 router.use('/health', healthRoutes);
 
+// CSP 违规上报端点（CSP 头 report-uri/Reporting-Endpoints 指向此，此前不存在 → 404）
+router.post('/security/csp-violation', (req, res) => {
+  try {
+    const report = req.body || {};
+    const logger = require('../utils/logger');
+    logger.warn('CSP violation reported', {
+      violatedDirective: report['violated-directive'] || report.violatedDirective,
+      blockedUri: report['blocked-uri'] || report.blockedUri,
+      sourceFile: report['source-file'] || report.sourceFile
+    });
+  } catch (e) { /* 记录失败静默 */ }
+  res.status(204).end();
+});
+
 // 404处理
 router.use((req, res) => {
   res.status(404).json({

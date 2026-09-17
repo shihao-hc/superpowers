@@ -194,6 +194,12 @@ describe('SmartMemory (direct class)', () => {
     expect(results.some((r) => r.key === 'mem_vue')).toBe(true);
   });
 
+  test('search matches single CJK character (was filtered by length>=2)', () => {
+    memory.store('mem_speed', { text: '查询很快', userId: 'u3' });
+    const results = memory.search('快', 5, 'u3');
+    expect(results.some((r) => r.key === 'mem_speed')).toBe(true);
+  });
+
   test('getRecent returns last N memories', () => {
     memory.store('a', '1');
     memory.store('b', '2');

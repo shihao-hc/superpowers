@@ -133,10 +133,15 @@ class LessonLibrary {
   }
 
   getStats() {
+    const applied = this._lessons.filter((l) => l._applied).length;
+    const unapplied = this._lessons.length - applied;
     return {
       total: this._lessons.length,
-      applied: this._lessons.filter((l) => l._applied).length,
-      active: this._lessons.filter((l) => !l._applied).length,
+      applied,
+      // 修复：消费者（SelfCheckEngine/BrainUtils/LessonTracker/StatusReporter）读 stats.unapplied，
+      // 此前从未返回该字段 → 这些分支恒为 undefined > 0 = false（死代码）
+      unapplied,
+      active: unapplied,
       categories: Object.keys(this._categories).length
     };
   }
