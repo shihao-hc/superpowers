@@ -94,6 +94,8 @@ class SecurityScanExecutor {
         if (/^tests?$/i.test(entry.name) && !/server/.test(entry.name)) { continue; }
         this._collectFiles(full, out, remaining);
       } else if (/\.(js|ts)$/.test(entry.name) && !/\.test\./.test(entry.name) && !/\.spec\./.test(entry.name)) {
+        // 排除扫描器自身（其 PATTERNS 正则含模式文本，扫描自身会自检误报）
+        if (/SecurityScanExecutor|CodeQualityExecutor/.test(full)) { continue; }
         out.push(full);
         remaining--;
       }
