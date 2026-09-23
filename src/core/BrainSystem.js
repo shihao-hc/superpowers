@@ -2217,6 +2217,9 @@ module.exports = {
   // 修复：语义检索此前未导出 → chatService 的 `if (smartSearchSemantic)` 恒 false，
   // 语义检索从未生效，一直退化 bigram（真实使用发现）
   smartSearchSemantic: BrainSystem.smartSearchSemantic,
+  // 修复：全方面检查也未导出 → server 启动时 runComprehensiveCheck() 抛 TypeError 被 catch 吞，
+  // 全方面检查从未真正运行（同根源：导出遗漏）
+  runComprehensiveCheck: BrainSystem.runComprehensiveCheck,
   _getAgentTeam: BrainSystem._getAgentTeam || function() {
     if (!BrainSystem._agentTeam) {
       BrainSystem._agentTeam = new AgentTeam.AgentTeamManager();
