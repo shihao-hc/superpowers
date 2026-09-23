@@ -909,6 +909,11 @@ describe('ChatService conversation persistence', () => {
       expect(chatService._ruleBasedCodeQuality('你好')).toBeNull();
     });
 
+    it('matches both security and quality for compound requests (multi-task chain)', () => {
+      expect(chatService._ruleBasedSecurityScan('帮我检查代码安全和质量')).toEqual({ name: 'security_scan', arguments: expect.any(Object) });
+      expect(chatService._ruleBasedCodeQuality('帮我检查代码安全和质量')).toEqual({ name: 'code_quality', arguments: expect.any(Object) });
+    });
+
     it('returns null for unrelated chat', () => {
       expect(chatService._ruleBasedSecurityScan('今天天气不错')).toBeNull();
       expect(chatService._ruleBasedSecurityScan('你好')).toBeNull();

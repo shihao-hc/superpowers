@@ -175,7 +175,7 @@ class ChatService extends EventEmitter {
    */
   _ruleBasedSecurityScan(text) {
     const t = String(text || '');
-    const danger = /密钥|泄漏|安全审计|安全扫描|安全检查|漏洞|越权|硬编码|注入攻击|xss|渗透/i.test(t);
+    const danger = /密钥|泄漏|安全审计|安全扫描|安全检查|漏洞|越权|硬编码|注入攻击|xss|渗透|安全/i.test(t);
     const request = /帮我|检查|扫描|审计|看看|查一下|查查|有没有|找找|检测|查漏/i.test(t);
     if (!danger || !request) { return null; }
     // 排除完成态/历史询问（"做了吗/完成了吗/之前"是问状态，不是请求执行）
@@ -761,16 +761,26 @@ class ChatService extends EventEmitter {
     // （弱模型不理解开放安全任务——qwen 把"检查密钥泄漏"当"没具体问题"；
     //   系统知道怎么做的，系统直接做；系统不知道的才交给模型）
     try {
-      const ruleBased = this._ruleBasedSecurityScan(text) || this._ruleBasedCodeQuality(text);
-      if (ruleBased) {
-        const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
-        if (toolResults.some((r) => r.ok === true)) {
-          this.stats.tools.calls += toolResults.length;
+      // 确定性任务优先：收集所有匹配的确定性任务，依次执行，组合结果（不经模型）
+      const tasks = [];
+      const secTask = this._ruleBasedSecurityScan(text);
+      const qTask = this._ruleBasedCodeQuality(text);
+      if (secTask) { tasks.push(secTask); }
+      if (qTask) { tasks.push(qTask); }
+      if (tasks.length > 0) {
+        const allResults = [];
+        for (const t of tasks) {
+          const tr = await this._executeToolCalls([{ function: t }]);
+          allResults.push(...tr);
+        }
+        if (allResults.some((r) => r.ok === true)) {
+          this.stats.tools.calls += allResults.length;
+          const texts = allResults.map((r) => (r.tool === 'security_scan' ? this._describeSecurityScan(r) : this._describeCodeQuality(r)));
           return {
-            text: ruleBased.name === 'security_scan' ? this._describeSecurityScan(toolResults[0]) : this._describeCodeQuality(toolResults[0]),
+            text: texts.join('\n\n'),
             confidence: 0.9,
             source: 'deterministic',
-            toolResults,
+            toolResults: allResults,
             ruleBased: true
           };
         }

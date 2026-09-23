@@ -2214,6 +2214,9 @@ module.exports = {
 
   // 补充导出
   smartSearch: BrainSystem.smartSearch,
+  // 修复：语义检索此前未导出 → chatService 的 `if (smartSearchSemantic)` 恒 false，
+  // 语义检索从未生效，一直退化 bigram（真实使用发现）
+  smartSearchSemantic: BrainSystem.smartSearchSemantic,
   _getAgentTeam: BrainSystem._getAgentTeam || function() {
     if (!BrainSystem._agentTeam) {
       BrainSystem._agentTeam = new AgentTeam.AgentTeamManager();

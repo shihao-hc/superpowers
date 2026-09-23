@@ -30,7 +30,8 @@ class CodeQualityExecutor {
       }
       let data;
       try {
-        const out = execFileSync('cmd.exe', ['/c', eslintBin, ...targets, '--format', 'json', '--max-warnings', '9999'], {
+        // --cache 加速重复检查（首次仍全量，二次起走缓存）
+        const out = execFileSync('cmd.exe', ['/c', eslintBin, ...targets, '--format', 'json', '--max-warnings', '9999', '--cache'], {
           cwd: root, encoding: 'utf8', timeout: 30000, windowsHide: true, maxBuffer: 20 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe']
         });
         data = JSON.parse(out);
