@@ -344,6 +344,36 @@ class BrowserAgent {
   }
 
   /**
+   * 等待页面加载到指定状态（动态内容/README 等延迟渲染——真实使用暴露：GitHub 项目页
+   * domcontentloaded 时 README 未渲染，innerText 只拿导航）
+   */
+  async waitForLoad(state = 'networkidle', timeout = 30000) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForLoadState(state, { timeout });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: `等待加载超时(${state})` };
+    }
+  }
+
+  /**
+   * 提取特定选择器的所有文本（如 GitHub .markdown-body——延迟渲染内容）
+   */
+  async extractText(selector) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForSelector(selector, { timeout: 15000 });
+      const texts = await this.page.$$eval(selector, (els) => els.map((el) => el.innerText || ''));
+      const joined = texts.join('\n').trim();
+      if (!joined) { return { success: false, error: `元素存在但无文本: ${selector}` }; }
+      return { success: true, text: joined };
+    } catch (e) {
+      return { success: false, error: `未找到元素或未加载: ${selector}` };
+    }
+  }
+
+  /**
    * 等待页面正文内容加载到阈值（交互后动态加载/搜索结果——真实使用发现交互后需等加载）
    */
   async waitForContentLoad(minLength = 20, timeout = 12000) {

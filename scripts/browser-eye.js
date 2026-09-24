@@ -42,6 +42,8 @@ function printStructured(d) {
 async function main() {
   const args = process.argv.slice(2);
   const imageArg = args.find((a) => a.startsWith('--image='));
+  const grabArg = args.find((a) => a.startsWith('--grab='));
+  const waitArg = args.find((a) => a.startsWith('--wait='));
   const url = args.find((a) => !a.startsWith('--'));
   if (!url && !imageArg) {
     console.log('用法: node scripts/browser-eye.js <url> [--task=webpage|ocr|describe|identify] [--extract] [--json] [--text]');
@@ -73,6 +75,17 @@ async function main() {
     await agent.init();
     const g = await agent.goto(url);
     if (!g.success) { console.log(`❌ 打开失败: ${g.error}`); process.exit(1); }
+
+    // --grab：提取特定选择器文本（延迟渲染内容如 GitHub README）；--wait 指定加载状态
+    if (grabArg) {
+      const sel = grabArg.split('=')[1];
+      const waitState = waitArg ? waitArg.split('=')[1] : 'networkidle';
+      await agent.waitForLoad(waitState, 30000);
+      const gr = await agent.extractText(sel);
+      if (gr.success) { console.log(gr.text); } else { console.log(`❌ ${gr.error}`); }
+      await agent.close();
+      process.exit(0);
+    }
 
     // 交互（真实使用暴露的缺口：搜索/点击/填表）
     const searchArg = args.find((a) => a.startsWith('--search='));
