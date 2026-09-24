@@ -81,10 +81,13 @@ class VisionExecutor {
       }
       const prompt = params.prompt || TASK_PROMPTS[params.task || 'describe'] || TASK_PROMPTS.describe;
       const model = params.model || VISION_MODEL;
+      // 语义+确定性结合（弥补语义泛化/误判）：context（如页面标题/DOM 事实）附加给模型，
+      // 让它"带着事实看"而非盲猜（真实使用暴露：盲看把 Wikipedia 说成搜索引擎）
+      const fullPrompt = params.context ? `${prompt}\n\n参考信息（事实，勿与视觉冲突时忽略视觉猜测）: ${params.context}` : prompt;
       // 视觉模型偶发空/异常输出 → 重试（可靠性打磨）
       let res = null;
       for (let attempt = 0; attempt < 3; attempt++) {
-        res = await ollamaGenerate(model, prompt, [image]);
+        res = await ollamaGenerate(model, fullPrompt, [image]);
         if (res && res.response && res.response.trim().length > 0) { break; }
         if (attempt < 2) { await new Promise((r) => setTimeout(r, 500)); }
       }

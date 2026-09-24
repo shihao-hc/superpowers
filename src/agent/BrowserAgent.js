@@ -224,20 +224,49 @@ class BrowserAgent {
   }
 
   /**
-   * 手眼配合：当前页面截图 → 视觉理解（"最适合我"的标准能力：打开页面 → 看 → 理解）
-   * @param {string} task - describe | ocr | identify | webpage
-   * @param {string} [prompt] - 自定义提示词（覆盖任务默认）
-   * @returns {Promise<Object>} { ok, result: { type:'vision', task, description } }
+   * 手眼配合：页面理解（换思路——网页有 DOM 文本，语义理解用 qwen 文本总结，
+   * 比视觉模型准且稳；moondream 只用于纯图片。真实使用暴露：moondream 对复杂/中文页面脆弱）
+   * @param {string} task - webpage | describe | ocr | identify
+   * @returns {Promise<Object>} { ok, result: { type, task, description, source } }
    */
   async understand(task = 'webpage', prompt) {
     if (!this.page) { return { ok: false, error: 'Browser not initialized' }; }
     try {
+      if (task === 'webpage' || task === 'describe') {
+        // 网页语义：DOM 事实 → qwen 中文总结（确定性 + 文本模型，绕开脆弱的视觉模型）
+        const s = await this.extractStructured();
+        if (!s.success) { return { ok: false, error: s.error }; }
+        const d = s.data;
+        const factBlock = `标题: ${d.title}\nURL: ${d.url}\n正文前300字: ${d.textPreview || ''}\n链接数: ${(d.links || []).length}，前5条: ${(d.links || []).slice(0, 5).map((l) => l.text).join('、') || '无'}\n表单输入: ${(d.inputs || []).length}个`;
+        const summary = await this._qwen(prompt || `这是一个网页。基于以下提取的页面事实，用中文简要描述这个页面是做什么的、主要内容是什么：\n${factBlock}`);
+        return { ok: true, result: { type: 'vision', task, description: summary, source: 'dom-summary', lang: 'zh' } };
+      }
+      // 纯图片/OCR 等：视觉模型（moondream）
       const shotB64 = await this.screenshot();
       const { VisionExecutor } = require('../skills/executors/VisionExecutor');
       return await VisionExecutor.execute({ image: shotB64, task, prompt });
     } catch (e) {
       return { ok: false, error: `页面理解失败: ${e.message}` };
     }
+  }
+
+  /**
+   * 调本地 qwen 文本模型（中文总结/翻译）
+   */
+  async _qwen(prompt) {
+    const http = require('http');
+    const body = JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen2.5:7b', prompt, stream: false });
+    return new Promise((resolve, reject) => {
+      const req = http.request({ host: 'localhost', port: 11434, path: '/api/generate', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, (res) => {
+        let data = '';
+        res.on('data', (c) => { data += c; });
+        res.on('end', () => { try { resolve(JSON.parse(data).response || '（无响应）'); } catch (e) { reject(new Error('qwen 响应解析失败')); } });
+      });
+      req.on('error', reject);
+      req.setTimeout(120000, () => { req.destroy(new Error('qwen 超时')); });
+      req.write(body); req.end();
+    });
   }
 
   /**
