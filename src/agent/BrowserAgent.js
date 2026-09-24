@@ -150,6 +150,35 @@ class BrowserAgent {
     }
   }
 
+  /**
+   * 按键盘（交互：回车/快捷键）
+   */
+  async pressKey(key) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.keyboard.press(key);
+      return { success: true, key };
+    } catch (e) {
+      return { success: false, error: `按键失败: ${String(e.message || e).substring(0, 80)}` };
+    }
+  }
+
+  /**
+   * 找到第一个可见输入框并输入（搜索/填表便捷入口）
+   */
+  async typeFirstInput(text) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      // 修复：waitForSelector('input') 对宽标签选择器在部分站点超时（Playwright 行为），
+      // 用 :visible 伪类精确匹配可见输入框（真实使用暴露）
+      await this.page.waitForSelector('input:visible, textarea:visible', { timeout: 15000 });
+      await this.page.fill('input:visible, textarea:visible', text);
+      return { success: true, text };
+    } catch (e) {
+      return { success: false, error: `未找到可输入元素: ${String(e.message || e).substring(0, 60)}` };
+    }
+  }
+
   async extract(selector, attribute = 'textContent') {
     if (!this.page) {throw new Error('Browser not initialized');}
     const elements = await this.page.$$(selector);
@@ -284,6 +313,28 @@ class BrowserAgent {
       return { success: false, error: `等待 URL 超时: "${fragment}"` };
     }
   }
+
+  /**
+   * 等待页面正文内容加载到阈值（交互后动态加载/搜索结果——真实使用发现交互后需等加载）
+   */
+  async waitForContentLoad(minLength = 20, timeout = 12000) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    const start = Date.now();
+    let lastLen = 0;
+    while (Date.now() - start < timeout) {
+      try {
+        lastLen = await this.page.evaluate(() => (document.body ? document.body.innerText.length : 0));
+        if (lastLen >= minLength) { return { success: true, length: lastLen }; }
+      } catch (e) { /* 页面重载中 */ }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return { success: false, error: `内容加载超时（${timeout}ms，正文 ${lastLen} 字符）` };
+  }
+
+  /**
+   * 等待导航完成：等 URL 或正文发生变化后稳定（交互触发跳转的场景，
+   * 真实使用暴露：搜索回车后需等跳转，仅"正文>=阈值"会误判为已加载首页）
+   */
 
   /**
    * 滚动到底部（触发无限滚动/懒加载），可选重复次数

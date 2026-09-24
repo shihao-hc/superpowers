@@ -13,11 +13,16 @@
  *   node scripts/browser-eye.js <url> --text                 页面全文
  *   node scripts/browser-eye.js --image=<path>               直接理解一张本地图片（不开浏览器）
  *   node scripts/browser-eye.js --image=<path> --task=ocr    图片文字提取
+ *   node scripts/browser-eye.js <url> --search="opencode"    搜索框输入+回车（交互）
+ *   node scripts/browser-eye.js <url> --click="#button"      点击元素
+ *   node scripts/browser-eye.js <url> --fill="input#name":"小明" --after=extract  填表后提取
+ *   （--after=webpage|extract|text 决定交互后的输出，默认 webpage）
  *
  * 示例:
  *   node scripts/browser-eye.js https://example.com
  *   node scripts/browser-eye.js https://github.com --extract
  *   node scripts/browser-eye.js --image=./shot.png --task=describe
+ *   node scripts/browser-eye.js https://www.bing.com --search="opencode" --after=extract
  */
 const { BrowserAgent } = require('../src/agent/BrowserAgent');
 
@@ -69,17 +74,51 @@ async function main() {
     const g = await agent.goto(url);
     if (!g.success) { console.log(`❌ 打开失败: ${g.error}`); process.exit(1); }
 
-    if (doExtract) {
-      const r = await agent.extractStructured();
+    // 交互（真实使用暴露的缺口：搜索/点击/填表）
+    const searchArg = args.find((a) => a.startsWith('--search='));
+    const clickArg = args.find((a) => a.startsWith('--click='));
+    const fillArg = args.find((a) => a.startsWith('--fill='));
+    const afterArg = args.find((a) => a.startsWith('--after='));
+    const after = afterArg ? afterArg.split('=')[1] : null;
+
+    if (searchArg) {
+      const q = searchArg.split('=')[1].replace(/^"|"$/g, '');
+      const typed = await agent.typeFirstInput(q);
+      if (!typed.success) { console.log(`❌ 搜索输入失败: ${typed.error}`); await agent.close(); process.exit(1); }
+      await agent.pressKey('Enter');
+      // 交互后等导航跳转（固定等待，简单可靠；提取失败有重试兜底导航竞态）
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    if (fillArg) {
+      const [sel, val] = fillArg.split('=')[1].split(':').slice(0, 2).map((x) => x.replace(/^"|"$/g, ''));
+      const filled = await agent.type(sel, val);
+      if (!filled.success) { console.log(`❌ 填表失败: ${filled.error}`); await agent.close(); process.exit(1); }
+    }
+    if (clickArg) {
+      const sel = clickArg.split('=')[1].replace(/^"|"$/g, '');
+      const clicked = await agent.click(sel);
+      if (!clicked.success) { console.log(`❌ 点击失败: ${clicked.error}`); await agent.close(); process.exit(1); }
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    // 输出：--after 优先，否则按原逻辑
+    const outputTask = after || (doExtract ? 'extract' : doText ? 'text' : task);
+    if (outputTask === 'extract') {
+      // 交互后可能导航中（旧上下文销毁）→ 失败重试一次（真实使用暴露的竞态）
+      let r = await agent.extractStructured();
+      if (!r.success) {
+        await new Promise((res) => setTimeout(res, 2000));
+        r = await agent.extractStructured();
+      }
       if (!r.success) { console.log(`❌ 提取失败: ${r.error}`); process.exit(1); }
       if (asJson) { console.log(JSON.stringify(r.data, null, 2)); } else { printStructured(r.data); }
-    } else if (doText) {
+    } else if (outputTask === 'text') {
       const text = await agent.getPageText();
       console.log(text);
     } else {
-      const r = await agent.understand(task);
+      const r = await agent.understand(outputTask);
       if (!r.ok) { console.log(`❌ 理解失败: ${r.error}`); process.exit(1); }
-      console.log(`【${url} · ${task}】\n${r.result.description}`);
+      console.log(`【${url} · ${outputTask}】\n${r.result.description}`);
     }
     await agent.close();
     process.exit(0);
