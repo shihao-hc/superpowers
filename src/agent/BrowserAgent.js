@@ -15,6 +15,7 @@ class BrowserAgent {
     this._platform = options.platform || 'desktop';
     this._proxy = options.proxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null;
     this.pages = []; // 多标签页管理
+    this._persistentDir = options.persistentUserDataDir || null; // 真实浏览器/登录态复用（从 OpenCLI/BrowserSkill 学的"use your logged-in browser"）
   }
 
   async init() {
@@ -45,12 +46,28 @@ class BrowserAgent {
       args: launchArgs
     });
 
-    const contextOptions = this._getContextOptions();
-    this.context = await this.browser.newContext(contextOptions);
+    if (this._persistentDir) {
+      // 真实浏览器上下文（复用登录态/持久数据，解决反爬站点——从 OpenCLI/BrowserSkill 学的思路）
+      this.context = await this._playwright.chromium.launchPersistentContext(this._persistentDir, {
+        headless: this.isHeadless,
+        viewport: this.viewport,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        locale: 'zh-CN',
+        timezoneId: 'Asia/Shanghai',
+        args: launchArgs
+      });
+      this.pages = this.context.pages();
+      this.page = this.pages[0] || await this.context.newPage();
+      this.page.setDefaultTimeout(this.timeout);
+      if (!this.pages.includes(this.page)) { this.pages.push(this.page); }
+    } else {
+      const contextOptions = this._getContextOptions();
+      this.context = await this.browser.newContext(contextOptions);
 
-    this.page = await this.context.newPage();
-    this.page.setDefaultTimeout(this.timeout);
-    this.pages.push(this.page);
+      this.page = await this.context.newPage();
+      this.page.setDefaultTimeout(this.timeout);
+      this.pages.push(this.page);
+    }
 
     if (this._stealthMode) {
       await this._applyStealth();

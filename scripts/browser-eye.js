@@ -70,7 +70,8 @@ async function main() {
     process.exit(0);
   }
 
-  const agent = new BrowserAgent({ headless: true });
+  const persistentArg = args.find((a) => a.startsWith('--persistent='));
+  const agent = new BrowserAgent({ headless: true, persistentUserDataDir: persistentArg ? persistentArg.split('=')[1] : null });
   try {
     await agent.init();
     const g = await agent.goto(url);
