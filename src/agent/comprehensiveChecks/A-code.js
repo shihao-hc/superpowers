@@ -101,24 +101,42 @@ module.exports = {
     return { status: 'passed', message: '代码质量检查通过' };
   },
 
-  'checkModuleExports': async (root, files) => {
-    const mainFiles = files.filter((f) =>
-      f.includes('core/') || f.includes('agent/')
-    );
+  'checkModuleExports': async (root, _files) => {
+    // 升级（2026-09-18）：原只查"文件有没有 module.exports"（浅），永远发现不了
+    // "调用但未导出"类缺陷（如 runComprehensiveCheck 未导出 → 56 项检查自身从未运行）。
+    // 现改为"导出完整性检查"：扫描 server 的 BrainSystem.<method> 调用 vs 实际导出，
+    // 任何"被调用但未导出"的方法都会触发警告（复用 scripts/check-exports.js 逻辑）。
+    try {
+      const modulePath = path.join(root, 'src', 'core', 'BrainSystem.js');
+      if (!fs.existsSync(modulePath)) { return { status: 'passed', message: '模块不存在，跳过' }; }
+      const module = require(modulePath);
+      const exported = new Set(Object.keys(module));
 
-    let noExport = 0;
-    for (const file of mainFiles.slice(0, 5)) {
-      const content = fs.readFileSync(file, 'utf-8');
-      if (!content.includes('module.exports') && !content.includes('export')) {
-        noExport++;
+      const serverDir = path.join(root, 'server');
+      const calls = new Set();
+      const scan = (dir) => {
+        if (!fs.existsSync(dir)) { return; }
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, e.name);
+          if (e.isDirectory()) { scan(full); }
+          else if (/\.js$/.test(e.name) && !/\.test\./.test(e.name)) {
+            const src = fs.readFileSync(full, 'utf8');
+            const re = /BrainSystem\.([A-Za-z_$][\w$]*)/g;
+            let m;
+            while ((m = re.exec(src))) { calls.add(m[1]); }
+          }
+        }
+      };
+      scan(serverDir);
+
+      const missing = [...calls].filter((c) => !exported.has(c));
+      if (missing.length > 0) {
+        return { status: 'warning', message: '导出遗漏（调用但未导出）', details: `BrainSystem.${missing.join(', BrainSystem.')}` };
       }
+      return { status: 'passed', message: '导出完整性通过（被调用方法全部已导出）' };
+    } catch (e) {
+      return { status: 'warning', message: '导出检查失败', details: e.message };
     }
-
-    if (noExport > mainFiles.length / 2) {
-      return { status: 'warning', message: '部分模块未导出', details: `${noExport}个文件无导出` };
-    }
-
-    return { status: 'passed', message: '模块导出检查通过' };
   },
 
   'checkCodeDuplication': async (root, files) => {
