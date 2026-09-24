@@ -211,6 +211,41 @@ class BrowserAgent {
     }
   }
 
+  /**
+   * 页面结构化提取（"把手眼覆盖面提升到模型之上"——不依赖视觉模型"猜图片"，
+   * 直接从 DOM 精确提取结构化信息：标题/链接/标题/表格/表单/图片/正文长度）
+   * 快、准、零模型依赖；视觉模型只用于"需要语义理解"的场景（understand）
+   */
+  async extractStructured() {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      const data = await this.page.evaluate(() => {
+        const title = document.title || '';
+        const links = [...document.querySelectorAll('a[href]')]
+          .map((a) => ({ text: (a.innerText || '').trim().slice(0, 60), href: a.href }))
+          .filter((x) => x.text && x.href.startsWith('http'))
+          .slice(0, 50);
+        const headings = [...document.querySelectorAll('h1,h2,h3')]
+          .map((h) => h.innerText.trim()).filter(Boolean).slice(0, 20);
+        const tables = [...document.querySelectorAll('table')].slice(0, 5).map((t) =>
+          [...t.querySelectorAll('tr')].slice(0, 10).map((tr) =>
+            [...tr.querySelectorAll('td,th')].map((c) => c.innerText.trim())));
+        const images = [...document.querySelectorAll('img[src]')]
+          .map((i) => i.src).filter((s) => s.startsWith('http')).slice(0, 20);
+        const inputs = [...document.querySelectorAll('input,textarea,select')]
+          .slice(0, 30).map((f) => ({ type: f.type || f.tagName.toLowerCase(), name: f.name || f.id, placeholder: f.placeholder || '' }));
+        const text = (document.body ? document.body.innerText : '').trim();
+        return {
+          title, url: location.href, links, headings, tables, images, inputs,
+          textLength: text.length, textPreview: text.slice(0, 300)
+        };
+      });
+      return { success: true, data };
+    } catch (e) {
+      return { success: false, error: `结构化提取失败: ${String(e.message || e).substring(0, 100)}` };
+    }
+  }
+
   async scroll(direction = 'down', amount = 500) {
     if (!this.page) {throw new Error('Browser not initialized');}
 
@@ -476,6 +511,32 @@ class BrowserAgent {
   async getPageContent() {
     if (!this.page) {throw new Error('Browser not initialized');}
     return await this.page.content();
+  }
+
+  /**
+   * 收集页面网络响应（JSON API 数据——真实数据源，不依赖视觉）
+   * @param {number} seconds - 监听时长（秒）
+   */
+  async collectNetwork(seconds = 3) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      const responses = [];
+      const handler = async (res) => {
+        const ct = (res.headers() || {})['content-type'] || '';
+        if (ct.includes('json') && res.url().startsWith('http')) {
+          try {
+            const j = await res.json();
+            if (j && typeof j === 'object') { responses.push({ url: res.url().substring(0, 150), json: j }); }
+          } catch (e) { /* 非 JSON 跳过 */ }
+        }
+      };
+      this.page.on('response', handler);
+      await this.page.waitForTimeout(seconds * 1000);
+      this.page.off('response', handler);
+      return { success: true, responses: responses.slice(0, 20) };
+    } catch (e) {
+      return { success: false, error: `网络收集失败: ${String(e.message || e).substring(0, 100)}` };
+    }
   }
 
   async getPageText() {
