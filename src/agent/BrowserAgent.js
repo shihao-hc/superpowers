@@ -115,24 +115,37 @@ class BrowserAgent {
   }
 
   async goto(url) {
-    if (!this.page) {throw new Error('Browser not initialized');}
-    this._validateUrl(url);
-    await this.page.goto(url, { waitUntil: 'domcontentloaded' });
-    return { success: true, url };
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      this._validateUrl(url);
+      await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      return { success: true, url };
+    } catch (e) {
+      // 结构化失败（可降级可验证），不裸抛
+      return { success: false, error: `导航失败: ${String(e.message || e).substring(0, 120)}` };
+    }
   }
 
   async click(selector) {
-    if (!this.page) {throw new Error('Browser not initialized');}
-    await this.page.waitForSelector(selector, { timeout: 5000 });
-    await this.page.click(selector);
-    return { success: true, selector };
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForSelector(selector, { timeout: 8000 });
+      await this.page.click(selector);
+      return { success: true, selector };
+    } catch (e) {
+      return { success: false, error: `点击失败（元素可能不存在）: ${selector}` };
+    }
   }
 
   async type(selector, text) {
-    if (!this.page) {throw new Error('Browser not initialized');}
-    await this.page.waitForSelector(selector, { timeout: 5000 });
-    await this.page.fill(selector, text);
-    return { success: true, selector, text };
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForSelector(selector, { timeout: 8000 });
+      await this.page.fill(selector, text);
+      return { success: true, selector, text };
+    } catch (e) {
+      return { success: false, error: `输入失败（元素可能不存在）: ${selector}` };
+    }
   }
 
   async extract(selector, attribute = 'textContent') {
