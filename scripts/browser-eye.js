@@ -11,10 +11,13 @@
  *   node scripts/browser-eye.js <url> --extract              结构化提取（DOM，零模型，精确）
  *   node scripts/browser-eye.js <url> --extract --json       结构化提取（JSON 输出）
  *   node scripts/browser-eye.js <url> --text                 页面全文
+ *   node scripts/browser-eye.js --image=<path>               直接理解一张本地图片（不开浏览器）
+ *   node scripts/browser-eye.js --image=<path> --task=ocr    图片文字提取
  *
  * 示例:
  *   node scripts/browser-eye.js https://example.com
  *   node scripts/browser-eye.js https://github.com --extract
+ *   node scripts/browser-eye.js --image=./shot.png --task=describe
  */
 const { BrowserAgent } = require('../src/agent/BrowserAgent');
 
@@ -33,9 +36,11 @@ function printStructured(d) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const imageArg = args.find((a) => a.startsWith('--image='));
   const url = args.find((a) => !a.startsWith('--'));
-  if (!url) {
+  if (!url && !imageArg) {
     console.log('用法: node scripts/browser-eye.js <url> [--task=webpage|ocr|describe|identify] [--extract] [--json] [--text]');
+    console.log('      node scripts/browser-eye.js --image=<path> [--task=describe|ocr|identify]');
     process.exit(1);
   }
   const taskArg = args.find((a) => a.startsWith('--task='));
@@ -43,6 +48,20 @@ async function main() {
   const doExtract = args.includes('--extract');
   const doText = args.includes('--text');
   const asJson = args.includes('--json');
+
+  // 图片理解模式：不开浏览器，直接理解本地图片（覆盖"看图"场景）
+  if (imageArg) {
+    const { VisionExecutor } = require('../src/skills/executors/VisionExecutor');
+    const imgPath = imageArg.split('=')[1];
+    if (!require('fs').existsSync(imgPath)) {
+      console.log(`❌ 图片不存在: ${imgPath}`);
+      process.exit(1);
+    }
+    const r = await VisionExecutor.execute({ image: imgPath, task });
+    if (!r.ok) { console.log(`❌ 理解失败: ${r.error}`); process.exit(1); }
+    console.log(`【${imgPath} · ${task}】\n${r.result.description}`);
+    process.exit(0);
+  }
 
   const agent = new BrowserAgent({ headless: true });
   try {

@@ -47,9 +47,11 @@
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解
 > - `node scripts/browser-eye.js <url> --extract [--json]` —— DOM 结构化提取（精确、零模型）
 > - `node scripts/browser-eye.js <url> --task=ocr|describe|identify` —— 不同视觉任务
-> - `node scripts/browser-eye.js <url> --text` —— 页面全文
+> - `node scripts/browser-eye.js --image=<path> [--task=describe|ocr|identify]` —— 直接理解本地图片
 > - 底层：`src/agent/BrowserAgent.js`（手）+ `src/skills/executors/VisionExecutor.js`（眼，moondream + qwen 中文适配）
-> **用途**：用户请求"看看某网页/某图/检查某站点"时，用此工具执行（分层：确定性提取优先，视觉模型只做语义）。
+> **分层使用（诚实评估）**：网页文字/链接/表单用 `--extract`/`--text`（DOM 精确，零模型）——
+> moondream 的 OCR 只是"粗略语义"（非逐字精确），纯图片文字场景才用模型 OCR。
+> **用途**：用户请求"看看某网页/某图/检查某站点"时，用此工具执行（确定性提取优先，视觉模型只做语义）。
 
 > **错误防复发（2026-09-18 补充，用户"反复犯 = 没改变"教导）**：
 > "反复犯同样的错"本身是行为模式漏洞（会复发、会诟病），本质是靠提醒驱动而非机制驱动。
