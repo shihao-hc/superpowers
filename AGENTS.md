@@ -43,6 +43,14 @@
 > 实证：视觉模型有顶 → 分层能力（DOM 精确提取 + 网络 API + 模型只做语义补充），绕过单点上限。
 > "模型有顶，组合方法无顶"——已记入教训库成功经验。
 
+> **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
+> - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解
+> - `node scripts/browser-eye.js <url> --extract [--json]` —— DOM 结构化提取（精确、零模型）
+> - `node scripts/browser-eye.js <url> --task=ocr|describe|identify` —— 不同视觉任务
+> - `node scripts/browser-eye.js <url> --text` —— 页面全文
+> - 底层：`src/agent/BrowserAgent.js`（手）+ `src/skills/executors/VisionExecutor.js`（眼，moondream + qwen 中文适配）
+> **用途**：用户请求"看看某网页/某图/检查某站点"时，用此工具执行（分层：确定性提取优先，视觉模型只做语义）。
+
 > **错误防复发（2026-09-18 补充，用户"反复犯 = 没改变"教导）**：
 > "反复犯同样的错"本身是行为模式漏洞（会复发、会诟病），本质是靠提醒驱动而非机制驱动。
 > 机制：① 同一个错第一次犯 → 当场固化（教训/工具/动作清单），不靠记靠机制；
