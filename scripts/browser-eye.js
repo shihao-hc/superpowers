@@ -86,8 +86,14 @@ async function main() {
       const typed = await agent.typeFirstInput(q);
       if (!typed.success) { console.log(`❌ 搜索输入失败: ${typed.error}`); await agent.close(); process.exit(1); }
       await agent.pressKey('Enter');
-      // 交互后等导航跳转（固定等待，简单可靠；提取失败有重试兜底导航竞态）
-      await new Promise((r) => setTimeout(r, 3000));
+      // 等跳转（轮询直到 URL 变化，最多 10s）——固定等待对慢结果页不稳定
+      const url0 = agent.page.url();
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        if (agent.page.url() !== url0) { break; }
+      }
+      // 再等结果渲染稳定
+      await new Promise((r) => setTimeout(r, 1500));
     }
     if (fillArg) {
       const [sel, val] = fillArg.split('=')[1].split(':').slice(0, 2).map((x) => x.replace(/^"|"$/g, ''));
