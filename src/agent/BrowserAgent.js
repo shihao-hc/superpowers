@@ -14,6 +14,7 @@ class BrowserAgent {
     this._stealthMode = options.stealth !== false;
     this._platform = options.platform || 'desktop';
     this._proxy = options.proxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null;
+    this.pages = []; // 多标签页管理
   }
 
   async init() {
@@ -49,6 +50,7 @@ class BrowserAgent {
 
     this.page = await this.context.newPage();
     this.page.setDefaultTimeout(this.timeout);
+    this.pages.push(this.page);
 
     if (this._stealthMode) {
       await this._applyStealth();
@@ -217,6 +219,112 @@ class BrowserAgent {
     }, { direction, amount });
 
     return { success: true, direction, amount };
+  }
+
+  /**
+   * 等待页面出现特定文字（动态内容/加载完成判断）
+   */
+  async waitForText(text, timeout = 10000) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForFunction(
+        (t) => document.body && document.body.innerText.includes(t),
+        text, { timeout }
+      );
+      return { success: true, text };
+    } catch (e) {
+      return { success: false, error: `等待文字超时: "${text}"（${timeout}ms）` };
+    }
+  }
+
+  /**
+   * 等待 URL 变化（含 fragment 匹配）——页面跳转/重定向判断
+   */
+  async waitForURL(fragment, timeout = 10000) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.waitForURL((url) => url.toString().includes(fragment), { timeout });
+      return { success: true, url: this.page.url() };
+    } catch (e) {
+      return { success: false, error: `等待 URL 超时: "${fragment}"` };
+    }
+  }
+
+  /**
+   * 滚动到底部（触发无限滚动/懒加载），可选重复次数
+   */
+  async scrollToBottom(repeats = 1) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      for (let i = 0; i < repeats; i++) {
+        await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await this.page.waitForTimeout(400);
+      }
+      return { success: true, repeats };
+    } catch (e) {
+      return { success: false, error: `滚动到底失败: ${String(e.message || e).substring(0, 80)}` };
+    }
+  }
+
+  /**
+   * 滚动到指定元素（确保元素可见）
+   */
+  async scrollToSelector(selector) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      const el = await this.page.$(selector);
+      if (!el) { return { success: false, error: `元素不存在: ${selector}` }; }
+      await el.scrollIntoViewIfNeeded();
+      return { success: true, selector };
+    } catch (e) {
+      return { success: false, error: `滚动到元素失败: ${selector}` };
+    }
+  }
+
+  /**
+   * 新标签页打开 URL（多标签）
+   */
+  async newTab(url) {
+    if (!this.browser) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      this._validateUrl(url);
+      const page = await this.context.newPage();
+      page.setDefaultTimeout(this.timeout);
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      this.pages.push(page);
+      this.page = page; // 切到新标签
+      return { success: true, url, totalTabs: this.pages.length };
+    } catch (e) {
+      return { success: false, error: `打开新标签失败: ${String(e.message || e).substring(0, 100)}` };
+    }
+  }
+
+  /**
+   * 切换标签页（0 基索引）
+   */
+  async switchTab(index) {
+    if (index < 0 || index >= this.pages.length) {
+      return { success: false, error: `标签索引越界: ${index}（共 ${this.pages.length} 个）` };
+    }
+    this.page = this.pages[index];
+    return { success: true, index, url: this.page.url(), totalTabs: this.pages.length };
+  }
+
+  /**
+   * 关闭标签页（保留至少一个）
+   */
+  async closeTab(index = this.pages.length - 1) {
+    if (this.pages.length <= 1) { return { success: false, error: '至少保留一个标签页' }; }
+    if (index < 0 || index >= this.pages.length) { return { success: false, error: `标签索引越界: ${index}` }; }
+    try {
+      const page = this.pages[index];
+      await page.close();
+      this.pages.splice(index, 1);
+      if (this.page === page) { this.page = this.pages[Math.max(0, index - 1)]; }
+      return { success: true, totalTabs: this.pages.length };
+    } catch (e) {
+      return { success: false, error: `关闭标签失败: ${String(e.message || e).substring(0, 80)}` };
+    }
   }
 
   async back() {
