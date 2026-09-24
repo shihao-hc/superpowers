@@ -54,8 +54,21 @@ async function loop() {
     if (downStreak > 0) { log(`[monitor] server 恢复 (曾连续 ${downStreak} 次检测失败)`); }
     downStreak = 0;
   }
+  // 定期健康检查（每 30 分钟跑 56 项全方面检查，非通过项记录）——健康哨兵协议"定期跑"的自动机制
+  if (Date.now() - lastHealthCheck > 30 * 60 * 1000) {
+    lastHealthCheck = Date.now();
+    runHealthCheck();
+  }
   setTimeout(loop, 30000);
 }
 
-log('[monitor] 启动，每 30s 检查 server 存活');
+let lastHealthCheck = 0;
+function runHealthCheck() {
+  const child = spawn(NODE, ['scripts/health-check.js'], { cwd: process.cwd(), stdio: 'ignore' });
+  child.on('exit', (code) => {
+    log(`[health-check] 完成 exit=${code}${code === 1 ? ' ⚠️ 有非通过项，需追根源（5.3）' : ''}`);
+  });
+}
+
+log('[monitor] 启动，每 30s 检查 server 存活；每 30min 自动健康检查');
 loop();
