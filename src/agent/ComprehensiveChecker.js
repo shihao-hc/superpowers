@@ -252,11 +252,12 @@ class ComprehensiveChecker {
       console.log(`  ${icon} ${check.id} ${check.name}`);
 
       if (result.status === 'passed') {this.stats.passed++;}
-      else if (result.status === 'failed') {
-        this.stats.failed++;
+      else {
+        // 修复：warning 此前只计数不进 issues → 调用方拿不到具体哪些警告（只能看到数字）。
+        // failed 和 warning 都进 issues，供 health-check 等展示/追根源
+        this.stats[result.status === 'failed' ? 'failed' : 'warnings']++;
         this.issues.set(check.id, { ...check, ...result });
       }
-      else {this.stats.warnings++;}
 
       if (this.verbose && result.details) {
         console.log(`     → ${result.details}`);
