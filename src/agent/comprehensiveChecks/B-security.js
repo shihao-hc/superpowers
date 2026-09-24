@@ -99,7 +99,8 @@ module.exports = {
     ];
 
     const risks = [];
-    for (const file of files.slice(0, 10)) {
+    const checkFiles = files.filter((f) => !f.includes('comprehensiveChecks')); // 排除检查器自身（含检查字符串会自匹配误报）
+    for (const file of checkFiles.slice(0, 10)) {
       const content = fs.readFileSync(file, 'utf-8');
       for (const rp of riskPatterns) {
         if (rp.pattern.test(content)) {
@@ -140,7 +141,8 @@ module.exports = {
     // 只检查是否有 eval + 动态路径的组合（真正危险）
     let realRisks = 0;
 
-    for (const file of files.slice(0, 10)) {
+    const checkFiles = files.filter((f) => !f.includes('comprehensiveChecks')); // 排除检查器自身
+    for (const file of checkFiles.slice(0, 10)) {
       try {
         const content = fs.readFileSync(file, 'utf-8');
 

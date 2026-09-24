@@ -51,53 +51,40 @@ module.exports = {
   },
 
   'checkBoundaryTests': async (root) => {
-    const testFiles = [
-      'src/core/BrainSystem.test.js',
-      'test/BrainSystem.test.js'
-    ];
-
-    const exists = testFiles.find((f) => fs.existsSync(path.join(root, f)));
-
-    if (!exists) {
-      return { status: 'warning', message: '缺少边界测试', details: '建议在测试中添加边界条件覆盖' };
+    // 修复：原只找 src/core/BrainSystem.test.js / test/BrainSystem.test.js（过时路径，
+    // 项目测试在 tests/unit/*.test.js，恒找不到 → 永远误报 warning）→ 改为扫描实际测试目录
+    const testDir = path.join(root, 'tests', 'unit');
+    const files = fs.existsSync(testDir)
+      ? fs.readdirSync(testDir).filter((f) => f.endsWith('.test.js'))
+      : [];
+    if (files.length === 0) {
+      return { status: 'warning', message: '缺少测试文件', details: 'tests/unit 下无 *.test.js' };
     }
-
-    const content = fs.readFileSync(path.join(root, exists), 'utf-8');
-    const hasBoundary = content.includes('边界') ||
-                        content.includes('boundary') ||
-                        content.includes('edge') ||
-                        content.includes('max') ||
-                        content.includes('min');
-
+    const hasBoundary = files.some((f) => {
+      const content = fs.readFileSync(path.join(testDir, f), 'utf-8');
+      return /边界|boundary|edge|空输入|超长|null|undefined|empty|large/.test(content);
+    });
     if (!hasBoundary) {
       return { status: 'warning', message: '边界测试不完整', details: '建议添加更多边界条件测试' };
     }
-
     return { status: 'passed', message: '边界测试覆盖' };
   },
 
   'checkErrorTests': async (root) => {
-    const testFiles = [
-      'src/core/BrainSystem.test.js',
-      'test/BrainSystem.test.js'
-    ];
-
-    const exists = testFiles.find((f) => fs.existsSync(path.join(root, f)));
-
-    if (!exists) {
-      return { status: 'warning', message: '缺少错误场景测试', details: '建议添加try-catch和错误处理测试' };
+    const testDir = path.join(root, 'tests', 'unit');
+    const files = fs.existsSync(testDir)
+      ? fs.readdirSync(testDir).filter((f) => f.endsWith('.test.js'))
+      : [];
+    if (files.length === 0) {
+      return { status: 'warning', message: '缺少测试文件', details: 'tests/unit 下无 *.test.js' };
     }
-
-    const content = fs.readFileSync(path.join(root, exists), 'utf-8');
-    const hasErrorTests = content.includes('catch') ||
-                          content.includes('throw') ||
-                          content.includes('reject') ||
-                          content.includes('error');
-
+    const hasErrorTests = files.some((f) => {
+      const content = fs.readFileSync(path.join(testDir, f), 'utf-8');
+      return /catch|throw|reject|错误|异常|error|rejects\.toThrow/.test(content);
+    });
     if (!hasErrorTests) {
       return { status: 'warning', message: '缺少错误场景测试', details: '建议添加异常和错误处理测试' };
     }
-
     return { status: 'passed', message: '错误场景测试覆盖' };
   }
 
