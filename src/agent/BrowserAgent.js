@@ -179,6 +179,23 @@ class BrowserAgent {
     return this.screenshot({ fullPage: true });
   }
 
+  /**
+   * 手眼配合：当前页面截图 → 视觉理解（"最适合我"的标准能力：打开页面 → 看 → 理解）
+   * @param {string} task - describe | ocr | identify | webpage
+   * @param {string} [prompt] - 自定义提示词（覆盖任务默认）
+   * @returns {Promise<Object>} { ok, result: { type:'vision', task, description } }
+   */
+  async understand(task = 'webpage', prompt) {
+    if (!this.page) { return { ok: false, error: 'Browser not initialized' }; }
+    try {
+      const shotB64 = await this.screenshot();
+      const { VisionExecutor } = require('../skills/executors/VisionExecutor');
+      return await VisionExecutor.execute({ image: shotB64, task, prompt });
+    } catch (e) {
+      return { ok: false, error: `页面理解失败: ${e.message}` };
+    }
+  }
+
   async scroll(direction = 'down', amount = 500) {
     if (!this.page) {throw new Error('Browser not initialized');}
 
