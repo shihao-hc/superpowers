@@ -463,13 +463,40 @@ process.on('SIGINT', () => {
 });
 
 // 未捕获异常处理
+// 修复（2026-09-18）：此前崩溃"无痕迹"——uncaughtException 直接 process.exit(1)，
+// winston 异步日志未落盘即退出，每次崩溃静默消失。现在同步写崩溃诊断（crash.log），
+// 保证任何崩溃都留痕（时间/内存/uptime/错误栈），下次可定位根源。
+function writeCrashDiagnostics(event, payload) {
+  try {
+    const fs = require('fs');
+    const p = require('path');
+    const dir = p.join(process.cwd(), 'logs');
+    if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+    const entry = {
+      ts: new Date().toISOString(),
+      event,
+      pid: process.pid,
+      uptime: Math.round(process.uptime()),
+      memory: process.memoryUsage(),
+      ...payload
+    };
+    fs.writeFileSync(p.join(dir, 'crash.log'), `${JSON.stringify(entry)}\n`, { flag: 'a' });
+  } catch (e) { /* 诊断写盘失败不阻塞崩溃处理 */ }
+}
+
 process.on('uncaughtException', (error) => {
-  logger.error('未捕获异常', { error: error.message, stack: error.stack });
+  writeCrashDiagnostics('uncaughtException', { error: error.message, stack: (error.stack || '').split('\n').slice(0, 6) });
+  logger.error('未捕获异常（已写崩溃诊断）', { error: error.message });
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, _promise) => {
-  logger.error('未处理的Promise拒绝', { reason: String(reason) });
+  writeCrashDiagnostics('unhandledRejection', { reason: String(reason) });
+  logger.error('未处理的Promise拒绝（已写崩溃诊断）', { reason: String(reason) });
+});
+
+process.on('exit', (code) => {
+  writeCrashDiagnostics('exit', { code });
 });
 
 module.exports = app;
