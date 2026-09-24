@@ -82,11 +82,27 @@ class BrowserAgent {
   }
 
   async _applyStealth() {
+    // 反检测增强（借鉴 invisible_playwright_mcp/反爬项目思路：补齐常见反检测指纹）
     await this.page.addInitScript(() => {
+      // 隐藏自动化
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
       Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
-      window.chrome = { runtime: {} };
+      // chrome 对象完整伪装
+      window.chrome = { runtime: {}, loadTimes: () => ({}), csi: () => ({}), app: {} };
+      // 硬件指纹（真实设备特征）
+      Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+      Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+      // permissions 伪装（通知权限走真实状态）
+      if (window.navigator && window.navigator.permissions && window.navigator.permissions.query) {
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => (
+          parameters && parameters.name === 'notifications'
+            ? Promise.resolve({ state: window.Notification ? window.Notification.permission : 'denied' })
+            : originalQuery(parameters)
+        );
+      }
     });
   }
 
