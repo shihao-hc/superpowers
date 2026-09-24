@@ -70,6 +70,15 @@ class VisionExecutor {
       if (!/^[A-Za-z0-9+/=]+$/.test(image) && fs.existsSync(image)) {
         image = fs.readFileSync(image).toString('base64');
       }
+      // 大图缩放优化（更细打磨）：超大图（>200KB）缩到宽度 1024——小视觉模型处理大图更稳/更快
+      if (typeof image === 'string' && image.length > 270000) {
+        try {
+          const sharp = require('sharp');
+          const buf = Buffer.from(image, 'base64');
+          const resized = await sharp(buf).resize({ width: 1024, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+          image = resized.toString('base64');
+        } catch (e) { /* sharp 失败则用原图 */ }
+      }
       const prompt = params.prompt || TASK_PROMPTS[params.task || 'describe'] || TASK_PROMPTS.describe;
       const model = params.model || VISION_MODEL;
       // 视觉模型偶发空/异常输出 → 重试（可靠性打磨）

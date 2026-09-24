@@ -75,3 +75,4 @@ data/conversations.json
 .tmp-*
 uploads/skills/
 .eslintcache
+screenshots/
