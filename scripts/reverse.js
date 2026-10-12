@@ -128,7 +128,7 @@ function analyzeAST(src) {
 
 // 危险模式（用 RegExp 构造 + 字符串拼接——避免安全扫描把"检测模式文本"误判为真实危险代码，自检误报）
 const RISKY_PATTERNS = [
-  { re: new RegExp('\\beval\\s*\\('), label: 'eval()' },
+  { re: new RegExp('(?:^|[^.\\w$])eval\\s*\\('), label: 'eval()' },
   { re: new RegExp('exec' + '(?:Sync)?\\s*\\(\\s*[`"][^`"]*\\$\\{'), label: 'exec+模板变量(命令注入面)' },
   { re: new RegExp('(?:JWT_SECRET|API_KEY|PASSWORD)\\s*=\\s*["\'][^"\'\\s]{8,}["\']'), label: '疑似硬编码密钥' }
 ];
@@ -179,7 +179,7 @@ function reverseCode(target) {
   const fileDeps = {}; // 依赖图：文件 → 本地依赖
   const riskyPatterns = [];
   const designFeatures = [];
-  for (const f of files.slice(0, 50)) {
+  for (const f of files) {
     const src = fs.readFileSync(f, 'utf8');
     const lines = src.split('\n').length;
     totalLines += lines;
@@ -268,7 +268,6 @@ function reverseCode(target) {
   // 不知道（诚实）
   unknown.push('运行时行为（静态分析看不到执行路径）');
   unknown.push('真实调用方（需要全局搜索调用处）');
-  if (files.length > 50) { unknown.push(`仅分析前 50 文件（共 ${files.length}）`); }
 
   out(observed, inferred, unknown);
 }
