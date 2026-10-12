@@ -15,6 +15,59 @@
 const fs = require('fs');
 const path = require('path');
 
+// 专业级：用 AST（espree）精确分析（替代正则——正则识别不了 `X.y = function` 等形式）
+let espree = null;
+try { espree = require('espree'); } catch (e) { /* 无 espree 则降级正则 */ }
+
+function analyzeAST(src) {
+  const result = { functions: [], classes: [], methods: [], calls: [], imports: [], exports: [] };
+  if (!espree) { return null; }
+  let ast;
+  try { ast = espree.parse(src, { ecmaVersion: 2022, sourceType: 'script', loc: true, range: true }); } catch (e) { return null; }
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') { return; }
+    switch (node.type) {
+    case 'FunctionDeclaration':
+    case 'FunctionExpression':
+      if (node.id && node.id.name) { result.functions.push(node.id.name); }
+      break;
+    case 'ArrowFunctionExpression':
+      result.functions.push('(arrow)');
+      break;
+    case 'ClassDeclaration':
+      if (node.id) { result.classes.push(node.id.name); }
+      break;
+    case 'MethodDefinition':
+      if (node.key && (node.key.name || node.key.value)) { result.methods.push(node.key.name || node.key.value); }
+      break;
+    case 'AssignmentExpression':
+      // 形如 BrainSystem.xxx = function / const x = () => ...
+      if (node.left && node.left.type === 'MemberExpression' && node.left.property &&
+          node.right && /Function|Arrow/.test(node.right.type)) {
+        result.functions.push(node.left.property.name || node.left.property.value || '(member)');
+      }
+      break;
+    case 'CallExpression':
+      if (node.callee && node.callee.type === 'Identifier') { result.calls.push(node.callee.name); }
+      else if (node.callee && node.callee.type === 'MemberExpression' && node.callee.property) {
+        result.calls.push(node.callee.property.name || '(member)');
+      }
+      break;
+    case 'ImportDeclaration':
+      if (node.source) { result.imports.push(node.source.value); }
+      break;
+    default: break;
+    }
+    for (const k in node) {
+      if (k === 'loc' || k === 'range' || k === 'parent') { continue; }
+      const v = node[k];
+      if (Array.isArray(v)) { v.forEach(walk); } else if (v && typeof v === 'object') { walk(v); }
+    }
+  };
+  walk(ast);
+  return result;
+}
+
 // 危险模式（用 RegExp 构造 + 字符串拼接——避免安全扫描把"检测模式文本"误判为真实危险代码，自检误报）
 const RISKY_PATTERNS = [
   { re: new RegExp('\\beval\\s*\\('), label: 'eval()' },
@@ -60,6 +113,8 @@ function reverseCode(target) {
   let maxFile = { name: '', lines: 0 };
   const exports = [];
   const requires = new Set();
+  const classes = [];
+  const callNames = new Set();
   const riskyPatterns = [];
   const designFeatures = [];
   for (const f of files.slice(0, 50)) {
@@ -70,7 +125,16 @@ function reverseCode(target) {
     const exp = src.match(/module\.exports\s*=\s*(\{[^}]*\}|[\w.]+)/);
     if (exp) { exports.push(`${path.basename(f)}: ${exp[1].substring(0, 60).replace(/\s+/g, ' ')}`); }
     (src.match(/require\(['"]([^'"]+)['"]\)/g) || []).forEach((m) => requires.add(m.replace(/require\(['"]|['"]\)/g, '')));
-    totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
+    // 专业级：AST 精确分析（函数/方法/类/调用/导入）
+    const ast = analyzeAST(src);
+    if (ast) {
+      totalFuncs += ast.functions.length + ast.methods.length;
+      ast.classes.forEach((c) => classes.push(c));
+      ast.imports.forEach((i) => requires.add(i));
+      ast.calls.forEach((c) => callNames.add(c));
+    } else {
+      totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
+    }
     // 危险模式（观察：证据）
     for (const { re, label } of RISKY_PATTERNS) {
       if (re.test(src)) { riskyPatterns.push(`${path.basename(f)}: ${label}`); }
@@ -80,7 +144,9 @@ function reverseCode(target) {
     if (/static\s+(?:async\s+)?execute/.test(src)) { designFeatures.push('静态执行器模式'); }
     if (/(?:getInstance|_instance)\s*\(/.test(src) || /module\.exports\s*=\s*new\s/.test(src)) { designFeatures.push('单例模式'); }
   }
-  observed.push(`总代码 ${totalLines} 行，函数 ${totalFuncs} 个，最大文件 ${maxFile.name}（${maxFile.lines} 行）`);
+  observed.push(`总代码 ${totalLines} 行，函数/方法 ${totalFuncs} 个（AST 精确），最大文件 ${maxFile.name}（${maxFile.lines} 行）`);
+  if (classes.length) { observed.push(`类 ${[...new Set(classes)].length} 个: ${[...new Set(classes)].slice(0, 5).join(', ')}`); }
+  if (callNames.size) { observed.push(`函数调用 ${callNames.size} 种（AST）`); }
   if (exports.length) { observed.push(`模块导出 ${exports.length} 处，如: ${exports[0]}`); }
   if (requires.size) { observed.push(`外部依赖 ${requires.size} 个: ${[...requires].slice(0, 5).join(', ')}`); }
   if (riskyPatterns.length) { observed.push(`⚠️ 危险模式 ${riskyPatterns.length} 处: ${riskyPatterns.slice(0, 3).join('; ')}`); }
