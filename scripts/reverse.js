@@ -20,7 +20,7 @@ let espree = null;
 try { espree = require('espree'); } catch (e) { /* 无 espree 则降级正则 */ }
 
 function analyzeAST(src) {
-  const result = { functions: [], classes: [], methods: [], calls: [], imports: [], exports: [] };
+  const result = { functions: [], classes: [], methods: [], calls: [], imports: [], exports: [], callGraph: {} };
   if (!espree) { return null; }
   let ast;
   try { ast = espree.parse(src, { ecmaVersion: 2022, sourceType: 'script', loc: true, range: true }); } catch (e) { return null; }
@@ -46,7 +46,25 @@ function analyzeAST(src) {
     if (!node || seen.has(node)) { return; }
     seen.add(node);
     const lines = node.loc ? node.loc.end.line - node.loc.start.line + 1 : 0;
-    result.functions.push({ name: name || '(anonymous)', lines, complexity: countComplexity(node) });
+    const key = name || '(anonymous)';
+    result.functions.push({ name: key, lines, complexity: countComplexity(node) });
+    // 调用图（换层级：函数级调用关系——该函数内调用了哪些函数）
+    const calls = [];
+    const collect = (n) => {
+      if (!n || typeof n !== 'object') { return; }
+      if (n.type === 'CallExpression' && n.callee) {
+        const cn = n.callee.type === 'Identifier' ? n.callee.name
+          : (n.callee.property && (n.callee.property.name || n.callee.property.value));
+        if (cn) { calls.push(cn); }
+      }
+      for (const k in n) {
+        if (k === 'loc' || k === 'range') { continue; }
+        const v = n[k];
+        if (Array.isArray(v)) { v.forEach(collect); } else if (v && typeof v === 'object') { collect(v); }
+      }
+    };
+    collect(node);
+    result.callGraph[key] = calls;
   };
   // 从父节点推断匿名函数名（const x = () => / obj.key = () => / { key: () => }）
   const inferName = (parent) => {
@@ -155,6 +173,7 @@ function reverseCode(target) {
   const requires = new Set();
   const classes = [];
   const callCounts = new Map();
+  const allCallGraph = {}; // 跨文件调用图
   const exportedNames = new Set();
   const funcDetails = [];
   const fileDeps = {}; // 依赖图：文件 → 本地依赖
@@ -179,6 +198,7 @@ function reverseCode(target) {
       ast.classes.forEach((c) => classes.push(c));
       ast.imports.forEach((i) => requires.add(i));
       ast.calls.forEach((c) => callCounts.set(c, (callCounts.get(c) || 0) + 1));
+      Object.assign(allCallGraph, ast.callGraph);
       ast.exports.forEach((e) => exportedNames.add(e));
     } else {
       totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
@@ -200,12 +220,17 @@ function reverseCode(target) {
     'replace', 'test', 'match', 'includes', 'indexOf', 'toString', 'parse', 'stringify', 'keys', 'values',
     'entries', 'has', 'get', 'set', 'delete', 'then', 'catch', 'resolve', 'reject', 'call', 'apply', 'bind',
     'error', 'warn', 'info', 'trim', 'concat', 'sort', 'pop', 'shift', 'unshift', 'splice', 'reduce', 'add']);
+  const definedNames = new Set(funcDetails.map((f) => f.name).filter((n) => n && !n.startsWith('(')));
   const hubs = [...callCounts.entries()].filter(([n]) => !BUILTINS.has(n)).sort((a, b) => b[1] - a[1]).slice(0, 5);
   if (hubs.length) { observed.push(`业务枢纽(被调用top5): ${hubs.map(([n, c]) => `${n}(${c}次)`).join(', ')}`); }
+  // 调用图入度（换层级：函数级"被多少函数调用"——比全局调用名更准）
+  const inDegree = new Map();
+  Object.values(allCallGraph).forEach((calls) => calls.forEach((c) => inDegree.set(c, (inDegree.get(c) || 0) + 1)));
+  const graphHubs = [...inDegree.entries()].filter(([n]) => !BUILTINS.has(n) && definedNames.has(n))
+    .sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (graphHubs.length) { observed.push(`调用图枢纽(被最多函数调用top5): ${graphHubs.map(([n, c]) => `${n}(${c}个函数调用)`).join(', ')}`); }
   // 死代码候选（定义了但未被调用，且非匿名——提示，非结论；导出函数可能被外部调用）
-  const definedNames = new Set(funcDetails.map((f) => f.name).filter((n) => n && !n.startsWith('(')));
-  const calledNames = new Set(callCounts.keys());
-  const deadCandidates = [...definedNames].filter((n) => !calledNames.has(n) && !exportedNames.has(n));
+  const deadCandidates = [...definedNames].filter((n) => !inDegree.has(n) && !exportedNames.has(n));
   if (deadCandidates.length) { observed.push(`⚠️ 死代码候选(${deadCandidates.length}): ${deadCandidates.slice(0, 5).join(', ')}`); }
   // 最复杂/最长函数（专业级：定位高复杂度点）
   const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
