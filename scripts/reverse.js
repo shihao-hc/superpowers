@@ -41,19 +41,32 @@ function analyzeAST(src) {
     w(node);
     return c;
   };
+  const seen = new WeakSet(); // 去重（避免同一函数节点被赋值+遍历双计）
   const addFunc = (node, name) => {
+    if (!node || seen.has(node)) { return; }
+    seen.add(node);
     const lines = node.loc ? node.loc.end.line - node.loc.start.line + 1 : 0;
     result.functions.push({ name: name || '(anonymous)', lines, complexity: countComplexity(node) });
   };
-  const walk = (node) => {
+  // 从父节点推断匿名函数名（const x = () => / obj.key = () => / { key: () => }）
+  const inferName = (parent) => {
+    if (!parent) { return null; }
+    if (parent.type === 'VariableDeclarator' && parent.id) { return parent.id.name; }
+    if (parent.type === 'Property' && parent.key) { return parent.key.name || parent.key.value; }
+    if (parent.type === 'AssignmentExpression' && parent.left) {
+      return parent.left.property ? (parent.left.property.name || parent.left.property.value) : parent.left.name;
+    }
+    return null;
+  };
+  const walk = (node, parent) => {
     if (!node || typeof node !== 'object') { return; }
     switch (node.type) {
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-      addFunc(node, node.id && node.id.name);
+      addFunc(node, (node.id && node.id.name) || inferName(parent));
       break;
     case 'ArrowFunctionExpression':
-      addFunc(node, '(arrow)');
+      addFunc(node, inferName(parent));
       break;
     case 'ClassDeclaration':
       if (node.id) { result.classes.push(node.id.name); }
@@ -62,7 +75,7 @@ function analyzeAST(src) {
       if (node.key && (node.key.name || node.key.value)) { result.methods.push(node.key.name || node.key.value); }
       break;
     case 'AssignmentExpression':
-      // 形如 BrainSystem.xxx = function / const x = () => ...
+      // 形如 BrainSystem.xxx = function（right 是函数——addFunc 会去重，遍历到 right 时不重复计）
       if (node.left && node.left.type === 'MemberExpression' && node.left.property &&
           node.right && /Function|Arrow/.test(node.right.type)) {
         addFunc(node.right, node.left.property.name || node.left.property.value || '(member)');
@@ -82,10 +95,10 @@ function analyzeAST(src) {
     for (const k in node) {
       if (k === 'loc' || k === 'range' || k === 'parent') { continue; }
       const v = node[k];
-      if (Array.isArray(v)) { v.forEach(walk); } else if (v && typeof v === 'object') { walk(v); }
+      if (Array.isArray(v)) { v.forEach((c) => walk(c, node)); } else if (v && typeof v === 'object') { walk(v, node); }
     }
   };
-  walk(ast);
+  walk(ast, null);
   return result;
 }
 
@@ -135,7 +148,7 @@ function reverseCode(target) {
   const exports = [];
   const requires = new Set();
   const classes = [];
-  const callNames = new Set();
+  const callCounts = new Map();
   const funcDetails = [];
   const fileDeps = {}; // 依赖图：文件 → 本地依赖
   const riskyPatterns = [];
@@ -158,7 +171,7 @@ function reverseCode(target) {
       ast.functions.forEach((fn) => funcDetails.push({ ...fn, file: path.basename(f) }));
       ast.classes.forEach((c) => classes.push(c));
       ast.imports.forEach((i) => requires.add(i));
-      ast.calls.forEach((c) => callNames.add(c));
+      ast.calls.forEach((c) => callCounts.set(c, (callCounts.get(c) || 0) + 1));
     } else {
       totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
     }
@@ -173,7 +186,10 @@ function reverseCode(target) {
   }
   observed.push(`总代码 ${totalLines} 行，函数/方法 ${totalFuncs} 个（AST 精确），最大文件 ${maxFile.name}（${maxFile.lines} 行）`);
   if (classes.length) { observed.push(`类 ${[...new Set(classes)].length} 个: ${[...new Set(classes)].slice(0, 5).join(', ')}`); }
-  if (callNames.size) { observed.push(`函数调用 ${callNames.size} 种（AST）`); }
+  if (callCounts.size) { observed.push(`函数调用 ${callCounts.size} 种（AST）`); }
+  // 枢纽函数（被调用最多——专业级：定位核心/枢纽）
+  const hubs = [...callCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (hubs.length) { observed.push(`枢纽函数(被调用top5): ${hubs.map(([n, c]) => `${n}(${c}次)`).join(', ')}`); }
   // 最复杂/最长函数（专业级：定位高复杂度点）
   const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
   if (topComplex.length) { observed.push(`最复杂函数(top5): ${topComplex.map((f) => `${f.name}(复杂度${f.complexity}/${f.lines}行)`).join(', ')}`); }
