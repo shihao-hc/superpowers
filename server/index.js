@@ -153,6 +153,12 @@ function initializeModules() {
 
   // 1. 连接 BrainSystem 钩子系统（自动诊断/教训学习/风险分析）
   try {
+    // 依赖注入（打破 BrainSystem ↔ BrainBridge 循环依赖）：server 注入 BrainBridge 工厂，
+    // BrainSystem 不再 require BrainBridge（单向依赖）
+    try {
+      const { BrainBridge } = require('../src/core/BrainBridge');
+      if (typeof BrainSystem.setBridgeFactory === 'function') { BrainSystem.setBridgeFactory(BrainBridge); }
+    } catch (e) { logger.warn('[BrainSystem] BrainBridge 注入失败:', e.message); }
     BrainSystem.connectHooks();
     logger.info('[BrainSystem] 钩子系统已连接 (自动诊断/教训学习/风险分析/会话管理)');
   } catch (e) {

@@ -2111,7 +2111,12 @@ BrainSystem.connectHooks = function() {
       event: HookEvents.SESSION_START,
       name: 'brain-session-init',
       handler: (ctx) => {
-        try { new (require('./BrainBridge').BrainBridge)().initialize(); } catch (e) { console.warn('[BrainSystem] Session init hook error:', e.message); }
+        // 解耦（两全其美）：不 require BrainBridge（打破 BrainSystem↔BrainBridge 循环依赖），
+        // 改用注入的工厂（server 注入）；无注入则跳过（不报错）
+        try {
+          const Factory = BrainSystem._bridgeFactory;
+          if (Factory) { new Factory().initialize(); }
+        } catch (e) { console.warn('[BrainSystem] Session init hook error:', e.message); }
         return ctx;
       }
     });
@@ -2214,6 +2219,8 @@ module.exports = {
 
   // 补充导出
   smartSearch: BrainSystem.smartSearch,
+  // 依赖注入点（打破循环依赖）：server 注入 BrainBridge 工厂（明确的 setter，非裸属性赋值）
+  setBridgeFactory: (factory) => { BrainSystem._bridgeFactory = factory; },
   // 修复：语义检索此前未导出 → chatService 的 `if (smartSearchSemantic)` 恒 false，
   // 语义检索从未生效，一直退化 bigram（真实使用发现）
   smartSearchSemantic: BrainSystem.smartSearchSemantic,
