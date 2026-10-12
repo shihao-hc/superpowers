@@ -46,8 +46,11 @@ async function main() {
   const waitArg = args.find((a) => a.startsWith('--wait='));
   const url = args.find((a) => !a.startsWith('--'));
   if (!url && !imageArg) {
+    console.log('手眼 CLI — 打开网页/图片，精确提取（DOM，零模型）+ 中文理解（文本模型）');
     console.log('用法: node scripts/browser-eye.js <url> [--task=webpage|ocr|describe|identify] [--extract] [--json] [--text]');
     console.log('      node scripts/browser-eye.js --image=<path> [--task=describe|ocr|identify]');
+    console.log('      node scripts/browser-eye.js <url> --search="q" --click="sel" --after=extract  （交互）');
+    console.log('      node scripts/browser-eye.js <url> --grab="<css>"  （提取延迟渲染内容）');
     process.exit(1);
   }
   const taskArg = args.find((a) => a.startsWith('--task='));
