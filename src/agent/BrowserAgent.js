@@ -172,6 +172,19 @@ class BrowserAgent {
     }
   }
 
+  /**
+   * 按文字点击（语义定位，从 agent-browser 学：find by text——不用手写 CSS 选择器）
+   */
+  async clickByText(text) {
+    if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
+    try {
+      await this.page.getByText(text, { exact: false }).first().click({ timeout: 8000 });
+      return { success: true, text };
+    } catch (e) {
+      return { success: false, error: `按文字点击失败: "${text}"` };
+    }
+  }
+
   async type(selector, text) {
     if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
     try {
@@ -391,16 +404,24 @@ class BrowserAgent {
   }
 
   /**
-   * 提取特定选择器的所有文本（如 GitHub .markdown-body——延迟渲染内容）
+   * 提取特定选择器的所有文本（等内容非空——解决 React 延迟渲染：waitForSelector 可能
+   * 拿到未水合的空壳，如 GitHub .markdown-body。真实使用暴露）
    */
-  async extractText(selector) {
+  async extractText(selector, minLen = 30, timeout = 20000) {
     if (!this.page) { return { success: false, error: 'Browser not initialized' }; }
     try {
       await this.page.waitForSelector(selector, { timeout: 15000 });
-      const texts = await this.page.$$eval(selector, (els) => els.map((el) => el.innerText || ''));
-      const joined = texts.join('\n').trim();
-      if (!joined) { return { success: false, error: `元素存在但无文本: ${selector}` }; }
-      return { success: true, text: joined };
+      const start = Date.now();
+      let text = '';
+      while (Date.now() - start < timeout) {
+        try {
+          const texts = await this.page.$$eval(selector, (els) => els.map((el) => el.innerText || '').join('\n').trim());
+          if (texts.length >= minLen) { return { success: true, text: texts }; }
+          text = texts;
+        } catch (e) { /* 页面导航中 */ }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+      return { success: text.length >= minLen, text, error: `内容未加载充分（${text.length} 字符 < ${minLen}）` };
     } catch (e) {
       return { success: false, error: `未找到元素或未加载: ${selector}` };
     }

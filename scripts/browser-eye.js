@@ -116,7 +116,10 @@ async function main() {
     }
     if (clickArg) {
       const sel = clickArg.split('=')[1].replace(/^"|"$/g, '');
-      const clicked = await agent.click(sel);
+      // 语义定位（agent-browser 学）：click=text:登录（按文字点击，不需要 CSS 选择器）
+      const clicked = sel.startsWith('text:')
+        ? await agent.clickByText(sel.substring(5))
+        : await agent.click(sel);
       if (!clicked.success) { console.log(`❌ 点击失败: ${clicked.error}`); await agent.close(); process.exit(1); }
       await new Promise((r) => setTimeout(r, 1500));
     }
