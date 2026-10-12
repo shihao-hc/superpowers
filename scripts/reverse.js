@@ -80,6 +80,12 @@ function analyzeAST(src) {
           node.right && /Function|Arrow/.test(node.right.type)) {
         addFunc(node.right, node.left.property.name || node.left.property.value || '(member)');
       }
+      // module.exports = { a, b } → 提取导出名（用于排除死代码误报）
+      if (node.left && node.left.type === 'MemberExpression' && node.left.property &&
+          (node.left.property.name === 'exports' || node.left.property.value === 'exports') &&
+          node.right && node.right.type === 'ObjectExpression') {
+        node.right.properties.forEach((p) => { if (p.key) { result.exports.push(p.key.name || p.key.value); } });
+      }
       break;
     case 'CallExpression':
       if (node.callee && node.callee.type === 'Identifier') { result.calls.push(node.callee.name); }
@@ -149,6 +155,7 @@ function reverseCode(target) {
   const requires = new Set();
   const classes = [];
   const callCounts = new Map();
+  const exportedNames = new Set();
   const funcDetails = [];
   const fileDeps = {}; // 依赖图：文件 → 本地依赖
   const riskyPatterns = [];
@@ -172,6 +179,7 @@ function reverseCode(target) {
       ast.classes.forEach((c) => classes.push(c));
       ast.imports.forEach((i) => requires.add(i));
       ast.calls.forEach((c) => callCounts.set(c, (callCounts.get(c) || 0) + 1));
+      ast.exports.forEach((e) => exportedNames.add(e));
     } else {
       totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
     }
@@ -187,9 +195,18 @@ function reverseCode(target) {
   observed.push(`总代码 ${totalLines} 行，函数/方法 ${totalFuncs} 个（AST 精确），最大文件 ${maxFile.name}（${maxFile.lines} 行）`);
   if (classes.length) { observed.push(`类 ${[...new Set(classes)].length} 个: ${[...new Set(classes)].slice(0, 5).join(', ')}`); }
   if (callCounts.size) { observed.push(`函数调用 ${callCounts.size} 种（AST）`); }
-  // 枢纽函数（被调用最多——专业级：定位核心/枢纽）
-  const hubs = [...callCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  if (hubs.length) { observed.push(`枢纽函数(被调用top5): ${hubs.map(([n, c]) => `${n}(${c}次)`).join(', ')}`); }
+  // 枢纽函数（过滤内置/工具函数，只留业务枢纽）
+  const BUILTINS = new Set(['require', 'log', 'push', 'map', 'filter', 'forEach', 'slice', 'join', 'split',
+    'replace', 'test', 'match', 'includes', 'indexOf', 'toString', 'parse', 'stringify', 'keys', 'values',
+    'entries', 'has', 'get', 'set', 'delete', 'then', 'catch', 'resolve', 'reject', 'call', 'apply', 'bind',
+    'error', 'warn', 'info', 'trim', 'concat', 'sort', 'pop', 'shift', 'unshift', 'splice', 'reduce', 'add']);
+  const hubs = [...callCounts.entries()].filter(([n]) => !BUILTINS.has(n)).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (hubs.length) { observed.push(`业务枢纽(被调用top5): ${hubs.map(([n, c]) => `${n}(${c}次)`).join(', ')}`); }
+  // 死代码候选（定义了但未被调用，且非匿名——提示，非结论；导出函数可能被外部调用）
+  const definedNames = new Set(funcDetails.map((f) => f.name).filter((n) => n && !n.startsWith('(')));
+  const calledNames = new Set(callCounts.keys());
+  const deadCandidates = [...definedNames].filter((n) => !calledNames.has(n) && !exportedNames.has(n));
+  if (deadCandidates.length) { observed.push(`⚠️ 死代码候选(${deadCandidates.length}): ${deadCandidates.slice(0, 5).join(', ')}`); }
   // 最复杂/最长函数（专业级：定位高复杂度点）
   const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
   if (topComplex.length) { observed.push(`最复杂函数(top5): ${topComplex.map((f) => `${f.name}(复杂度${f.complexity}/${f.lines}行)`).join(', ')}`); }
