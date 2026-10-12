@@ -137,6 +137,7 @@ function reverseCode(target) {
   const classes = [];
   const callNames = new Set();
   const funcDetails = [];
+  const fileDeps = {}; // 依赖图：文件 → 本地依赖
   const riskyPatterns = [];
   const designFeatures = [];
   for (const f of files.slice(0, 50)) {
@@ -147,6 +148,9 @@ function reverseCode(target) {
     const exp = src.match(/module\.exports\s*=\s*(\{[^}]*\}|[\w.]+)/);
     if (exp) { exports.push(`${path.basename(f)}: ${exp[1].substring(0, 60).replace(/\s+/g, ' ')}`); }
     (src.match(/require\(['"]([^'"]+)['"]\)/g) || []).forEach((m) => requires.add(m.replace(/require\(['"]|['"]\)/g, '')));
+    // 依赖图（文件 → 本地依赖）
+    const localImports = [...src.matchAll(/require\(['"](\.[^'"]+)['"]\)/g)].map((m) => m[1]);
+    if (localImports.length) { fileDeps[path.basename(f)] = localImports; }
     // 专业级：AST 精确分析（函数/方法/类/调用/导入）
     const ast = analyzeAST(src);
     if (ast) {
@@ -173,6 +177,22 @@ function reverseCode(target) {
   // 最复杂/最长函数（专业级：定位高复杂度点）
   const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
   if (topComplex.length) { observed.push(`最复杂函数(top5): ${topComplex.map((f) => `${f.name}(复杂度${f.complexity}/${f.lines}行)`).join(', ')}`); }
+  // 依赖图分析（专业级：高耦合文件 + 循环依赖）
+  const coupling = Object.entries(fileDeps).sort((a, b) => b[1].length - a[1].length).slice(0, 3);
+  if (coupling.length) { observed.push(`高耦合文件(top3): ${coupling.map(([f, d]) => `${f}(${d.length}依赖)`).join(', ')}`); }
+  // 循环依赖（简化：两文件互相 require 对方文件名）
+  const cycles = [];
+  for (const [f, deps] of Object.entries(fileDeps)) {
+    const base = f.replace(/\.js$/, '');
+    for (const [g, deps2] of Object.entries(fileDeps)) {
+      if (f >= g) { continue; }
+      const gBase = g.replace(/\.js$/, '');
+      const fRefsG = deps.some((d) => d.includes(gBase));
+      const gRefsF = deps2.some((d) => d.includes(base));
+      if (fRefsG && gRefsF) { cycles.push(`${f} ↔ ${g}`); }
+    }
+  }
+  if (cycles.length) { observed.push(`⚠️ 循环依赖: ${cycles.slice(0, 3).join('; ')}`); }
   if (exports.length) { observed.push(`模块导出 ${exports.length} 处，如: ${exports[0]}`); }
   if (requires.size) { observed.push(`外部依赖 ${requires.size} 个: ${[...requires].slice(0, 5).join(', ')}`); }
   if (riskyPatterns.length) { observed.push(`⚠️ 危险模式 ${riskyPatterns.length} 处: ${riskyPatterns.slice(0, 3).join('; ')}`); }
