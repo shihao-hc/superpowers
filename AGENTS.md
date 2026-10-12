@@ -60,6 +60,11 @@
 > 实证：手眼 5 个缺口没一个靠想能想到，全是跑真实任务暴露的（执行受现实检验，想法受认知局限）。
 > "不看有什么能做什么，通过模拟真实使用看缺什么"——已记入教训库成功经验。
 
+> **网络自愈（2026-09-18，用户授权处理 Clash Verge）**：
+> Clash Verge 代理端口会变（本次 7897→7900，git 代理硬编码旧端口 → push 失败）。
+> 工具 `scripts/net-fix.js`：探测本地可用代理端口（curl 测 GitHub）+ 自动修 git 代理；
+> `monitor-server.js` 每 10min 自动跑。排障：git 网络失败 → `node scripts/net-fix.js`。
+
 > **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解
 > - `node scripts/browser-eye.js <url> --extract [--json]` —— DOM 结构化提取（精确、零模型）

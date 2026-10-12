@@ -59,16 +59,28 @@ async function loop() {
     lastHealthCheck = Date.now();
     runHealthCheck();
   }
+  // 定期网络自愈（每 10 分钟探测 Clash 代理端口 + 修 git 代理）——避免网络问题复现
+  if (Date.now() - lastNetCheck > 10 * 60 * 1000) {
+    lastNetCheck = Date.now();
+    runNetFix();
+  }
   setTimeout(loop, 30000);
 }
 
 let lastHealthCheck = 0;
+let lastNetCheck = 0;
 function runHealthCheck() {
   const child = spawn(NODE, ['scripts/health-check.js'], { cwd: process.cwd(), stdio: 'ignore' });
   child.on('exit', (code) => {
     log(`[health-check] 完成 exit=${code}${code === 1 ? ' ⚠️ 有非通过项，需追根源（5.3）' : ''}`);
   });
 }
+function runNetFix() {
+  const child = spawn(NODE, ['scripts/net-fix.js'], { cwd: process.cwd(), stdio: 'ignore' });
+  child.on('exit', (code) => {
+    log(`[net-fix] 完成 exit=${code}${code === 1 ? ' ⚠️ 无可用代理端口' : ''}`);
+  });
+}
 
-log('[monitor] 启动，每 30s 检查 server 存活；每 30min 自动健康检查');
+log('[monitor] 启动，每 30s 检查 server 存活；每 30min 健康检查；每 10min 网络自愈');
 loop();
