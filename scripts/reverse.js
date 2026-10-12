@@ -24,15 +24,36 @@ function analyzeAST(src) {
   if (!espree) { return null; }
   let ast;
   try { ast = espree.parse(src, { ecmaVersion: 2022, sourceType: 'script', loc: true, range: true }); } catch (e) { return null; }
+  // 圈复杂度（数分支/循环/逻辑运算）
+  const countComplexity = (node) => {
+    let c = 1;
+    const w = (n) => {
+      if (!n || typeof n !== 'object') { return; }
+      if (['IfStatement', 'ForStatement', 'ForInStatement', 'ForOfStatement', 'WhileStatement',
+        'DoWhileStatement', 'SwitchCase', 'ConditionalExpression'].includes(n.type)) { c++; }
+      if (n.type === 'LogicalExpression' && (n.operator === '&&' || n.operator === '||')) { c++; }
+      for (const k in n) {
+        if (k === 'loc' || k === 'range') { continue; }
+        const v = n[k];
+        if (Array.isArray(v)) { v.forEach(w); } else if (v && typeof v === 'object') { w(v); }
+      }
+    };
+    w(node);
+    return c;
+  };
+  const addFunc = (node, name) => {
+    const lines = node.loc ? node.loc.end.line - node.loc.start.line + 1 : 0;
+    result.functions.push({ name: name || '(anonymous)', lines, complexity: countComplexity(node) });
+  };
   const walk = (node) => {
     if (!node || typeof node !== 'object') { return; }
     switch (node.type) {
     case 'FunctionDeclaration':
     case 'FunctionExpression':
-      if (node.id && node.id.name) { result.functions.push(node.id.name); }
+      addFunc(node, node.id && node.id.name);
       break;
     case 'ArrowFunctionExpression':
-      result.functions.push('(arrow)');
+      addFunc(node, '(arrow)');
       break;
     case 'ClassDeclaration':
       if (node.id) { result.classes.push(node.id.name); }
@@ -44,7 +65,7 @@ function analyzeAST(src) {
       // 形如 BrainSystem.xxx = function / const x = () => ...
       if (node.left && node.left.type === 'MemberExpression' && node.left.property &&
           node.right && /Function|Arrow/.test(node.right.type)) {
-        result.functions.push(node.left.property.name || node.left.property.value || '(member)');
+        addFunc(node.right, node.left.property.name || node.left.property.value || '(member)');
       }
       break;
     case 'CallExpression':
@@ -115,6 +136,7 @@ function reverseCode(target) {
   const requires = new Set();
   const classes = [];
   const callNames = new Set();
+  const funcDetails = [];
   const riskyPatterns = [];
   const designFeatures = [];
   for (const f of files.slice(0, 50)) {
@@ -129,6 +151,7 @@ function reverseCode(target) {
     const ast = analyzeAST(src);
     if (ast) {
       totalFuncs += ast.functions.length + ast.methods.length;
+      ast.functions.forEach((fn) => funcDetails.push({ ...fn, file: path.basename(f) }));
       ast.classes.forEach((c) => classes.push(c));
       ast.imports.forEach((i) => requires.add(i));
       ast.calls.forEach((c) => callNames.add(c));
@@ -147,6 +170,9 @@ function reverseCode(target) {
   observed.push(`总代码 ${totalLines} 行，函数/方法 ${totalFuncs} 个（AST 精确），最大文件 ${maxFile.name}（${maxFile.lines} 行）`);
   if (classes.length) { observed.push(`类 ${[...new Set(classes)].length} 个: ${[...new Set(classes)].slice(0, 5).join(', ')}`); }
   if (callNames.size) { observed.push(`函数调用 ${callNames.size} 种（AST）`); }
+  // 最复杂/最长函数（专业级：定位高复杂度点）
+  const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
+  if (topComplex.length) { observed.push(`最复杂函数(top5): ${topComplex.map((f) => `${f.name}(复杂度${f.complexity}/${f.lines}行)`).join(', ')}`); }
   if (exports.length) { observed.push(`模块导出 ${exports.length} 处，如: ${exports[0]}`); }
   if (requires.size) { observed.push(`外部依赖 ${requires.size} 个: ${[...requires].slice(0, 5).join(', ')}`); }
   if (riskyPatterns.length) { observed.push(`⚠️ 危险模式 ${riskyPatterns.length} 处: ${riskyPatterns.slice(0, 3).join('; ')}`); }
