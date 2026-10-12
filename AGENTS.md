@@ -72,6 +72,8 @@
 > - `node scripts/browser-eye.js <url> --search="q" --click="sel" --after=extract` —— 交互（搜索/点击/填表）
 > - `node scripts/browser-eye.js --image=<path> [--task=describe|ocr|identify]` —— 直接理解本地图片
 > - **MCP server**：`scripts/mcp-handeye-server.js` —— 把 `browse_understand`/`extract_structured` 暴露为 MCP 工具，任何 MCP 客户端（opencode 等）可调用（借鉴 REA 的 MCP 集成）
+> - **我的逆向工程**：`scripts/reverse.js` —— 借鉴 REA（证据驱动 + 三分类 + 逆向思维），量身定做（REA 逆向二进制，我逆向代码/网页/系统）：
+>   `node scripts/reverse.js <文件|目录>`（逆向代码）/ `<url> --web`（逆向网页·手眼）/ `--system`（逆向系统）；输出【观察到的】【推断的】【不知道的】
 > - 底层：`src/agent/BrowserAgent.js`（手）+ `src/skills/executors/VisionExecutor.js`（眼）
 > **分层使用（诚实 + 换思路）**：网页文字/链接/表单用 `--extract`/`--text`（DOM 精确，零模型）；
 > 网页语义理解用 **DOM 事实 + qwen2.5:7b 中文总结**（比 moondream 准且稳——moondream 盲看曾把
