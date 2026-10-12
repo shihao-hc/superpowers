@@ -71,6 +71,7 @@
 > - `node scripts/browser-eye.js <url> --task=ocr|describe|identify` —— 不同视觉任务
 > - `node scripts/browser-eye.js <url> --search="q" --click="sel" --after=extract` —— 交互（搜索/点击/填表）
 > - `node scripts/browser-eye.js --image=<path> [--task=describe|ocr|identify]` —— 直接理解本地图片
+> - **MCP server**：`scripts/mcp-handeye-server.js` —— 把 `browse_understand`/`extract_structured` 暴露为 MCP 工具，任何 MCP 客户端（opencode 等）可调用（借鉴 REA 的 MCP 集成）
 > - 底层：`src/agent/BrowserAgent.js`（手）+ `src/skills/executors/VisionExecutor.js`（眼）
 > **分层使用（诚实 + 换思路）**：网页文字/链接/表单用 `--extract`/`--text`（DOM 精确，零模型）；
 > 网页语义理解用 **DOM 事实 + qwen2.5:7b 中文总结**（比 moondream 准且稳——moondream 盲看曾把
