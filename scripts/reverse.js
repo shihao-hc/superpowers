@@ -203,9 +203,12 @@ function reverseCode(target) {
     } else {
       totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
     }
-    // 危险模式（观察：证据）
-    for (const { re, label } of RISKY_PATTERNS) {
-      if (re.test(src)) { riskyPatterns.push(`${path.basename(f)}: ${label}`); }
+    // 危险模式（观察：证据）——跳过检测器/分析器文件（它们含检测模式文本是正常的，非真危险；静态分析无法区分真危险 vs 检测文本）
+    const isDetector = /comprehensiveChecks|security|Analyzer|Check|Scan|check|ScanExecutor/i.test(f);
+    if (!isDetector) {
+      for (const { re, label } of RISKY_PATTERNS) {
+        if (re.test(src)) { riskyPatterns.push(`${path.basename(f)}: ${label}`); }
+      }
     }
     // 设计特征
     if (/class\s+\w+\s+extends/.test(src)) { designFeatures.push('类继承'); }
