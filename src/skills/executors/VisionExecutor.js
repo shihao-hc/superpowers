@@ -84,14 +84,20 @@ class VisionExecutor {
       // 语义+确定性结合（弥补语义泛化/误判）：context（如页面标题/DOM 事实）附加给模型，
       // 让它"带着事实看"而非盲猜（真实使用暴露：盲看把 Wikipedia 说成搜索引擎）
       const fullPrompt = params.context ? `${prompt}\n\n参考信息（事实，勿与视觉冲突时忽略视觉猜测）: ${params.context}` : prompt;
-      // 视觉模型偶发空/异常输出 → 重试（可靠性打磨）
+      // 视觉模型偶发空/异常输出 → 重试（可靠性打磨；异常=回显 prompt 而非描述，真实使用暴露）
+      const isValidVision = (t) => {
+        const s = (t || '').trim();
+        if (s.length < 5) { return false; }
+        if (/请提供|提供您需要|translate|翻译成|需要翻译/.test(s)) { return false; }
+        return true;
+      };
       let res = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         res = await ollamaGenerate(model, fullPrompt, [image]);
-        if (res && res.response && res.response.trim().length > 0) { break; }
+        if (res && isValidVision(res.response)) { break; }
         if (attempt < 2) { await new Promise((r) => setTimeout(r, 500)); }
       }
-      if (!res || !res.response || !res.response.trim()) { return { ok: false, error: '视觉模型无响应（重试后仍空）' }; }
+      if (!res || !isValidVision(res.response)) { return { ok: false, error: '视觉模型无有效响应（重试后仍异常）' }; }
       let description = res.response.trim();
       // 中文适配：视觉模型英文输出 + 请求默认中文 → 用本地中文模型翻译
       const lang = params.lang || 'zh';
