@@ -45,6 +45,8 @@ function startServer() {
 
 let downStreak = 0;
 async function loop() {
+  // 心跳（供 keepalive 检查 monitor 自身存活——真实使用暴露：monitor 挂了则自愈链断）
+  try { fs.writeFileSync(path.join(process.cwd(), 'logs', 'monitor-heartbeat'), Date.now().toString()); } catch (e) { /* 心跳失败不阻塞 */ }
   const up = await check();
   if (!up) {
     downStreak++;

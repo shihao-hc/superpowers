@@ -65,6 +65,11 @@
 > 工具 `scripts/net-fix.js`：探测本地可用代理端口（curl 测 GitHub）+ 自动修 git 代理；
 > `monitor-server.js` 每 10min 自动跑。排障：git 网络失败 → `node scripts/net-fix.js`。
 
+> **系统级保活（2026-10-14，真实使用发现 monitor 挂了自愈链断）**：
+> 真实使用暴露：monitor（存活监控）**自身会挂** → 挂了没人管 server（自愈链断）。
+> 机制：monitor 写心跳（`logs/monitor-heartbeat`）+ `scripts/keepalive.js`（检查 server + monitor 心跳，
+> 重启缺失的）+ **Windows 任务计划 `Handeye-Keepalive`**（每 5min 跑 keepalive）——**监控者被系统级保活**。
+
 > **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解
 > - `node scripts/browser-eye.js <url> --extract [--json]` —— DOM 结构化提取（精确、零模型）
