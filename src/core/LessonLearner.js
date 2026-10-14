@@ -50,6 +50,8 @@ class LessonLearner {
   recordFeedback({ feedback, previousReply, userId }) {
     const text = this._str(feedback);
     if (!text) { return null; }
+    // 排除文档生成请求（真实使用暴露：文档内容可能含"修正"等词，被误判为纠正 → 垃圾教训注入所有会话）
+    if (/(生成|创建|制作|写|做).{0,30}(文档|报告|PDF|word|表格|excel|周报|海报)/i.test(text)) { return null; }
     // 纠正/负面信号检测
     const isCorrection = /不对|错了|不是这样|应该是|应该用|改成|修正|有误|不正确|不合适|wrong|incorrect|should be|that's not/i.test(text);
     if (!isCorrection) { return null; }
