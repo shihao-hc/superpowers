@@ -90,7 +90,12 @@ function analyzeAST(src) {
       if (node.id) { result.classes.push(node.id.name); }
       break;
     case 'MethodDefinition':
-      if (node.key && (node.key.name || node.key.value)) { result.methods.push(node.key.name || node.key.value); }
+      if (node.key && (node.key.name || node.key.value)) {
+        const mname = node.key.name || node.key.value;
+        result.methods.push(mname);
+        // 类方法纳入函数分析（真实使用暴露：此前漏类方法 → 最复杂函数全是 anonymous）
+        if (node.value) { addFunc(node.value, mname); }
+      }
       break;
     case 'AssignmentExpression':
       // 形如 BrainSystem.xxx = function（right 是函数——addFunc 会去重，遍历到 right 时不重复计）
