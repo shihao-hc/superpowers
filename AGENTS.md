@@ -1180,3 +1180,33 @@ Session 锚点: 2026-09-18 (第113次 — 确定性任务优先架构: 不依赖
 - **验证**: 全量 278/13,072/0 + ESLint 0/0 + 真实HTTP分流测试
 - 相关文件: `src/skills/executors/{SecurityScan,CodeQuality}Executor.js` (新), `server/services/chatService.js`,
   `tests/unit/{security-scan-executor,code-quality-executor}.test.js` (新), `tests/unit/chat-service.test.js`
+
+---
+
+Session 锚点: 2026-10-16 (第114次 — 真实验证暴露断裂 + 根治 cwd 根因 + 工具化应用闭环)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过 | 教训库 57 条
+- **背景 (用户"验证三点机制是否真完成")**: 声称"三点都完成"→ 真实验证暴露「留后手」链断裂——
+  keepalive 空转 30h（任务计划 Start In=N/A → cwd=System32 → 误判 monitor 挂 + 日志污染 System32\logs）
+- **根治 cwd 依赖根因 (4 出口全收口)**: ① scripts(keepalive/monitor/backup) process.cwd→__dirname
+  ② server 核心(index/chatService/routes) → PROJECT_ROOT ③ dotenv 隐式 cwd 依赖(显式 path 定位 .env)
+  ④ 测试隔离 chdir→env 覆盖(CHAT_CONVERSATIONS_FILE/UPLOADS_ROOT)。真实验证: 从 System32 启动 server
+  → health 200 + 数据正确落 D:\龙虾 + 零污染
+- **验证 AGENTS.md 全部机制**: 6 项真实工作(保活链/定时子任务/backup/health-check 56项/学习闭环/手眼工具)
+  → 发现 brain-bridge「自动桥接」名义存在(autoBridge/daemon 配置有、实现无——daemon 文件缺失、无 hook、
+  断路器 OPEN)。**诚实标注未自动接入**(改 0.1/0.3/0.5/2 节)
+- **改进 REA 死代码检测 (2 bug)**: ① 导出类方法误报(记录类→方法归属 classMethods，排除导出类方法+constructor)
+  ② 目录分析同名函数覆盖(4 个 process，callGraph key 加 file 前缀)。效果: BrainBridge 8→0 误报,
+  src/core 138→85 候选, 调用图枢纽准确
+- **工具化 (把"靠 recall"变"决策时可见")**: 暴露 3 个一等工具 reverse/browser_eye/lessons(plugin tool helper,
+  description 注入工具列表)。reverse 热加载实测可用; browser_eye 需重启生效(实证"文档说 config 不热加载"≠
+  plugin 实际会热加载——reverse 就是热加载进列表的，别拿文档结论当事实)
+- **打通教训库应用环节**: 此前只"记录"不"检索"(靠 AGENTS.md 不查全量库，57 条里 25 条躺库)。
+  lessons 工具(query→bigram 检索，用 context.directory 读 lessons.json 绕开 LessonLibrary 的 cwd 依赖)，
+  动作清单加「任务前检索教训」。验证: 检索「验证」命中 8 条含本会话新记的
+- **沉淀教训 (+3)**: 验证工具要跑到真实输出(非 --help)、改进要跨场景对比(矛盾=更深问题信号)、
+  先规划再执行要活成默认(非提醒后响应)。动作清单 +2 条(验证跨场景对比/任务前检索教训)
+- **诚实边界**: 3 个工具都是"半自动"(提升可见性、非 100% 强制，需我匹配场景主动调用)；
+  src/core 下另一批 cwd 依赖(LessonLibrary/SmartMemory/BrainBridge 等)未收口(本次聚焦不扩大)
+- 相关文件: `scripts/{keepalive,monitor-server,backup-core}.js`, `server/{index,routes/index}.js`,
+  `server/services/chatService.js`, `scripts/reverse.js`, `.opencode/plugins/{reverse-tool,browser-eye-tool,lessons-tool}.js` (新),
+  `tests/unit/{chat-service,file-download-routes}.test.js`, `AGENTS.md`
