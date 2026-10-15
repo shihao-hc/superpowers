@@ -20,7 +20,7 @@ let espree = null;
 try { espree = require('espree'); } catch (e) { /* 无 espree 则降级正则 */ }
 
 function analyzeAST(src) {
-  const result = { functions: [], classes: [], methods: [], calls: [], imports: [], exports: [], callGraph: {} };
+  const result = { functions: [], classes: [], methods: [], calls: [], imports: [], exports: [], callGraph: {}, classMethods: {} };
   if (!espree) { return null; }
   let ast;
   try { ast = espree.parse(src, { ecmaVersion: 2022, sourceType: 'script', loc: true, range: true }); } catch (e) { return null; }
@@ -87,7 +87,15 @@ function analyzeAST(src) {
       addFunc(node, inferName(parent));
       break;
     case 'ClassDeclaration':
-      if (node.id) { result.classes.push(node.id.name); }
+      if (node.id) {
+        result.classes.push(node.id.name);
+        // 记录「类 → 方法」归属（死代码检测用：导出类的所有方法对外可见，跨文件调用静态分析看不到）
+        const cm = [];
+        (node.body && node.body.body || []).forEach((el) => {
+          if (el.type === 'MethodDefinition' && el.key) { cm.push(el.key.name || el.key.value); }
+        });
+        result.classMethods[node.id.name] = cm;
+      }
       break;
     case 'MethodDefinition':
       if (node.key && (node.key.name || node.key.value)) {
@@ -179,6 +187,7 @@ function reverseCode(target) {
   const classes = [];
   const callCounts = new Map();
   const allCallGraph = {}; // 跨文件调用图
+  const allClassMethods = {}; // 跨文件「类→方法」归属（死代码检测排除导出类方法）
   const exportedNames = new Set();
   const funcDetails = [];
   const fileDeps = {}; // 依赖图：文件 → 本地依赖
@@ -203,7 +212,11 @@ function reverseCode(target) {
       ast.classes.forEach((c) => classes.push(c));
       ast.imports.forEach((i) => requires.add(i));
       ast.calls.forEach((c) => callCounts.set(c, (callCounts.get(c) || 0) + 1));
-      Object.assign(allCallGraph, ast.callGraph);
+      // callGraph key 加 file 前缀：避免跨文件同名函数（如 4 个 process）被 Object.assign 互相覆盖，丢失调用关系
+      for (const [fn, calls] of Object.entries(ast.callGraph)) {
+        allCallGraph[`${path.basename(f)}:${fn}`] = calls;
+      }
+      if (ast.classMethods) { Object.assign(allClassMethods, ast.classMethods); }
       ast.exports.forEach((e) => exportedNames.add(e));
     } else {
       totalFuncs += (src.match(/(?:async\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:async\s*)?\(/g) || []).length;
@@ -237,8 +250,16 @@ function reverseCode(target) {
   const graphHubs = [...inDegree.entries()].filter(([n]) => !BUILTINS.has(n) && definedNames.has(n))
     .sort((a, b) => b[1] - a[1]).slice(0, 5);
   if (graphHubs.length) { observed.push(`调用图枢纽(被最多函数调用top5): ${graphHubs.map(([n, c]) => `${n}(${c}个函数调用)`).join(', ')}`); }
-  // 死代码候选（定义了但未被调用，且非匿名——提示，非结论；导出函数可能被外部调用）
-  const deadCandidates = [...definedNames].filter((n) => !inDegree.has(n) && !exportedNames.has(n));
+  // 死代码候选（提示，非结论）：
+  // 排除「被调用」(inDegree)、「导出名」(exportedNames)、「导出类的方法」(exportedClassMethods)、constructor。
+  // 导出类的方法如 new ExportedClass().method() 是跨文件调用，静态分析看不到 → 必须排除，否则类方法误报。
+  const exportedClassMethods = new Set();
+  for (const [cls, mts] of Object.entries(allClassMethods)) {
+    if (exportedNames.has(cls)) { mts.forEach((m) => exportedClassMethods.add(m)); }
+  }
+  const deadCandidates = [...definedNames].filter((n) =>
+    !inDegree.has(n) && !exportedNames.has(n) && !exportedClassMethods.has(n) && n !== 'constructor'
+  );
   if (deadCandidates.length) { observed.push(`⚠️ 死代码候选(${deadCandidates.length}): ${deadCandidates.slice(0, 5).join(', ')}`); }
   // 最复杂/最长函数（专业级：定位高复杂度点）
   const topComplex = [...funcDetails].sort((a, b) => b.complexity - a.complexity).slice(0, 5);
