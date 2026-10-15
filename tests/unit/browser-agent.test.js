@@ -205,7 +205,9 @@ describe('BrowserAgent', () => {
       expect(global.navigator.webdriver).toBe(false);
       expect(global.navigator.plugins).toHaveLength(5);
       expect(global.navigator.languages).toEqual(['zh-CN', 'zh', 'en']);
-      expect(global.window.chrome).toEqual({ runtime: {} });
+      expect(global.window.chrome).toEqual({ runtime: {}, loadTimes: expect.any(Function), csi: expect.any(Function), app: {} });
+      expect(global.navigator.maxTouchPoints).toBe(0);
+      expect(global.navigator.hardwareConcurrency).toBe(8);
     });
   });
 
@@ -262,12 +264,13 @@ describe('BrowserAgent', () => {
 
       const result = await agent.goto('https://example.com');
       expect(result).toEqual({ success: true, url: 'https://example.com' });
-      expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'domcontentloaded' });
+      expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
     });
 
-    it('goto should throw when not initialized', async () => {
+    it('goto should return structured failure when not initialized', async () => {
       const agent = new BrowserAgent();
-      await expect(agent.goto('https://example.com')).rejects.toThrow('Browser not initialized');
+      const result = await agent.goto('https://example.com');
+      expect(result).toEqual({ success: false, error: 'Browser not initialized' });
     });
 
     it('back should navigate back', async () => {
@@ -332,13 +335,15 @@ describe('BrowserAgent', () => {
 
       const result = await agent.click('#button');
       expect(result).toEqual({ success: true, selector: '#button' });
-      expect(mockPage.waitForSelector).toHaveBeenCalledWith('#button', { timeout: 5000 });
+      expect(mockPage.waitForSelector).toHaveBeenCalledWith('#button', { timeout: 8000 });
       expect(mockPage.click).toHaveBeenCalledWith('#button');
     });
 
-    it('click should throw when not initialized', async () => {
+    it('click should return structured failure when not initialized', async () => {
       const agent = new BrowserAgent();
-      await expect(agent.click('#btn')).rejects.toThrow('Browser not initialized');
+      const result = await agent.click('#btn');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Browser not initialized');
     });
 
     it('type should fill text in selector', async () => {
@@ -1174,9 +1179,7 @@ describe('BrowserAgent', () => {
 
   describe('guard checks - throw when not initialized', () => {
     const methods = [
-      ['goto', 'https://example.com'],
-      ['click', '#btn'],
-      ['type', '#input', 'text'],
+      // goto/click/type 已改为结构化返回（不 throw）——见下方 structured-failure 测试
       ['extract', '.item'],
       ['screenshot', {}],
       ['scroll', 'down'],
@@ -1200,6 +1203,21 @@ describe('BrowserAgent', () => {
       it(`${method} should throw when not initialized`, async () => {
         const agent = new BrowserAgent();
         await expect(agent[method](...args)).rejects.toThrow('Browser not initialized');
+      });
+    });
+
+    // goto/click/type 已改为结构化返回（不 throw）——未初始化 → {success: false}
+    const structuredMethods = [
+      ['goto', 'https://example.com'],
+      ['click', '#btn'],
+      ['type', '#input', 'text']
+    ];
+    structuredMethods.forEach(([method, ...args]) => {
+      it(`${method} should return structured failure when not initialized`, async () => {
+        const agent = new BrowserAgent();
+        const r = await agent[method](...args);
+        expect(r.success).toBe(false);
+        expect(r.error).toContain('Browser not initialized');
       });
     });
   });

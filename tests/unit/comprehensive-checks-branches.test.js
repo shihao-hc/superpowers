@@ -51,16 +51,23 @@ describe('A-code 分支', () => {
     expect(r.status).toBe('passed');
   });
 
-  test('checkModuleExports: 核心模块无导出 → warning', async () => {
-    const f = write('core/secret.js', 'function internal() { return 1; }');
-    const r = await CHECK_IMPLEMENTATIONS.checkModuleExports(root, [fwd(f)]);
-    expect(r.status).toBe('warning');
-    expect(r.message).toContain('部分模块未导出');
+  test('checkModuleExports: 无 BrainSystem.js → 跳过 passed（新行为：导出完整性）', async () => {
+    const r = await CHECK_IMPLEMENTATIONS.checkModuleExports(root, []);
+    expect(r.status).toBe('passed');
   });
 
-  test('checkModuleExports: 核心模块有导出 → passed', async () => {
-    const f = write('core/exported.js', 'module.exports = {};');
-    const r = await CHECK_IMPLEMENTATIONS.checkModuleExports(root, [fwd(f)]);
+  test('checkModuleExports: BrainSystem 导出遗漏（调用但未导出）→ warning', async () => {
+    write('src/core/BrainSystem.js', 'module.exports = { smartStore }; function smartStore() {}');
+    write('server/caller.js', 'const { BrainSystem } = require(\'../src/core/BrainSystem\'); BrainSystem.nonexistent();');
+    const r = await CHECK_IMPLEMENTATIONS.checkModuleExports(root, []);
+    expect(r.status).toBe('warning');
+    expect(r.details).toContain('nonexistent');
+  });
+
+  test('checkModuleExports: BrainSystem 导出完整 → passed', async () => {
+    write('src/core/BrainSystem.js', 'module.exports = { smartStore }; function smartStore() {}');
+    write('server/caller.js', 'const { BrainSystem } = require(\'../src/core/BrainSystem\'); BrainSystem.smartStore();');
+    const r = await CHECK_IMPLEMENTATIONS.checkModuleExports(root, []);
     expect(r.status).toBe('passed');
   });
 
@@ -210,28 +217,28 @@ describe('G-testability 分支', () => {
   });
 
   test('checkBoundaryTests: 测试文件无边界关键词 → warning', async () => {
-    write('src/core/BrainSystem.test.js', 'describe("x", () => { it("works", () => {}); });');
+    write('tests/unit/a.test.js', 'describe("x", () => { it("works", () => {}); });');
     const r = await CHECK_IMPLEMENTATIONS.checkBoundaryTests(root);
     expect(r.status).toBe('warning');
     expect(r.message).toContain('边界测试不完整');
   });
 
   test('checkBoundaryTests: 测试文件含边界关键词 → passed', async () => {
-    write('test/BrainSystem.test.js', 'test("max boundary", () => {});');
+    write('tests/unit/b.test.js', 'test("max boundary", () => {});');
     const r = await CHECK_IMPLEMENTATIONS.checkBoundaryTests(root);
     expect(r.status).toBe('passed');
     expect(r.message).toBe('边界测试覆盖');
   });
 
   test('checkErrorTests: 测试文件无错误关键词 → warning', async () => {
-    write('src/core/BrainSystem.test.js', 'describe("x", () => { it("ok", () => {}); });');
+    write('tests/unit/a.test.js', 'describe("x", () => { it("ok", () => {}); });');
     const r = await CHECK_IMPLEMENTATIONS.checkErrorTests(root);
     expect(r.status).toBe('warning');
     expect(r.message).toContain('错误场景测试');
   });
 
   test('checkErrorTests: 测试文件含catch → passed', async () => {
-    write('test/BrainSystem.test.js', 'try { x(); } catch (e) { throw e; }');
+    write('tests/unit/b.test.js', 'try { x(); } catch (e) { throw e; }');
     const r = await CHECK_IMPLEMENTATIONS.checkErrorTests(root);
     expect(r.status).toBe('passed');
     expect(r.message).toBe('错误场景测试覆盖');
