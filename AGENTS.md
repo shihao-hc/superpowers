@@ -142,16 +142,19 @@
 
 ## 0. 强制决策协议（自动化桥接）
 
-### 0.1 自动大脑桥接
+### 0.1 大脑桥接状态（2026-10-15 真实验证：未自动接入）
 
-我已通过 brain-bridge.js 自动与 BrainSystem 桥接。以下决策注入自动生效：
+`brain-bridge.js` 是**手动查询工具**（`node brain-bridge.js <input>`），**未自动接入**。
+原「自动桥接」声称经真实验证不成立：
 
-> ⚠️ **执行者标注（诚实）**：本会话运行中未观察到这些注入的可见输出，属"宣称未验证"。
-> 不作为依赖；桥接失效（空/超时）时按 0.2 跳过，不影响主流程。
+- `autoBridge: true` / `daemon.enabled: true` 仅写在 `brain.config.json`，但**无执行它们的代码路径**——
+  `src/daemon/index.js` 文件不存在、无 opencode hook、server 不经过 bridge；
+- 断路器 OPEN + loop guard 熔断史（历史触发过）。
 
-- **意图分析**: forceThink + analyzeIntent 自动分析输入
-- **教训匹配**: LessonReminder 自动匹配相关教训
-- **主动思考**: ProactiveThinking 自动跟踪模式
+教训注入实际靠两条已验证路径：① AGENTS.md 本身（本文件即教训载体）；② chatService 直接调
+BrainSystem（smartSearch + LessonLibrary，已真实验证）。桥接失效不影响主流程（见 0.2）。
+
+手动命令：`node brain-bridge.js <input>`（分析）、`--status`（状态）、`--diagnose <err>`（诊断）。
 
 ### 0.2 安全协议
 
@@ -163,16 +166,14 @@
 禁用方式: BRAIN_DISABLE=1 或对话中说"大脑关闭"
 ```
 
-### 0.3 动态决策注入 (Phase C)
+### 0.3 动态决策注入 (Phase C)（未自动生效）
 
-brain-bridge.js 返回的 `decisionContext` 字段提供运行时决策指导，**优先级高于本节静态规则**：
+`brain-bridge.js` 返回的 `decisionContext` 字段提供运行时决策指导，**仅手动查询可得**（`node brain-bridge.js <input>`）。未自动生效：PRE_TOOL_USE 无自动风险分析（无 hook 接入）。
 
 - **riskLevel**: "low"|"medium"|"high" — 影响操作谨慎程度
 - **recommendations**: 动态决策建议列表（根据 taskType + lessons 生成）
 - **priorityOverrides**: 覆盖特定教训的优先级
 - **toolRestrictions**: 基于风险等级的自动操作限制
-
-PRE_TOOL_USE 时自动进行风险分析，高风险操作会被标记 WARN 或 BLOCK。
 
 ### 0.4 决策展示格式
 
@@ -194,7 +195,7 @@ PRE_TOOL_USE 时自动进行风险分析，高风险操作会被标记 WARN 或 
 
 | 指令 | 效果 |
 |------|------|
-| 大脑关闭 | 当前会话停用自动大脑 |
+| 大脑关闭 | 当前会话停用大脑辅助（BRAIN_DISABLE=1） |
 | 大脑状态 | 显示当前 Bridge/断路器/审计状态 |
 | 大脑重置 | 重置断路器，重新启用 |
 
@@ -236,8 +237,8 @@ deepReflect({ input, success });
 - 教训库: **35 条**（全未应用，提醒可用；此前"41 条活跃"为失实记录）
 - Skills: **291 个**（SkillRecognizer 实际加载数；此前"304"为失实记录）
 - 决策规则: 6 类（brain-decision）+ 9 类任务分类映射（LessonReminder）
-- 桥梁: **brain-bridge.js v1**（注意：loop-guard 曾触发熔断，需 `brain-bridge.js --status` 确认状态）
-- Phase C: **动态决策注入 (运行时上下文 ~> AGENTS.md)**
+- 桥梁: **brain-bridge.js v1**（未自动接入，手动工具；loop-guard 曾触发熔断）
+- Phase C: **动态决策注入（未自动生效，仅手动查询）**
 
 ---
 
