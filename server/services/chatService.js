@@ -16,6 +16,10 @@ const { ContextCompactService } = require('../../src/agent/ContextCompactService
 // 会话持久化文件（server 重启后恢复多轮上下文；env 可覆盖供测试隔离）
 const CONVERSATIONS_FILE = process.env.CHAT_CONVERSATIONS_FILE || path.join(PROJECT_ROOT, 'data', 'conversations.json');
 
+// token 用量明细（JSONL 追加，重启不丢——此前 stats.tokens 仅内存，重启清零，无法积累分析）
+const TOKEN_USAGE_FILE = process.env.CHAT_TOKEN_USAGE_FILE || path.join(PROJECT_ROOT, 'logs', 'token-usage.jsonl');
+const TOKEN_USAGE_MAX_LINES = 50000;
+
 class ChatService extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -56,6 +60,55 @@ class ChatService extends EventEmitter {
       autoCompactEnabled: true
     });
     this._contextCompacts = new Map();
+
+    // 从 JSONL 恢复累积 token 统计（重启不丢）
+    this._loadTokenStats();
+  }
+
+  /**
+   * 从 token-usage.jsonl 恢复累积统计（重启后 stats.tokens 不归零）
+   */
+  _loadTokenStats() {
+    try {
+      if (!fs.existsSync(TOKEN_USAGE_FILE)) { return; }
+      const lines = fs.readFileSync(TOKEN_USAGE_FILE, 'utf8').split('\n').filter(Boolean);
+      let prompt = 0;
+      let completion = 0;
+      let requests = 0;
+      for (const line of lines) {
+        const rec = JSON.parse(line);
+        prompt += rec.prompt || 0;
+        completion += rec.completion || 0;
+        requests++;
+      }
+      this.stats.tokens.prompt = prompt;
+      this.stats.tokens.completion = completion;
+      this.stats.tokens.requests = requests;
+      this.stats.tokens.total = prompt + completion;
+    } catch (e) { /* 恢复失败不阻塞（文件损坏则从 0 开始） */ }
+  }
+
+  /**
+   * 追加一次 token 用量明细到 JSONL（持久化，供后续分析 token 消耗分布）
+   */
+  _appendTokenUsage(prompt, completion) {
+    try {
+      const rec = {
+        ts: new Date().toISOString(),
+        prompt,
+        completion,
+        total: prompt + completion,
+        utilization: this.contextLength > 0 ? prompt / this.contextLength : 0
+      };
+      const dir = path.dirname(TOKEN_USAGE_FILE);
+      if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
+      fs.appendFileSync(TOKEN_USAGE_FILE, `${JSON.stringify(rec)}\n`);
+      // 截断：保留最近 N 行，防止文件无限增长
+      const lines = fs.readFileSync(TOKEN_USAGE_FILE, 'utf8').split('\n').filter(Boolean);
+      if (lines.length > TOKEN_USAGE_MAX_LINES) {
+        fs.writeFileSync(TOKEN_USAGE_FILE, `${lines.slice(-TOKEN_USAGE_MAX_LINES).join('\n')}\n`);
+      }
+    } catch (e) { /* 持久化失败不阻塞主流程 */ }
   }
 
   /**
@@ -140,6 +193,8 @@ class ChatService extends EventEmitter {
       this.stats.tokens.requests++;
     }
     this.stats.tokens.total = this.stats.tokens.prompt + this.stats.tokens.completion;
+    // 持久化本次用量（JSONL 追加，重启不丢）
+    if (Number.isFinite(prompt) && prompt > 0) { this._appendTokenUsage(prompt, completion); }
     if (Number.isFinite(prompt) && prompt > 0 && this.contextLength > 0) {
       const utilization = prompt / this.contextLength;
       if (utilization > 0.8) {
