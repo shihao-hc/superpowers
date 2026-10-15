@@ -10,7 +10,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = process.cwd();
+// 项目根用 __dirname 定位，不依赖调用者 cwd（monitor/任务计划调用时 cwd 可能不是项目根）
+const ROOT = path.join(__dirname, '..');
 const BACKUP_DIR = path.join(ROOT, 'backup');
 const KEEP = 7;
 

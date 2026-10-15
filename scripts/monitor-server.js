@@ -13,7 +13,9 @@ const http = require('http');
 const path = require('path');
 
 const PORT = 3000;
-const LOG = path.join(process.cwd(), 'logs', 'monitor.log');
+// 项目根用 __dirname 定位，不依赖调用者 cwd（任务计划 Start In=N/A 时 cwd=System32，曾致保活链全断）
+const ROOT = path.join(__dirname, '..');
+const LOG = path.join(ROOT, 'logs', 'monitor.log');
 const NODE = process.execPath;
 
 function log(msg) {
@@ -35,7 +37,7 @@ function check() {
 
 function startServer() {
   const child = spawn(NODE, ['server/index.js'], {
-    cwd: process.cwd(),
+    cwd: ROOT,
     stdio: 'ignore',
     detached: true
   });
@@ -46,7 +48,7 @@ function startServer() {
 let downStreak = 0;
 async function loop() {
   // 心跳（供 keepalive 检查 monitor 自身存活——真实使用暴露：monitor 挂了则自愈链断）
-  try { fs.writeFileSync(path.join(process.cwd(), 'logs', 'monitor-heartbeat'), Date.now().toString()); } catch (e) { /* 心跳失败不阻塞 */ }
+  try { fs.writeFileSync(path.join(ROOT, 'logs', 'monitor-heartbeat'), Date.now().toString()); } catch (e) { /* 心跳失败不阻塞 */ }
   const up = await check();
   if (!up) {
     downStreak++;
@@ -69,7 +71,7 @@ async function loop() {
   // 每日核心数据备份（"留后手"——教训库/记忆/会话损坏可恢复，保留 7 份）
   if (Date.now() - lastBackup > 24 * 60 * 60 * 1000) {
     lastBackup = Date.now();
-    const child = spawn(NODE, ['scripts/backup-core.js'], { cwd: process.cwd(), stdio: 'ignore' });
+    const child = spawn(NODE, ['scripts/backup-core.js'], { cwd: ROOT, stdio: 'ignore' });
     child.on('exit', () => log('[backup] 核心数据备份完成'));
   }
   setTimeout(loop, 30000);
@@ -79,13 +81,13 @@ let lastHealthCheck = 0;
 let lastNetCheck = 0;
 let lastBackup = 0;
 function runHealthCheck() {
-  const child = spawn(NODE, ['scripts/health-check.js'], { cwd: process.cwd(), stdio: 'ignore' });
+  const child = spawn(NODE, ['scripts/health-check.js'], { cwd: ROOT, stdio: 'ignore' });
   child.on('exit', (code) => {
     log(`[health-check] 完成 exit=${code}${code === 1 ? ' ⚠️ 有非通过项，需追根源（5.3）' : ''}`);
   });
 }
 function runNetFix() {
-  const child = spawn(NODE, ['scripts/net-fix.js'], { cwd: process.cwd(), stdio: 'ignore' });
+  const child = spawn(NODE, ['scripts/net-fix.js'], { cwd: ROOT, stdio: 'ignore' });
   child.on('exit', (code) => {
     log(`[net-fix] 完成 exit=${code}${code === 1 ? ' ⚠️ 无可用代理端口' : ''}`);
   });

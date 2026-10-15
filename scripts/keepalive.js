@@ -12,7 +12,8 @@ const path = require('path');
 const http = require('http');
 
 const NODE = process.execPath;
-const ROOT = process.cwd();
+// 项目根用 __dirname 定位，不依赖调用者 cwd（任务计划 Start In=N/A 时 cwd=System32，曾致保活链全断）
+const ROOT = path.join(__dirname, '..');
 const HEARTBEAT = path.join(ROOT, 'logs', 'monitor-heartbeat');
 
 function log(msg) {
