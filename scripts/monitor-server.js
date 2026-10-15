@@ -66,11 +66,18 @@ async function loop() {
     lastNetCheck = Date.now();
     runNetFix();
   }
+  // 每日核心数据备份（"留后手"——教训库/记忆/会话损坏可恢复，保留 7 份）
+  if (Date.now() - lastBackup > 24 * 60 * 60 * 1000) {
+    lastBackup = Date.now();
+    const child = spawn(NODE, ['scripts/backup-core.js'], { cwd: process.cwd(), stdio: 'ignore' });
+    child.on('exit', () => log('[backup] 核心数据备份完成'));
+  }
   setTimeout(loop, 30000);
 }
 
 let lastHealthCheck = 0;
 let lastNetCheck = 0;
+let lastBackup = 0;
 function runHealthCheck() {
   const child = spawn(NODE, ['scripts/health-check.js'], { cwd: process.cwd(), stdio: 'ignore' });
   child.on('exit', (code) => {
