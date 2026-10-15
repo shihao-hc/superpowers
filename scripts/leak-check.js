@@ -68,10 +68,21 @@ function get(pathname) {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-// 判断是否"软 404"（很多站返回 200 但内容是 404 页）
+// 首页内容（软 404 判断用：很多站对不存在的路径「静默回退到首页」，内容与首页相同——真实教训：meiyouwx.com 的 index.php.bak 即此）
+let homeBody = '';
+async function loadHome() {
+  const res = await get('/');
+  homeBody = (res.body || '').slice(0, 2000);
+}
+
+// 判断是否"软 404"（很多站返回 200 但内容是 404 页，或静默回退到首页）
 function isSoft404(res) {
   const b = (res.body || '').toLowerCase();
-  return /not found|404|页面不存在|找不到|does not exist|no such file/i.test(b) && b.length < 2000;
+  // 1. 内容含 404 字样且较短 → 软 404
+  if (/not found|404|页面不存在|找不到|does not exist|no such file/i.test(b) && b.length < 2000) { return true; }
+  // 2. 内容与首页相同（前 2000 字符一致）→ 静默回退首页，也是软 404
+  if (homeBody && homeBody.length > 0 && (res.body || '').slice(0, 2000) === homeBody) { return true; }
+  return false;
 }
 
 const findings = [];
@@ -87,6 +98,7 @@ async function check(pathname, category, evidence) {
 
 async function main() {
   console.log(`目标: ${baseUrl}\n开始检测（温和 GET，仅检测信息泄露）...\n`);
+  await loadHome();
 
   // 1. .git 泄露
   for (const p of gitPaths) {
