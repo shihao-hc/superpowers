@@ -437,11 +437,15 @@ git commit ...  →  立即 git push origin main  →  确认 git status -sb 无
 每次 edit 后必须：
 
 ```
-edit → lint --max-warnings=0 → 通过? → test → 通过? → 继续下一步
+edit → lint --max-warnings=0 → 通过? → 全量 test → 通过? → 继续下一步
                                ↓ 失败              ↓ 失败
                             git checkout --     git checkout --
                             还原该文件          还原该文件
 ```
+
+> **test = 全量 jest（非局部）**——2026-10-14 真实行暴露：协议说"跑 test"被执行成"跑我改的文件的
+> 局部 test"→ 14 个跨套件回归漏网（G-testability/browser-agent 参数化测试在别处）。局部测试抓不到
+> 跨套件影响，**全量才能**。效率诱惑（全量慢）不是走样的理由。
 
 **禁止**在已有修复失败的情况下继续修其他东西。
 
