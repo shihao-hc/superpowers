@@ -7,11 +7,14 @@ const fs = require('fs');
 const path = require('path');
 const _config = require('../config');
 
+// 项目根（不依赖 cwd——同类根因：cwd 假设曾被任务计划打破致保活链全断）
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+
 // 集成 Claude Code 风格的上下文压缩服务
 const { ContextCompactService } = require('../../src/agent/ContextCompactService');
 
-// 会话持久化文件（server 重启后恢复多轮上下文）
-const CONVERSATIONS_FILE = path.join(process.cwd(), 'data', 'conversations.json');
+// 会话持久化文件（server 重启后恢复多轮上下文；env 可覆盖供测试隔离）
+const CONVERSATIONS_FILE = process.env.CHAT_CONVERSATIONS_FILE || path.join(PROJECT_ROOT, 'data', 'conversations.json');
 
 class ChatService extends EventEmitter {
   constructor(options = {}) {
@@ -97,7 +100,7 @@ class ChatService extends EventEmitter {
     try {
       const path = require('path');
       const { MCPPlugin } = require('../../src/mcp/MCPPlugin');
-      const plugin = new MCPPlugin({ configPath: path.join(process.cwd(), 'config', 'mcp-servers.json') });
+      const plugin = new MCPPlugin({ configPath: path.join(PROJECT_ROOT, 'config', 'mcp-servers.json') });
       this._mcpPlugin = plugin;
       return plugin;
     } catch (e) { /* MCP 不可用，仅 generate_document 技能 */ }
@@ -186,7 +189,7 @@ class ChatService extends EventEmitter {
     if (/^(什么|啥)是|怎么(预防|避免|防范|防止)|如何(预防|避免|防范|防止)/.test(t) && !/帮我|检查|扫描|查/.test(t)) {
       return null;
     }
-    return { name: 'security_scan', arguments: { root: process.cwd(), limit: 200 } };
+    return { name: 'security_scan', arguments: { root: PROJECT_ROOT, limit: 200 } };
   }
 
   /**
@@ -200,7 +203,7 @@ class ChatService extends EventEmitter {
     // 排除状态/回顾询问（"代码质量怎么样/之前查过吗"不是请求执行）
     if (/做了吗|完成了吗|进展|之前|回顾|复盘|最近/.test(t)) { return null; }
     if (/^(什么|啥)是|怎么提升|如何提升|怎么看/.test(t)) { return null; }
-    return { name: 'code_quality', arguments: { root: process.cwd() } };
+    return { name: 'code_quality', arguments: { root: PROJECT_ROOT } };
   }
 
   /**
@@ -534,7 +537,7 @@ class ChatService extends EventEmitter {
           this._markSkillInjected(conversation, skill.name);
           return `\n系统具备相关能力「${skill.name}」：${skill.description || skill.type || ''}。`;
         }
-        const skMd = path.join(process.cwd(), '.opencode', 'skills', skill.name, 'SKILL.md');
+        const skMd = path.join(PROJECT_ROOT, '.opencode', 'skills', skill.name, 'SKILL.md');
         if (fs.existsSync(skMd)) {
           // 缓存技能内容（避免每消息读盘同步 IO）
           if (!this._skillEssenceCache) { this._skillEssenceCache = new Map(); }

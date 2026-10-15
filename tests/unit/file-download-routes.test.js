@@ -41,13 +41,13 @@ const app = express();
 app.use('/api', routes);
 
 describe('GET /api/files (document download)', () => {
-  const origCwd = process.cwd();
   let tmpDir;
   let testFile;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'files-route-'));
-    process.chdir(tmpDir);
+    // 隔离：用 env 覆盖 uploads 根（替代 chdir——uploadsRoot 现已不依赖 cwd）
+    process.env.UPLOADS_ROOT = path.join(tmpDir, 'uploads', 'skills');
     const dir = path.join(tmpDir, 'uploads', 'skills', 'docx');
     fs.mkdirSync(dir, { recursive: true });
     testFile = path.join(dir, 'test-doc.docx');
@@ -55,7 +55,7 @@ describe('GET /api/files (document download)', () => {
   });
 
   afterEach(() => {
-    process.chdir(origCwd);
+    delete process.env.UPLOADS_ROOT;
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
   });
 

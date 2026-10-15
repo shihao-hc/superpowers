@@ -8,6 +8,9 @@ const path = require('path');
 const fs = require('fs');
 const { apiVersion, authMiddleware } = require('../middleware');
 
+// 项目根（不依赖 cwd——同类根因：cwd 假设曾被任务计划打破致保活链全断）
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+
 // API版本中间件
 router.use(apiVersion);
 
@@ -21,7 +24,7 @@ router.get('/files/:skillName/:filename', authMiddleware, (req, res) => {
   if (!/^[a-zA-Z0-9_-]+$/.test(skillName) || !/^[a-zA-Z0-9_.-]+$/.test(filename)) {
     return res.status(400).json({ error: 'Invalid path' });
   }
-  const uploadsRoot = path.join(process.cwd(), 'uploads', 'skills');
+  const uploadsRoot = process.env.UPLOADS_ROOT || path.join(PROJECT_ROOT, 'uploads', 'skills');
   const filePath = path.join(uploadsRoot, skillName, filename);
   // 双重确认：解析后仍在 uploads 根内
   if (!path.resolve(filePath).startsWith(path.resolve(uploadsRoot))) {

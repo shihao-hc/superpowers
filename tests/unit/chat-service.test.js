@@ -741,17 +741,17 @@ describe('ChatService conversation persistence', () => {
   const os = require('os');
   const fs = require('fs');
   const path = require('path');
-  const origCwd = process.cwd();
   let tmpDir;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'conv-persist-'));
-    process.chdir(tmpDir);
+    // 隔离：用 env 覆盖会话文件路径（替代 chdir——CONVERSATIONS_FILE 现已不依赖 cwd）
+    process.env.CHAT_CONVERSATIONS_FILE = path.join(tmpDir, 'data', 'conversations.json');
     jest.resetModules();
   });
 
   afterEach(() => {
-    process.chdir(origCwd);
+    delete process.env.CHAT_CONVERSATIONS_FILE;
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
   });
 

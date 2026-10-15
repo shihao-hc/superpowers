@@ -2,13 +2,16 @@
  * UltraWork AI 服务器入口
  */
 
-require('dotenv').config();
+// 显式指定 .env 路径（不依赖 cwd——从非项目根启动时 dotenv 默认找 cwd/.env 会失败，致 JWT_SECRET 缺失）
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 // 默认为生产环境（开发需显式设置 NODE_ENV=development）
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
 const express = require('express');
 const path = require('path');
+// 项目根（不依赖 cwd——server 可能被外部以非项目根 cwd 启动，曾致 scripts 保活链全断的同类根因）
+const PROJECT_ROOT = path.join(__dirname, '..');
 const http = require('http');
 const compression = require('compression');
 const helmet = require('helmet');
@@ -104,7 +107,7 @@ function initializeModules() {
 
   // SettingsSync - 设置同步
   try {
-    settingsSync = new SettingsSync({ localPath: path.join(process.cwd(), '.opencode', 'settings') });
+    settingsSync = new SettingsSync({ localPath: path.join(PROJECT_ROOT, '.opencode', 'settings') });
     logger.info('[SettingsSync] 设置同步已启用');
   } catch (e) {
     logger.warn('[SettingsSync] 初始化失败:', e.message);
@@ -120,7 +123,7 @@ function initializeModules() {
 
   // MCPManager - 条件初始化
   try {
-    const mcpConfigPath = path.join(process.cwd(), '.opencode', 'mcp-config.json');
+    const mcpConfigPath = path.join(PROJECT_ROOT, '.opencode', 'mcp-config.json');
     const fs = require('fs');
     if (fs.existsSync(mcpConfigPath)) {
       const mcpConfig = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf8'));
@@ -476,7 +479,7 @@ function writeCrashDiagnostics(event, payload) {
   try {
     const fs = require('fs');
     const p = require('path');
-    const dir = p.join(process.cwd(), 'logs');
+    const dir = p.join(PROJECT_ROOT, 'logs');
     if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); }
     const entry = {
       ts: new Date().toISOString(),
