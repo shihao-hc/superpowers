@@ -905,3 +905,4 @@ Session 锚点: 2026-10-17 (第129次 — 核心链路审计续：docx/记忆 �
 - **🔴 发现并修（小）**: `tests/unit/persistence.test.js` 把 `test-key/append-test/no-items/corrupt-key/error-key.json` 写进**真实 `data/`** 且 `afterAll` 不清理 → 在共享运行时目录留痕（`.gitignore` 仅补丁式忽略其中几个）→ `afterAll` 加清理；全量测试后 `data/` 无残留
 - **诚实边界**: 此项危害低（git 已忽略、下次运行 beforeAll 会先删）——是"测试不碰真实数据"原则（#123）的落实，非线上 bug；更彻底的做法（`Persistence` 的 `DATA_DIR` 可注入 + 测试用 tmpdir）**未做**（改动运行时模块，风险 > 收益）
 - 相关文件: `tests/unit/persistence.test.js` (改), `docs/session-anchors.md`
+- **下一步（新会话 #130）**: 收尾**核心用户链路审计**——真测尚未覆盖的路径：`scrape_web`（公开 URL 抓取）、`filesystem:*` 只读工具（注意 MCP root 限定在 `uploads`，非该目录会被拒）、`security_scan`/`code_quality` 确定性任务、**流式路径的文档生成**（`processStream` 的 tool 循环——#128 只真测了非流式 `generateResponse`）；方法=真实请求 + 读产物，找"结构性断链"类 bug（如字段未传递、各路径行为不一致），发现即修
