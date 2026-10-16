@@ -730,4 +730,27 @@ Session 锚点: 2026-10-16 (第119次 — 开源第一步: 数据报表接单包
   **变现临门一脚仍是真人**(我无账号不能登录/收款)——本包交付的是「我全权能做的部分」
 - 相关文件: `scripts/data-report.js` (新), `service/data-report/{README,上架与报价,接单SOP}.md` (新),
   `service/data-report/samples/*` (新)
+
+---
+
+Session 锚点: 2026-10-16 (第120次 — 开源落地: 数据报表接单包 + 闲鱼半自动发布链路打通)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过 | ESLint 0/0 (含新脚本 --no-ignore)
+- **背景 (接上轮「开源」)**: 用户选路径 A(数据报表/Excel 自动化接单); 市场证据(多来源): 闲鱼 15 天 2180、
+  均价 460/单 30 分钟、月包破万; 共识 = AI 是放大器, 获客沟通须真人。分工 = 人做我替代不了的, 其余归我
+- **交付 1 接单包 (811a93e)**: `scripts/data-report.js`(clean/merge/summary/report 交付引擎) +
+  `service/data-report/`(README 分工+用法 / 上架与报价 / 接单SOP / samples 脏数据→成品报表)
+- **交付 2 闲鱼 PoC (5caeb94)**: `scripts/xianyu-poc.js` —— 实测**无头被风控拦('非法访问')、有头能过**;
+  扫码登录后发闲置表单可访问; 登录态 profile 持久化(不必每次扫码)
+- **交付 3 填草稿 (729a1c8/64a2a06)**: `scripts/xianyu-fill-draft.js` —— 描述(富文本 contenteditable)+
+  价格+图片(setInputFiles)+发货(radio 无需邮寄) 自动填入, **读回验证**; 地址用账号默认; 不点发布
+- **交付 4 首图生成 (d72c1ec)**: `scripts/xianyu-cover.js` —— HTML(原始vs成品对比) → 1080x1080 PNG
+- **🔴 重大发现**: 闲鱼**服务类目(简历修改优化)网页版不支持发布**, 提示用 App 扫码桥接;
+  但**链路打通 (da82103)**: **网页自动填表(我) + 点发布弹码 + App 扫码发布(人) = 半自动可用** →
+  **第一条真实闲置(数据报表代做·50元)发布成功**
+- **可复用教训/发现**: ① 反爬检测主因是 **headless 特征**, 有头(正常 UA)可过 ② 登录检测**不能靠 URL 重定向**
+  (/publish 未登录不跳转, 内联"立即登录") ③ 闲鱼服务类目 web-only 限制 → 半自动(填+扫码发)是正解
+- **诚实边界**: **全自动不做**(封号是致命成本, 半自动已拿 90% 效率); 扫码+发布必须人在场;
+  profile(含 Cookie)存 `data/xianyu-profile/` 已 gitignore; 脚本不碰账号密码
+- 相关文件: `scripts/{xianyu-poc,xianyu-fill-draft,xianyu-cover}.js` (新), `service/data-report/闲鱼PoC结果.md` (新),
+  `.gitignore`
 - 相关文件: `scripts/cost-report.js` (新), `scripts/monitor-server.js`, `AGENTS.md`, `docs/session-anchors.md`
