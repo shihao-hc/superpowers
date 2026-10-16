@@ -754,3 +754,25 @@ Session 锚点: 2026-10-16 (第120次 — 开源落地: 数据报表接单包 + 
 - 相关文件: `scripts/{xianyu-poc,xianyu-fill-draft,xianyu-cover}.js` (新), `service/data-report/闲鱼PoC结果.md` (新),
   `.gitignore`
 - 相关文件: `scripts/cost-report.js` (新), `scripts/monitor-server.js`, `AGENTS.md`, `docs/session-anchors.md`
+
+---
+
+Session 锚点: 2026-10-17 (第121次 — 开源第二步: 曝光提升·多Listing铺货包)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过 | ESLint 0/0 (含新脚本 --no-ignore)
+- **背景 (接上轮「首条闲置已上线」)**: 用户让我决策下一步 → 分析漏斗(上架→曝光→咨询→沟通→报价→接单→交付→收款)，
+  **一条 0 好评闲置在闲鱼算法里几乎不可见** → 当前第一瓶颈 = **曝光/获客**，选「曝光提升包」
+- **判断依据 (为何不做擦亮优先)**: 擦亮是每日一次点击(边际收益小)；**多 listing = 搜索覆盖**，是新号唯一能主动放大的杠杆
+- **交付 1 多listing铺货包 (`service/data-report/多Listing铺货.md`)**: 3 条**角度不同**的 listing
+  （A 通用代做·已发布 / B 数据清洗·30起 / C 报表自动化·200起），各带首行关键词(≈标题)、描述文案文件、价格、首图；
+  附**铺货节奏**（每 1-2 天 1 条，防「重复铺货/营销号」判定=封号致命成本）+ 发布命令 + 留痕表
+- **交付 2 首图生成器 (`scripts/xianyu-covers.js`)**: 复用 HTML→PNG 模式，批量生成 B/C 两张不同卖点首图
+  (B 清洗细节对比 / C「一次配置就够了」流程)，**真实渲染 + Read 看图验证**（C 首版标题换行把「了」挤单行 → 改两行排布重生成）
+- **交付 3 填草稿支持传描述 (改 `scripts/xianyu-fill-draft.js`)**: 加 `--desc` / `--desc-file`（原来描述写死，
+  铺不同 listing 需可传；缺文件友好报错），保持默认文案向后兼容
+- **验证**: 首图脚本真实渲染两张（内容高/页脚底诊断 + 我看图确认）；脚本 `node --check` + `--desc-file` 缺文件报错路径实测；
+  ESLint 0/0；**全量 280/13,082/0 无回归**
+- **诚实边界**: ① 每条 listing 需**人 App 扫码发布**（服务类目网页不支持发布，上轮已实测），铺 N 条 = N 次扫码；
+  ② 改了 xianyu-fill-draft.js 但**未跑真实登录链路**（需活跃登录态，本次未做）——仅语法/参数/报错路径验证；
+  ③ **擦亮助手未做**（需活跃登录态 + 真实 DOM 探索，留待下轮，避免产出未验证脚本违反 4.3）
+- 相关文件: `service/data-report/多Listing铺货.md` (新), `service/data-report/listings/*` (新),
+  `scripts/xianyu-covers.js` (新), `scripts/xianyu-fill-draft.js` (改), `service/data-report/cover/首图{B,C}-*.png` (新)
