@@ -237,6 +237,20 @@ describe('DynamicScraper', () => {
       expect(result.platform).toBe('unknown');
     });
 
+    test('unknown platform defaults to extracting title+content (not just metadata)', async () => {
+      const browser = makeBrowser();
+      browser.page.evaluate.mockResolvedValue({});
+      mockBrowserAgent.mockReturnValue(browser);
+      const ds = new DynamicScraper();
+      const extractSpy = jest.spyOn(ds, '_extract').mockResolvedValue({});
+      await ds.scrape('https://example.com/page');
+      expect(extractSpy).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        expect.objectContaining({ extractTitle: true, extractContent: true })
+      );
+    });
+
     test('calls init when browser missing', async () => {
       const browser = makeBrowser();
       mockBrowserAgent.mockReturnValue(browser);
@@ -497,15 +511,33 @@ describe('DynamicScraper', () => {
       expect(data.links).toEqual([{ text: 'Element Text', href: 'http://example.com/link' }]);
     });
 
-    test('passes selectors to evaluate', async () => {
+    test('passes selectors AND options to evaluate (browser ctx cannot see Node scope)', async () => {
       const browser = makeBrowser();
       mockBrowserAgent.mockReturnValue(browser);
       browser.page.evaluate.mockImplementation((fn, arg) => fn(arg));
       const ds = new DynamicScraper();
       ds.browser = browser;
       const selectors = { title: 'h1' };
-      await ds._extract('bilibili', selectors, {});
-      expect(browser.page.evaluate).toHaveBeenCalledWith(expect.any(Function), selectors);
+      const options = { extractVideo: true };
+      await ds._extract('bilibili', selectors, options);
+      // options 必须随参数传入（回归：曾仅在 Node 作用域引用 options → 真实浏览器报 ReferenceError）
+      expect(browser.page.evaluate).toHaveBeenCalledWith(expect.any(Function), { selectors, options });
+    });
+
+    test('evaluate callback is self-contained (runs isolated, no Node-scope leakage)', async () => {
+      const vm = require('vm');
+      const browser = makeBrowser();
+      mockBrowserAgent.mockReturnValue(browser);
+      let captured;
+      browser.page.evaluate.mockImplementation((fn, arg) => { captured = { fn, arg }; return { ok: true }; });
+      const ds = new DynamicScraper();
+      ds.browser = browser;
+      await ds._extract('weibo', { content: '.content' }, { extractHTML: true });
+      // 在无 Node 作用域的 vm 上下文执行回调（模拟真实浏览器隔离）
+      // 回归：回调曾引用闭包里的 options → 真实浏览器 ReferenceError（mock 运行在 Node 作用域所以测不出）
+      const code = `(${captured.fn.toString()})(${JSON.stringify(captured.arg)})`;
+      const result = vm.runInNewContext(code, { document: global.document, window: global.window });
+      expect(result.content).toEqual({ text: 'Page content text', html: '<div>Page html</div>' });
     });
   });
 

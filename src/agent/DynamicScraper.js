@@ -119,7 +119,13 @@ class DynamicScraper {
       await this._interact(options.interact);
     }
 
-    const result = await this._extract(platform?.name, config.selectors, options);
+    // 通用网页（非已知平台，无 selectors）默认抓标题+正文，
+    // 否则「抓取网页内容」只返回 url/platform/timestamp 元数据（空壳成功）
+    const extractOptions = platform
+      ? options
+      : { extractTitle: true, extractContent: true, ...options };
+
+    const result = await this._extract(platform?.name, config.selectors, extractOptions);
 
     if (config.mobileRequired) {
       await this.browser.setMobileMode(false);
@@ -151,8 +157,9 @@ class DynamicScraper {
     }
   }
 
-  async _extract(platform, selectors, options) {
-    const data = await this.browser.page.evaluate((selectors) => {
+  async _extract(platform, selectors, options = {}) {
+    // 注意：回调在浏览器上下文执行，无法访问 Node 作用域变量——selectors/options 必须作为参数传入
+    const data = await this.browser.page.evaluate(({ selectors, options }) => {
       const result = {};
 
       if (selectors?.video || options.extractVideo) {
@@ -205,7 +212,7 @@ class DynamicScraper {
       }
 
       return result;
-    }, selectors);
+    }, { selectors, options });
 
     return data;
   }

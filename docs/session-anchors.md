@@ -906,3 +906,23 @@ Session 锚点: 2026-10-17 (第129次 — 核心链路审计续：docx/记忆 �
 - **诚实边界**: 此项危害低（git 已忽略、下次运行 beforeAll 会先删）——是"测试不碰真实数据"原则（#123）的落实，非线上 bug；更彻底的做法（`Persistence` 的 `DATA_DIR` 可注入 + 测试用 tmpdir）**未做**（改动运行时模块，风险 > 收益）
 - 相关文件: `tests/unit/persistence.test.js` (改), `docs/session-anchors.md`
 - **下一步（新会话 #130）**: 收尾**核心用户链路审计**——真测尚未覆盖的路径：`scrape_web`（公开 URL 抓取）、`filesystem:*` 只读工具（注意 MCP root 限定在 `uploads`，非该目录会被拒）、`security_scan`/`code_quality` 确定性任务、**流式路径的文档生成**（`processStream` 的 tool 循环——#128 只真测了非流式 `generateResponse`）；方法=真实请求 + 读产物，找"结构性断链"类 bug（如字段未传递、各路径行为不一致），发现即修
+
+---
+
+Session 锚点: 2026-10-17 (第130次 — 核心链路审计收尾：抓出 scrape_web 整条瘫痪 + 主 UI 缺确定性路径)
+- Tests: **282 passed suites / 4 skipped / 0 failed** (13,114 passed / 46 skipped, +9) 全量通过 | ESLint 0/0 | 安全 0 HIGH | 教训库 74 条
+- **背景 (接 #128/#129)**: 真测尚未覆盖路径——`scrape_web`(公开 URL 抓取) / `filesystem:*` 只读工具 / `security_scan`、`code_quality` 确定性任务 / **流式文档生成**(processStream)
+- **审计结果（先跑真实请求，再读产物）**:
+  - `filesystem:*` 只读工具 ✓：真实流程（`_buildToolsSchema` 先加载 MCP plugin）→ `list_allowed_directories`/`list_directory` 均 ok；MCP root 限 `uploads` 符合预期。注：直接单测 `_executeToolCalls` 会「MCP plugin not loaded」——真实流程先经 `_buildToolsSchema` 加载，非 bug
+  - `security_scan` / `code_quality` ✓：确定性执行（319 / 293 文件，0 findings / 0 errors）
+  - 流式文档生成 ✓：真 SSE 请求生成 xlsx，读产物=标题+表头+数据行（非空表）。标题/数据由模型给——模型把表头行又塞进 `data` 致重复表头，属**模型行为非代码 bug**（`createWithData` 直接调用产物正确）
+- **🔴 真 bug 1（scrape_web 整条瘫痪）**: `DynamicScraper._extract` 的 `page.evaluate` 回调引用外层 `options`（只把 `selectors` 作参数传入）→ 真实浏览器上下文 `ReferenceError: options is not defined`，**任何「抓取网页」请求 100% 失败**。单测因 `evaluate.mockImplementation((fn,arg)=>fn(arg))` 在 **Node 作用域**执行回调（闭包可见）→ 14 个相关测试全绿 = 教科书级「mock 绿 ≠ 真实工作」
+  - 修复：回调改 `({ selectors, options })`，两者作参数传入；测试加**隔离上下文回归**（`vm.runInNewContext` 无闭包执行回调）
+- **🔴 真 bug 2（scrape 结果 data 丢失）**: `_executeToolCalls` 读 `finalResult.result.data`，但 `ScrapeExecutor` 直接返回 `{type,url,data}`（无 `result` 包装）→ `data` 恒 undefined（与 #90b「路径透传」同根因）→ 修为 `(finalResult.result || finalResult)`
+- **🔴 真 bug 3（主 UI 缺确定性路径，行为不一致）**: 「确定性任务优先」（安全/代码）+ #128 规则兜底只加在**非流式** `generateResponse`，而主 UI（`frontend/index.html`）走**流式** `processStream` → 流式下「检查密钥泄漏」不进确定性扫描，交给弱模型，模型误调 `filesystem:list_directory` 并输出无意义「我已为你生成MCP：已生成」。同一请求：非流式 `source=deterministic`、流式 `source=ollama`（错）
+  - 修复：抽共享方法 `_runDeterministicTasks`（单一源，两路径共用）；`processStream` 加确定性快路径；`_describeToolResult` 改为**按工具/类型分派**（mcp/scrape/security/code/文档），消除对非文档工具的「我已为你生成X」话术
+- **🔴 真 bug 4（空壳成功）**: scrape_web 修好后对**非已知平台**只返回 `url/platform/timestamp`（无内容）→ 工具名承诺「网页内容」落空；通用兜底默认抓标题+正文（`extractTitle`/`extractContent`）
+- **真实验证（非 mock）**: ① 隔离 harness 真跑 scrape（example.com 返回真实正文）/ filesystem / security / code；② **生产 server 重启**（pid `8700→31468`，monitor 自动恢复）后端到端确认——流式安全请求 `source=deterministic`、流式抓取返回真实内容；③ 单测 **+9**（scrape 透传 / scrape 隔离回调 / 通用默认 / processStream 确定性 / `_describeToolResult` 分派）；④ 全量 **282/13,114/0**；⑤ ESLint 0/0；⑥ 安全 0 HIGH；⑦ 修复后 jest **干净退出**（我 mock `AsyncExecutor.destroy` 致 cleanup timer 泄漏，已去 mock）
+- **诚实边界**: ① 通用页面 `title` 多为空——`_extract` 只查 `og:title/meta/h1/h2`，未含 `<title>`（本次未动，避免扩面）；② 模型把表头行重复写入 `data` 是模型行为；③ harness 直接调 `_executeToolCalls` 的「MCP not loaded」是流程序差异，非线上 bug
+- **方法沉淀**: ① 验证核心链路要**读产物内容**而非返回状态（ok:true 可能只是「跑通空逻辑」）；② **跨路径功能逐一核对所有入口**，共享逻辑抽单一源，别只测一条路径就宣布完成；③ 浏览器注入回调不能靠闭包，数据必须显式传参，且单测要用隔离上下文执行才测得出
+- 相关文件: `src/agent/DynamicScraper.js` (改), `server/services/chatService.js` (改), `tests/unit/dynamic-scraper.test.js` (改), `tests/unit/chat-service.test.js` (改), `.opencode/lessons.json` (+3)

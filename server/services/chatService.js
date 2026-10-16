@@ -275,6 +275,33 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 确定性任务优先（安全扫描/代码质量）：不经模型直接执行，组合结果
+   * 两条路径（generateResponse / processStream）共用，避免行为漂移
+   * @returns {Promise<{text:string, toolResults:Array}|null>} 无匹配/全失败 → null（回退模型路径）
+   */
+  async _runDeterministicTasks(text) {
+    try {
+      const tasks = [];
+      const secTask = this._ruleBasedSecurityScan(text);
+      const qTask = this._ruleBasedCodeQuality(text);
+      if (secTask) { tasks.push(secTask); }
+      if (qTask) { tasks.push(qTask); }
+      if (tasks.length === 0) { return null; }
+      const allResults = [];
+      for (const t of tasks) {
+        const tr = await this._executeToolCalls([{ function: t }]);
+        allResults.push(...tr);
+      }
+      if (!allResults.some((r) => r.ok === true)) { return null; }
+      this.stats.tools.calls += allResults.length;
+      const texts = allResults.map((r) => (r.tool === 'security_scan' ? this._describeSecurityScan(r) : this._describeCodeQuality(r)));
+      return { text: texts.join('\n\n'), toolResults: allResults };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
    * 描述代码质量检查结果
    */
   _describeCodeQuality(result) {
@@ -302,14 +329,46 @@ class ChatService extends EventEmitter {
 
   /**
    * 描述工具执行结果（供兜底回复）
+   * 按工具/结果类型分派：文档生成走生成话术，安全/代码检查复用既有描述，
+   * MCP 只读工具/抓取给出真实内容——否则一律套"我已为你生成X"会产出无意义回复
    */
   _describeToolResult(toolResults) {
-    const r = (toolResults || [])[0];
-    if (!r) { return '我尝试生成文档，但没有成功。'; }
-    if (r.ok) {
-      return `我已为你生成${r.result && r.result.type ? r.result.type.toUpperCase() : '文档'}：${r.result && r.result.message ? r.result.message : '已生成'}${r.result && r.result.path ? `（${r.result.path}）` : ''}`;
+    const r = Array.isArray(toolResults) ? toolResults[0] : null;
+    if (!r) { return '我尝试执行操作，但没有成功。'; }
+    if (!r.ok) { return `操作遇到问题：${r.error || '未知错误'}`; }
+    const type = (r.result && r.result.type) || '';
+    if (r.tool === 'security_scan' || type === 'security-scan') { return this._describeSecurityScan(r); }
+    if (r.tool === 'code_quality' || type === 'code-quality') { return this._describeCodeQuality(r); }
+    if (type === 'mcp') {
+      const text = this._extractMCPText(r.result && r.result.output);
+      return text ? `已读取内容：\n${text}` : `已执行工具 ${r.tool}。`;
     }
-    return `生成文档时遇到问题：${r.error || '未知错误'}`;
+    if (type === 'scrape') {
+      const d = (r.result && r.result.data) || {};
+      const title = d.title || '';
+      const content = (d.content && d.content.text) || '';
+      const head = title ? `已抓取网页「${title}」` : '已抓取网页内容';
+      return content ? `${head}：\n${String(content).slice(0, 800)}` : `${head}（未提取到正文）。`;
+    }
+    const label = type ? type.toUpperCase() : '文档';
+    const message = (r.result && r.result.message) || '已生成';
+    const p = r.result && r.result.path ? `（${r.result.path}）` : '';
+    return `我已为你生成${label}：${message}${p}`;
+  }
+
+  /**
+   * 从 MCP 工具返回中提取可读文本（content[] 文本块 / structuredContent.content / 字符串）
+   */
+  _extractMCPText(output) {
+    try {
+      if (!output) { return ''; }
+      if (typeof output === 'string') { return output; }
+      if (output.structuredContent && typeof output.structuredContent.content === 'string') { return output.structuredContent.content; }
+      if (Array.isArray(output.content)) {
+        return output.content.filter((c) => c && c.type === 'text' && c.text).map((c) => c.text).join('\n');
+      }
+      return '';
+    } catch (e) { return ''; }
   }
 
   /**
@@ -497,7 +556,8 @@ class ChatService extends EventEmitter {
           executor = new AsyncExecutor();
           const execution = await executor.execute('dynamic-scraper', { url: args.url });
           const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 60000 });
-          const r = (finalResult && finalResult.result) || {};
+          // ScrapeExecutor 直接返回 { type, url, data }（无 result 包装）→ 兼容两种形态，否则 data 恒丢失
+          const r = (finalResult && (finalResult.result || finalResult)) || {};
           if (finalResult && finalResult.error) {
             results.push({ tool: name, ok: false, error: finalResult.error });
           } else if (r.error) {
@@ -840,35 +900,19 @@ class ChatService extends EventEmitter {
   async generateResponse(text, conversation, userId) {
     // 重置工具结果（防跨请求残留泄漏到其他用户）
     this._lastToolResults = null;
-    // 确定性任务优先：安全扫描类请求不经模型，直接确定性执行
+    // 确定性任务优先：安全扫描/代码质量请求不经模型，直接确定性执行
     // （弱模型不理解开放安全任务——qwen 把"检查密钥泄漏"当"没具体问题"；
     //   系统知道怎么做的，系统直接做；系统不知道的才交给模型）
-    try {
-      // 确定性任务优先：收集所有匹配的确定性任务，依次执行，组合结果（不经模型）
-      const tasks = [];
-      const secTask = this._ruleBasedSecurityScan(text);
-      const qTask = this._ruleBasedCodeQuality(text);
-      if (secTask) { tasks.push(secTask); }
-      if (qTask) { tasks.push(qTask); }
-      if (tasks.length > 0) {
-        const allResults = [];
-        for (const t of tasks) {
-          const tr = await this._executeToolCalls([{ function: t }]);
-          allResults.push(...tr);
-        }
-        if (allResults.some((r) => r.ok === true)) {
-          this.stats.tools.calls += allResults.length;
-          const texts = allResults.map((r) => (r.tool === 'security_scan' ? this._describeSecurityScan(r) : this._describeCodeQuality(r)));
-          return {
-            text: texts.join('\n\n'),
-            confidence: 0.9,
-            source: 'deterministic',
-            toolResults: allResults,
-            ruleBased: true
-          };
-        }
-      }
-    } catch (e) { /* 确定性路径失败则回退模型路径 */ }
+    const deterministic = await this._runDeterministicTasks(text);
+    if (deterministic) {
+      return {
+        text: deterministic.text,
+        confidence: 0.9,
+        source: 'deterministic',
+        toolResults: deterministic.toolResults,
+        ruleBased: true
+      };
+    }
     // 优先使用 Ollama 真实推理（非侵入式，失败回退话术）
     try {
       const bridge = this._getOllamaBridge();
@@ -1070,6 +1114,27 @@ class ChatService extends EventEmitter {
           BrainSystem.smartStore(`chat_${userId}_${Date.now()}`, { input: text, role: 'user', userId });
         }
       } catch (e) { /* BrainSystem 可选，失败静默 */ }
+
+      // 确定性任务优先（与 generateResponse 对称）：安全/代码检查请求不经模型，直接执行
+      const deterministic = await this._runDeterministicTasks(text);
+      if (deterministic) {
+        conversation.messages.push({
+          id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+          role: 'assistant',
+          content: deterministic.text,
+          timestamp: new Date(),
+          latency: Date.now() - startTime
+        });
+        if (conversation.messages.length > 100) {
+          conversation.messages = conversation.messages.slice(-50);
+        }
+        this.stats.totalMessages++;
+        this.stats.totalLatency += (Date.now() - startTime);
+        onData({ type: 'chunk', content: deterministic.text, fullText: deterministic.text, progress: 1 });
+        this._saveConversations();
+        onEnd({ source: 'deterministic', text: deterministic.text, toolResults: deterministic.toolResults });
+        return;
+      }
 
       // 真实 Ollama 流式输出（非侵入式，Ollama 不可用回退话术）
       const bridge = this._getOllamaBridge();

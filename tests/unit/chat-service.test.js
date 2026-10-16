@@ -442,6 +442,22 @@ describe('ChatService (BrainSystem-wired)', () => {
         chatService._mcpPlugin = null;
       }
     });
+
+    it('_executeToolCalls 透传 scrape_web 抓取数据（ScrapeExecutor 直接返回 {type,url,data}）', async () => {
+      // 回归：曾读 finalResult.result.data，但 ScrapeExecutor 无 result 包装 → data 恒丢失
+      const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
+      const scraped = { title: '示例', content: { text: '页面正文' } };
+      jest.spyOn(AsyncExecutor.prototype, 'execute').mockResolvedValue({ executionId: 'e1' });
+      jest.spyOn(AsyncExecutor.prototype, 'waitForCompletion')
+        .mockResolvedValue({ type: 'scrape', url: 'https://example.com/', data: scraped });
+      // 不 mock destroy：真实 destroy 清理 AsyncExecutor 的 cleanup 定时器（否则泄漏 timer，jest 不退出）
+      const r = await chatService._executeToolCalls([
+        { function: { name: 'scrape_web', arguments: { url: 'https://example.com/' } } }
+      ]);
+      expect(r[0].ok).toBe(true);
+      expect(r[0].result.type).toBe('scrape');
+      expect(r[0].result.data).toEqual(scraped);
+    });
   });
 
   describe('processStream', () => {
@@ -966,6 +982,69 @@ describe('ChatService conversation persistence', () => {
       } finally {
         chatService._executeToolCalls = origExec;
       }
+    });
+
+    it('processStream takes deterministic path (bypasses LLM) for security-scan requests', async () => {
+      const origExec = chatService._executeToolCalls;
+      const origBridge = chatService.ollamaBridge;
+      chatService._executeToolCalls = jest.fn().mockResolvedValue([
+        { tool: 'security_scan', ok: true, result: { type: 'security-scan', scannedFiles: 10, findings: [] } }
+      ]);
+      chatService.ollamaBridge = { chat: jest.fn().mockResolvedValue({ ok: true, text: 'LLM SHOULD NOT RUN' }) };
+      try {
+        const chunks = [];
+        let end = null;
+        await chatService.processStream({
+          text: '帮我检查密钥泄漏', userId: 'det-stream',
+          onData: (d) => chunks.push(d), onEnd: (r) => { end = r; }, onError: () => {}
+        });
+        expect(end.source).toBe('deterministic');
+        expect(String(chunks[chunks.length - 1].fullText)).toContain('未发现硬编码密钥');
+        expect(chatService.ollamaBridge.chat).not.toHaveBeenCalled();
+      } finally {
+        chatService._executeToolCalls = origExec;
+        chatService.ollamaBridge = origBridge;
+      }
+    });
+  });
+
+  describe('_describeToolResult dispatch', () => {
+    it('mcp tool → shows extracted text (not "我已为你生成MCP")', () => {
+      const t = chatService._describeToolResult([{
+        tool: 'filesystem:read_file', ok: true,
+        result: { type: 'mcp', tool: 'filesystem:read_file', output: { content: [{ type: 'text', text: 'file body here' }] } }
+      }]);
+      expect(t).toContain('file body here');
+      expect(t).not.toContain('我已为你生成');
+    });
+
+    it('scrape → shows page content', () => {
+      const t = chatService._describeToolResult([{
+        tool: 'scrape_web', ok: true,
+        result: { type: 'scrape', data: { title: '标题', content: { text: '页面正文内容' } } }
+      }]);
+      expect(t).toContain('页面正文内容');
+      expect(t).not.toContain('我已为你生成');
+    });
+
+    it('security_scan → reuses security description', () => {
+      const t = chatService._describeToolResult([{
+        tool: 'security_scan', ok: true, result: { type: 'security-scan', scannedFiles: 3, findings: [] }
+      }]);
+      expect(t).toContain('未发现硬编码密钥');
+    });
+
+    it('document → keeps generation wording', () => {
+      const t = chatService._describeToolResult([{
+        tool: 'generate_document', ok: true, result: { type: 'xlsx', message: '已生成到 /x.xlsx', path: '/x.xlsx' }
+      }]);
+      expect(t).toContain('XLSX');
+      expect(t).toContain('/x.xlsx');
+    });
+
+    it('failure → honest error, no fake success', () => {
+      const t = chatService._describeToolResult([{ tool: 'scrape_web', ok: false, error: 'blocked' }]);
+      expect(t).toContain('blocked');
     });
   });
 
