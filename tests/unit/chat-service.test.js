@@ -369,6 +369,39 @@ describe('ChatService (BrainSystem-wired)', () => {
       }
     }, 20000);
 
+    it('_extractTableHeaders 从括号列表抽取列名', () => {
+      expect(chatService._extractTableHeaders('生成含三门课（语文、数学、英语）成绩的表格')).toEqual(['语文', '数学', '英语']);
+      expect(chatService._extractTableHeaders('随便聊点别的')).toBeNull();
+    });
+
+    it('_executeToolCalls 生成 xlsx 时用请求里的列名产出「带表头的表」（而非空表）', async () => {
+      const os = require('os');
+      const fs2 = require('fs');
+      const path2 = require('path');
+      const E = require('exceljs');
+      const origCwd = process.cwd();
+      const tmpDir = fs2.mkdtempSync(path2.join(os.tmpdir(), 'xlsx-header-'));
+      process.chdir(tmpDir);
+      try {
+        const r = await chatService._executeToolCalls(
+          [{ function: { name: 'generate_document', arguments: { type: 'xlsx', title: '成绩表' } } }],
+          '帮我生成含三门课（语文、数学、英语）的成绩表格'
+        );
+        expect(r[0].ok).toBe(true);
+        const wb = new E.Workbook();
+        await wb.xlsx.readFile(r[0].result.path);
+        const ws = wb.worksheets[0];
+        const flat = JSON.stringify(ws.getSheetValues());
+        expect(flat).toContain('语文');
+        expect(flat).toContain('数学');
+        expect(flat).toContain('英语');
+        expect(ws.rowCount).toBeGreaterThanOrEqual(2); // 标题 + 表头
+      } finally {
+        process.chdir(origCwd);
+        try { fs2.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) { /* */ }
+      }
+    }, 20000);
+
     it('_executeToolCalls rejects unknown tools', async () => {
       const r = await chatService._executeToolCalls([{ function: { name: 'not_a_tool', arguments: {} } }]);
       expect(r[0].ok).toBe(false);

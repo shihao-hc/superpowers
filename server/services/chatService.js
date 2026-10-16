@@ -227,6 +227,19 @@ class ChatService extends EventEmitter {
   }
 
   /**
+   * 从请求文本确定性抽取表格列名（xlsx 兜底：产出「有表头的表」而非空表）
+   * 例："生成含三门课（语文、数学、英语）成绩的表格" → ['语文','数学','英语']
+   */
+  _extractTableHeaders(text) {
+    const groups = String(text || '').match(/[（(][^（）()]{1,80}[）)]/g) || [];
+    for (const g of groups) {
+      const parts = g.replace(/[（()）]/g, '').split(/[、,，/]+/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length >= 2 && parts.length <= 12 && parts.every((p) => p.length <= 10)) { return parts; }
+    }
+    return null;
+  }
+
+  /**
    * 确定性安全扫描解析（确定性任务优先：安全请求不经模型，直接执行）
    * 弱模型对开放安全任务遵循弱（qwen 把"检查密钥泄漏"当"没具体问题"），
    * 故由系统确定性识别 + 直接执行扫描，模型只做结果总结（甚至不做）
@@ -315,6 +328,8 @@ class ChatService extends EventEmitter {
               type: { type: 'string', enum: ['docx', 'pdf', 'xlsx', 'canvas-design'], description: '文档类型' },
               title: { type: 'string', description: '文档标题' },
               content: { type: 'string', description: '文档内容或描述' },
+              headers: { type: 'array', items: { type: 'string' }, description: '表格列名（生成 Excel 表格时必须给出，如 ["姓名","语文","数学"]）' },
+              data: { type: 'array', items: { type: 'array' }, description: '表格数据行（可选，二维数组）' },
               action: { type: 'string', enum: ['create', 'createWithData'], description: '操作，默认 create' }
             },
             required: ['type']
@@ -379,7 +394,7 @@ class ChatService extends EventEmitter {
   /**
    * 执行 LLM 请求的工具调用（白名单 + 真实技能执行）
    */
-  async _executeToolCalls(toolCalls) {
+  async _executeToolCalls(toolCalls, hintText = '') {
     const results = [];
     for (const call of (toolCalls || [])) {
       if (!call || typeof call !== 'object') {
@@ -422,12 +437,22 @@ class ChatService extends EventEmitter {
           if (process.env.NODE_ENV === 'test' && process.env.DEBUG_TOOLS === '1') {
             console.log('[_executeToolCalls] executing:', skillName, JSON.stringify(args).slice(0, 80));
           }
+          // 表格结构：优先用 LLM 给的 headers/data；xlsx 未给列名时从请求文本确定性抽取。
+          // （此前从不传 headers/data → createWithData 无列名 → "生成表格"恒产出只有标题的空表）
+          let headers = Array.isArray(args.headers) && args.headers.length ? args.headers : null;
+          let action = args.action || 'create';
+          if (skillName === 'xlsx' && !headers) {
+            headers = this._extractTableHeaders([args.content, args.title, hintText].filter(Boolean).join(' '));
+          }
+          if (skillName === 'xlsx' && headers && action === 'create') { action = 'createWithData'; }
           const { AsyncExecutor } = require('../../src/skills/agent/AsyncExecutor');
           executor = new AsyncExecutor();
           const execution = await executor.execute(skillName, {
-            action: args.action || 'create',
+            action,
             title: args.title || args.content || '',
-            content: args.content || ''
+            content: args.content || '',
+            headers: headers || undefined,
+            data: Array.isArray(args.data) && args.data.length ? args.data : undefined
           });
           const finalResult = await executor.waitForCompletion(execution.executionId, { timeout: 30000 });
           // 提取文件路径（兼容 result 包装或直接返回）
@@ -561,7 +586,7 @@ class ChatService extends EventEmitter {
     // 技能指导注入：识别任务领域 → 注入相关 SKILL.md（让 LLM 按技能指令行动，发挥 305 技能价值）
     const skillText = this._buildSkillGuidance(text, conversation);
     const toolTrigger = /生成|创建|制作|设计|文档|报告|表格|图形|word|pdf|docx|周报|ppt|海报|图片|图标|读取|搜索|查看|列出|目录|文件|思维|分析文件|sequential|抓取|爬取|爬虫|抓网页|网页内容/i.test(text);
-    const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/canvas-design，title 为标题）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当用户要求抓取网页/爬取网站内容时，调用 scrape_web 工具（仅支持公开 http/https URL，内网地址会被拦截）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
+    const toolPrompt = toolTrigger ? '当用户要求生成文档/报告/表格/图形时，调用 generate_document 工具（type 可选 docx/pdf/xlsx/canvas-design，title 为标题；生成 Excel/表格时用 headers 给出列名数组，如 ["姓名","语文","数学"]）。当用户要求读取文件/目录、搜索文件、查看文件信息时，调用 filesystem:* 只读工具（如 filesystem:read_file, filesystem:list_directory, filesystem:search_files）。当用户要求抓取网页/爬取网站内容时，调用 scrape_web 工具（仅支持公开 http/https URL，内网地址会被拦截）。当需要深度思考时可用 sequential-thinking:sequentialthinking。调用工具后根据结果回复用户。' : '';
     const sysPrompt = `你是一个乐于助人的中文 AI 助手，回答简洁友好。你当前的人格是「${personality}」。${lastIntent && lastIntent.intent ? `用户最近的意图是「${lastIntent.intent}」。` : ''}${memoryText}${lessonText}${skillText}${toolPrompt}`;
     return { sysPrompt, toolTrigger };
   }
@@ -867,7 +892,7 @@ class ChatService extends EventEmitter {
         if (toolTrigger && result && result.ok && Array.isArray(result.tool_calls) && result.tool_calls.length === 0) {
           const ruleBased = this._ruleBasedDocumentCall(text);
           if (ruleBased) {
-            const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
+            const toolResults = await this._executeToolCalls([{ function: ruleBased }], text);
             return { text: this._describeToolResult(toolResults), confidence: 0.8, source: 'ollama', toolResults, ruleBased: true };
           }
         }
@@ -891,7 +916,7 @@ class ChatService extends EventEmitter {
             if (!(roundResult && roundResult.ok && Array.isArray(roundResult.tool_calls) && roundResult.tool_calls.length > 0)) {
               break;
             }
-            const toolResults = await this._executeToolCalls(roundResult.tool_calls);
+            const toolResults = await this._executeToolCalls(roundResult.tool_calls, text);
             allToolResults.push(...toolResults);
             this._lastToolResults = allToolResults;
             const toolMessages = [
@@ -948,7 +973,7 @@ class ChatService extends EventEmitter {
       try {
         const ruleBased = this._ruleBasedDocumentCall(text);
         if (ruleBased) {
-          const toolResults = await this._executeToolCalls([{ function: ruleBased }]);
+          const toolResults = await this._executeToolCalls([{ function: ruleBased }], text);
           if (toolResults.some((r) => r.ok === true)) {
             return { text: this._describeToolResult(toolResults), confidence: 0.7, source: 'rule-based', toolResults, ruleBased: true };
           }
@@ -1072,7 +1097,7 @@ class ChatService extends EventEmitter {
                   break;
                 }
                 roundsUsed++;
-                const toolResults = await this._executeToolCalls(roundResult.tool_calls);
+                const toolResults = await this._executeToolCalls(roundResult.tool_calls, text);
                 allToolResults.push(...toolResults);
                 this._lastToolResults = allToolResults;
                 const toolMessages = [

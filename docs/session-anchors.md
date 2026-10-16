@@ -881,3 +881,17 @@ Session 锚点: 2026-10-17 (第127次 — 开源 readiness：交付引擎补齐�
 - **真实验证（非 mock）**: ① GBK CSV → 正确（表头/值正确、`¥1,188.00`→1188、`￥ 25.5 `→25.5、日期归一、去空行/去重）；② UTF-8(BOM) 样例回归 ✓；③ **无 BOM 的 UTF-8 中文** ✓；④ xlsx `report` 回归 ✓；⑤ 全量 282/13,103/0；⑥ ESLint 0/0（含 `--no-ignore`）；⑦ 安全 0 HIGH
 - **诚实边界**: 未加 jest 单测（scripts/ 无单测基建，与既有模式一致，靠真实编码往返验证）；编码识别为**启发式**（无 BOM 时严格 UTF-8 失败即判 GBK——极少数"恰好是合法 UTF-8 的 GBK"会误判，罕见）；**未动"只取首个工作表"**（需问客户，非静默 bug）；仍守"按真实订单长能力，不提前堆"
 - 相关文件: `scripts/data-report.js` (改), `service/data-report/README.md` (改), `service/data-report/接单SOP.md` (改), `.opencode/lessons.json`
+
+---
+
+Session 锚点: 2026-10-17 (第128次 — 核心链路真实使用审计：抓出并修「生成表格恒为空表」真 bug)
+- Tests: **282 passed suites / 4 skipped / 0 failed** (13,105 passed / 46 skipped, +2) 全量通过 | ESLint 0/0 | 安全 0 HIGH | 教训库 71 条
+- **背景 (用户「继续交你判断」)**: 三步完成、外部瓶颈在真人 → 改用"真实使用找缺口"审计**核心用户链路**（对话/记忆/文档/工具）
+- **审计结果**: 对话真实 Ollama ✓、空消息/超长 400 ✓、同会话记忆增长（convLen 2→4，回复"你叫小明"）✓、文档生成产出真实 xlsx ✓；SSE 乱码经 **node fetch 复验为 PowerShell 客户端解码伪象**（非服务端 bug，未误报）
+- **🔴 真 bug**: 请求"生成含三门课成绩的 Excel" → 文件**只有一行标题、无表头无数据**（rowCount=1）
+  - **根因**: `_executeToolCalls` 的 generate_document **只传 action/title/content，从不传 headers/data**，schema 也无这两字段 → `XlsxExecutor.createWithData` 恒无列名 → **表格请求在结构上只能产出空表**（handler/executor/ok:true 都在，唯独参数链路断了一环）
+- **修复**: ① schema + prompt 增加 `headers`/`data`（指导模型给列名）；② `_executeToolCalls(toolCalls, hintText)` 转发 headers/data（4 个调用点传 text）；③ **确定性兜底** `_extractTableHeaders`：xlsx 无列名时从请求文本抽取（"（语文、数学、英语）"→列名）→ 自动转 `createWithData`
+- **真实验证（非 mock）**: 同一请求**修复前=空表 / 修复后=标题+表头**（`姓名/语文/数学/英语`）；**生产 server 重启**（pid `30628→8700`）后端到端确认；单测 **+2**（`_extractTableHeaders` / 真实执行读回断言含表头）；全量 282/13,105/0
+- **诚实边界**: 标题单元格内容由模型决定（本次为"英语"，弱模型怪癖，非代码 bug）；**数据行仍由模型按需给**（未给=模板化空表，符合"不编造数据"）
+- **方法沉淀**: 验证核心功能要**看产物内容**，而非看返回状态（ok:true/200 可能只是"跑通了空逻辑"）；链路上的关键字段要逐环确认真被传递（入口→schema→handler→executor），不能只看两端各自"存在"
+- 相关文件: `server/services/chatService.js` (改), `tests/unit/chat-service.test.js` (改), `.opencode/lessons.json`
