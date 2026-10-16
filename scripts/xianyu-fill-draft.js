@@ -9,9 +9,12 @@
  *   绝不点击[发布]，绝不提交。
  *
  * 用法:
- *   node scripts/xianyu-fill-draft.js           探测 + 填草稿 + 读回
+ *   node scripts/xianyu-fill-draft.js           探测 + 填草稿 + 读回（默认文案）
  *   node scripts/xianyu-fill-draft.js --probe   只探测，不填
  *   node scripts/xianyu-fill-draft.js --dir=<路径>
+ *   node scripts/xianyu-fill-draft.js --price=30 --image=<首图.png> --desc-file=<文案.txt>
+ *     ↑ 多 listing 铺货：分别指定价格 / 首图 / 描述文案（文案首行即关键词标题）
+ *   node scripts/xianyu-fill-draft.js --desc="单行文案"   （或直接传文本，多行建议用 --desc-file）
  */
 const path = require('path');
 const fs = require('fs');
@@ -25,11 +28,22 @@ const imagePath = getArg('image') || path.join(ROOT, 'service', 'data-report', '
 const priceVal = getArg('price') || '50';
 const shipLabel = getArg('ship') || '无需邮寄';
 
-const DRAFT_DESC = [
+const DEFAULT_DESC = [
   '【能做什么】表格太乱不想整理？多个表格要合并？每个月重复做同一张报表？我用脚本+AI帮你快速搞定。',
   '【常见需求】多表合并、数据清洗（统一日期/金额去符号/去重复）、分组汇总、透视表、图表、重复报表自动化。',
   '【交付】清洗/汇总类当天交付；交付内容：处理好的Excel+操作说明。先发前100行样本，看完报价，合适开工。'
 ].join('\n');
+// 描述可由 --desc=<文本> 或 --desc-file=<路径> 覆盖（多 listing 铺货用；默认用内置文案）
+const descFile = getArg('desc-file');
+const descArg = getArg('desc');
+let DRAFT_DESC = DEFAULT_DESC;
+if (descFile) {
+  const descPath = path.resolve(ROOT, descFile);
+  if (!fs.existsSync(descPath)) { console.error(`❌ 描述文件不存在: ${descPath}`); process.exit(1); }
+  DRAFT_DESC = fs.readFileSync(descPath, 'utf8').trim();
+} else if (descArg !== null && descArg !== '') {
+  DRAFT_DESC = descArg;
+}
 
 const PROXY = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || null;
 const log = (...a) => console.log(...a);
