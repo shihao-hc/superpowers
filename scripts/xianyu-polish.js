@@ -19,6 +19,7 @@
  *   node scripts/xianyu-polish.js --probe     只读：登录检测 + 拉取我的宝贝列表（打印原始结构）
  *   node scripts/xianyu-polish.js --dry       预演：列出将擦亮的宝贝，不发请求
  *   node scripts/xianyu-polish.js             执行擦亮（每个宝贝一次，间隔 2.5s）
+ *   node scripts/xianyu-polish.js --auto      非交互（供定时任务）：登录失效即跳过、不等待、不留窗口
  *   node scripts/xianyu-polish.js --dir=<路径>       profile 目录（默认 data/xianyu-profile）
  *   node scripts/xianyu-polish.js --max=3            只擦前 N 个（默认全部）
  *   node scripts/xianyu-polish.js --hold=30          结束前保持窗口秒数（默认 8）
@@ -202,6 +203,10 @@ async function main() {
     await page.waitForTimeout(3000);
 
     if (!(await isLoggedIn(page))) {
+      if (has('auto')) {
+        log('❌ 未登录且 --auto：跳过本次（登录失效需人工扫码，见 node scripts/xianyu-poc.js）');
+        return;
+      }
       log('❌ 未登录（profile 登录态失效）→ 请先跑 node scripts/xianyu-poc.js 扫码登录');
       log('   窗口保持 120s 等你登录…');
       const t0 = Date.now();
@@ -259,7 +264,8 @@ async function main() {
     await page.screenshot({ path: shot, fullPage: false }).catch(() => {});
     log(`截图: ${shot}`);
   } finally {
-    if (holdSec > 0) { log(`\n窗口保持 ${holdSec}s…`); await sleep(holdSec * 1000); }
+    const hold = has('auto') ? 0 : holdSec;
+    if (hold > 0) { log(`\n窗口保持 ${hold}s…`); await sleep(hold * 1000); }
     await context.close().catch(() => {});
   }
 }

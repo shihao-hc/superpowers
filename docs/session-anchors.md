@@ -795,5 +795,8 @@ Session 锚点: 2026-10-17 (第122次 — 开源·擦亮助手: 网页无入口 
 - **🔴 诚实边界 (效果未验证, 不声称完成)**: 连调两次均返回 SUCCESS（**无 `IDLEITEM_POLISH_AGAIN` 重复拒绝**），但**网页侧状态/标签无任何变化**（"24小时内发布" 标签不变、详情无擦亮时间字段）→ 与上游 `zhinianboke/xianyu-auto-reply` **issue #328（返回成功但 App 未联动）完全一致** → 擦亮**是否真的提升曝光须在 App「我发布的」核验**，不以 ret=SUCCESS 声称生效
 - **发现即修复 (5.3)**: 探索时另建 `data/xianyu-profile-m`（含登录 Cookie），`.gitignore` 仅忽略 `data/xianyu-profile/` → 该兄弟目录显示 untracked、**险些提交 Cookie** → 删除 + `.gitignore` 改 `data/xianyu-profile*/` + `data/*-profile*/`（按模式而非固定名）
 - **教训库 +3**: ① success/tool「网页缺入口→调其底层 mtop 接口绕过 UI」② mistake/verification「ret=SUCCESS ≠ 效果生效，UI 缺入口的功能须可观测或人核验」③ mistake/ops「新建浏览器 profile 目录必须被 gitignore 覆盖」
-- **验证**: 真实链路（登录→item.list→polish）+ 脚本 `node --check` + ESLint 0/0(--no-ignore) + **全量 280/13,082/0 无回归**
-- 相关文件: `scripts/xianyu-polish.js` (新), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish）
+- **用户补充 (测试作废)**: 用户发布时已顺手手动擦过 → 今天"3/3 SUCCESS 且无重复拒绝"说明不了问题（状态本就已擦亮）→ **用户决定从次日起不再手动擦亮，擦亮全权交我** → 真正验证 = 次日对未擦亮宝贝首擦应 SUCCESS、当天再擦应返回 `IDLEITEM_POLISH_AGAIN`（自证生效，不必依赖 App）
+- **每日机制 (全权负责→机制化)**: `xianyu-polish.js` 加 `--auto`（非交互：登录失效即跳过/不等待/不留窗口）；`monitor-server.js` 加**每日擦亮块**（一次/自然日、9 点后触发、标记文件 `logs/xianyu-polish.lastrun` 防重启重复触发，避免多次调用增风控面）；已重启 monitor 使新代码生效（心跳正常，当日未触发——未到 9 点）
+- **附带发现 (待办)**: 重启前发现**两个 monitor-server 进程**（重复）——keepalive 靠心跳(2min)判活，重复源自"心跳停但进程僵留"；安全根治需 pidfile 化（改保活脚本有风险，本次未动，留后续）
+- **验证**: 真实链路（登录→item.list→polish）+ 脚本 `node --check` + ESLint 0/0(--no-ignore) + 安全扫描 0 HIGH + **全量 280/13,082/0 无回归**
+- 相关文件: `scripts/xianyu-polish.js` (新, 后加 --auto), `scripts/monitor-server.js` (加每日擦亮块), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish）
