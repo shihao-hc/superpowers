@@ -694,12 +694,14 @@ Session 锚点: 2026-10-16 (第118次 — token 节流: 量化工具 + 短会话
 - **量出真实账（关键发现）**: 最贵两会话 = pro 马拉松 28.29（输入 68.9M）、flash 马拉松 10.84（输入 10.9M）；
   而**短的 pro 会话仅 0.82** → **成本主因是「会话长度」，不是「模型」**（长会话每轮重发全部上下文，
   输入 token 滚到千万级）
-- **构建 `scripts/cost-report.js`（提交见下）**: 读 opencode 库出报表（今日 / 近N天 / 按模型 / Top会话）；
+- **构建 `scripts/cost-report.js`（提交 b9defb0）**: 读 opencode 库出报表（今日 / 近N天 / 按模型 / Top会话）；
   选项 `--days` `--dir` `--json` `--log`；只读不写库；库路径可用 `OPENCODE_DB` 覆盖；
   静音 node:sqlite 实验警告；缺库/占用/查询失败均友好报错
 - **固化机制**: AGENTS.md 动作清单加「**会话节流**」（一个会话做一件事，做完新开）；核心工具清单加 `cost-report`
+- **自动化**: `monitor-server.js` 加每日成本快照块（对称于每日备份：spawn `cost-report.js --log`）→
+  成本自动落 `logs/cost-report.jsonl`（节流可回看，不凭感觉）
 - **验证**: 真实运行（今日 10.91 / 合计 43.41 / Top 会话正确）+ 边界（db 缺失、`--dir`、`--json`、`--log` 均通）
   + 全量测试 280/13,082/0 无回归
 - **诚实边界**: cost 单位为 opencode 记录值（随网关，可能美元/积分）；按会话最后活动日归日（近似）；
   **开源（变现）未动**——瓶颈是「找到愿意付费的真实需求」，需真实探索 + 用户的经济身份，非我独自可完成
-- 相关文件: `scripts/cost-report.js` (新), `AGENTS.md`, `docs/session-anchors.md`
+- 相关文件: `scripts/cost-report.js` (新), `scripts/monitor-server.js`, `AGENTS.md`, `docs/session-anchors.md`

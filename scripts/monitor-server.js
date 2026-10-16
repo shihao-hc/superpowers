@@ -74,12 +74,19 @@ async function loop() {
     const child = spawn(NODE, ['scripts/backup-core.js'], { cwd: ROOT, stdio: 'ignore' });
     child.on('exit', () => log('[backup] 核心数据备份完成'));
   }
+  // 每日 token 成本快照（"节流量化"——把"今天烧了多少"变成可回看的记录，不凭感觉）
+  if (Date.now() - lastCostReport > 24 * 60 * 60 * 1000) {
+    lastCostReport = Date.now();
+    const child = spawn(NODE, ['scripts/cost-report.js', '--log'], { cwd: ROOT, stdio: 'ignore' });
+    child.on('exit', () => log('[cost-report] token 成本快照已记录'));
+  }
   setTimeout(loop, 30000);
 }
 
 let lastHealthCheck = 0;
 let lastNetCheck = 0;
 let lastBackup = 0;
+let lastCostReport = 0;
 function runHealthCheck() {
   const child = spawn(NODE, ['scripts/health-check.js'], { cwd: ROOT, stdio: 'ignore' });
   child.on('exit', (code) => {
