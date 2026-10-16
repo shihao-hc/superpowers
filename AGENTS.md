@@ -101,9 +101,10 @@
 > 重启缺失的）+ **Windows 任务计划 `Handeye-Keepalive`**（每 5min 跑 keepalive）——**监控者被系统级保活**。
 > **对账化（2026-10-17 根治「重复 monitor」）**：旧版仅凭心跳新鲜度**盲目 spawn**，当旧进程"心跳停但僵留"
 > 时新旧并存 → 重复实例（备份/健康检查/闲鱼擦亮被重复触发）。现 keepalive = **对账**（目标恒为「恰好 1 个健康
-> monitor」）：无进程且过期→启动；有进程但过期→杀掉重建；多进程心跳新鲜→去重留 1；进程枚举失败→不动作（不用
-> 不可信数据）。决策纯函数在 `scripts/monitor-instance.js`（可单测），副作用（枚举/终止）与之分离；
-> `keepalive.js --dry` 只打印决策不动作（真实环境核对用）。
+> monitor」）：无进程且过期→启动；有进程但过期（僵留）→杀掉重建；多进程→一律收敛为恰好一个（全杀重建，不做
+> "任保留一个"）；进程枚举失败→不动作（不用不可信数据）。**纯决策** `decideMonitorAction` + **可注入 IO 执行器**
+> `reconcileMonitors` + 副作用（枚举/终止）在 `scripts/monitor-instance.js`（均可单测）；`scripts/monitor-sim.js`
+> 用**真实进程**（真起真杀）模拟验证；`keepalive.js --dry` 只打印决策不动作（真实环境核对用）。
 
 > **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解

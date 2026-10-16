@@ -822,16 +822,19 @@ Session 锚点: 2026-10-17 (第123次 — 核对: 重复 monitor + 闲鱼擦亮"
 ---
 
 Session 锚点: 2026-10-17 (第124次 — 根治「重复 monitor」：keepalive 对账化替换盲 spawn)
-- Tests: **281 passed suites / 4 skipped / 0 failed** (13,094 passed / 46 skipped, +12) 全量通过 | ESLint 0/0（含 --no-ignore 新/改脚本）| 安全 0 HIGH | 教训库 66 条
+- Tests: **281 passed suites / 4 skipped / 0 failed** (13,099 passed / 46 skipped, +17) 全量通过 | ESLint 0/0（含 --no-ignore 新/改脚本）| 安全 0 HIGH | 教训库 66 条
 - **背景 (用户「重复 monitor 根治（pidfile 化）留后续，交由你自行判断，我不做任何建议」)**: 上轮"观测先行"仅 3 样本均 count=1 未复发；但根因是**可证伪的设计缺陷**（keepalive 仅凭心跳新鲜度盲目 spawn、恢复非幂等 → 只能"至少一个"不能"恰好一个"）→ **不等复发，直接根治**（理由：等待复发不改变正确性论证，且修复干净可测）
-- **根治（对账 reconcile）**: 新建 `scripts/monitor-instance.js` —— **纯决策** `decideMonitorAction`（可单测）+ 副作用 `listMonitorPids`/`killPids` **分离**。目标恒为「恰好 1 个健康 monitor」：
+- **根治（对账 reconcile）**: 新建 `scripts/monitor-instance.js` —— **纯决策** `decideMonitorAction`（可单测）+ **可注入 IO 执行器** `reconcileMonitors` + 副作用 `listMonitorPids`/`killPids`（分离）。目标恒为「恰好 1 个健康 monitor」：
   - 0 进程 + 过期 → `spawn`；0 进程 + 新鲜 → 保守 `ok`（不动作，异常态）
   - 1 进程 + 过期（僵留）→ `replace`（杀掉重建）；1 进程 + 新鲜 → `ok`
-  - ≥2 进程 + 新鲜（重复）→ `dedupe`（保留 1、杀多余）；≥2 进程 + 过期 → `replace`（全杀重建）
+  - ≥2 进程（非预期多实例，**无论心跳**）→ `replace`（**全部杀掉重建**——不做"任保留一个"：单一心跳文件无法判断哪个健康，保留到僵留进程会残留）
   - **进程枚举失败（非数组）→ `unknown`：不杀不启**（不用不可信数据动作 = 安全护栏）
-- **keepalive.js 改造**: 用对账替换盲 spawn；清理旧 `start(script, out)` 未用参数（消除既有 lint warning）；加 `--dry`（只打印决策不动作，真实环境核对）
+- **keepalive.js 改造**: 用对账替换盲 spawn；抽取 `reconcileMonitors`（执行编排：决策→先杀→等退→再启）；清理旧 `start(script, out)` 未用参数（消除既有 lint warning）；加 `--dry`（只打印决策不动作，真实环境核对）
 - **同根源收口**: `monitor-observe.js` 复用 `monitor-instance.listMonitorPids`（删除其重复的 powershell 枚举，防两处漂移）
-- **真实验证（非 mock）**: ① `listMonitorPids()` 对真实系统返回 `[26900]`；② `keepalive.js --dry` 对真实系统 → 决策 `ok`（1 进程/心跳 9s，不杀不启）→ 落 keepalive.log 可查；③ `killPids` 对真实临时 node 进程实测**终止成功**（child exited、非 alive）→ 验证 Windows `SIGTERM` 生效；④ 单测 12 条覆盖全分支；⑤ 全量 281/13,094/0 无回归；⑥ 跑全量测试后 `logs/` **未被清**（第123修复保持有效）
-- **诚实边界**: ① **未在真实环境诱发"重复"后验证 dedupe/replace 的执行**（无法安全制造僵留）——决策逻辑靠纯函数单测覆盖，执行侧实测的是 `killPids` 的终止能力，二者组合成对账；② 观测继续（monitor-observe 仍每 5min 跑），后续真发生重复时可由 keepalive.log + monitor-instances.jsonl 对照验证去重
-- **备选方案取舍**: 未走"pidfile 单例"（pidfile 有 stale/PID 复用/原子写/进程枚举坑，且在"僵留"时自单例会误判存活而拒绝启动→反倒 0 健康实例）；选**对账**（权威枚举 + 纯决策）更直接、可测
-- 相关文件: `scripts/monitor-instance.js` (新), `scripts/keepalive.js` (改), `scripts/monitor-observe.js` (改), `tests/unit/monitor-instance.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`
+- **🔬 真实进程级模拟验证（用户「可不可以模拟真实环境去验证」）**: 新建 `scripts/monitor-sim.js` —— 用**真实 node 进程**（真起真杀）+ 注入 pid 列表（隔离）跑通对账执行：**18/18 通过，dummy 残留存活=0**：
+  - 场景1 多实例(3真进程)→**真杀全部**+起1；场景2 单实例+心跳过期(僵留)→真杀+起1；场景3 无进程+过期→只起；场景4 单实例+新鲜→不杀不启（原进程存活）；场景5 枚举失败→不杀不启；场景6 真实生产枚举+真心跳+加假想 pid→决策 replace
+  - 安全隔离：dummy 用通用参数（cmdline 不含 monitor-server.js）→ 真实枚举器/真实 keepalive 不误认；跑完**生产 monitor pid 26900 仍在、仍是唯一**
+- **其他真实验证**: ① `listMonitorPids()` 对真实系统返回 `[26900]`；② `keepalive.js --dry` 对真实系统 → 决策 `ok`（不杀不启）→ 落 keepalive.log；③ `killPids` 对真实临时 node 进程实测终止成功（Windows `SIGTERM` 生效）；④ 单测 **17 条**（决策 12 + 执行编排 5，IO 注入）；⑤ 全量 **281/13,099/0** 无回归；⑥ 跑全量测试后 `logs/` 未被清（第123修复保持有效）
+- **诚实边界**: ① 模拟用**注入 pid 列表**隔离（不真造"名为 monitor-server.js 的重复进程"——那会污染真实枚举、且真实 keepalive 可能误杀生产）→ 执行编排（真杀真起）+ 真实枚举（返回 `[26900]`）分别验证，组合成对账；② 场景6 的"多实例"是合成的（真 pid + 假想 pid），仅验决策不执行；③ 观测继续（monitor-observe 每 5min），真复发时可由 keepalive.log + monitor-instances.jsonl 对照
+- **备选方案取舍**: 未走"pidfile 单例"（pidfile 有 stale/PID 复用/原子写/进程枚举坑，且在"僵留"时自单例会误判存活而拒绝启动→反倒 0 健康实例）；选**对账**（权威枚举 + 纯决策 + 可注入执行器）更直接、可测、可模拟
+- 相关文件: `scripts/monitor-instance.js` (新), `scripts/monitor-sim.js` (新), `scripts/keepalive.js` (改), `scripts/monitor-observe.js` (改), `tests/unit/monitor-instance.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`

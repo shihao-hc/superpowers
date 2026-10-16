@@ -1,4 +1,4 @@
-const { decideMonitorAction, STALE_MS } = require('../../scripts/monitor-instance');
+const { decideMonitorAction, reconcileMonitors, STALE_MS } = require('../../scripts/monitor-instance');
 
 describe('monitor-instance.decideMonitorAction', () => {
   it('无进程 + 心跳缺失 → spawn', () => {
@@ -28,10 +28,10 @@ describe('monitor-instance.decideMonitorAction', () => {
     expect(d.killPids).toEqual([123]);
   });
 
-  it('多进程 + 心跳新鲜（重复）→ dedupe：保留首个、杀多余', () => {
+  it('多进程 + 心跳新鲜（重复）→ replace：全部收敛重建（不"任保留一个"）', () => {
     const d = decideMonitorAction({ heartbeatAgeMs: 3000, monitorPids: [11, 22, 33] });
-    expect(d).toMatchObject({ action: 'dedupe', spawn: false });
-    expect(d.killPids).toEqual([22, 33]);
+    expect(d).toMatchObject({ action: 'replace', spawn: true });
+    expect(d.killPids).toEqual([11, 22, 33]);
   });
 
   it('多进程 + 心跳过期 → replace：全部杀掉重建', () => {
@@ -61,5 +61,64 @@ describe('monitor-instance.decideMonitorAction', () => {
 
   it('无参调用不抛错', () => {
     expect(() => decideMonitorAction()).not.toThrow();
+  });
+});
+
+describe('monitor-instance.reconcileMonitors（执行编排，IO 注入）', () => {
+  function deps(over = {}) {
+    const seq = [];
+    const killPids = jest.fn((pids) => { seq.push('kill'); return pids.slice(); });
+    const start = jest.fn(() => { seq.push('start'); });
+    return {
+      seq, killPids, start,
+      listMonitorPids: jest.fn(() => []),
+      heartbeatAgeMs: jest.fn(() => 1000),
+      sleep: jest.fn(() => Promise.resolve()),
+      log: jest.fn(),
+      ...over
+    };
+  }
+
+  it('replace：先杀后启（顺序正确）', async () => {
+    const d = deps({ listMonitorPids: () => [1, 2], heartbeatAgeMs: () => 1000 });
+    const r = await reconcileMonitors(d);
+    expect(d.killPids).toHaveBeenCalledWith([1, 2]);
+    expect(d.start).toHaveBeenCalledWith('scripts/monitor-server.js');
+    expect(d.seq).toEqual(['kill', 'start']);
+    expect(r.killed).toEqual([1, 2]);
+    expect(r.spawned).toBe(true);
+  });
+
+  it('spawn：不杀只启', async () => {
+    const d = deps({ listMonitorPids: () => [], heartbeatAgeMs: () => null });
+    const r = await reconcileMonitors(d);
+    expect(d.killPids).not.toHaveBeenCalled();
+    expect(d.start).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ spawned: true, killed: [] });
+  });
+
+  it('ok：不杀不启', async () => {
+    const d = deps({ listMonitorPids: () => [7], heartbeatAgeMs: () => 1000 });
+    const r = await reconcileMonitors(d);
+    expect(d.killPids).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(r).toMatchObject({ spawned: false, killed: [] });
+  });
+
+  it('unknown：枚举失败 → 不杀不启', async () => {
+    const d = deps({ listMonitorPids: () => ({ error: 'x' }), heartbeatAgeMs: () => 1000 });
+    const r = await reconcileMonitors(d);
+    expect(d.killPids).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(r.spawned).toBe(false);
+  });
+
+  it('dry：只决策不动作', async () => {
+    const d = deps({ listMonitorPids: () => [1, 2], heartbeatAgeMs: () => 1000, dry: true });
+    const r = await reconcileMonitors(d);
+    expect(d.killPids).not.toHaveBeenCalled();
+    expect(d.start).not.toHaveBeenCalled();
+    expect(r.decision.action).toBe('replace');
+    expect(r).toMatchObject({ killed: [], spawned: false });
   });
 });
