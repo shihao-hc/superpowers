@@ -869,3 +869,15 @@ Session 锚点: 2026-10-17 (第126次 — 收口 cwd 依赖技术债：入口 pi
 - **诚实边界**: pinCwd 只固定**长驻进程（server）**的 cwd；**未改 100+ 模块本身**（被当库以其他 cwd 使用时仍受 cwd 影响——刻意保留模块语义）；非 server 入口（CLI/`brain-entry`）未 pin（运行模型不涉及）
 - **方法沉淀**: 面对"同一根因散落多处"的债，找**单点杠杆**（系统边界/入口统一收口）胜过逐点修补；收口位置要"最早生效"（早于捕获该状态的代码）
 - 相关文件: `src/utils/pinCwd.js` (新), `server/index.js` (改), `server/staticServer.js` (改), `tests/unit/pin-cwd.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`
+
+---
+
+Session 锚点: 2026-10-17 (第127次 — 开源 readiness：交付引擎补齐最常见真实输入缺口「GBK CSV」)
+- Tests: **282 passed suites / 4 skipped / 0 failed** (13,103 passed / 46 skipped) 全量通过 | ESLint 0/0（含 --no-ignore）| 安全 0 HIGH | 教训库 70 条
+- **背景 (用户「继续交你判断」；计划 ③ 开源受"真人/流量"门槛)**: 不盲冲流量 —— 做我**全权自有且有价值**的部分：**"真有订单时一次交付到位"（readiness）**
+- **真实侦察**: README/SOP **文档已承认**"CSV 只吃 UTF-8，Excel 导出的 GBK CSV 需先转码" —— 而中国客户 Excel 导出 CSV **默认 GBK**，是最常见的真实输入，首单极可能卡在编码上（非投机新增）
+- **缺口证实（真实）**: 造 GBK 脏数据 → 当前引擎**静默乱码**（`����`/`�ŵ�`）却仍打印"✅ 完成" → **比报错更危险**（静默交付脏数据）
+- **修复 `scripts/data-report.js`**: 加 `decodeText`（BOM 优先 → 严格 UTF-8 → 回退 GB18030）+ CSV 改走 `Readable`；用 Node 内置 `TextDecoder('gb18030')`，**无需新依赖**
+- **真实验证（非 mock）**: ① GBK CSV → 正确（表头/值正确、`¥1,188.00`→1188、`￥ 25.5 `→25.5、日期归一、去空行/去重）；② UTF-8(BOM) 样例回归 ✓；③ **无 BOM 的 UTF-8 中文** ✓；④ xlsx `report` 回归 ✓；⑤ 全量 282/13,103/0；⑥ ESLint 0/0（含 `--no-ignore`）；⑦ 安全 0 HIGH
+- **诚实边界**: 未加 jest 单测（scripts/ 无单测基建，与既有模式一致，靠真实编码往返验证）；编码识别为**启发式**（无 BOM 时严格 UTF-8 失败即判 GBK——极少数"恰好是合法 UTF-8 的 GBK"会误判，罕见）；**未动"只取首个工作表"**（需问客户，非静默 bug）；仍守"按真实订单长能力，不提前堆"
+- 相关文件: `scripts/data-report.js` (改), `service/data-report/README.md` (改), `service/data-report/接单SOP.md` (改), `.opencode/lessons.json`

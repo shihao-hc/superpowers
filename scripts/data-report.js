@@ -27,6 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { Readable } = require('stream');
 const ExcelJS = require('exceljs');
 
 // ===== 参数解析 =====
@@ -83,12 +84,22 @@ function cellToPrimitive(v) {
   return v;
 }
 
+// 文本解码：BOM 优先 → 严格 UTF-8 → 失败则按 GB18030（中国客户 Excel 导出 CSV 默认 GBK，最常见的真实输入坑）
+function decodeText(buf) {
+  if (buf.length >= 3 && buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {return buf.slice(3).toString('utf8');}
+  if (buf.length >= 2 && buf[0] === 0xFF && buf[1] === 0xFE) {return new TextDecoder('utf-16le').decode(buf.slice(2));}
+  if (buf.length >= 2 && buf[0] === 0xFE && buf[1] === 0xFF) {return new TextDecoder('utf-16be').decode(buf.slice(2));}
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { /* 非合法 UTF-8 → 试 GB18030 */ }
+  try { return new TextDecoder('gb18030').decode(buf); } catch (e) { return buf.toString('utf8'); }
+}
+
 async function readTable(file) {
   const ext = path.extname(file).toLowerCase();
   const wb = new ExcelJS.Workbook();
   let ws;
   if (ext === '.csv') {
-    ws = await wb.csv.readFile(file);
+    const text = decodeText(fs.readFileSync(file)); // 自动识别 UTF-8/GBK(GB18030)/UTF-16
+    ws = await wb.csv.read(Readable.from([text]));
   } else if (ext === '.xlsx' || ext === '.xlsm') {
     await wb.xlsx.readFile(file);
     ws = wb.worksheets[0];
