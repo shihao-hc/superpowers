@@ -246,7 +246,7 @@ deepReflect({ input, success });
 ## 2. 版本信息
 
 - BrainSystem: **v22.1**
-- 教训库: **35 条**（全未应用，提醒可用；此前"41 条活跃"为失实记录）
+- 教训库: **59 条**（`_applied` 已应用 39 条；此前"35 条全未应用"已失实，2026-10-16 实测修正）
 - Skills: **291 个**（SkillRecognizer 实际加载数；此前"304"为失实记录）
 - 决策规则: 6 类（brain-decision）+ 9 类任务分类映射（LessonReminder）
 - 桥梁: **brain-bridge.js v1**（未自动接入，手动工具；loop-guard 曾触发熔断）

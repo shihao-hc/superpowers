@@ -627,6 +627,58 @@ Session 锚点: 2026-10-16 (第114次 — 真实验证暴露断裂 + 根治 cwd 
   先规划再执行要活成默认(非提醒后响应)。动作清单 +2 条(验证跨场景对比/任务前检索教训)
 - **诚实边界**: 3 个工具都是"半自动"(提升可见性、非 100% 强制，需我匹配场景主动调用)；
   src/core 下另一批 cwd 依赖(LessonLibrary/SmartMemory/BrainBridge 等)未收口(本次聚焦不扩大)
-- 相关文件: `scripts/{keepalive,monitor-server,backup-core}.js`, `server/{index,routes/index}.js`,
+-   相关文件: `scripts/{keepalive,monitor-server,backup-core}.js`, `server/{index,routes/index}.js`,
   `server/services/chatService.js`, `scripts/reverse.js`, `.opencode/plugins/{reverse-tool,browser-eye-tool,lessons-tool}.js` (新),
   `tests/unit/{chat-service,file-download-routes}.test.js`, `AGENTS.md`
+
+---
+
+Session 锚点: 2026-10-16 (第115次 — token 用量持久化: 让数据真正可积累)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过 | 教训库 57 条
+- **背景 (用户想复盘 token 优化却发现没有数据)**: `stats.tokens` 仅内存，每次 server 重启清零 →
+  "更多数据"从未真正累积（重启即归零）
+- **实现 (提交 f17db96)**: 每次请求追加 `logs/token-usage.jsonl`（ts/prompt/completion/total/utilization，
+  上限 5 万行滚动截断）；启动时 `_loadTokenStats` 从 JSONL 恢复累积统计（重启不丢）
+- **真实复测 (re-measure round-110 优化)**: 普通对话 **74 tokens (0.6% of num_ctx 8192)**、
+  技能对话 **114 (1.0%)** —— 较 round-110 基线 243 **降 65%**（thinkText 移除 + 技能 essence 去重生效）
+- **结论**: num_ctx 8192 余量巨大，数据可积累后（供未来分析）暂无需进一步优化
+- **诚实边界**: 新增代码无单测，仅真实复测；本锚点写入时补跑全量 280/13,082/0 确认无回归
+- 相关文件: `server/services/chatService.js`
+
+---
+
+Session 锚点: 2026-10-16 (第116次 — 补天 SRC 低危起步: 工具+清单+提交格式+防误报)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) | 安全: 0 HIGH
+- **背景 (用户注册补天，想从小处开始)**: 分工——**AI 提供方法/工具（脑），人做授权测试/提交（手，法律边界）**
+- **leak-check.js (提交 621a675)**: 温和 GET-only 信息泄露检测（`.git` / 备份文件 / 敏感文件 / 目录遍历），
+  限速 + soft-404 感知 + 法律护栏；`docs/butian-low-risk-checklist.md` 三类低危（信息泄露/弱口令/配置错误）
+- **提交表单格式 (提交 790fd3d)**: 从**补天真实提交页 HTML** 提取全字段（厂商/类型/权重/标题规则等）
+  + 详细细节**四个必填要求**（关键：两张截图 —— 复现过程 + **厂商归属证明**，缺一易驳回）
+- **提交页规则 (提交 2003238)**: 截图必须**本地上传**（禁复制粘贴）、新用户**限 5 个待审**、需**实名认证**
+- **soft-404 修复 (提交 3bd208b, 真实教训)**: `meiyouwx.com` 对不存在路径**静默回退首页** →
+  `index.php.bak` 返回 200 + 81KB 疑似泄露（实为首页）→ `isSoft404` 增加"与缓存首页内容比对"（原仅查 404 字样）
+- **AI 报告核验机制 (提交 1bfbbf6)**: 补天规则——未经人工核验的 AI 报告**扣信誉值（累积 ≤60 封号）**；
+  差点把 meiyouwx 的 soft-404 误报为真泄露 → 加提交前**人工核验清单** + 动作清单加
+  「**AI 报告标注验证状态**（AI 推断 vs 用户实测）」+ 记纠错教训
+- **验证**: 文档 + 独立脚本，未加单测；本锚点写入时全量 280/13,082/0 无回归
+- 相关文件: `scripts/leak-check.js` (新), `docs/butian-low-risk-checklist.md` (新), `AGENTS.md`
+
+---
+
+Session 锚点: 2026-10-16 (第117次 — AGENTS.md 收纳整理 + 教训检索相关性排序)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) | ESLint 0/0
+- **背景 (AGENTS.md 被 35 个历史锚点 + 运维记录撑到 1000+ 行)**: 核心告诫/协议/动作清单被淹没
+- **归档 (提交 c827c4a)**: 35 个锚点 + 运维记录（~570 行）→ `docs/session-anchors.md`（573 行），
+  AGENTS.md 精简到 ~513 行；补**核心工具清单**（scripts/ 有 50+ 脚本，日常该用只有 9 个 → 列入场景→工具映射）
+- **收纳规则 (提交 a72d389, 用户"不只现在理，以后有更多也要归纳好")**: 每新增一样东西**当场归类**——
+  工具（核心/一次性）、教训（`category` 用统一体系 security/method/verification/thinking/tool/ops，
+  `type` 单独标 mistake/success）、机制（当前/历史）、锚点（写归档不进 AGENTS.md）
+- **教训检索相关性排序 (提交 40fa8b9)**: `LessonLibrary.search` 此前**只过滤不排序** → 泛词检索最相关被挤后
+  （"漏洞报告"把"AI 报告须核验"排第 4）→ 按**命中 token 数评分**，隔离组内降序（隐私隔离仍优先）
+- **归档完整性自查 (提交 b4594b9)**: 第一遍归档**漏了 section 8 之后的 2 个锚点（113/114）**，
+  复查才抓出 → 印证"验证不靠感觉"（这正是下次扩大验证规则的实证）
+- **验证规则扩大 (提交 b145a8c)**: 动作清单「修复后真实验证」→「**任何改动**（代码/工具/归档/分类/整理）」
+  验证，逐项查「效果 + 是否破坏 + 是否误伤」
+- **验证**: 全量 280/13,082/0（确认两处代码改动无回归）+ 归档完整性复查（补 2 漏锚点）
+- **诚实边界**: 教训检索排序改动未加单测
+- 相关文件: `AGENTS.md`, `docs/session-anchors.md`, `src/core/LessonLibrary.js`
