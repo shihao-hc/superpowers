@@ -49,6 +49,13 @@
 > - 日常脚本：`health-check`（56 项健康检查）、`net-fix`（网络自愈）、`gh-readme`（GitHub README）、`leak-check`（信息泄露检测）
 > - 运维（monitor/keepalive 自动跑，不手动）：`backup-core`、`monitor-server`、`keepalive`
 >
+> **收纳规则（持续——2026-10-16 用户「不只现在理，以后有更多也要归纳好」教导）**：
+> 每新增一样东西，**当场归好类**，不留「以后再说」：
+> ① 工具：新增脚本 → 判断「核心（日常该用）」/「一次性（测试维护）」→ 核心列入上方清单；
+> ② 教训：新增教训 → `category` 用统一体系（security/method/verification/thinking/tool/ops，**不用 type 值 mistake/success 当 category**），`type` 单独标 mistake/success；重要的提炼进 8.3 动作清单，其余留教训库；
+> ③ 机制/协议：新增 → 判断「当前有效」/「历史」→ 历史归档 `docs/`，当前才进 AGENTS.md；
+> ④ Session 锚点：每次 session 末 → 写 `docs/session-anchors.md`（不进 AGENTS.md，防膨胀）。
+>
 > **借外力要分辨（2026-09-18 补充）**：外部资料/代码/方案 = **有待验证的假设，不是答案**。
 > 分辨标准：来源可信度（官方 > 个人）/ 场景适配（依赖/版本/假设是否与我一致）/
 > 时效（是否过时）/ 验证优先（先 PoC 在我场景跑通才采用）。
