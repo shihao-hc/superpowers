@@ -52,27 +52,36 @@ class LessonLibrary {
   }
 
   search(query, options = {}) {
-    let results = [...this._lessons];
+    let scored = [];
     if (query) {
       // 中文感知：整句 includes 对中文自然语言查询永不命中（真实缺陷，与 SmartMemory 同源）
       // 改为 bigram 分词，任一 token 命中即匹配
-      const tokens = LessonLibrary._tokenize(query);
-      results = results.filter((l) => {
+      // 相关性评分：命中 token 越多越相关，排序靠前（修复：此前命中即返回、无排序，泛词检索最相关的被挤到后面）
+      const tokens = LessonLibrary._tokenize(query).filter((t) => t.length >= 2);
+      for (const l of this._lessons) {
         const text = `${l.title || ''} ${l.problem || ''} ${l.lesson || ''} ${l.context || ''} ${(l.tags || []).join(' ')}`.toLowerCase();
-        return tokens.some((t) => t.length >= 2 && text.includes(t));
-      });
+        const hitCount = tokens.filter((t) => text.includes(t)).length;
+        if (hitCount > 0) { scored.push({ lesson: l, hitCount }); }
+      }
+    } else {
+      scored = this._lessons.map((l) => ({ lesson: l, hitCount: 0 }));
     }
     if (options.type && options.type === 'success') {
-      results = results.filter((l) => l._applied);
+      scored = scored.filter((x) => x.lesson._applied);
     }
     // 修复：用户纠正/成功经验教训按 userId 隔离——带 userId 的教训只对本人可见（防跨用户 prompt 注入）；
     // 无 userId 的教训（系统/开发者）共享给所有人
     // 且用户自己的教训最优先（此前共享预置教训命中多时会把用户经验挤出 limit，用户经验永远注入不了）
+    // 隐私隔离优先，隔离后组内按相关性（hitCount）降序
+    const sortByHit = (a, b) => b.hitCount - a.hitCount;
+    let results;
     if (options.userId) {
-      const own = results.filter((l) => l.userId === options.userId);
-      const shared = results.filter((l) => !l.userId);
-      const others = results.filter((l) => l.userId && l.userId !== options.userId);
-      results = [...own, ...shared, ...others];
+      const own = scored.filter((x) => x.lesson.userId === options.userId).sort(sortByHit);
+      const shared = scored.filter((x) => !x.lesson.userId).sort(sortByHit);
+      const others = scored.filter((x) => x.lesson.userId && x.lesson.userId !== options.userId).sort(sortByHit);
+      results = [...own, ...shared, ...others].map((x) => x.lesson);
+    } else {
+      results = scored.sort(sortByHit).map((x) => x.lesson);
     }
     if (options.limit) { results = results.slice(0, options.limit); }
     return results;
