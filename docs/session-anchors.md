@@ -774,5 +774,11 @@ Session 锚点: 2026-10-17 (第121次 — 开源第二步: 曝光提升·多List
 - **诚实边界**: ① 每条 listing 需**人 App 扫码发布**（服务类目网页不支持发布，上轮已实测），铺 N 条 = N 次扫码；
   ② 改了 xianyu-fill-draft.js 但**未跑真实登录链路**（需活跃登录态，本次未做）——仅语法/参数/报错路径验证；
   ③ **擦亮助手未做**（需活跃登录态 + 真实 DOM 探索，留待下轮，避免产出未验证脚本违反 4.3）
+- **执行 (2026-10-17 用户授权「全权负责，扫码才联系」)**: 实测发布 B/C 两条——
+  给 `xianyu-fill-draft.js` 加 `--publish`（填好后自动点[发布]）+ 自动展开「点击展示二维码」；
+  用**后台分离进程**运行（避免阻塞会话）+ **轮询日志标记**（`>>> FILLED/WAIT_SCAN <<<`）；
+  用户在窗口扫码→App 发布 → **B(30元) / C(200元) 均真实发布成功**（用户确认）
+- **真实链路验证**: `--probe` 确认登录态有效；B/C 两条真实填入→读回(首图/描述/价格/发货)→点发布→服务类目扫码桥接→人扫码发布；
+  全程**真实闲鱼页面，非 mock**；改脚本后全量 280/13,082/0 无回归
 - 相关文件: `service/data-report/多Listing铺货.md` (新), `service/data-report/listings/*` (新),
-  `scripts/xianyu-covers.js` (新), `scripts/xianyu-fill-draft.js` (改), `service/data-report/cover/首图{B,C}-*.png` (新)
+  `scripts/xianyu-covers.js` (新), `scripts/xianyu-fill-draft.js` (改, 加 --publish/--desc-file/展码), `service/data-report/cover/首图{B,C}-*.png` (新)

@@ -15,6 +15,7 @@
  *   node scripts/xianyu-fill-draft.js --price=30 --image=<首图.png> --desc-file=<文案.txt>
  *     ↑ 多 listing 铺货：分别指定价格 / 首图 / 描述文案（文案首行即关键词标题）
  *   node scripts/xianyu-fill-draft.js --desc="单行文案"   （或直接传文本，多行建议用 --desc-file）
+ *   node scripts/xianyu-fill-draft.js --publish --hold=600  填好后自动点[发布]（服务类目→弹二维码，需扫码）
  */
 const path = require('path');
 const fs = require('fs');
@@ -186,19 +187,63 @@ async function main() {
     const shot = path.join(shotDir, `xianyu-draft-${Date.now()}.png`);
     await page.screenshot({ path: shot, fullPage: false });
     log(`截图: ${shot}`);
-    log('\n⚠️ 脚本不会点发布。你可在窗口内核对后自行点[发布]。');
+    log('>>> FILLED <<<');
 
-    // 保持窗口打开，等你在场操作（点发布后 URL 会离开 /publish → 自动识别）
-    const holdSec = Number(getArg('hold')) || 10;
+    // 可选：自动点[发布]（--publish）。服务类目会弹二维码桥接到 App（由人在场扫码）。
+    const doPublish = args.includes('--publish');
+    if (doPublish) {
+      log('\n===== 4) 点击[发布] =====');
+      const clicked = await page.evaluate(() => {
+        const btns = [...document.querySelectorAll('button,[role="button"],a')];
+        const b = btns.find((x) => ['发布', '发布宝贝', '立即发布'].includes((x.innerText || '').trim()));
+        if (b) { b.click(); return (b.innerText || '').trim(); }
+        return null;
+      });
+      log(`点击发布: ${clicked ? `"${clicked}"` : 'NOT FOUND'}`);
+      await page.waitForTimeout(3500);
+      const st = await page.evaluate(() => {
+        const t = document.body ? document.body.innerText : '';
+        return {
+          url: location.href,
+          hasQR: !!document.querySelector('canvas,img[src*="qr"],img[src*="erweima"]') || /扫码|二维码/.test(t),
+          success: /发布成功|发布完成|已发布/.test(t),
+          hint: (t.match(/[^\n]*(扫码|App|不支持|请使用)[^\n]*/) || [''])[0].slice(0, 80)
+        };
+      });
+      log(`发布后: ${JSON.stringify(st)}`);
+      if (st.hasQR) {
+        // 服务类目：先展开二维码，省去人工点「点击展示二维码」
+        await page.evaluate(() => {
+          const els = [...document.querySelectorAll('a,button,span,div,p')];
+          const e = els.find((x) => {
+            const t = (x.innerText || '').trim();
+            return t === '点击展示二维码' || t === '展示二维码';
+          });
+          if (e) { e.click(); }
+        }).catch(() => {});
+        await page.waitForTimeout(1800);
+      }
+      if (st.success || !st.url.includes('/publish')) {
+        log('>>> PUBLISH_DETECTED <<<');
+      } else if (st.hasQR) {
+        log('>>> WAIT_SCAN <<< 请用闲鱼App扫码继续发布');
+      } else {
+        log('>>> CLICKED_NOQR <<< 已点发布，未见二维码/成功提示，请查看窗口');
+      }
+    }
+
+    // 保持窗口打开，等人在场扫码/发布（点发布后 URL 若离开 /publish → 自动识别）
+    const holdSec = Number(getArg('hold')) || (doPublish ? 600 : 10);
     log(`\n窗口保持 ${holdSec}s（最多 ${Math.round(holdSec / 60)} 分钟）…`);
     const t0 = Date.now();
     let published = false;
     while (Date.now() - t0 < holdSec * 1000) {
       await new Promise((r) => setTimeout(r, 2000));
       const u = page.url();
-      if (!u.includes('/publish')) { published = true; break; }
+      const t = await page.evaluate(() => (document.body ? document.body.innerText : '')).catch(() => '');
+      if (!u.includes('/publish') || /发布成功|已发布/.test(t)) { published = true; break; }
     }
-    log(published ? '🎉 检测到页面离开发闲置页（可能已发布/跳转）' : '⏱️ 保持时间到，未检测到发布');
+    log(published ? '>>> PUBLISHED <<< 🎉' : '>>> HOLD_TIMEOUT <<< ⏱️ 未检测到发布完成');
   } finally {
     await context.close().catch(() => {});
   }
