@@ -23,6 +23,11 @@ describe('Persistence', () => {
 
   afterAll(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
+    // 清理测试写进真实 data/ 的产物（测试不应在共享运行时目录留痕）
+    const dataDir = path.join(__dirname, '../../data');
+    ['test-key', 'append-test', 'no-items', 'corrupt-key', 'error-key'].forEach((k) => {
+      try { fs.unlinkSync(path.join(dataDir, `${k}.json`)); } catch (e) { /* 不存在则忽略 */ }
+    });
   });
 
   describe('save and load', () => {

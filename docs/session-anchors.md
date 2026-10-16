@@ -895,3 +895,13 @@ Session 锚点: 2026-10-17 (第128次 — 核心链路真实使用审计：抓�
 - **诚实边界**: 标题单元格内容由模型决定（本次为"英语"，弱模型怪癖，非代码 bug）；**数据行仍由模型按需给**（未给=模板化空表，符合"不编造数据"）
 - **方法沉淀**: 验证核心功能要**看产物内容**，而非看返回状态（ok:true/200 可能只是"跑通了空逻辑"）；链路上的关键字段要逐环确认真被传递（入口→schema→handler→executor），不能只看两端各自"存在"
 - 相关文件: `server/services/chatService.js` (改), `tests/unit/chat-service.test.js` (改), `.opencode/lessons.json`
+
+---
+
+Session 锚点: 2026-10-17 (第129次 — 核心链路审计续：docx/记忆 ✅；修「测试污染真实 data/」)
+- Tests: **282 passed suites / 4 skipped / 0 failed** (13,105 passed / 46 skipped) 全量通过 | ESLint 0/0 | 安全 0 HIGH
+- **背景 (接 #128 审计)**: 继续审计核心链路其他类型（避免同类"参数断链"）
+- **审计结果**: ① **docx 正常**：真实生成后解包读 `word/document.xml` 文本 = "项目周报" + 完整内容（用 `content`）② pdf 同用 `content`（代码层确认，同 docx）③ **记忆/会话真实落盘**（`evolution/memory.json` 21KB、`data/conversations.json` 实时更新）
+- **🔴 发现并修（小）**: `tests/unit/persistence.test.js` 把 `test-key/append-test/no-items/corrupt-key/error-key.json` 写进**真实 `data/`** 且 `afterAll` 不清理 → 在共享运行时目录留痕（`.gitignore` 仅补丁式忽略其中几个）→ `afterAll` 加清理；全量测试后 `data/` 无残留
+- **诚实边界**: 此项危害低（git 已忽略、下次运行 beforeAll 会先删）——是"测试不碰真实数据"原则（#123）的落实，非线上 bug；更彻底的做法（`Persistence` 的 `DATA_DIR` 可注入 + 测试用 tmpdir）**未做**（改动运行时模块，风险 > 收益）
+- 相关文件: `tests/unit/persistence.test.js` (改), `docs/session-anchors.md`
