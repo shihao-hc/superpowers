@@ -78,7 +78,8 @@
 **PoC 实测留痕**：填入动作 = `{image: uploaded 首图-对比.png, desc: contenteditable filled, price: filled 50, shipping: clicked "无需邮寄"}`；
 readback = priceInputs[0]=50.00 / editable 含文案 / radiosChecked=无需邮寄 / 地址=账号默认。
 
-**待确认**（用户报告）：扫码后 App 内草稿内容是否完整保留（描述/价格/图）——若保留，则"内容零重填"成立。
+**✅ 已确认（用户 2026-10-16）**：扫码后 App 内收到的就是**网页自动填好的那套**（描述/价格 50/首图）——
+即 **「内容零重填」成立**：AI 在网页端一次填好，人只做"扫码 + 点发布"，App 内无需再输入。
 
 ## 安全与风险（诚实）
 
