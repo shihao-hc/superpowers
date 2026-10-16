@@ -80,6 +80,12 @@ async function loop() {
     const child = spawn(NODE, ['scripts/cost-report.js', '--log'], { cwd: ROOT, stdio: 'ignore' });
     child.on('exit', () => log('[cost-report] token 成本快照已记录'));
   }
+  // 只读观测：每 5 分钟记录 monitor 实例数 + 心跳年龄（确认"重复 monitor"是否复发；不杀不启）
+  if (Date.now() - lastObserve > 5 * 60 * 1000) {
+    lastObserve = Date.now();
+    const child = spawn(NODE, ['scripts/monitor-observe.js'], { cwd: ROOT, stdio: 'ignore' });
+    child.on('exit', () => { /* 观测只读，静默 */ });
+  }
   // 每日闲鱼擦亮（业务：曝光维护；一次/自然日，9 点后触发，标记文件防重启重复触发）
   if (new Date().getHours() >= 9 && polishDay !== todayStr() && readPolishMark() !== todayStr()) {
     polishDay = todayStr();
@@ -102,6 +108,7 @@ let lastHealthCheck = 0;
 let lastNetCheck = 0;
 let lastBackup = 0;
 let lastCostReport = 0;
+let lastObserve = 0;
 function runHealthCheck() {
   const child = spawn(NODE, ['scripts/health-check.js'], { cwd: ROOT, stdio: 'ignore' });
   child.on('exit', (code) => {
@@ -115,5 +122,5 @@ function runNetFix() {
   });
 }
 
-log('[monitor] 启动，每 30s 检查 server 存活；每 30min 健康检查；每 10min 网络自愈；每日备份/成本/闲鱼擦亮');
+log('[monitor] 启动，每 30s 检查 server 存活；每 30min 健康检查；每 10min 网络自愈；每 5min 实例观测；每日备份/成本/闲鱼擦亮');
 loop();

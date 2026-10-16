@@ -798,5 +798,7 @@ Session 锚点: 2026-10-17 (第122次 — 开源·擦亮助手: 网页无入口 
 - **用户补充 (测试作废)**: 用户发布时已顺手手动擦过 → 今天"3/3 SUCCESS 且无重复拒绝"说明不了问题（状态本就已擦亮）→ **用户决定从次日起不再手动擦亮，擦亮全权交我** → 真正验证 = 次日对未擦亮宝贝首擦应 SUCCESS、当天再擦应返回 `IDLEITEM_POLISH_AGAIN`（自证生效，不必依赖 App）
 - **每日机制 (全权负责→机制化)**: `xianyu-polish.js` 加 `--auto`（非交互：登录失效即跳过/不等待/不留窗口）；`monitor-server.js` 加**每日擦亮块**（一次/自然日、9 点后触发、标记文件 `logs/xianyu-polish.lastrun` 防重启重复触发，避免多次调用增风控面）；已重启 monitor 使新代码生效（心跳正常，当日未触发——未到 9 点）
 - **附带发现 (待办)**: 重启前发现**两个 monitor-server 进程**（重复）——keepalive 靠心跳(2min)判活，重复源自"心跳停但进程僵留"；安全根治需 pidfile 化（改保活脚本有风险，本次未动，留后续）
+- **观测先行 (用户同意, 只读)**: 因重复仅**观测到一次**（未证实复发），先"修可观测再谈根治"——新增 `scripts/monitor-observe.js`（只读：数 monitor 实例数 + 心跳年龄 → 追加 `logs/monitor-instances.jsonl`），由 `monitor-server` 每 5 min 调用（不建新计划任务、不改 keepalive）；已重启 monitor 生效（观测到 count=1, pid 26304）；跑几天确认是否复发再决定是否根治
+- **对"根治"的定性 (复盘)**: 本质 = 存活信号不权威（心跳 mtime 混淆"进程活/循环健康"）+ 恢复动作不幂等（盲 spawn、无互斥、无对账）→ 只能"至少一个"不能"恰好一个"；pidfile 只是机制之一（有 stale/PID 复用/原子写/进程枚举坑），真根治 = 权威单例 + 对账，且须先让决策逻辑可测
 - **验证**: 真实链路（登录→item.list→polish）+ 脚本 `node --check` + ESLint 0/0(--no-ignore) + 安全扫描 0 HIGH + **全量 280/13,082/0 无回归**
-- 相关文件: `scripts/xianyu-polish.js` (新, 后加 --auto), `scripts/monitor-server.js` (加每日擦亮块), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish）
+- 相关文件: `scripts/xianyu-polish.js` (新, 后加 --auto), `scripts/monitor-server.js` (加每日擦亮块 + 每5min观测), `scripts/monitor-observe.js` (新), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish；运维清单加 monitor-observe）
