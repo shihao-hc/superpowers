@@ -285,7 +285,10 @@ describe('Coverage gaps', () => {
     expect(sm.audit.logPath).toBe('./logs/audit.log');
     expect(sm.audit.maxFileSize).toBe(10 * 1024 * 1024);
     expect(sm.audit.maxEntries).toBe(10000);
-    try { fs.rmSync('./logs', { recursive: true, force: true }); } catch {}
+    // 只清理本测试可能造出的 audit.log，且仅在 logs 为空目录时才删除目录——
+    // 绝不用 rmSync('./logs', {recursive}) 递归删除：那会连项目真实日志（monitor.log/业务日志）一起清掉
+    try { fs.unlinkSync(path.join('logs', 'audit.log')); } catch {}
+    try { fs.rmdirSync(path.join('logs')); } catch { /* 目录非空（含真实日志）则保留 */ }
   });
 
   it('queries with default filter returns all entries', () => {

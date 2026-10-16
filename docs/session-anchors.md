@@ -802,3 +802,19 @@ Session 锚点: 2026-10-17 (第122次 — 开源·擦亮助手: 网页无入口 
 - **对"根治"的定性 (复盘)**: 本质 = 存活信号不权威（心跳 mtime 混淆"进程活/循环健康"）+ 恢复动作不幂等（盲 spawn、无互斥、无对账）→ 只能"至少一个"不能"恰好一个"；pidfile 只是机制之一（有 stale/PID 复用/原子写/进程枚举坑），真根治 = 权威单例 + 对账，且须先让决策逻辑可测
 - **验证**: 真实链路（登录→item.list→polish）+ 脚本 `node --check` + ESLint 0/0(--no-ignore) + 安全扫描 0 HIGH + **全量 280/13,082/0 无回归**
 - 相关文件: `scripts/xianyu-polish.js` (新, 后加 --auto), `scripts/monitor-server.js` (加每日擦亮块 + 每5min观测), `scripts/monitor-observe.js` (新), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish；运维清单加 monitor-observe）
+
+---
+
+Session 锚点: 2026-10-17 (第123次 — 核对: 重复 monitor + 闲鱼擦亮"生效自证")
+- **本次核对 + 一次接口探测 + 小改动**（改了 `xianyu-polish.js` → 已跑 ESLint --no-ignore 0/0 + **全量 280/13,082/0 无回归**）
+- **核对① 重复 monitor**: `logs/monitor-instances.jsonl` 现有 2 行均 `monitorCount:1`（pids 同 `[26304]`，心跳年龄 1s）；系统当前仅 1 个 monitor 进程（pid 26304）→ **暂未见复发**，但样本仅 2 条（观测窗口本轮才起）
+- **核对② 擦亮结果 (真跑, 复用登录态)**: 首擦 **3/3 SUCCESS**；**当天立即再擦也 3/3 SUCCESS**（无 `IDLEITEM_POLISH_AGAIN`）→ **用户假设"当天再擦应返回已擦亮过"不成立**；`verdict=already` 分支实际**永不触发** → **ret=SUCCESS ≠ 擦亮生效**，须 App 端核验（与上游 issue #328 一致，印证第122次诚实边界）
+- **找"擦亮状态"接口 (用户要求, 实地探测)**: ① `mtop.idle.web.xyh.item.list` 原始 JSON **无任何 polish 字段**；② 擦亮前后列表标签完全不变；③ 唯一像的 `mtop.taobao.idle.pc.detail`→`sellerDO.lastVisitTime`（值可为「刚刚擦亮」）—— 但**对照实验证伪**：擦 149 前/后均「43分钟前来过」不变，且 270 从「刚刚擦亮」退回「43分钟前来过」→ **卖家级活跃标签（外部文档确认是 seller_labels 之一），非逐宝贝擦亮时间，对重复擦亮不敏感 → 不能自证**；④ `xyh.item.list` 等手机端列表接口 = `FAIL_SYS_UNAUTHORIZED_ENTRANCE`（需 App 网关）；⑤ `itemDO.gmtCreate` = 发布时间非擦亮。**结论：web 侧无可用的"上次擦亮时间/状态"接口（印证 #328）** — 自证须 App
+- **小交付**: `xianyu-polish.js` 加只读 `--status`（读 `sellerDO.lastVisitTime`，**已在注释/输出中明确标注"卖家级、非逐宝贝擦亮时间、不可作生效判据"**，仅供多日观察，避免虚报）
+- **深挖 App 网关 (用户选方案1)**: `g-acs.m.goofish.com/gw/<api>/` 可达；协议头逐层解锁（`m-pv`→`m-appkey`→缺 `m-sign`→加 `m-sign` 后）→ 最终 `FAIL_SYS_REQUEST_EXPIRED::请求失效`（无 Set-Cookie 可刷新）；GET/POST/带不带 query sign 4 种形态均同错 → **App 接口需 App 端会话/设备签名，web cookie 授权不了**；再抓 PC 端网络（personal + item 详情页）确认网页客户端只调 `item.list/pc.detail/user.page.*/recommend/redpoint`，**无任何擦亮状态 API** → **web 凭证读不到擦亮状态，确认只能 App 核验**
+- **间接观察·曝光数据 (用户选方案2, 已机制化)**: 用曝光指标间接看擦亮效果——`xianyu-polish.js` 加只读 `--stats`（`pc.detail` 的 `browseCnt/wantCnt/collectCnt/favorCnt/soldCnt`）→ 追加 `logs/xianyu-stats.jsonl`；接入 `monitor-server` **每日 10 点**（9 点擦亮之后）自动快照（`logs/xianyu-stats.lastrun` 防重启重复触发）；已 `kill 26304 → 启动 26900` 重启生效（单实例、心跳正常、monitor.log 恢复）。**基线快照**：browse **10/8/6**，want/collect/favor/sold 全 **0**
+- **诚实边界 (方案2)**: 绝对值极小（3 宝贝共 24 浏览、其余全 0）→ 短观察期内信号≈噪声，**不能**据此下"擦亮有效/无效"结论；要**归因**擦亮需**设对照组**（部分宝贝停擦 1 周做 A/B），仅靠每日全擦+看总量无法分离因果
+- **决策 (用户授权"你决定吧")**: **暂不做 A/B**（3 宝贝一周共几浏览，判不出因果，且停擦白搭曝光成本）→ 保留每日曝光快照攒数据；`--stats` 加"较上次快照的浏览增量"输出，便于直接读趋势
+- **🔴 异常已破案 (日志"莫名消失")**: 根因 = **单元测试递归删真实日志目录**——`tests/unit/security-manager.test.js` 用 `fs.rmSync('./logs', {recursive:true})` 清场，**每次 `npm test` 都删掉项目 `logs/`**（monitor.log/业务 jsonl/观测史）→ 正是"日志消失""重复 monitor 观测窗口归零"的元凶（1:22 与 2:02 两次 = 上一轮与本轮跑测试；用户否认清理属实）。同根源：`audit-logger.test.js`/`core-audit-logger.test.js` 亦 rmSync 了 cwd 派生的 `.opencode/logs`。**已修 3 处**（只删自己新建的路径；对 cwd 派生共享目录先 `existsSync` 判断，本就存在则不动）；跑全量测试验证 `logs/` CreationTime **不再变**、280/13,082/0 无回归
+- **教训库 +2**: ① mistake/verification「mtop 写操作接口重复调用恒返回 SUCCESS，验证生效不能靠"重复调用被拒绝"，要靠独立可观测信号」② mistake/verification「单元测试 rmSync 递归删 cwd 派生的真实日志目录，静默清空生产日志、掩盖真相」；**AGENTS 8.3 加动作行「测试/脚本不碰真实数据」**
+- 相关文件: `scripts/xianyu-polish.js` (加 --status/--stats), `scripts/monitor-server.js` (加每日曝光快照), `tests/unit/{security-manager,audit-logger,core-audit-logger}.test.js` (修删除), `.opencode/lessons.json`, `AGENTS.md`, `docs/session-anchors.md`

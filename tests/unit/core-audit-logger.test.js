@@ -23,10 +23,12 @@ describe('src/core/AuditLogger', () => {
     });
 
     test('uses default logDir under cwd/.opencode when not provided', () => {
+      const defaultDir = path.join(process.cwd(), '.opencode', 'logs');
+      const existedBefore = fs.existsSync(defaultDir); // 已存在则全程不删，避免误删真实审计日志
       const defaultLogger = new AuditLogger();
       expect(defaultLogger._logDir).toContain('.opencode');
       expect(defaultLogger._maxDays).toBe(90);
-      try { fs.rmSync(defaultLogger._logDir, { recursive: true, force: true }); } catch (e) {}
+      if (!existedBefore) { try { fs.rmSync(defaultLogger._logDir, { recursive: true, force: true }); } catch (e) {} }
     });
 
     test('does not recreate dir when it already exists', () => {

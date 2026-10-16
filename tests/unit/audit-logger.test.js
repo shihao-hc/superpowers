@@ -295,13 +295,13 @@ describe('AuditLogger', () => {
 
     it('uses default options when called with no arguments', () => {
       const defaultDir = path.join(process.cwd(), '.opencode', 'logs');
-      try { fs.rmSync(defaultDir, { recursive: true, force: true }); } catch {}
+      const existedBefore = fs.existsSync(defaultDir); // 已存在（含真实审计日志）则全程不删，只清理本测试新建的
       const logger = new AuditLogger();
       expect(logger.logDir).toBe(defaultDir);
       expect(logger.maxLogSize).toBe(10 * 1024 * 1024);
       expect(logger.retentionDays).toBe(30);
       logger.shutdown();
-      try { fs.rmSync(defaultDir, { recursive: true, force: true }); } catch {}
+      if (!existedBefore) { try { fs.rmSync(defaultDir, { recursive: true, force: true }); } catch {} }
     });
 
     it('appends to existing log file under max size without rotation', () => {

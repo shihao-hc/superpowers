@@ -17,6 +17,11 @@
  *
  * 用法:
  *   node scripts/xianyu-polish.js --probe     只读：登录检测 + 拉取我的宝贝列表（打印原始结构）
+ *   node scripts/xianyu-polish.js --status    只读·调试：读每个宝贝详情页的卖家标签（mtop.taobao.idle.pc.detail → sellerDO.lastVisitTime，
+ *                                              可能是「刚刚擦亮」，也可能是「N分钟前来过」）——**卖家级、非逐宝贝擦亮时间、对重复擦亮不敏感，
+ *                                              不能作为「擦亮是否生效」的判据**（见 2026-10-17 验证：擦前/擦后读数不变）
+ *   node scripts/xianyu-polish.js --stats     只读：曝光/互动快照（pc.detail 的浏览/想要/收藏/成交数）→ 追加 logs/xianyu-stats.jsonl
+ *                                              （用于多日观察擦亮是否带来曝光变化——间接、非确定性的核验）
  *   node scripts/xianyu-polish.js --dry       预演：列出将擦亮的宝贝，不发请求
  *   node scripts/xianyu-polish.js             执行擦亮（每个宝贝一次，间隔 2.5s）
  *   node scripts/xianyu-polish.js --auto      非交互（供定时任务）：登录失效即跳过、不等待、不留窗口
@@ -156,6 +161,48 @@ async function fetchMyItems(page) {
   return { unb, r, items: extractItems(r.json) };
 }
 
+// 只读·调试：读某宝贝详情页的卖家标签（mtop.taobao.idle.pc.detail 的 sellerDO.lastVisitTime，
+// 值可能是「刚刚擦亮」或「N分钟前来过」——卖家级活跃标签，非该宝贝的擦亮时间，不可作生效判据）
+async function fetchPolishStatus(page, itemId) {
+  const r = await mtopRetry(page, { api: 'mtop.taobao.idle.pc.detail', version: '1.0', dataObj: { itemId }, spmCnt: 'a21ybx.item.0.0' });
+  const d = r && r.json && r.json.data;
+  if (d && d.sellerDO && d.sellerDO.lastVisitTime) { return d.sellerDO.lastVisitTime; }
+  return (r && r.json && r.json.ret && r.json.ret[0]) || (r && r.error ? `ERR:${r.error}` : '(未知)');
+}
+
+// 从 pc.detail 提曝光/互动指标（浏览/想要/收藏/成交）——用于间接观察擦亮效果
+function extractStats(detailData) {
+  const it = (detailData && detailData.itemDO) || {};
+  const g = (k) => (it[k] === undefined ? null : it[k]);
+  return { browseCnt: g('browseCnt'), wantCnt: g('wantCnt'), collectCnt: g('collectCnt'), favorCnt: g('favorCnt'), soldCnt: g('soldCnt'), interactFavorCnt: g('interactFavorCnt') };
+}
+async function fetchItemStats(page, itemId) {
+  const r = await mtopRetry(page, { api: 'mtop.taobao.idle.pc.detail', version: '1.0', dataObj: { itemId }, spmCnt: 'a21ybx.item.0.0' });
+  if (r && r.json && r.json.data) { return extractStats(r.json.data); }
+  return { error: (r && r.error) || (r && r.json && r.json.ret && r.json.ret[0]) || 'unknown' };
+}
+function appendStats(entry) {
+  try {
+    const dir = path.join(ROOT, 'logs');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, 'xianyu-stats.jsonl'), `${JSON.stringify({ ts: new Date().toISOString(), ...entry })}\n`);
+  } catch (e) { log(`(stats 写入失败: ${e.message})`); }
+}
+// 读 xianyu-stats.jsonl 里每个宝贝最近一条快照（用于算增量）
+function lastStatsByItem() {
+  const m = {};
+  try {
+    const f = path.join(ROOT, 'logs', 'xianyu-stats.jsonl');
+    if (fs.existsSync(f)) {
+      for (const ln of fs.readFileSync(f, 'utf8').split('\n')) {
+        if (!ln.trim()) { continue; }
+        try { const o = JSON.parse(ln); if (o.itemId && typeof o.browseCnt === 'number') { m[o.itemId] = o; } } catch (e) { /* 跳过坏行 */ }
+      }
+    }
+  } catch (e) { /* 无文件则视为首次，无基线 */ }
+  return m;
+}
+
 async function polishOne(page, itemId) {
   const r = await mtopRetry(page, {
     api: 'mtop.taobao.idle.item.polish', version: '2.0',
@@ -231,6 +278,29 @@ async function main() {
     if (has('probe')) {
       log('\n===== (--probe) 原始商品列表响应 =====');
       log(JSON.stringify(r.json, null, 2).slice(0, 4000));
+      return;
+    }
+    if (has('status')) {
+      log('\n===== (--status) 卖家标签 sellerDO.lastVisitTime（卖家级活跃标签，非逐宝贝擦亮时间；仅调试观察用）=====');
+      for (const it of items) {
+        const s = await fetchPolishStatus(page, it.itemId);
+        log(`  ${it.itemId}  ${it.title}  → ${s}`);
+        await sleep(800);
+      }
+      return;
+    }
+    if (has('stats')) {
+      log('\n===== (--stats) 曝光/互动快照（browse/want/collect/favor/sold）=====');
+      const prev = lastStatsByItem();
+      for (const it of items) {
+        const s = await fetchItemStats(page, it.itemId);
+        const p = prev[it.itemId];
+        const d = (p && typeof s.browseCnt === 'number') ? (s.browseCnt - p.browseCnt) : null;
+        const dTxt = d === null ? '（首次，无基线）' : `（较上次浏览 ${d >= 0 ? '+' : ''}${d}）`;
+        log(`  ${it.itemId}  ${it.title}  → ${JSON.stringify(s)} ${dTxt}`);
+        appendStats({ itemId: it.itemId, title: it.title, ...s });
+        await sleep(800);
+      }
       return;
     }
     if (!items.length) { log('⚠️ 未解析到宝贝（可能字段结构变化，用 --probe 看原始 JSON）'); return; }

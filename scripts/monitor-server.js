@@ -94,14 +94,27 @@ async function loop() {
     const child = spawn(NODE, ['scripts/xianyu-polish.js', '--auto'], { cwd: ROOT, stdio: 'ignore' });
     child.on('exit', (code) => log(`[polish] 闲鱼每日擦亮完成 exit=${code}`));
   }
+  // 每日闲鱼曝光快照（间接观察擦亮效果；一次/自然日，10 点后触发——在 9 点擦亮之后）
+  if (new Date().getHours() >= 10 && statsDay !== todayStr() && readStatsMark() !== todayStr()) {
+    statsDay = todayStr();
+    try { fs.writeFileSync(STATS_MARK, statsDay); } catch (e) { /* 标记失败则进程内 flag 兜底 */ }
+    log('[stats] 触发闲鱼曝光快照');
+    const child = spawn(NODE, ['scripts/xianyu-polish.js', '--stats'], { cwd: ROOT, stdio: 'ignore' });
+    child.on('exit', (code) => log(`[stats] 闲鱼曝光快照完成 exit=${code}`));
+  }
   setTimeout(loop, 30000);
 }
 
 const POLISH_MARK = path.join(ROOT, 'logs', 'xianyu-polish.lastrun');
+const STATS_MARK = path.join(ROOT, 'logs', 'xianyu-stats.lastrun');
 let polishDay = '';
+let statsDay = '';
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function readPolishMark() {
   try { return fs.existsSync(POLISH_MARK) ? fs.readFileSync(POLISH_MARK, 'utf8').trim() : ''; } catch (e) { return ''; }
+}
+function readStatsMark() {
+  try { return fs.existsSync(STATS_MARK) ? fs.readFileSync(STATS_MARK, 'utf8').trim() : ''; } catch (e) { return ''; }
 }
 
 let lastHealthCheck = 0;
@@ -122,5 +135,5 @@ function runNetFix() {
   });
 }
 
-log('[monitor] 启动，每 30s 检查 server 存活；每 30min 健康检查；每 10min 网络自愈；每 5min 实例观测；每日备份/成本/闲鱼擦亮');
+log('[monitor] 启动，每 30s 检查 server 存活；每 30min 健康检查；每 10min 网络自愈；每 5min 实例观测；每日备份/成本/闲鱼擦亮/曝光快照');
 loop();
