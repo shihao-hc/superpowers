@@ -682,3 +682,24 @@ Session 锚点: 2026-10-16 (第117次 — AGENTS.md 收纳整理 + 教训检索�
 - **验证**: 全量 280/13,082/0（确认两处代码改动无回归）+ 归档完整性复查（补 2 漏锚点）
 - **诚实边界**: 教训检索排序改动未加单测
 - 相关文件: `AGENTS.md`, `docs/session-anchors.md`, `src/core/LessonLibrary.js`
+
+---
+
+Session 锚点: 2026-10-16 (第118次 — token 节流: 量化工具 + 短会话纪律)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过
+- **背景 (token 入不敷出)**: deepseek v4 pro 约 150元/4天（≈1125元/月）；上轮结论「先节流（省钱）活下来，
+  再开源（变现）」；用户已换 **deepseek-v4.1-flash** + 新建会话（节流第一步）
+- **恢复上下文（新会话读不到上轮对话）**: 从 opencode 会话库（`D:\opencode-data\opencode\opencode.db`）
+  用 `node:sqlite` 只读恢复上轮「节流」讨论（会话 ses_ec063b276ffe「上次進度回顧」）——找到方案原文
+- **量出真实账（关键发现）**: 最贵两会话 = pro 马拉松 28.29（输入 68.9M）、flash 马拉松 10.84（输入 10.9M）；
+  而**短的 pro 会话仅 0.82** → **成本主因是「会话长度」，不是「模型」**（长会话每轮重发全部上下文，
+  输入 token 滚到千万级）
+- **构建 `scripts/cost-report.js`（提交见下）**: 读 opencode 库出报表（今日 / 近N天 / 按模型 / Top会话）；
+  选项 `--days` `--dir` `--json` `--log`；只读不写库；库路径可用 `OPENCODE_DB` 覆盖；
+  静音 node:sqlite 实验警告；缺库/占用/查询失败均友好报错
+- **固化机制**: AGENTS.md 动作清单加「**会话节流**」（一个会话做一件事，做完新开）；核心工具清单加 `cost-report`
+- **验证**: 真实运行（今日 10.91 / 合计 43.41 / Top 会话正确）+ 边界（db 缺失、`--dir`、`--json`、`--log` 均通）
+  + 全量测试 280/13,082/0 无回归
+- **诚实边界**: cost 单位为 opencode 记录值（随网关，可能美元/积分）；按会话最后活动日归日（近似）；
+  **开源（变现）未动**——瓶颈是「找到愿意付费的真实需求」，需真实探索 + 用户的经济身份，非我独自可完成
+- 相关文件: `scripts/cost-report.js` (新), `AGENTS.md`, `docs/session-anchors.md`
