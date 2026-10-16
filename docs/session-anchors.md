@@ -839,3 +839,19 @@ Session 锚点: 2026-10-17 (第124次 — 根治「重复 monitor」：keepalive
 - **备选方案取舍**: 未走"pidfile 单例"（pidfile 有 stale/PID 复用/原子写/进程枚举坑，且在"僵留"时自单例会误判存活而拒绝启动→反倒 0 健康实例）；选**对账**（权威枚举 + 纯决策 + 可注入执行器）更直接、可测、可模拟
 - **方法固化（用户补充教学）**: 用户提醒"之前只提醒你真实验证，忘了提醒你某些情况可**模拟真实环境**验证" → 固化：验证分层 **真实链路 > 受控环境模拟 > mock 单测**；真实难安全触发时用模拟（真实依赖 + 只隔离副作用），别停在"未验证/大差距 mock"。AGENTS 8.3 加动作行「真实难触发→模拟真实环境」+ 教训库记 success/verification 一条（并用本次模拟暴露"保留任一个"隐患为实证）
 - 相关文件: `scripts/monitor-instance.js` (新), `scripts/monitor-sim.js` (新), `scripts/keepalive.js` (改), `scripts/monitor-observe.js` (改), `tests/unit/monitor-instance.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`
+
+---
+
+Session 锚点: 2026-10-17 (第125次 — 自愈链故障演练：后手"建了≠可靠"，真杀真恢复验收)
+- Tests: **281 passed suites / 4 skipped / 0 failed** (13,099 passed / 46 skipped) 全量通过 | ESLint 0/0（含 --no-ignore）| 安全 0 HIGH | 教训库 68 条
+- **背景 (用户「下一步有什么想法」→ 交我全权判断)**: 数据支撑判断——节流✅(今日 cost 0.78)、运维✅(monitor count 恒 1)、开源⚠️(曝光 11/9/7 无转化、真人门槛)。选**先做「自愈链故障演练」**：后手(keepalive/monitor/net-fix/backup)是保命的，但"建了≠可靠"，从未被真实故障压测过（教训库已有"后手也要验证"）
+- **交付 `scripts/drill-selfheal.js`（把「模拟真实环境验证」制度化）**:
+  - 默认安全：A1 backup(备份+保留7+不误伤源)、A2 net-fix(可用/坏端口修回)、A3 monitor 对账真实进程模拟、A4 health-check
+  - `--live` 破坏性：B1 **真杀 monitor** → keepalive 重启（新 pid + 心跳恢复）；B2 **真杀 server** → monitor 重启
+- **演练结果（真杀真恢复，非 mock）**: 安全 **PASS 9/0**；`--live` **PASS 17/0** —— server 被杀后 **27s** 自愈（health 200，新 pid）；monitor 被杀后 keepalive 立即重启、心跳恢复。（注：工具壳在"杀进程"时报 "ChildProcess.kill" 误报，输出改落 `logs/drill-live.out` 证实 17/0）
+- **🔴 演练当场抓出并修 2 个真问题（5.3 发现即修复）**:
+  1. **监控"死但心跳仍新鲜"恢复被拖延**：对账逻辑原对 "0 进程 + 心跳新鲜" 判为"保守不动" → 若 monitor 刚死（心跳 <2min 阈值）→ keepalive 误以为正常 → 恢复被拖到心跳过期（最坏 ~7min）。**修正：无进程 = 死了 → 一律启动（不看心跳）**；心跳新鲜度仅在"有 1 个进程"时用于判断其是否健康
+  2. **backup 日志 off-by-one**：`共 8 份备份` 但实际 7 份（dest 已被 readdir 计入却又 +1）→ 改为 `保留 ${backups.length} 份`
+- **同类印证**: 演练本身即"真实难触发→模拟真实环境"动作清单的实践；B1 修正正说明"真实故障演练能暴露纯设计推演漏掉的 gap"
+- **诚实边界**: ① `--live` 会真杀生产 server/monitor（本次在低峰执行，靠自愈恢复；有 finally 兜底手动重启）；② A4 health-check 仅"跑完"，非通过项不在本演练范围（本次 exit=0）
+- 相关文件: `scripts/drill-selfheal.js` (新), `scripts/monitor-instance.js` (改: n=0 一律 spawn), `scripts/backup-core.js` (改: 日志), `tests/unit/monitor-instance.test.js` (改), `AGENTS.md`, `.opencode/lessons.json`

@@ -52,7 +52,7 @@ function main() {
     fs.rmSync(path.join(BACKUP_DIR, backups.shift()), { recursive: true, force: true });
   }
 
-  log(`备份 ${copied}/${CORE_FILES.length} 个核心文件 → ${path.basename(dest)}（共 ${backups.length + (copied ? 1 : 0)} 份备份）`);
+  log(`备份 ${copied}/${CORE_FILES.length} 个核心文件 → ${path.basename(dest)}（保留 ${backups.length} 份）`);
 }
 
 main();

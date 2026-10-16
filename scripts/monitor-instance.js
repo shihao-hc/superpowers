@@ -35,10 +35,11 @@ function decideMonitorAction({ heartbeatAgeMs, monitorPids, staleMs = STALE_MS }
   const n = pids.length;
   const stale = !Number.isFinite(heartbeatAgeMs) || heartbeatAgeMs >= staleMs;
 
+  // 无进程 = 监控确实死了（枚举成功且无匹配）→ 一律启动。
+  // 不看心跳新鲜度：进程已不在，心跳新旧都说明不了"活着"；否则"刚死+心跳仍新鲜(<2min)"会被误判为正常、
+  // 把恢复拖到心跳过期（最坏 ~7min）。心跳新鲜度只在"有 1 个进程"时用于判断该进程是否健康。
   if (n === 0) {
-    return stale
-      ? { action: 'spawn', killPids: [], spawn: true, reason: '无 monitor 进程且心跳过期 → 启动' }
-      : { action: 'ok', killPids: [], spawn: false, reason: '无进程但心跳新鲜（异常态，保守不动）' };
+    return { action: 'spawn', killPids: [], spawn: true, reason: '无 monitor 进程 → 启动' };
   }
   if (n === 1) {
     return stale

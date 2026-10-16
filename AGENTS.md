@@ -105,6 +105,9 @@
 > "任保留一个"）；进程枚举失败→不动作（不用不可信数据）。**纯决策** `decideMonitorAction` + **可注入 IO 执行器**
 > `reconcileMonitors` + 副作用（枚举/终止）在 `scripts/monitor-instance.js`（均可单测）；`scripts/monitor-sim.js`
 > 用**真实进程**（真起真杀）模拟验证；`keepalive.js --dry` 只打印决策不动作（真实环境核对用）。
+> **自愈链演练（2026-10-17）**：`node scripts/drill-selfheal.js [--live]` —— 对后手（keepalive/monitor/net-fix/backup）
+> 注入故障、断言**真能自愈**（"建了≠可靠"）。默认安全模式（只读/可恢复）；`--live` 真杀 server/monitor 验恢复
+> （实测杀死 server 后 **27s** 自愈、monitor 被杀经 keepalive 重启 + 心跳恢复）。
 
 > **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解

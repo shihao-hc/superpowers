@@ -12,9 +12,9 @@ describe('monitor-instance.decideMonitorAction', () => {
     expect(d.spawn).toBe(true);
   });
 
-  it('无进程 + 心跳新鲜 → 保守 ok（不启）', () => {
+  it('无进程（心跳新鲜也）→ spawn：进程不在就是死了，不看心跳', () => {
     const d = decideMonitorAction({ heartbeatAgeMs: 1000, monitorPids: [] });
-    expect(d).toMatchObject({ action: 'ok', spawn: false, killPids: [] });
+    expect(d).toMatchObject({ action: 'spawn', spawn: true, killPids: [] });
   });
 
   it('1 进程 + 心跳新鲜 → ok，不杀不启', () => {
