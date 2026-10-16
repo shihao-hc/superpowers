@@ -837,4 +837,5 @@ Session 锚点: 2026-10-17 (第124次 — 根治「重复 monitor」：keepalive
 - **其他真实验证**: ① `listMonitorPids()` 对真实系统返回 `[26900]`；② `keepalive.js --dry` 对真实系统 → 决策 `ok`（不杀不启）→ 落 keepalive.log；③ `killPids` 对真实临时 node 进程实测终止成功（Windows `SIGTERM` 生效）；④ 单测 **17 条**（决策 12 + 执行编排 5，IO 注入）；⑤ 全量 **281/13,099/0** 无回归；⑥ 跑全量测试后 `logs/` 未被清（第123修复保持有效）
 - **诚实边界**: ① 模拟用**注入 pid 列表**隔离（不真造"名为 monitor-server.js 的重复进程"——那会污染真实枚举、且真实 keepalive 可能误杀生产）→ 执行编排（真杀真起）+ 真实枚举（返回 `[26900]`）分别验证，组合成对账；② 场景6 的"多实例"是合成的（真 pid + 假想 pid），仅验决策不执行；③ 观测继续（monitor-observe 每 5min），真复发时可由 keepalive.log + monitor-instances.jsonl 对照
 - **备选方案取舍**: 未走"pidfile 单例"（pidfile 有 stale/PID 复用/原子写/进程枚举坑，且在"僵留"时自单例会误判存活而拒绝启动→反倒 0 健康实例）；选**对账**（权威枚举 + 纯决策 + 可注入执行器）更直接、可测、可模拟
+- **方法固化（用户补充教学）**: 用户提醒"之前只提醒你真实验证，忘了提醒你某些情况可**模拟真实环境**验证" → 固化：验证分层 **真实链路 > 受控环境模拟 > mock 单测**；真实难安全触发时用模拟（真实依赖 + 只隔离副作用），别停在"未验证/大差距 mock"。AGENTS 8.3 加动作行「真实难触发→模拟真实环境」+ 教训库记 success/verification 一条（并用本次模拟暴露"保留任一个"隐患为实证）
 - 相关文件: `scripts/monitor-instance.js` (新), `scripts/monitor-sim.js` (新), `scripts/keepalive.js` (改), `scripts/monitor-observe.js` (改), `tests/unit/monitor-instance.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`
