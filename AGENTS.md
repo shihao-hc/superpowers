@@ -46,7 +46,7 @@
 >
 > **核心工具清单（收纳——scripts/ 有 50+ 脚本，但真正日常该用的只有这 9 个，其余是测试/维护脚本不列入）**：
 > - 一等工具（已暴露进工具列表，直接调用）：`reverse`（逆向代码/网页/系统）、`browser_eye`（手眼看网页/图）、`lessons`（检索教训）
-> - 日常脚本：`health-check`（56 项健康检查）、`net-fix`（网络自愈）、`gh-readme`（GitHub README）、`leak-check`（信息泄露检测）、`cost-report`（opencode 成本报表/节流量化——今日/近7天/按模型/Top会话）
+> - 日常脚本：`health-check`（56 项健康检查）、`net-fix`（网络自愈）、`gh-readme`（GitHub README）、`leak-check`（信息泄露检测）、`cost-report`（opencode 成本报表/节流量化——今日/近7天/按模型/Top会话）、`xianyu-polish`（闲鱼每日擦亮·半自动，复用 `data/xianyu-profile` 登录态经 mtop 接口擦亮全部在架宝贝）
 > - 运维（monitor/keepalive 自动跑，不手动）：`backup-core`、`monitor-server`、`keepalive`
 >
 > **收纳规则（持续——2026-10-16 用户「不只现在理，以后有更多也要归纳好」教导）**：

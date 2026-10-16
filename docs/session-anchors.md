@@ -781,4 +781,19 @@ Session 锚点: 2026-10-17 (第121次 — 开源第二步: 曝光提升·多List
 - **真实链路验证**: `--probe` 确认登录态有效；B/C 两条真实填入→读回(首图/描述/价格/发货)→点发布→服务类目扫码桥接→人扫码发布；
   全程**真实闲鱼页面，非 mock**；改脚本后全量 280/13,082/0 无回归
 - 相关文件: `service/data-report/多Listing铺货.md` (新), `service/data-report/listings/*` (新),
-  `scripts/xianyu-covers.js` (新), `scripts/xianyu-fill-draft.js` (改, 加 --publish/--desc-file/展码), `service/data-report/cover/首图{B,C}-*.png` (新)
+   `scripts/xianyu-covers.js` (新), `scripts/xianyu-fill-draft.js` (改, 加 --publish/--desc-file/展码), `service/data-report/cover/首图{B,C}-*.png` (新)
+
+---
+
+Session 锚点: 2026-10-17 (第122次 — 开源·擦亮助手: 网页无入口 → 打通 mtop 擦亮接口)
+- Tests: **280 passed suites / 4 skipped / 0 failed** (13,082 passed / 46 skipped) 全量通过 | ESLint 0/0 (新脚本 --no-ignore)
+- **背景 (接上轮「多listing铺货」)**: 用户要「闲鱼每日擦亮半自动」——沿用 `scripts/xianyu-*.js` 模式 + 复用 `data/xianyu-profile` 登录态（人在场扫码）
+- **真机探索结论 (非推断, 复用登录态实跑)**: 闲鱼**网页版无「擦亮」**——`/personal` 只列宝贝、无任何管理/擦亮入口；`seller.goofish.com` = 禁止访问；`m.goofish.com` 连不上；`h5.m.goofish.com` 根路径 404；擦亮 UI 仅存在 App（我的→我发布的→一键擦亮宝贝）
+- **换思路 (网页缺功能→调底层接口)**: 擦亮底层是 mtop 接口 `mtop.taobao.idle.item.polish`（App 也用它）。脚本在 goofish 页面内 `fetch` → `h5api.m.goofish.com`（**同源带 cookie** + `sign=md5(token&t&appKey&data)`，`_m_h5_tk.split('_')[0]`），复用 profile 半自动擦亮
+- **交付 `scripts/xianyu-polish.js`**: `--probe`(只读: 登录检测+拉我的宝贝) / `--dry`(预演) / 默认(逐个擦亮, 间隔2.5s)；令牌过期用 Set-Cookie 自动重试一次；ret 分类 ok/already/delisted/risk/session/fail；结果落 `logs/xianyu-polish.jsonl`；有头浏览器（无头被风控拦）
+- **真实验证 (真实闲鱼页面, 非 mock)**: `mtop.idle.web.xyh.item.list` SUCCESS → 解析 3 个宝贝(含 itemId/标题/标签)；`mtop.taobao.idle.item.polish` **3/3 返回 `SUCCESS::调用成功`**
+- **🔴 诚实边界 (效果未验证, 不声称完成)**: 连调两次均返回 SUCCESS（**无 `IDLEITEM_POLISH_AGAIN` 重复拒绝**），但**网页侧状态/标签无任何变化**（"24小时内发布" 标签不变、详情无擦亮时间字段）→ 与上游 `zhinianboke/xianyu-auto-reply` **issue #328（返回成功但 App 未联动）完全一致** → 擦亮**是否真的提升曝光须在 App「我发布的」核验**，不以 ret=SUCCESS 声称生效
+- **发现即修复 (5.3)**: 探索时另建 `data/xianyu-profile-m`（含登录 Cookie），`.gitignore` 仅忽略 `data/xianyu-profile/` → 该兄弟目录显示 untracked、**险些提交 Cookie** → 删除 + `.gitignore` 改 `data/xianyu-profile*/` + `data/*-profile*/`（按模式而非固定名）
+- **教训库 +3**: ① success/tool「网页缺入口→调其底层 mtop 接口绕过 UI」② mistake/verification「ret=SUCCESS ≠ 效果生效，UI 缺入口的功能须可观测或人核验」③ mistake/ops「新建浏览器 profile 目录必须被 gitignore 覆盖」
+- **验证**: 真实链路（登录→item.list→polish）+ 脚本 `node --check` + ESLint 0/0(--no-ignore) + **全量 280/13,082/0 无回归**
+- 相关文件: `scripts/xianyu-polish.js` (新), `.gitignore`, `AGENTS.md`（核心工具清单加 xianyu-polish）

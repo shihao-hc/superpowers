@@ -79,4 +79,5 @@ screenshots/
 backup/
 
 # 浏览器登录态 profile（含 Cookie，绝不提交）
-data/xianyu-profile/
+data/xianyu-profile*/
+data/*-profile*/
