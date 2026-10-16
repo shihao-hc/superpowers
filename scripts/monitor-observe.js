@@ -8,25 +8,14 @@
  *
  * 用法: node scripts/monitor-observe.js
  */
-const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { listMonitorPids } = require('./monitor-instance');
 
 const ROOT = path.join(__dirname, '..');
 const LOG = path.join(ROOT, 'logs', 'monitor-instances.jsonl');
 const HEARTBEAT = path.join(ROOT, 'logs', 'monitor-heartbeat');
 const MAX_LINES = 20000;
-
-// 读进程用 execFileSync（参数数组，避开 shell 引号转义问题）
-function listMonitorPids() {
-  const ps = 'Get-CimInstance Win32_Process | Where-Object { $_.Name -eq \'node.exe\' -and $_.CommandLine -match \'monitor-server.js\' } | Select-Object -ExpandProperty ProcessId';
-  try {
-    const out = execFileSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8', timeout: 15000 });
-    return out.split(/\r?\n/).map((s) => s.trim()).filter((s) => /^\d+$/.test(s));
-  } catch (e) {
-    return { error: String(e.message).slice(0, 120) };
-  }
-}
 
 function heartbeatAgeSec() {
   try { return Math.round((Date.now() - parseInt(fs.readFileSync(HEARTBEAT, 'utf8'), 10)) / 1000); }

@@ -818,3 +818,20 @@ Session 锚点: 2026-10-17 (第123次 — 核对: 重复 monitor + 闲鱼擦亮"
 - **🔴 异常已破案 (日志"莫名消失")**: 根因 = **单元测试递归删真实日志目录**——`tests/unit/security-manager.test.js` 用 `fs.rmSync('./logs', {recursive:true})` 清场，**每次 `npm test` 都删掉项目 `logs/`**（monitor.log/业务 jsonl/观测史）→ 正是"日志消失""重复 monitor 观测窗口归零"的元凶（1:22 与 2:02 两次 = 上一轮与本轮跑测试；用户否认清理属实）。同根源：`audit-logger.test.js`/`core-audit-logger.test.js` 亦 rmSync 了 cwd 派生的 `.opencode/logs`。**已修 3 处**（只删自己新建的路径；对 cwd 派生共享目录先 `existsSync` 判断，本就存在则不动）；跑全量测试验证 `logs/` CreationTime **不再变**、280/13,082/0 无回归
 - **教训库 +2**: ① mistake/verification「mtop 写操作接口重复调用恒返回 SUCCESS，验证生效不能靠"重复调用被拒绝"，要靠独立可观测信号」② mistake/verification「单元测试 rmSync 递归删 cwd 派生的真实日志目录，静默清空生产日志、掩盖真相」；**AGENTS 8.3 加动作行「测试/脚本不碰真实数据」**
 - 相关文件: `scripts/xianyu-polish.js` (加 --status/--stats), `scripts/monitor-server.js` (加每日曝光快照), `tests/unit/{security-manager,audit-logger,core-audit-logger}.test.js` (修删除), `.opencode/lessons.json`, `AGENTS.md`, `docs/session-anchors.md`
+
+---
+
+Session 锚点: 2026-10-17 (第124次 — 根治「重复 monitor」：keepalive 对账化替换盲 spawn)
+- Tests: **281 passed suites / 4 skipped / 0 failed** (13,094 passed / 46 skipped, +12) 全量通过 | ESLint 0/0（含 --no-ignore 新/改脚本）| 安全 0 HIGH | 教训库 66 条
+- **背景 (用户「重复 monitor 根治（pidfile 化）留后续，交由你自行判断，我不做任何建议」)**: 上轮"观测先行"仅 3 样本均 count=1 未复发；但根因是**可证伪的设计缺陷**（keepalive 仅凭心跳新鲜度盲目 spawn、恢复非幂等 → 只能"至少一个"不能"恰好一个"）→ **不等复发，直接根治**（理由：等待复发不改变正确性论证，且修复干净可测）
+- **根治（对账 reconcile）**: 新建 `scripts/monitor-instance.js` —— **纯决策** `decideMonitorAction`（可单测）+ 副作用 `listMonitorPids`/`killPids` **分离**。目标恒为「恰好 1 个健康 monitor」：
+  - 0 进程 + 过期 → `spawn`；0 进程 + 新鲜 → 保守 `ok`（不动作，异常态）
+  - 1 进程 + 过期（僵留）→ `replace`（杀掉重建）；1 进程 + 新鲜 → `ok`
+  - ≥2 进程 + 新鲜（重复）→ `dedupe`（保留 1、杀多余）；≥2 进程 + 过期 → `replace`（全杀重建）
+  - **进程枚举失败（非数组）→ `unknown`：不杀不启**（不用不可信数据动作 = 安全护栏）
+- **keepalive.js 改造**: 用对账替换盲 spawn；清理旧 `start(script, out)` 未用参数（消除既有 lint warning）；加 `--dry`（只打印决策不动作，真实环境核对）
+- **同根源收口**: `monitor-observe.js` 复用 `monitor-instance.listMonitorPids`（删除其重复的 powershell 枚举，防两处漂移）
+- **真实验证（非 mock）**: ① `listMonitorPids()` 对真实系统返回 `[26900]`；② `keepalive.js --dry` 对真实系统 → 决策 `ok`（1 进程/心跳 9s，不杀不启）→ 落 keepalive.log 可查；③ `killPids` 对真实临时 node 进程实测**终止成功**（child exited、非 alive）→ 验证 Windows `SIGTERM` 生效；④ 单测 12 条覆盖全分支；⑤ 全量 281/13,094/0 无回归；⑥ 跑全量测试后 `logs/` **未被清**（第123修复保持有效）
+- **诚实边界**: ① **未在真实环境诱发"重复"后验证 dedupe/replace 的执行**（无法安全制造僵留）——决策逻辑靠纯函数单测覆盖，执行侧实测的是 `killPids` 的终止能力，二者组合成对账；② 观测继续（monitor-observe 仍每 5min 跑），后续真发生重复时可由 keepalive.log + monitor-instances.jsonl 对照验证去重
+- **备选方案取舍**: 未走"pidfile 单例"（pidfile 有 stale/PID 复用/原子写/进程枚举坑，且在"僵留"时自单例会误判存活而拒绝启动→反倒 0 健康实例）；选**对账**（权威枚举 + 纯决策）更直接、可测
+- 相关文件: `scripts/monitor-instance.js` (新), `scripts/keepalive.js` (改), `scripts/monitor-observe.js` (改), `tests/unit/monitor-instance.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`
