@@ -12,6 +12,10 @@ const express = require('express');
 const path = require('path');
 // 项目根（不依赖 cwd——server 可能被外部以非项目根 cwd 启动，曾致 scripts 保活链全断的同类根因）
 const PROJECT_ROOT = path.join(__dirname, '..');
+
+// 固定工作目录为项目根（下游 src/ 有 100+ 处 process.cwd() 依赖，随之全部正确；见 src/utils/pinCwd.js）
+// 必须在下方任何"加载期捕获 cwd"的 require 之前执行（EvolutionPersistence/LessonReminder 等模块级常量）
+require('../src/utils/pinCwd').pinCwd(PROJECT_ROOT);
 const http = require('http');
 const compression = require('compression');
 const helmet = require('helmet');

@@ -855,3 +855,17 @@ Session 锚点: 2026-10-17 (第125次 — 自愈链故障演练：后手"建了�
 - **同类印证**: 演练本身即"真实难触发→模拟真实环境"动作清单的实践；B1 修正正说明"真实故障演练能暴露纯设计推演漏掉的 gap"
 - **诚实边界**: ① `--live` 会真杀生产 server/monitor（本次在低峰执行，靠自愈恢复；有 finally 兜底手动重启）；② A4 health-check 仅"跑完"，非通过项不在本演练范围（本次 exit=0）
 - 相关文件: `scripts/drill-selfheal.js` (新), `scripts/monitor-instance.js` (改: n=0 一律 spawn), `scripts/backup-core.js` (改: 日志), `tests/unit/monitor-instance.test.js` (改), `AGENTS.md`, `.opencode/lessons.json`
+
+---
+
+Session 锚点: 2026-10-17 (第126次 — 收口 cwd 依赖技术债：入口 pinCwd 一锤定音)
+- Tests: **282 passed suites / 4 skipped / 0 failed** (13,103 passed / 46 skipped, +4) 全量通过 | ESLint 0/0 | 安全 0 HIGH | 教训库 69 条
+- **背景 (用户「继续交你判断」→ 按我原计划顺序 ②)**: anchor 114 遗留「`src/core` 下另一批 cwd 依赖未收口」
+- **侦察**: `src/` 有 **100+ 处** `process.cwd()`（server/ 已无；logger 亦 __dirname）→ 逐个改**不现实**，且与大量"chdir 到临时目录做隔离"的测试**冲突**（改了反而扩大风险）
+- **治本且轻量（单点杠杆）**: 新建 `src/utils/pinCwd.js`（ROOT 锚 `__dirname`）→ 在长驻入口最顶部一次性 `process.chdir(项目根)`：
+  - `server/index.js`：PROJECT_ROOT 定义后、**任何依赖 cwd 的 require 之前**调用 `pinCwd()`（EvolutionPersistence/LessonReminder 等是"加载期捕获 cwd"的模块级常量）
+  - `server/staticServer.js`：文件最顶部（含把 `dotenv` 改为显式 path 定位 `.env`）
+- **真实验证（非 mock）**: ① **债为真**：外部 cwd 下 `LessonLearner` 派生 `C:\...\Temp\.opencode\lessons.json` → `pinCwd()` 后变 `D:\龙虾\.opencode\lessons.json`（同 cwd、前后对照）；② **真实入口冒烟**：从外部 cwd 启动 `server/index.js`（PORT=3999）→ **health 200、外部目录零污染（.opencode/logs/data 均无）、无残留进程**；③ 单测 4 条（外部→项目根/幂等/ROOT 锚定/目标不存在安全返回）；④ 全量 **282/13,103/0** 无回归
+- **诚实边界**: pinCwd 只固定**长驻进程（server）**的 cwd；**未改 100+ 模块本身**（被当库以其他 cwd 使用时仍受 cwd 影响——刻意保留模块语义）；非 server 入口（CLI/`brain-entry`）未 pin（运行模型不涉及）
+- **方法沉淀**: 面对"同一根因散落多处"的债，找**单点杠杆**（系统边界/入口统一收口）胜过逐点修补；收口位置要"最早生效"（早于捕获该状态的代码）
+- 相关文件: `src/utils/pinCwd.js` (新), `server/index.js` (改), `server/staticServer.js` (改), `tests/unit/pin-cwd.test.js` (新), `AGENTS.md`, `.opencode/lessons.json`

@@ -1,4 +1,6 @@
-require('dotenv').config();
+// 固定工作目录为项目根（下游 src/ 有 process.cwd() 依赖；dotenv 亦默认从 cwd 找 .env）——见 src/utils/pinCwd.js
+require('../src/utils/pinCwd').pinCwd();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const express = require('express');
 const path = require('path');

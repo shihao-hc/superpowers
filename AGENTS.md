@@ -108,6 +108,11 @@
 > **自愈链演练（2026-10-17）**：`node scripts/drill-selfheal.js [--live]` —— 对后手（keepalive/monitor/net-fix/backup）
 > 注入故障、断言**真能自愈**（"建了≠可靠"）。默认安全模式（只读/可恢复）；`--live` 真杀 server/monitor 验恢复
 > （实测杀死 server 后 **27s** 自愈、monitor 被杀经 keepalive 重启 + 心跳恢复）。
+>
+> **cwd 依赖根因（2026-10-17 收口）**：`src/` 有 100+ 处用 `process.cwd()` 派生路径（逐个改不现实，
+> 且与大量"chdir 到临时目录隔离"的测试冲突）→ 在长驻入口（`server/index.js` / `staticServer.js`）**最顶部**
+> 用 `src/utils/pinCwd.js` **一次性把 cwd 钉到项目根**，下游随之全对（不改变模块本身语义，被当库以别的 cwd
+> 使用时不受影响）。scripts 侧（keepalive/monitor/backup）已用 `__dirname`。实证：外部 cwd 启动 server → health 200、外部目录零污染。
 
 > **手眼工具（接入 opencode，2026-09-18）**——我现在有"手"（浏览器操作）和"眼"（视觉理解）：
 > - `node scripts/browser-eye.js <url>` —— 打开网页 + 中文理解
